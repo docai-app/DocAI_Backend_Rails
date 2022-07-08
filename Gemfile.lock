@@ -66,6 +66,8 @@ GEM
       i18n (>= 1.6, < 2)
       minitest (>= 5.1)
       tzinfo (~> 2.0)
+    acts-as-taggable-on (9.0.1)
+      activerecord (>= 6.0, < 7.1)
     annotate (3.2.0)
       activerecord (>= 3.2, < 8.0)
       rake (>= 10.4, < 14.0)
@@ -217,6 +219,7 @@ PLATFORMS
   x86_64-darwin-21
 
 DEPENDENCIES
+  acts-as-taggable-on (~> 9.0)
   annotate
   better_errors
   bootsnap
