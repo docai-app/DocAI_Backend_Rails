@@ -1,0 +1,10 @@
+development:
+  adapter:  postgresql
+  host:     <%= ENV["DEV_DB_HOST"] %>
+  encoding: unicode
+  database: <%= ENV["DEV_DB"] %>
+  pool:     5
+  username: <%= ENV["DEV_DB_USERNAME"] %>
+  password: <%= ENV["DEV_DB_PASSWORD"] %>
+  sslmode: require
+  template: template0
