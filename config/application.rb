@@ -1,6 +1,7 @@
 require_relative "boot"
 
 require "rails/all"
+require 'dotenv/load'
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -10,6 +11,13 @@ module DocaiApi
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.0
+
+    # ActionDispatch::Request::Session::DisabledSessionError - Your application has sessions disabled
+    config.session_store :cookie_store, key: '_interslice_session'
+
+    # required for session management
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use config.session_store, config.session_options
 
     # Configuration for the application, engines, and railties goes here.
     #

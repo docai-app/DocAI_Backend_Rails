@@ -53,3 +53,6 @@ gem 'by_star'
 gem 'pg'
 gem 'annotate'
 gem 'dotenv'
+
+gem 'devise'
+gem 'devise-jwt'
