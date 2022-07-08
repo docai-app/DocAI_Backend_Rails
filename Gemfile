@@ -56,3 +56,4 @@ gem 'dotenv'
 
 gem 'devise'
 gem 'devise-jwt'
+gem 'rolify'

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_08_145818) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_08_153749) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -101,13 +101,23 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_08_145818) do
     t.index ["id"], name: "labels_id_key1", unique: true
   end
 
-  create_table "roles", id: :uuid, default: nil, force: :cascade do |t|
+  create_table "role", id: :uuid, default: nil, force: :cascade do |t|
     t.text "role", null: false
     t.text "description"
     t.datetime "updated_at", precision: nil, null: false
     t.datetime "created_at", precision: nil, null: false
     t.index ["id"], name: "roles_id_key", unique: true
     t.index ["id"], name: "roles_id_key1", unique: true
+  end
+
+  create_table "roles", force: :cascade do |t|
+    t.string "name"
+    t.string "resource_type"
+    t.bigint "resource_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name", "resource_type", "resource_id"], name: "index_roles_on_name_and_resource_type_and_resource_id"
+    t.index ["resource_type", "resource_id"], name: "index_roles_on_resource"
   end
 
   create_table "user", id: :uuid, default: nil, force: :cascade do |t|
@@ -134,6 +144,14 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_08_145818) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  create_table "users_roles", id: false, force: :cascade do |t|
+    t.bigint "user_id"
+    t.bigint "role_id"
+    t.index ["role_id"], name: "index_users_roles_on_role_id"
+    t.index ["user_id", "role_id"], name: "index_users_roles_on_user_id_and_role_id"
+    t.index ["user_id"], name: "index_users_roles_on_user_id"
+  end
+
   add_foreign_key "document_folder", "documents", name: "document_folder_document_id_fkey"
   add_foreign_key "document_folder", "folders", name: "document_folder_folder_id_fkey"
   add_foreign_key "documents", "labels", name: "documents_label_id_fkey"
@@ -141,5 +159,5 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_08_145818) do
   add_foreign_key "documents_approval", "documents", name: "documents_approval_document_id_fkey"
   add_foreign_key "forms_data", "documents", name: "forms_data_document_id_fkey"
   add_foreign_key "forms_data", "forms_schema", column: "schema_id", name: "forms_data_schema_id_fkey"
-  add_foreign_key "user", "roles", name: "users_role_id_fkey"
+  add_foreign_key "user", "role", name: "users_role_id_fkey"
 end
