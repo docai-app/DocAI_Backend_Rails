@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_09_040418) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -54,8 +54,10 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
     t.integer "approval_status", default: 0, null: false
     t.uuid "approval_user_id"
     t.datetime "approval_at"
+    t.uuid "folder_id"
     t.index ["approval_status"], name: "index_documents_on_approval_status"
     t.index ["approval_user_id"], name: "index_documents_on_approval_user_id"
+    t.index ["folder_id"], name: "index_documents_on_folder_id"
     t.index ["name"], name: "index_documents_on_name"
     t.index ["status"], name: "index_documents_on_status"
   end
@@ -72,13 +74,22 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
     t.index ["id"], name: "ix_documents_approval_id", unique: true
   end
 
-  create_table "folders", id: :uuid, default: nil, force: :cascade do |t|
-    t.text "name", null: false
-    t.text "description"
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "folders_id_key", unique: true
-    t.index ["id"], name: "folders_id_key1", unique: true
+  create_table "folder_hierarchies", id: false, force: :cascade do |t|
+    t.uuid "ancestor_id", null: false
+    t.uuid "descendant_id", null: false
+    t.integer "generations", null: false
+    t.index ["ancestor_id", "descendant_id", "generations"], name: "folder_anc_desc_idx", unique: true
+    t.index ["descendant_id"], name: "folder_desc_idx"
+  end
+
+  create_table "folders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name"
+    t.uuid "parent_id"
+    t.uuid "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["parent_id"], name: "index_folders_on_parent_id"
+    t.index ["user_id"], name: "index_folders_on_user_id"
   end
 
   create_table "forms_data", id: :uuid, default: nil, force: :cascade do |t|
@@ -126,10 +137,10 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
     t.index ["id"], name: "roles_id_key1", unique: true
   end
 
-  create_table "roles", force: :cascade do |t|
+  create_table "roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name"
     t.string "resource_type"
-    t.bigint "resource_id"
+    t.uuid "resource_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["name", "resource_type", "resource_id"], name: "index_roles_on_name_and_resource_type_and_resource_id"
@@ -187,13 +198,18 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
     t.datetime "remember_created_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["email"], name: "index_users_on_email", unique: true
+    t.string "name"
+    t.string "phone"
+    t.string "position"
+    t.date "date_of_birth"
+    t.integer "sex"
+    t.jsonb "profile"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   create_table "users_roles", id: false, force: :cascade do |t|
-    t.bigint "user_id"
-    t.bigint "role_id"
+    t.uuid "user_id"
+    t.uuid "role_id"
     t.index ["role_id"], name: "index_users_roles_on_role_id"
     t.index ["user_id", "role_id"], name: "index_users_roles_on_user_id_and_role_id"
     t.index ["user_id"], name: "index_users_roles_on_user_id"
@@ -201,9 +217,10 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
 
   add_foreign_key "document", "labels", name: "documents_label_id_fkey"
   add_foreign_key "document_folder", "document", name: "document_folder_document_id_fkey"
-  add_foreign_key "document_folder", "folders", name: "document_folder_folder_id_fkey"
+  add_foreign_key "documents", "folders"
   add_foreign_key "documents_approval", "\"user\"", column: "approved_by", name: "documents_approval_approved_by_fkey"
   add_foreign_key "documents_approval", "document", name: "documents_approval_document_id_fkey"
+  add_foreign_key "folders", "users"
   add_foreign_key "forms_data", "document", name: "forms_data_document_id_fkey"
   add_foreign_key "forms_data", "forms_schema", column: "schema_id", name: "forms_data_schema_id_fkey"
   add_foreign_key "taggings", "tags"

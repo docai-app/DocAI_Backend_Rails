@@ -47,3 +47,23 @@ Document.waiting_approve => [docs]
 Document.approved => [docs]
 
 User.last.approval_documents == Document.approved.where(approval_user: User.last)
+
+### Folder 和 權限
+staff_department_head = User.find_or_create_by(name: "人事部主管")
+staff = User.find_or_create_by(name: "只讀員工")
+
+big_folder = Folder.find_or_create_by(name: "人事部", user: staff_department_head)
+
+* 用戶冇權限讀取讀資料夾
+staff.has_role? :r, big_folder #=> false
+staff_department_head.has_role? :w, big_folder #=> true
+
+sick_leave_folder = Folder.find_or_create_by(name: "請假紙", user: staff_department_head)
+big_folder.children << sick_leave_folder
+
+salary_folder = big_folder.children.create name: "糧單", user: staff_department_head
+
+big_folder.children
+
+
+

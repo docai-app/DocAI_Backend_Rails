@@ -10,6 +10,12 @@
 #  remember_created_at    :datetime
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
+#  name                   :string
+#  phone                  :string
+#  position               :string
+#  date_of_birth          :date
+#  sex                    :integer
+#  profile                :jsonb
 #
 
 # This model initially had no columns defined. If you add columns to the

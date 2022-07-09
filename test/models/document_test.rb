@@ -12,6 +12,7 @@
 #  approval_status  :integer          default("awaiting"), not null
 #  approval_user_id :uuid
 #  approval_at      :datetime
+#  folder_id        :uuid
 #
 require "test_helper"
 
