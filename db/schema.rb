@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_08_161316) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_09_004528) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -51,6 +51,11 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_08_161316) do
     t.integer "status", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "approval_status", default: 0, null: false
+    t.uuid "approval_user_id"
+    t.datetime "approval_at"
+    t.index ["approval_status"], name: "index_documents_on_approval_status"
+    t.index ["approval_user_id"], name: "index_documents_on_approval_user_id"
     t.index ["name"], name: "index_documents_on_name"
     t.index ["status"], name: "index_documents_on_status"
   end

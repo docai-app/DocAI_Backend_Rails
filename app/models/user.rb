@@ -21,4 +21,14 @@ class User < ApplicationRecord
          :jwt_authenticatable,
          :registerable,
          jwt_revocation_strategy: JwtDenylist
+
+  has_many :approval_documents, class_name: 'Document', foreign_key: "approval_user_id"
+
+  '''如果需要 default 角色'''
+  # after_create :assign_default_role
+  # def assign_default_role
+  #   add_role(:user) if roles.blank?
+  # end
+
+
 end

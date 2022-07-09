@@ -13,6 +13,9 @@ Rails.application.routes.draw do
     namespace :v1 do
       resource :documents do
         get ':id', to: 'documents#show'
+        member do
+          post ':id/approval', to: 'documents#approval'
+        end
       end
     end
   end

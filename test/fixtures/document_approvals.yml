@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  document: one
+  user: one
+  status: 1
+  remark: MyString
+
+two:
+  document: two
+  user: two
+  status: 1
+  remark: MyString

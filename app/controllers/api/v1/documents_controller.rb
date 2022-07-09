@@ -1,6 +1,9 @@
 class Api::V1::DocumentsController < ApiController
 
-  before_action :set_document, only: [:show, :update, :destroy]
+  before_action :set_document, only: [:show, :update, :destroy, :approval]
+
+  before_action :authenticate_user!, only: [:approval]
+
 
   def index
   end
@@ -22,6 +25,18 @@ class Api::V1::DocumentsController < ApiController
   end
 
   def update
+  end
+
+  def approval
+    # binding.pry
+    @document.approval_user = current_user
+    @document.approval_at = DateTime.current
+    @document.approval_status = params["status"]
+    if @document.save
+      render :show
+    else
+      json_fail("Document approval failed")
+    end
   end
 
   private
