@@ -6,10 +6,32 @@ class Api::V1::DocumentsController < ApiController
 
 
   def index
+    @documents = Document.all
   end
 
+  # Show document by id
   def show
-    @document = Document.first
+    @document = Document.find(params[:id])
+    render json: {success: true, document: @document}, status: :ok
+  end
+
+  # Show documents by name like name param
+  def show_by_name
+    @document = Document.where("name like ?", "%#{params[:name]}%")
+    render json: {success: true, documents: @document}, status: :ok
+  end
+
+  # Show documents by content like content param
+  def show_by_content
+    @document = Document.where("content like ?", "%#{params[:content]}%")
+    render json: {success: true, documents: @document}, status: :ok
+  end
+
+  # Show documents by ActsAsTaggableOn tag id
+  def show_by_tag
+    tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
+    @document = Document.tagged_with(tag)
+    render json: {success: true, documents: @document}, status: :ok
   end
 
   def create
@@ -37,6 +59,11 @@ class Api::V1::DocumentsController < ApiController
     else
       json_fail("Document approval failed")
     end
+  end
+
+  def tags
+    @tags = Documents.all_tags
+    render json: @tags
   end
 
   private

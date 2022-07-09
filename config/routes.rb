@@ -11,12 +11,28 @@ Rails.application.routes.draw do
 
   namespace :api, :defaults => { :format => :json } do
     namespace :v1 do
+      # Documents API
       resource :documents do
         get ':id', to: 'documents#show'
+        # Show documents by tag id
+        get 'tags/:tag_id', to: 'documents#show_by_tag'
         member do
           post ':id/approval', to: 'documents#approval'
         end
       end
+
+      # Search API
+      # Search documents by name like name param
+      get 'search/documents/name', to: 'documents#show_by_name'
+
+      # Search documents by content like content param
+      get 'search/documents/content', to: 'documents#show_by_content'
+
+      # Tags API
+      get 'tags', to: 'tags#index'
+      get 'tags/:id', to: 'tags#show'
+      post 'tags', to: 'tags#create'
+      put 'tags/:id', to: 'tags#update'
     end
   end
 end
