@@ -35,6 +35,11 @@ Rails.application.routes.draw do
 
       # # **********Storage API**********
       # post "storage/upload", to: "storage#upload"
+
+      # **********FormSchema API**********
+      get "form/schemas", to: "form_schema#index"
+      get "form/schemas/:id", to: "form_schema#show"
+      get "form/schemas/name/:name", to: "form_schema#show_by_name"
     end
   end
 end

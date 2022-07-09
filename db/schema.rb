@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_09_165312) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_09_174341) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -92,6 +92,16 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_165312) do
     t.index ["user_id"], name: "index_folders_on_user_id"
   end
 
+  create_table "form_datum", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "document_id"
+    t.uuid "form_schema_id"
+    t.jsonb "data", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["document_id"], name: "index_form_datum_on_document_id"
+    t.index ["form_schema_id"], name: "index_form_datum_on_form_schema_id"
+  end
+
   create_table "form_schemas", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name"
     t.json "form_schema", default: {}
@@ -103,7 +113,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_165312) do
     t.index ["name"], name: "index_form_schemas_on_name"
   end
 
-  create_table "forms_data", id: :uuid, default: nil, force: :cascade do |t|
+  create_table "forms_data_old", id: :uuid, default: nil, force: :cascade do |t|
     t.uuid "document_id", null: false
     t.uuid "schema_id", null: false
     t.jsonb "data", null: false
@@ -221,8 +231,8 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_165312) do
   add_foreign_key "documents_approval", "\"user\"", column: "approved_by", name: "documents_approval_approved_by_fkey"
   add_foreign_key "documents_approval", "document", name: "documents_approval_document_id_fkey"
   add_foreign_key "folders", "users"
-  add_foreign_key "forms_data", "document", name: "forms_data_document_id_fkey"
-  add_foreign_key "forms_data", "forms_schema_old", column: "schema_id", name: "forms_data_schema_id_fkey"
+  add_foreign_key "forms_data_old", "document", name: "forms_data_document_id_fkey"
+  add_foreign_key "forms_data_old", "forms_schema_old", column: "schema_id", name: "forms_data_schema_id_fkey"
   add_foreign_key "taggings", "tags"
   add_foreign_key "user", "role", name: "users_role_id_fkey"
 end

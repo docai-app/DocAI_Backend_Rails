@@ -19,7 +19,7 @@ class Document < ApplicationRecord
   enum status: [:pending, :uploaded, :confirmed]
   enum approval_status: [:awaiting, :rejected, :approved]
 
-  belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id"
+  belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id" 
 
   scope :waiting_approve, lambda { |b|
     where("documents.approval_at is null")
