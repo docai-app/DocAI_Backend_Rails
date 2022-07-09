@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_09_174341) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_09_194337) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -22,16 +22,18 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_174341) do
   create_table "alembic_version", primary_key: "version_num", id: { type: :string, limit: 32 }, force: :cascade do |t|
   end
 
-  create_table "document", id: :uuid, default: nil, force: :cascade do |t|
-    t.text "name", null: false
-    t.integer "label_id"
-    t.text "storage_url", null: false
-    t.text "content"
-    t.enum "status", null: false, enum_type: "document_status_enum"
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "ix_documents_id", unique: true
-    t.index ["label_id"], name: "ix_documents_label_id"
+  create_table "document_approvals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "document_id"
+    t.uuid "form_data_id"
+    t.uuid "approval_user_id"
+    t.string "approval_status", default: "0", null: false
+    t.string "integer", default: "0", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approval_status"], name: "index_document_approvals_on_approval_status"
+    t.index ["approval_user_id"], name: "index_document_approvals_on_approval_user_id"
+    t.index ["document_id"], name: "index_document_approvals_on_document_id"
+    t.index ["form_data_id"], name: "index_document_approvals_on_form_data_id"
   end
 
   create_table "document_folder", id: :uuid, default: nil, force: :cascade do |t|
@@ -42,6 +44,18 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_174341) do
     t.index ["document_id"], name: "ix_document_folder_document_id"
     t.index ["folder_id"], name: "ix_document_folder_folder_id"
     t.index ["id"], name: "ix_document_folder_id", unique: true
+  end
+
+  create_table "document_old", id: :uuid, default: nil, force: :cascade do |t|
+    t.text "name", null: false
+    t.integer "label_id"
+    t.text "storage_url", null: false
+    t.text "content"
+    t.enum "status", null: false, enum_type: "document_status_enum"
+    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.index ["id"], name: "ix_documents_id", unique: true
+    t.index ["label_id"], name: "ix_documents_label_id"
   end
 
   create_table "documents", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -62,7 +76,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_174341) do
     t.index ["status"], name: "index_documents_on_status"
   end
 
-  create_table "documents_approval", id: :uuid, default: nil, force: :cascade do |t|
+  create_table "documents_approval_old", id: :uuid, default: nil, force: :cascade do |t|
     t.uuid "document_id", null: false
     t.uuid "approved_by", null: false
     t.enum "status", null: false, enum_type: "document_approval_status_enum"
@@ -225,13 +239,13 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_174341) do
     t.index ["user_id"], name: "index_users_roles_on_user_id"
   end
 
-  add_foreign_key "document", "labels", name: "documents_label_id_fkey"
-  add_foreign_key "document_folder", "document", name: "document_folder_document_id_fkey"
+  add_foreign_key "document_folder", "document_old", column: "document_id", name: "document_folder_document_id_fkey"
+  add_foreign_key "document_old", "labels", name: "documents_label_id_fkey"
   add_foreign_key "documents", "folders"
-  add_foreign_key "documents_approval", "\"user\"", column: "approved_by", name: "documents_approval_approved_by_fkey"
-  add_foreign_key "documents_approval", "document", name: "documents_approval_document_id_fkey"
+  add_foreign_key "documents_approval_old", "\"user\"", column: "approved_by", name: "documents_approval_approved_by_fkey"
+  add_foreign_key "documents_approval_old", "document_old", column: "document_id", name: "documents_approval_document_id_fkey"
   add_foreign_key "folders", "users"
-  add_foreign_key "forms_data_old", "document", name: "forms_data_document_id_fkey"
+  add_foreign_key "forms_data_old", "document_old", column: "document_id", name: "forms_data_document_id_fkey"
   add_foreign_key "forms_data_old", "forms_schema_old", column: "schema_id", name: "forms_data_schema_id_fkey"
   add_foreign_key "taggings", "tags"
   add_foreign_key "user", "role", name: "users_role_id_fkey"
