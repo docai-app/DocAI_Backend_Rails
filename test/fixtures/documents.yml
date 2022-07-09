@@ -1,0 +1,24 @@
+# == Schema Information
+#
+# Table name: documents
+#
+#  id          :uuid             not null, primary key
+#  name        :string
+#  storage_url :string
+#  content     :text
+#  status      :integer          default("pending"), not null
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#
+
+one:
+  name: MyString
+  storage_url: MyString
+  content: MyText
+  status: 1
+
+two:
+  name: MyString
+  storage_url: MyString
+  content: MyText
+  status: 1
