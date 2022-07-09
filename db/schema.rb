@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_09_040418) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_09_165312) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -92,6 +92,17 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_040418) do
     t.index ["user_id"], name: "index_folders_on_user_id"
   end
 
+  create_table "form_schemas", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name"
+    t.json "form_schema", default: {}
+    t.json "ui_schema", default: {}
+    t.jsonb "data_schema", default: {}
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_form_schemas_on_name"
+  end
+
   create_table "forms_data", id: :uuid, default: nil, force: :cascade do |t|
     t.uuid "document_id", null: false
     t.uuid "schema_id", null: false
@@ -103,7 +114,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_040418) do
     t.index ["schema_id"], name: "ix_forms_data_schema_id"
   end
 
-  create_table "forms_schema", id: :uuid, default: nil, force: :cascade do |t|
+  create_table "forms_schema_old", id: :uuid, default: nil, force: :cascade do |t|
     t.text "name", null: false
     t.json "form_schema", null: false
     t.json "ui_schema", null: false
@@ -211,7 +222,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_040418) do
   add_foreign_key "documents_approval", "document", name: "documents_approval_document_id_fkey"
   add_foreign_key "folders", "users"
   add_foreign_key "forms_data", "document", name: "forms_data_document_id_fkey"
-  add_foreign_key "forms_data", "forms_schema", column: "schema_id", name: "forms_data_schema_id_fkey"
+  add_foreign_key "forms_data", "forms_schema_old", column: "schema_id", name: "forms_data_schema_id_fkey"
   add_foreign_key "taggings", "tags"
   add_foreign_key "user", "role", name: "users_role_id_fkey"
 end

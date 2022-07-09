@@ -1,9 +1,7 @@
 class Api::V1::DocumentsController < ApiController
-
   before_action :set_document, only: [:show, :update, :destroy, :approval]
 
   before_action :authenticate_user!, only: [:approval]
-
 
   def index
     @documents = Document.all
@@ -12,26 +10,26 @@ class Api::V1::DocumentsController < ApiController
   # Show document by id
   def show
     @document = Document.find(params[:id])
-    render json: {success: true, document: @document}, status: :ok
+    render json: { success: true, document: @document }, status: :ok
   end
 
   # Show documents by name like name param
   def show_by_name
     @document = Document.where("name like ?", "%#{params[:name]}%")
-    render json: {success: true, documents: @document}, status: :ok
+    render json: { success: true, documents: @document }, status: :ok
   end
 
   # Show documents by content like content param
   def show_by_content
     @document = Document.where("content like ?", "%#{params[:content]}%")
-    render json: {success: true, documents: @document}, status: :ok
+    render json: { success: true, documents: @document }, status: :ok
   end
 
   # Show documents by ActsAsTaggableOn tag id
   def show_by_tag
     tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
     @document = Document.tagged_with(tag)
-    render json: {success: true, documents: @document}, status: :ok
+    render json: { success: true, documents: @document }, status: :ok
   end
 
   def create
@@ -39,7 +37,7 @@ class Api::V1::DocumentsController < ApiController
     if @document.save
       render :show
     else
-      render json: {success: false}, status: :unprocessable_entity
+      render json: { success: false }, status: :unprocessable_entity
     end
   end
 
@@ -75,5 +73,4 @@ class Api::V1::DocumentsController < ApiController
   def document_params
     params.require(:document).permit(:name, :storage_url, :content, :status)
   end
-
 end

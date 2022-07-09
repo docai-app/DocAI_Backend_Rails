@@ -1,0 +1,2 @@
+class FormSchema < ApplicationRecord
+end
