@@ -1,0 +1,15 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+    restart: always
+    ports:
+      - "3000:9292"
+    command: bundle exec puma -e production -C config/puma.rb
+  # worker:
+  #   build: .
+  #   command: bundle exec sidekiq -e production -c 5 -C config/sidekiq.yml
+  #   env_file: .env
+  #   environment:
+  #     RAILS_ENV: production
