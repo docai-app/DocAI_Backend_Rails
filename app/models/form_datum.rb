@@ -13,4 +13,6 @@ class FormDatum < ApplicationRecord
     self.table_name = "form_datum"
     belongs_to :form_schema, optional: true, class_name: "FormSchema", foreign_key: "form_schema_id"
     belongs_to :document, optional: true, class_name: "Document", foreign_key: "document_id"
+    # has_one :document, class_name: "Document", foreign_key: "document_id"
+    # has_one :form_schema, class_name: "FormSchema", foreign_key: "form_schema_id"
 end
