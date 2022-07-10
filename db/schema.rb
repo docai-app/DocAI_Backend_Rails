@@ -27,6 +27,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_194337) do
     t.uuid "form_data_id"
     t.uuid "approval_user_id"
     t.integer "approval_status", default: 0, null: false
+    t.text "remark"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["approval_status"], name: "index_document_approvals_on_approval_status"
