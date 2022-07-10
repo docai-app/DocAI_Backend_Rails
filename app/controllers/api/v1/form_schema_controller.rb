@@ -1,4 +1,4 @@
-class Api::V1::FormSchemaController < ApplicationController
+class Api::V1::FormSchemaController < ApiController
     def index
         @form_schemas = FormSchema.all
         render json: { success: true, form_schemas: @document }, status: :ok 

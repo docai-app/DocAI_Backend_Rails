@@ -1,4 +1,4 @@
-class Api::V1::TagsController < ApplicationController
+class Api::V1::TagsController < ApiController
   # Show all tags
   def index
     @tags = ActsAsTaggableOn::Tag.all

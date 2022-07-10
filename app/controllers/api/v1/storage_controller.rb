@@ -1,2 +1,2 @@
-class Api::V1::StorageController < ApplicationController
+class Api::V1::StorageController < ApiController
 end

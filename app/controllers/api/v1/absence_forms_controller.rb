@@ -1,4 +1,6 @@
 class Api::V1::AbsenceFormsController < ApiController
+    before_action :authenticate_user!
+
     # Show absence by approval status where form_schema is absence form
     def show_by_approval_status
         @absence_forms = DocumentApproval.where(approval_status: params[:status]).where(form_data_id: FormDatum.where(form_schema_id: FormSchema.where(name: "請假表").first.id))
