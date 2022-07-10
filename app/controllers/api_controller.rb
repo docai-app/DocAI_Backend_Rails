@@ -4,6 +4,12 @@ class ApiController < ActionController::Base
   # 我平時係呢句
   # protect_from_forgery with: :null_session
 
+  # def require_admin
+  #   return current_user.has_role? :admin
+
+  #   return :user_not_authorized
+  # end
+
   def render_error(exception = nil)
     @status_code = params[:code] || 400 #ActionDispatch::ExceptionWrapper.new(env, exception).status_code
     render :json => { success: false, erorr: exception.message, status: @status_code }

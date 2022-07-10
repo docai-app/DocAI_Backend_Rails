@@ -4,7 +4,7 @@ class CreateDocumentApprovalsTable < ActiveRecord::Migration[7.0]
       t.uuid :document_id
       t.uuid :form_data_id
       t.uuid :approval_user_id
-      t.string :approval_status, :integer, null: false, default: 0
+      t.integer :approval_status, null: false, default: 0
       t.timestamps
     end
     add_index :document_approvals, :document_id

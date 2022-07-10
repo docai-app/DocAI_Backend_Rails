@@ -2,6 +2,7 @@ class Api::V1::DocumentsController < ApiController
   before_action :set_document, only: [:show, :update, :destroy, :approval]
 
   before_action :authenticate_user!, only: [:approval]
+  # before_action :require_admin, only: []
 
   def index
     @documents = Document.all

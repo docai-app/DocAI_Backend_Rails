@@ -1,3 +1,15 @@
+# == Schema Information
+#
+# Table name: document_approvals
+#
+#  id               :uuid             not null, primary key
+#  document_id      :uuid
+#  form_data_id     :uuid
+#  approval_user_id :uuid
+#  approval_status  :integer          default(0), not null
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#
 class DocumentApproval < ApplicationRecord
   belongs_to :document, optional: true, class_name: "Document", foreign_key: "document_id"
   belongs_to :form_data, optional: true, class_name: "FormData", foreign_key: "form_data_id"

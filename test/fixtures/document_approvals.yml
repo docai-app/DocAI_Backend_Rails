@@ -1,4 +1,15 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: document_approvals
+#
+#  id               :uuid             not null, primary key
+#  document_id      :uuid
+#  form_data_id     :uuid
+#  approval_user_id :uuid
+#  approval_status  :integer          default(0), not null
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#
 
 one:
   document: one

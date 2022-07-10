@@ -15,6 +15,7 @@
 #  folder_id        :uuid
 #
 class Document < ApplicationRecord
+  resourcify
   acts_as_taggable_on :labels
   enum status: [:pending, :uploaded, :confirmed]
   enum approval_status: [:awaiting, :rejected, :approved]

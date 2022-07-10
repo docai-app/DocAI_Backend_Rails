@@ -48,12 +48,11 @@ group :development do
   gem 'pry-byebug'
 end
 
-
-gem 'by_star'
 gem 'pg'
-gem 'annotate'
 gem 'dotenv'
 
+gem 'by_star'
+gem 'annotate'
 gem 'devise'
 gem 'devise-jwt'
 gem 'rolify'

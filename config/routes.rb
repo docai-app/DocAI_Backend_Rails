@@ -1,3 +1,6 @@
+# == Route Map
+#
+
 Rails.application.routes.draw do
   devise_for :users,
              controllers: {
@@ -40,6 +43,9 @@ Rails.application.routes.draw do
       get "form/schemas", to: "form_schema#index"
       get "form/schemas/:id", to: "form_schema#show"
       get "form/schemas/name/:name", to: "form_schema#show_by_name"
+
+      # **********AbsenceeForm API**********
+      get "form/absence/approval", to: "absence_forms#show_by_approval_status"
     end
   end
 end
