@@ -31,6 +31,8 @@ Rails.application.routes.draw do
       get "search/documents/content", to: "documents#show_by_content"
       # Search form data by form schema name and date
       get "search/form/:name/:date", to: "form_datum#show_by_form_name_and_date"
+      # Search form data by date
+      get "search/form/:date", to: "form_datum#show_by_date"
 
       # **********Tags API**********
       get "tags", to: "tags#index"
