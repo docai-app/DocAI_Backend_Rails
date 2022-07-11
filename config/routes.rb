@@ -41,7 +41,8 @@ Rails.application.routes.draw do
       put "tags/:id", to: "tags#update"
 
       # # **********Storage API**********
-      # post "storage/upload", to: "storage#upload"
+      post "storage/upload", to: "storage#upload"
+
 
       # **********FormSchema API**********
       get "form/schemas", to: "form_schema#index"
@@ -50,6 +51,7 @@ Rails.application.routes.draw do
 
       # **********AbsenceeForm API**********
       get "form/absence/approval", to: "absence_forms#show_by_approval_status"
+      get "form/absence/approval/:id", to: "absence_forms#show_by_approval_id"
     end
   end
 end
