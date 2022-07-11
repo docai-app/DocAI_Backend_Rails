@@ -11,6 +11,7 @@ class Api::V1::ClassificationsController < ApiController
     puts params[:id], params[:label]
     @document = Document.find(params[:id])
     @document.label_ids = params[:label]
+    @document.status = 2
     res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: params[:id], label: params[:label] }
     if @document.save
       render json: { success: true, document: @document }, status: :ok
