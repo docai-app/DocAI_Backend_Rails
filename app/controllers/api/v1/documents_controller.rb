@@ -34,6 +34,7 @@ class Api::V1::DocumentsController < ApiController
   end
 
   def create
+    binding.pry
     @document = Document.new(document_params)
     if @document.save
       render :show
@@ -79,6 +80,6 @@ class Api::V1::DocumentsController < ApiController
   end
 
   def document_params
-    params.require(:document).permit(:name, :storage_url, :content, :status)
+    params.require(:document).permit(:name, :storage_url, :content, :status, :file)
   end
 end

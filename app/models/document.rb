@@ -19,7 +19,7 @@ class Document < ApplicationRecord
   acts_as_taggable_on :labels
   enum status: [:pending, :uploaded, :confirmed]
   enum approval_status: [:awaiting, :rejected, :approved]
-  has_one_attached :document, service: :microsoft
+  has_one_attached :file #, service: :microsoft
 
   belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id" 
 
