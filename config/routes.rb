@@ -22,6 +22,8 @@ Rails.application.routes.draw do
         member do
           post ":id/approval", to: "documents#approval"
         end
+        # Show and Predict the Latest Uploaded Document  
+        get "latest/predict", to: "documents#show_latest_predict"
       end
 
       # **********Search API**********
