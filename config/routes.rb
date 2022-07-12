@@ -60,7 +60,7 @@ Rails.application.routes.draw do
       post "classification/confirm", to: "classifications#confirm"
 
       # **********Statistics API**********
-      get "statistics/count/labels/:date", to: "statistics#count_each_tags_by_date"
+      get "statistics/count/tags/:date", to: "statistics#count_each_tags_by_date"
       get "statistics/count/documents/:date", to: "statistics#count_document_by_date"
     end
   end
