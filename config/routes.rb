@@ -22,7 +22,7 @@ Rails.application.routes.draw do
         member do
           post ":id/approval", to: "documents#approval"
         end
-        # Show and Predict the Latest Uploaded Document  
+        # Show and Predict the Latest Uploaded Document
         get "latest/predict", to: "documents#show_latest_predict"
       end
 
@@ -39,12 +39,12 @@ Rails.application.routes.draw do
       # **********Tags API**********
       get "tags", to: "tags#index"
       get "tags/:id", to: "tags#show"
+      get "tags/tagging/document", to: "tags#show_by_tagging"
       post "tags", to: "tags#create"
       put "tags/:id", to: "tags#update"
 
       # # **********Storage API**********
       post "storage/upload", to: "storage#upload"
-
 
       # **********FormSchema API**********
       get "form/schemas", to: "form_schema#index"

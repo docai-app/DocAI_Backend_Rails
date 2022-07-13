@@ -16,13 +16,14 @@ class Api::V1::DocumentsController < ApiController
 
   # Show documents by name like name param
   def show_by_name
-    @document = Document.where("name like ?", "%#{params[:name]}%")
+    @document = Document.includes([:taggings]).where("name like ?", "%#{params[:name]}%")
     render json: { success: true, documents: @document }, status: :ok
   end
 
   # Show documents by content like content param
   def show_by_content
-    @document = Document.where("content like ?", "%#{params[:content]}%")
+    # @document = Document.where("content like ?", "%#{params[:content]}%")
+    @document = Document.includes([:taggings]).where("content like ?", "%#{params[:content]}%")
     render json: { success: true, documents: @document }, status: :ok
   end
 

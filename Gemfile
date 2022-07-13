@@ -60,3 +60,4 @@ gem 'acts-as-taggable-on', '~> 9.0'
 gem 'closure_tree'
 gem 'rest-client'
 gem "azure-storage-blob", require: false
+gem 'bullet', group: 'development'

@@ -1,5 +1,5 @@
 class Api::V1::StorageController < ApiController
-  before_action :authenticate_user!
+  before_action :authenticate_user!, only: []
   # Upload file to storage
   def upload
     files = params[:document]
