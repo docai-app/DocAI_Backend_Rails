@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_09_194337) do
+ActiveRecord::Schema[7.0].define(version: 2022_07_12_084640) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -18,6 +18,34 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_194337) do
   # Note that some types may not work with other database engines. Be careful if changing database.
   create_enum "document_approval_status_enum", ["awaiting", "approved", "rejected"]
   create_enum "document_status_enum", ["pending", "uploaded", "confirmed"]
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "alembic_version", primary_key: "version_num", id: { type: :string, limit: 32 }, force: :cascade do |t|
   end
@@ -69,11 +97,13 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_194337) do
     t.uuid "approval_user_id"
     t.datetime "approval_at"
     t.uuid "folder_id"
+    t.string "upload_local_path"
     t.index ["approval_status"], name: "index_documents_on_approval_status"
     t.index ["approval_user_id"], name: "index_documents_on_approval_user_id"
     t.index ["folder_id"], name: "index_documents_on_folder_id"
     t.index ["name"], name: "index_documents_on_name"
     t.index ["status"], name: "index_documents_on_status"
+    t.index ["upload_local_path"], name: "index_documents_on_upload_local_path"
   end
 
   create_table "documents_approval_old", id: :uuid, default: nil, force: :cascade do |t|
@@ -250,6 +280,8 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_09_194337) do
     t.index ["user_id"], name: "index_users_roles_on_user_id"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "document_folder", "document_old", column: "document_id", name: "document_folder_document_id_fkey"
   add_foreign_key "document_old", "labels", name: "documents_label_id_fkey"
   add_foreign_key "documents", "folders"

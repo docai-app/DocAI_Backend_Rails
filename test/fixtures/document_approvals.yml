@@ -6,7 +6,8 @@
 #  document_id      :uuid
 #  form_data_id     :uuid
 #  approval_user_id :uuid
-#  approval_status  :integer          default(0), not null
+#  approval_status  :integer          default("awaiting"), not null
+#  remark           :text
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
 #
