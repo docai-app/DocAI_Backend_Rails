@@ -34,6 +34,6 @@ def upload_doc(file, filename):
 
 if __name__ == '__main__':
     # db = DB("DOCAI_DEV_DB")
-    for (root, dirs, files) in os.walk('/Users/sin/rails/DocAI_Backend_Rails/scripts', topdown=True):
+    for (root, dirs, files) in os.walk('/Users/sin/downloads/人力資源部', topdown=True):
       for f in files:
         console.log(os.path.join(root, f))
