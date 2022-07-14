@@ -80,3 +80,7 @@ big_folder.children
 ### Azure file upload support example
 doc = Document.find("3b6dcdd1-5fbf-48a9-89ee-c223f9e9cd4a")
 doc.file.url
+
+### batch upload
+rake batch_upload:create_folders
+rake batch_upload:documents
