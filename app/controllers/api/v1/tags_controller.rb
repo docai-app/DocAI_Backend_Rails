@@ -11,6 +11,12 @@ class Api::V1::TagsController < ApiController
     render json: { success: true, tag: @tag }, status: :ok
   end
 
+  # Show the distinct tags which is tagged by document
+  def show_by_tagging
+    @tags = ActsAsTaggableOn::Tagging.distinct.pluck(:tag_id).map { |id| ActsAsTaggableOn::Tag.find(id) }
+    render json: { success: true, tags: @tags }, status: :ok
+  end
+
   # Create tag
   def create
     @tag = ActsAsTaggableOn::Tag.new(tag_params)

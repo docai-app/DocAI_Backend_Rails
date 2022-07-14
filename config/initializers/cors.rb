@@ -7,7 +7,7 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins 'http://localhost:3000', "https://docai.m2mda.com", "https://docai-dev.m2mda.com"
+    origins "http://localhost:3000", "http://localhost:8080", "https://docai.m2mda.com", "https://docai-dev.m2mda.com"
 
     resource "*",
       headers: :any,

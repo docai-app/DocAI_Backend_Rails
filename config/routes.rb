@@ -22,6 +22,8 @@ Rails.application.routes.draw do
         member do
           post ":id/approval", to: "documents#approval"
         end
+        # Show and Predict the Latest Uploaded Document
+        get "latest/predict", to: "documents#show_latest_predict"
       end
 
       # **********Search API**********
@@ -37,12 +39,12 @@ Rails.application.routes.draw do
       # **********Tags API**********
       get "tags", to: "tags#index"
       get "tags/:id", to: "tags#show"
+      get "tags/tagging/document", to: "tags#show_by_tagging"
       post "tags", to: "tags#create"
       put "tags/:id", to: "tags#update"
 
       # # **********Storage API**********
       post "storage/upload", to: "storage#upload"
-
 
       # **********FormSchema API**********
       get "form/schemas", to: "form_schema#index"
@@ -52,10 +54,15 @@ Rails.application.routes.draw do
       # **********AbsenceeForm API**********
       get "form/absence/approval", to: "absence_forms#show_by_approval_status"
       get "form/absence/approval/:id", to: "absence_forms#show_by_approval_id"
+      post "form/absence", to: "absence_forms#upload"
 
       # **********Classification API**********
       get "classification/predict", to: "classifications#predict"
       post "classification/confirm", to: "classifications#confirm"
+
+      # **********Statistics API**********
+      get "statistics/count/tags/:date", to: "statistics#count_each_tags_by_date"
+      get "statistics/count/documents/:date", to: "statistics#count_document_by_date"
     end
   end
 end
