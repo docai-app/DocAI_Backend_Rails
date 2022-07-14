@@ -51,10 +51,16 @@ Rails.application.routes.draw do
       get "form/schemas/:id", to: "form_schema#show"
       get "form/schemas/name/:name", to: "form_schema#show_by_name"
 
+      # **********FormDatum API**********
+      get "form/datum", to: "form_datum#index"
+      get "form/datum/:id", to: "form_datum#show"
+      put "form/datum/:id", to: "form_datum#update"
+
       # **********AbsenceeForm API**********
       get "form/absence/approval", to: "absence_forms#show_by_approval_status"
       get "form/absence/approval/:id", to: "absence_forms#show_by_approval_id"
       post "form/absence", to: "absence_forms#upload"
+      put "form/absence/:id", to: "absence_forms#update"
 
       # **********Classification API**********
       get "classification/predict", to: "classifications#predict"

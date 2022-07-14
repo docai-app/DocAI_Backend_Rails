@@ -6,9 +6,11 @@ class Api::V1::StorageController < ApiController
     # try catch to upload the files
     begin
       files.each do |file|
-        @document = Document.new(name: file.original_filename, file: file)
-        @document.storage_url = @document.file.url.to_str
-        res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { document_url: @document.storage_url.to_str }.to_json , content_type: :json, accept: :json
+        # @document = Document.new(name: file.original_filename, file: file)
+        @document = Document.new(name: file.original_filename)
+        @document.storage_url = AzureService.upload(file) if file.present?
+        puts @document.storage_url
+        res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
         @document.content = JSON.parse(res)["result"]
         @document.save
       end
@@ -19,6 +21,7 @@ class Api::V1::StorageController < ApiController
   end
 
   def document_params
-    params.require(:document).permit(:name, :storage_url, :content, :status, :file)
+    # params.require(:document).permit(:name, :storage_url, :content, :status, :file)
+    # params.require(:document).permit(:name, :storage_url, :content, :status)
   end
 end
