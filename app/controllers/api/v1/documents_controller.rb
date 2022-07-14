@@ -16,21 +16,28 @@ class Api::V1::DocumentsController < ApiController
 
   # Show documents by name like name param
   def show_by_name
-    @document = Document.includes([:taggings]).where("name like ?", "%#{params[:name]}%")
+    @document = Document.includes([:taggings]).where("name like ?", "%#{params[:name]}%").order(:created_at => :desc)
+    # Update all the documents' storage_url
+    @document.each do |document|
+      document.storage_url = document.file.url
+    end
     render json: { success: true, documents: @document }, status: :ok
   end
 
   # Show documents by content like content param
   def show_by_content
-    # @document = Document.where("content like ?", "%#{params[:content]}%")
-    @document = Document.includes([:taggings]).where("content like ?", "%#{params[:content]}%")
+    @document = Document.includes([:taggings]).where("content like ?", "%#{params[:content]}%").order(:created_at => :desc)
+    # Update all the documents' storage_url
+    @document.each do |document|
+      document.storage_url = document.file.url
+    end
     render json: { success: true, documents: @document }, status: :ok
   end
 
   # Show documents by ActsAsTaggableOn tag id
   def show_by_tag
     tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
-    @document = Document.tagged_with(tag)
+    @document = Document.tagged_with(tag).order(:created_at => :desc).includes([:taggings])
     render json: { success: true, documents: @document }, status: :ok
   end
 

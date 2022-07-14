@@ -54,6 +54,7 @@ Rails.application.routes.draw do
       # **********AbsenceeForm API**********
       get "form/absence/approval", to: "absence_forms#show_by_approval_status"
       get "form/absence/approval/:id", to: "absence_forms#show_by_approval_id"
+      post "form/absence", to: "absence_forms#upload"
 
       # **********Classification API**********
       get "classification/predict", to: "classifications#predict"

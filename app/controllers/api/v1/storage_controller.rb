@@ -8,8 +8,7 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename, file: file)
         @document.storage_url = @document.file.url.to_str
-        sleep 0.5
-        res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { document_url: @document.storage_url }
+        res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { document_url: @document.storage_url.to_str }.to_json , content_type: :json, accept: :json
         @document.content = JSON.parse(res)["result"]
         @document.save
       end
