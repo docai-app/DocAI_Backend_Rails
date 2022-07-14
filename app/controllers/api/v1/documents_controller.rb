@@ -42,8 +42,9 @@ class Api::V1::DocumentsController < ApiController
   end
 
   def create
-    binding.pry
     @document = Document.new(document_params)
+    file = params["document"]["file"]
+    @document.storage_url = AzureService.upload(file) if file.present?
     if @document.save
       render :show
     else
@@ -88,6 +89,6 @@ class Api::V1::DocumentsController < ApiController
   end
 
   def document_params
-    params.require(:document).permit(:name, :storage_url, :content, :status, :file)
+    params.require(:document).permit(:name, :storage_url, :content, :status)
   end
 end
