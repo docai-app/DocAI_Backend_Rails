@@ -5,10 +5,11 @@ services:
       context: .
     restart: always
     ports:
-      - "3000:9292"
+      - "9292:9292"
     command: bundle exec puma -e development -C config/puma.rb
     volumes:
       - .:/docai-rails
+    platform: linux/amd64
   # worker:
   #   build: .
   #   command: bundle exec sidekiq -e production -c 5 -C config/sidekiq.yml
