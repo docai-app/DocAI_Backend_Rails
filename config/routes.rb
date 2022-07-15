@@ -56,7 +56,7 @@ Rails.application.routes.draw do
       get "form/datum/:id", to: "form_datum#show"
       put "form/datum/:id", to: "form_datum#update"
 
-      # **********AbsenceeForm API**********
+      # **********AbsenceForm API**********
       get "form/absence/approval", to: "absence_forms#show_by_approval_status"
       get "form/absence/approval/:id", to: "absence_forms#show_by_approval_id"
       post "form/absence", to: "absence_forms#upload"
@@ -69,6 +69,11 @@ Rails.application.routes.draw do
       # **********Statistics API**********
       get "statistics/count/tags/:date", to: "statistics#count_each_tags_by_date"
       get "statistics/count/documents/:date", to: "statistics#count_document_by_date"
+
+      # **********Document Approval API**********
+      get "approval/documents", to: "document_approvals#index"
+      get "approval/documents/:id", to: "document_approvals#show"
+      put "approval/documents/:id", to: "document_approvals#update"
     end
   end
 end

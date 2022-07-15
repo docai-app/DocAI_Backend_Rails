@@ -32,6 +32,8 @@ class Api::V1::AbsenceFormsController < ApiController
         recognizeRes = JSON.parse(recognizeRes)
         @form_data = FormDatum.new(data: recognizeRes["absence_form_data"], form_schema_id: FormSchema.where(name: "請假表").first.id, document_id: @document.id)
         @form_data.save
+        @document_approval = DocumentApproval.new(document_id: @document.id, form_data_id: @form_data.id, approval_status: 0)
+        @document_approval.save
       end
       render json: { success: true, document: @document, form_data: @form_data }, status: :ok
     rescue => e

@@ -23,7 +23,7 @@ class Api::V1::TagsController < ApiController
     if @tag.save
       render json: { success: true, tag: @tag }, status: :ok
     else
-      render json: { success: false }, status: :unprocessable_entity
+      render json: { success: false, errors: @tag.errors }, status: :ok
     end
   end
 

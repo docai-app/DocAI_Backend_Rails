@@ -11,7 +11,7 @@ class Api::V1::FormDatumController < ApplicationController
 
   # Show form data by form schema name and date
   def show_by_form_name_and_date
-    @form_datum = FormDatum.by_day(params[:date]).where(form_schema: FormSchema.find_by(name: params[:name])).as_json(include: [:document, :form_schema])
+    @form_datum = FormDatum.by_day(params[:date]).where(form_schema: FormSchema.find_by(name: params[:name])).includes([:form_schema, :document]).as_json(include: [:document, :form_schema])
     render json: { success: true, form_datum: @form_datum }, status: :ok
   end
 
@@ -32,7 +32,6 @@ class Api::V1::FormDatumController < ApplicationController
 
   def update
     @form_data = FormDatum.find(params[:id])
-    # @form_data.data = params[:data]
     if @form_data.update(form_data_params)
       render json: { success: true, form_data: @form_data }, status: :ok
     else
