@@ -6,6 +6,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g yarn@1
+RUN gem install nokogiri
+RUN gem install puma
 
 WORKDIR /docai-rails
 COPY Gemfile /docai-rails/Gemfile
