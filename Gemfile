@@ -48,7 +48,6 @@ group :development do
   gem 'pry-byebug'
 end
 
-gem 'nokogiri'
 
 gem 'pg'
 gem 'dotenv'
