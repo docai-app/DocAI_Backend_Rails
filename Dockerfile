@@ -13,7 +13,6 @@ COPY Gemfile.lock /docai-rails/Gemfile.lock
 RUN bundle install
 COPY . /docai-rails
 
-EXPOSE 3000
 # RUN SECRET_KEY_BASE=1 RAILS_ENV=production bundle exec rake assets:precompile
 #CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
 

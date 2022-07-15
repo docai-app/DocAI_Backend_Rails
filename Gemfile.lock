@@ -300,6 +300,7 @@ DEPENDENCIES
   devise-jwt
   dotenv
   jbuilder
+  nokogiri
   pg
   pry-byebug
   puma (~> 5.0)
