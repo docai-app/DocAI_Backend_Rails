@@ -9,7 +9,6 @@ services:
     command: bundle exec puma -e development -C config/puma.rb
     volumes:
       - .:/docai-rails
-    platform: linux/amd64
   # worker:
   #   build: .
   #   command: bundle exec sidekiq -e production -c 5 -C config/sidekiq.yml
