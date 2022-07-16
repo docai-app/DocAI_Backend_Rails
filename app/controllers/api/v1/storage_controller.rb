@@ -23,7 +23,6 @@ class Api::V1::StorageController < ApiController
 
   def upload_bulk_tag
     files = params[:document]
-    # try catch to upload the files
     begin
       files.each do |file|
         @document = Document.new(name: file.original_filename)

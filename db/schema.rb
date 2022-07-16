@@ -14,11 +14,6 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
-  # Custom types defined in this database.
-  # Note that some types may not work with other database engines. Be careful if changing database.
-  create_enum "document_approval_status_enum", ["awaiting", "approved", "rejected"]
-  create_enum "document_status_enum", ["pending", "uploaded", "confirmed"]
-
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -46,9 +41,6 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
-  create_table "alembic_version", primary_key: "version_num", id: { type: :string, limit: 32 }, force: :cascade do |t|
-  end
-
   create_table "document_approvals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "document_id"
     t.uuid "form_data_id"
@@ -61,28 +53,6 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.index ["approval_user_id"], name: "index_document_approvals_on_approval_user_id"
     t.index ["document_id"], name: "index_document_approvals_on_document_id"
     t.index ["form_data_id"], name: "index_document_approvals_on_form_data_id"
-  end
-
-  create_table "document_folder", id: :uuid, default: nil, force: :cascade do |t|
-    t.uuid "document_id", null: false
-    t.uuid "folder_id", null: false
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["document_id"], name: "ix_document_folder_document_id"
-    t.index ["folder_id"], name: "ix_document_folder_folder_id"
-    t.index ["id"], name: "ix_document_folder_id", unique: true
-  end
-
-  create_table "document_old", id: :uuid, default: nil, force: :cascade do |t|
-    t.text "name", null: false
-    t.integer "label_id"
-    t.text "storage_url", null: false
-    t.text "content"
-    t.enum "status", null: false, enum_type: "document_status_enum"
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "ix_documents_id", unique: true
-    t.index ["label_id"], name: "ix_documents_label_id"
   end
 
   create_table "documents", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -103,18 +73,6 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.index ["name"], name: "index_documents_on_name"
     t.index ["status"], name: "index_documents_on_status"
     t.index ["upload_local_path"], name: "index_documents_on_upload_local_path"
-  end
-
-  create_table "documents_approval_old", id: :uuid, default: nil, force: :cascade do |t|
-    t.uuid "document_id", null: false
-    t.uuid "approved_by", null: false
-    t.enum "status", null: false, enum_type: "document_approval_status_enum"
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.text "remark"
-    t.index ["approved_by"], name: "ix_documents_approval_approved_by"
-    t.index ["document_id"], name: "ix_documents_approval_document_id"
-    t.index ["id"], name: "ix_documents_approval_id", unique: true
   end
 
   create_table "folder_hierarchies", id: false, force: :cascade do |t|
@@ -156,49 +114,10 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.index ["name"], name: "index_form_schemas_on_name"
   end
 
-  create_table "forms_data_old", id: :uuid, default: nil, force: :cascade do |t|
-    t.uuid "document_id", null: false
-    t.uuid "schema_id", null: false
-    t.jsonb "data", null: false
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["document_id"], name: "ix_forms_data_document_id"
-    t.index ["id"], name: "ix_forms_data_id", unique: true
-    t.index ["schema_id"], name: "ix_forms_data_schema_id"
-  end
-
-  create_table "forms_schema_old", id: :uuid, default: nil, force: :cascade do |t|
-    t.text "name", null: false
-    t.json "form_schema", null: false
-    t.json "ui_schema", null: false
-    t.jsonb "data_schema", null: false
-    t.text "description"
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "ix_forms_schema_id", unique: true
-  end
-
   create_table "jwt_denylist", force: :cascade do |t|
     t.string "jti", null: false
     t.datetime "exp", null: false
     t.index ["jti"], name: "index_jwt_denylist_on_jti"
-  end
-
-  create_table "labels", id: :serial, force: :cascade do |t|
-    t.text "name", null: false
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "labels_id_key", unique: true
-    t.index ["id"], name: "labels_id_key1", unique: true
-  end
-
-  create_table "role", id: :uuid, default: nil, force: :cascade do |t|
-    t.text "role", null: false
-    t.text "description"
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "roles_id_key", unique: true
-    t.index ["id"], name: "roles_id_key1", unique: true
   end
 
   create_table "roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -212,7 +131,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
   end
 
   create_table "taggings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.bigint "tag_id"
+    t.uuid "tag_id"
     t.string "taggable_type"
     t.uuid "taggable_id"
     t.string "tagger_type"
@@ -234,24 +153,12 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.index ["tenant"], name: "index_taggings_on_tenant"
   end
 
-  create_table "tags", force: :cascade do |t|
+  create_table "tags", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "taggings_count", default: 0
     t.index ["name"], name: "index_tags_on_name", unique: true
-  end
-
-  create_table "user", id: :uuid, default: nil, force: :cascade do |t|
-    t.text "username", null: false
-    t.text "password", null: false
-    t.uuid "role_id", null: false
-    t.text "description"
-    t.datetime "last_active_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.index ["id"], name: "ix_users_id", unique: true
-    t.index ["role_id"], name: "ix_users_role_id"
   end
 
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -268,6 +175,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.date "date_of_birth"
     t.integer "sex"
     t.jsonb "profile"
+    t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
@@ -281,14 +189,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "document_folder", "document_old", column: "document_id", name: "document_folder_document_id_fkey"
-  add_foreign_key "document_old", "labels", name: "documents_label_id_fkey"
   add_foreign_key "documents", "folders"
-  add_foreign_key "documents_approval_old", "\"user\"", column: "approved_by", name: "documents_approval_approved_by_fkey"
-  add_foreign_key "documents_approval_old", "document_old", column: "document_id", name: "documents_approval_document_id_fkey"
   add_foreign_key "folders", "users"
-  add_foreign_key "forms_data_old", "document_old", column: "document_id", name: "forms_data_document_id_fkey"
-  add_foreign_key "forms_data_old", "forms_schema_old", column: "schema_id", name: "forms_data_schema_id_fkey"
   add_foreign_key "taggings", "tags"
-  add_foreign_key "user", "role", name: "users_role_id_fkey"
 end

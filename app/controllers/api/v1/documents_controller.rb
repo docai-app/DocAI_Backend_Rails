@@ -33,6 +33,17 @@ class Api::V1::DocumentsController < ApiController
     render json: { success: true, documents: @document }, status: :ok
   end
 
+  # Show and Predict the Latest Uploaded Document
+  def show_latest_predict
+    @document = Document.where(status: 0).order(:created_at).last
+    if @document.present?
+      res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
+      render json: { success: true, prediction: { tag: JSON.parse(res)["label"], document: @document } }, status: :ok
+    else
+      render json: { success: false, error: "No document found" }, status: :ok
+    end
+  end
+
   def create
     @document = Document.new(document_params)
     file = params["document"]["file"]
@@ -65,13 +76,6 @@ class Api::V1::DocumentsController < ApiController
   def tags
     @tags = Documents.all_tags
     render json: @tags
-  end
-
-  # Show and Predict the Latest Uploaded Document
-  def show_latest_predict
-    @document = Document.where(status: 0).order(:created_at).last
-    res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
-    render json: { success: true, prediction: { tag: JSON.parse(res)["label"], document: @document } }, status: :ok
   end
 
   private
