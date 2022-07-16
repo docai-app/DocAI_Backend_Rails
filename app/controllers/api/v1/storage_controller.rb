@@ -10,6 +10,8 @@ class Api::V1::StorageController < ApiController
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
         puts @document.storage_url
+        # @text = AzureOcrService.ocr(@document.storage_url)
+        # puts @text
         res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
         @document.content = JSON.parse(res)["result"]
         @document.save
