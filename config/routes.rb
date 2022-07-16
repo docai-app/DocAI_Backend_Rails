@@ -45,6 +45,7 @@ Rails.application.routes.draw do
 
       # # **********Storage API**********
       post "storage/upload", to: "storage#upload"
+      post "storage/upload/bulk/tag", to: "storage#upload_bulk_tag"
 
       # **********FormSchema API**********
       get "form/schemas", to: "form_schema#index"
