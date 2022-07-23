@@ -84,6 +84,7 @@ Rails.application.routes.draw do
 
       # **********Drive API**********
       get "drive/files", to: "drive#index"
+      get "drive/files/:id", to: "drive#show"
     end
   end
 end
