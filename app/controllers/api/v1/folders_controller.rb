@@ -13,9 +13,11 @@ class Api::V1::FoldersController < ApiController
 
   def create
     @folder = Folder.new(folder_params)
+    @folder.user = current_user
     if @folder.save
       render json: { success: true, folder: @folder }, status: :ok
     else
+      puts @folder.errors.full_messages
       render json: { success: false }, status: :unprocessable_entity
     end
   end
