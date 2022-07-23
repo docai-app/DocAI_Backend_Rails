@@ -75,6 +75,15 @@ Rails.application.routes.draw do
       get "approval/documents", to: "document_approvals#index"
       get "approval/documents/:id", to: "document_approvals#show"
       put "approval/documents/:id", to: "document_approvals#update"
+
+      # **********Folder API**********
+      get "folders", to: "folders#index"
+      get "folders/:id", to: "folders#show"
+      post "folders", to: "folders#create"
+      put "folders/:id", to: "folders#update"
+
+      # **********Drive API**********
+      get "drive/files", to: "drive#index"
     end
   end
 end

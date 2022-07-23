@@ -62,4 +62,7 @@ gem 'closure_tree'
 gem 'rest-client'
 gem 'bullet', group: 'development'
 
+gem 'kaminari'
+gem 'api-pagination'
+
 gem "azure-storage-blob", require: false

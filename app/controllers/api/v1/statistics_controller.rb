@@ -1,4 +1,4 @@
-class Api::V1::StatisticsController < ApplicationController
+class Api::V1::StatisticsController < ApiController
     # Count each tags by date
     def count_each_tags_by_date
         @tags = ActsAsTaggableOn::Tag.all

@@ -1,4 +1,4 @@
-class Api::V1::DocumentApprovalsController < ApplicationController
+class Api::V1::DocumentApprovalsController < ApiController
     def index
         @document_approvals = DocumentApproval.all
         render json: { success: true, document_approvals: @document_approvals }, status: :ok

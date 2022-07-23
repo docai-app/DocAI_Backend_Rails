@@ -1,4 +1,4 @@
-class Api::V1::FormDatumController < ApplicationController
+class Api::V1::FormDatumController < ApiController
   def index
     @form_datum = FormDatum.all
     render json: { success: true, form_datum: @form_datum }, status: :ok

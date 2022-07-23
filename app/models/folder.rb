@@ -17,6 +17,8 @@ class Folder < ApplicationRecord
 
   after_create :set_permissions_to_owner
 
+  paginates_per 20
+
   def set_permissions_to_owner
     return if self['user_id'].nil?
 
