@@ -17,7 +17,6 @@ class Api::V1::FoldersController < ApiController
     if @folder.save
       render json: { success: true, folder: @folder }, status: :ok
     else
-      puts @folder.errors.full_messages
       render json: { success: false }, status: :unprocessable_entity
     end
   end

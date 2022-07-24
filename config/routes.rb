@@ -24,6 +24,7 @@ Rails.application.routes.draw do
         end
         # Show and Predict the Latest Uploaded Document
         get "latest/predict", to: "documents#show_latest_predict"
+        put ":id", to: "documents#update"
       end
 
       # **********Search API**********
@@ -81,6 +82,7 @@ Rails.application.routes.draw do
       get "folders/:id", to: "folders#show"
       post "folders", to: "folders#create"
       put "folders/:id", to: "folders#update"
+      post "folders/documents", to: "folders#add_document"
 
       # **********Drive API**********
       get "drive/files", to: "drive#index"
