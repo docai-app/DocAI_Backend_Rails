@@ -6,8 +6,15 @@ class Api::V1::DriveController < ApiController
     end
 
     def show
-        @folder = Folder.where(parent_id: params[:id])
-        @documents = Document.where(folder_id: params[:id]).as_json(except: [:label_list])
-        render json: { success: true, folders: @folder, documents: @documents }, status: :ok
+        # @documents = Document.where(folder_id: params[:id]).as_json(except: [:label_list])
+        # render json: { success: true, folders: @folder, documents: @documents }, status: :ok
+        # @folder = Folder.where(parent_id: params[:id])
+        if current_user.has_role? :r, Folder.find(params[:id])
+        # puts current_user.has_role? :r, Folder.all.first
+            @documents = Document.where(folder_id: params[:id]).as_json(except: [:label_list])
+            render json: { success: true, folders: @folder, documents: @documents }, status: :ok
+        else
+            render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
+        end
     end
 end
