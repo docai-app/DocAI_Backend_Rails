@@ -87,6 +87,7 @@ Rails.application.routes.draw do
       # **********Drive API**********
       get "drive/files", to: "drive#index"
       get "drive/files/:id", to: "drive#show"
+      post "drive/folders/share", to: "drive#share"
     end
   end
 end
