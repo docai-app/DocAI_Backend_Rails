@@ -8,7 +8,8 @@ class Api::V1::FoldersController < ApiController
 
   def show
     @folder = Folder.find(params[:id])
-    render json: { success: true, folder: @folder }, status: :ok
+    @children = @folder.children
+    render json: { success: true, folder: @folder, children: @children }, status: :ok
   end
 
   def create
