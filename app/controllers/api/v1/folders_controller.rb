@@ -14,6 +14,12 @@ class Api::V1::FoldersController < ApiController
     render json: { success: true, folder: @folder, children: @children, parent: @parent, ancestors: @ancestors }, status: :ok
   end
 
+  def show_ancestors
+    @folder = Folder.find(params[:id])
+    @ancestors = @folder.ancestors
+    render json: { success: true, ancestors: @ancestors }, status: :ok
+  end
+
   def create
     @folder = Folder.new(folder_params)
     @folder.user = current_user

@@ -80,6 +80,7 @@ Rails.application.routes.draw do
       # **********Folder API**********
       get "folders", to: "folders#index"
       get "folders/:id", to: "folders#show"
+      get "folders/:id/ancestors", to: "folders#show_ancestors"
       post "folders", to: "folders#create"
       put "folders/:id", to: "folders#update"
       post "folders/documents", to: "folders#add_document"
