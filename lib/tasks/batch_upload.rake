@@ -1,6 +1,5 @@
 namespace :batch_upload do
   desc "Upload directories to auzre(no ocr)"
-  
 
   def parent_folder(file_path)
     parent_dir_name = File.basename(File.dirname(file_path))
@@ -10,24 +9,21 @@ namespace :batch_upload do
   task :create_folders => :environment do
 
     # 開一個 admin 帳號, 作為最權限
-    user = User.find_or_create_by(name: "chyb_admin")
+    user = User.find_or_create_by(email: "admin@chyb.com")
 
     # 開好 d folder
-    root_folder = Folder.find_or_create_by(name: "人力資源部", user: user)
+    root_folder = Folder.find_or_create_by(name: "CHYB_人力資源部", user: user)
 
-    Dir['/Users/sin/Downloads/人力資源部/**/*'].each do |f|
+    Dir["/Users/chonwai/Downloads/CHYB_人力資源部/**/*"].each do |f|
       if File.directory?(f)
-        
         puts "#{f} ... "
         folder_name = File.basename(f)
         parent_folder(f).children.find_or_create_by name: folder_name, user: user
-
       end
     end
   end
 
   def upload_file(file_name, blob_data)
-    
     blob_client = Azure::Storage::Blob::BlobService
 
     account_name = "m2mda"
@@ -35,7 +31,7 @@ namespace :batch_upload do
 
     blob_client = Azure::Storage::Blob::BlobService.create(
       storage_account_name: account_name,
-      storage_access_key: account_key
+      storage_access_key: account_key,
     )
 
     container_name = ENV["AZURE_STORAGE_CONTAINER"]
@@ -44,29 +40,29 @@ namespace :batch_upload do
     blob_name = file_name + "_" + SecureRandom.uuid + ".pdf"
     blob_name.downcase!
 
-    blob_client.create_block_blob(container_name, blob_name, blob_data, content_type: 'application/pdf')
+    blob_client.create_block_blob(container_name, blob_name, blob_data, content_type: "application/pdf")
     blob_client.get_blob_properties(container_name, blob_name)
 
     return "https://#{account_name}.blob.core.windows.net/#{container_name}/#{blob_name}"
   end
 
   task :documents => :environment do
-    Dir['/Users/sin/Downloads/人力資源部/**/*'].each do |f|
+    Dir["/Users/chonwai/Downloads/CHYB_人力資源部_test6/**/*"].each do |f|
       next if File.directory?(f)
 
       # 先睇下條 record 係咪已經存在，即係已經 upload 左未
       next if Document.where(upload_local_path: f).first.present?
       puts "Uploading #{f} .. "
       folder = parent_folder(f)
+      puts "Folder: #{folder.name}"
       data = File.open(f, "rb")
-      doc = Document.new(folder_id: folder.id, status: "uploaded", upload_local_path: f)
+      doc = Document.new(folder_id: folder.id, status: "uploaded", upload_local_path: f, name: File.basename(f))
       # doc.file.attach(io: data, filename: File.basename(f), content_type: "application/pdf")
       doc.storage_url = upload_file(File.basename(f), data)
-
+      puts "Storage URL: #{doc.storage_url}"
       doc.save
+      puts "Done #{f} .. "
       # binding.pry
-      break
     end
   end
-
 end

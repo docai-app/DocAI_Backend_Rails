@@ -18,7 +18,7 @@
 class Document < ApplicationRecord
   resourcify
   acts_as_taggable_on :labels
-  enum status: [:pending, :uploaded, :confirmed]
+  enum status: [:pending, :uploaded, :confirmed, :ocring, :ocr_completed, :ready]
   enum approval_status: [:awaiting, :rejected, :approved]
   has_one_attached :file #, service: :microsoft
 
