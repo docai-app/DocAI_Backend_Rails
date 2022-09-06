@@ -84,6 +84,12 @@ class Api::V1::DocumentsController < ApiController
     render json: @tags
   end
 
+  def ocr
+    @document = Document.first
+    OcrJob.perform_async(@document.id)
+    json_success("OCR job is queued")
+  end
+
   private
 
   def set_document

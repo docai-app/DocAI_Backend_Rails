@@ -66,3 +66,5 @@ gem 'kaminari'
 gem 'api-pagination'
 
 gem "azure-storage-blob", require: false
+
+gem 'sidekiq'

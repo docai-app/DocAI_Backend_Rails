@@ -25,6 +25,7 @@ Rails.application.routes.draw do
         # Show and Predict the Latest Uploaded Document
         get "latest/predict", to: "documents#show_latest_predict"
         put ":id", to: "documents#update"
+        get "ocr/:id", to: "documents#ocr"
       end
 
       # **********Search API**********

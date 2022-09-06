@@ -1,0 +1,5 @@
+:concurrency: 10
+:queues:
+  - ['default', 1]
+  - ['ocr', 1]
+:timeout: 86400

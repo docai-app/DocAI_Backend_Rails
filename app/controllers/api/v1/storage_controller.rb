@@ -8,9 +8,8 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
-        res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
-        @document.content = JSON.parse(res)["result"]
         @document.save
+        OcrJob.perform_async(@document.id)
       end
       render json: { success: true }, status: :ok
     rescue => e
@@ -24,11 +23,9 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
-        res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
-        @document.content = JSON.parse(res)["result"]
         @document.label_ids = params[:tag_id]
-        @document.status = 2
         @document.save
+        OcrJob.perform_async(@document.id)
       end
       render json: { success: true }, status: :ok
     rescue => e
