@@ -68,3 +68,4 @@ gem 'api-pagination'
 gem "azure-storage-blob", require: false
 
 gem 'sidekiq'
+gem 'sidekiq-scheduler'

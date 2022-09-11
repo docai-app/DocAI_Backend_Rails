@@ -3,3 +3,9 @@
   - ['default', 1]
   - ['ocr', 1]
 :timeout: 86400
+
+:schedule:
+  OcrJob:
+    every: '5s'
+    queue: ocr
+    enabled: true

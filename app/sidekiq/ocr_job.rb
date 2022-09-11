@@ -1,6 +1,6 @@
 class OcrJob
-  include Sidekiq::Job
-  sidekiq_options retry: 7, dead: true, queue: :ocr
+  include Sidekiq::Worker
+  sidekiq_options retry: 7, dead: true, queue: "ocr", throttle: { threshold: 1, period: 5.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 24 * count }
 
@@ -9,14 +9,15 @@ class OcrJob
     _message = "error: #{msg["error_message"]}"
   end
 
-  def perform(document_id)
+  def perform()
     # Do something
-    @document = Document.find(document_id)
-    puts @document.inspect
-    ocrRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
-    content = JSON.parse(ocrRes)["result"]
-    @document.content = content
-    @document.ready!
+    @document = Document.where(status: "uploaded").order(created_at: :desc).first
+    if @document.present?
+      ocrRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
+      content = JSON.parse(ocrRes)["result"]
+      @document.content = content
+      @document.ready!
+    end
   rescue
     puts "====== error ====== document.id: #{content}"
   end

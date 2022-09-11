@@ -9,7 +9,6 @@ class Api::V1::StorageController < ApiController
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
         @document.save
-        OcrJob.perform_async(@document.id)
       end
       render json: { success: true }, status: :ok
     rescue => e
@@ -25,7 +24,6 @@ class Api::V1::StorageController < ApiController
         @document.storage_url = AzureService.upload(file) if file.present?
         @document.label_ids = params[:tag_id]
         @document.save
-        OcrJob.perform_async(@document.id)
       end
       render json: { success: true }, status: :ok
     rescue => e

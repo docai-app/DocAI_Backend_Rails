@@ -39,3 +39,6 @@
 **/.DS_Store
 
 docker-compose.yml
+
+# Ignore the redis dump.rdb file
+dump.rdb
