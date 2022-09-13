@@ -35,7 +35,7 @@ class Api::V1::DocumentsController < ApiController
 
   # Show and Predict the Latest Uploaded Document
   def show_latest_predict
-    @document = Document.where(status: :ocr_completed).order(:created_at).last
+    @document = Document.where(status: :ready).order(:created_at).last
     if @document.present?
       res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
       render json: { success: true, prediction: { tag: JSON.parse(res)["label"], document: @document } }, status: :ok

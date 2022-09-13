@@ -75,6 +75,7 @@ Rails.application.routes.draw do
       # **********Statistics API**********
       get "statistics/count/tags/:date", to: "statistics#count_each_tags_by_date"
       get "statistics/count/documents/:date", to: "statistics#count_document_by_date"
+      get "statistics/count/documents/status/:date", to: "statistics#count_document_status_by_date"
 
       # **********Document Approval API**********
       get "approval/documents", to: "document_approvals#index"
