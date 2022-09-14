@@ -8,7 +8,7 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
-        @document.save
+        @document.uploaded!
       end
       render json: { success: true }, status: :ok
     rescue => e
@@ -23,7 +23,7 @@ class Api::V1::StorageController < ApiController
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
         @document.label_ids = params[:tag_id]
-        @document.save
+        @document.uploaded!
       end
       render json: { success: true }, status: :ok
     rescue => e

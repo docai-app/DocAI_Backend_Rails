@@ -26,26 +26,18 @@ class Api::V1::StatisticsController < ApiController
   # Count document status by date
   def count_document_status_by_date
     @date = params[:date].to_datetime
-    # @date_array = []
-    # @uploaded_array = []
-    # @confirmed_array = []
-    # @ready_array = []
-    @data_array = []
     @days = params[:days].to_i
+    @data_array = []
     @days.times do
       @items = {}
       @items[:date] = @date.strftime("%Y-%m-%d")
       @items[:uploaded_count] = Document.by_day(@date).count()
       @items[:ready_count] = Document.by_day(@date).where(status: :ready).count()
       @items[:confirmed_count] = Document.by_day(@date).where(status: :confirmed).count()
+      @items[:non_ready_count] = Document.by_day(@date).where(status: :uploaded).count()
+      # estimated_time time is in minutes
+      @items[:estimated_time] = @items[:non_ready_count] * 20
       @data_array << @items
-      # @uploaded_count = Document.by_day(@date).count()
-      # @ready_count = Document.by_day(@date).where(status: :ready).count()
-      # @confirmed_count = Document.by_day(@date).where(status: :confirmed).count()
-      # @date_array << @date.strftime("%Y-%m-%d")
-      # @uploaded_array << @uploaded_count
-      # @confirmed_array << @confirmed_count
-      # @ready_array << @ready_count
       @date = @date - 1.day
     end
     render json: { success: true, data: @data_array }, status: :ok
