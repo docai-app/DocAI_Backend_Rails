@@ -25,9 +25,22 @@ class Api::V1::StatisticsController < ApiController
 
   # Count document status by date
   def count_document_status_by_date
-    @uploaded_count = Document.includes([:taggings]).by_day(params[:date]).count()
-    @ready_count = Document.includes([:taggings]).by_day(params[:date]).where(status: :ready).count()
-    @confirmed_count = Document.includes([:taggings]).by_day(params[:date]).where(status: :confirmed).count()
-    render json: { success: true, uploaded_count: @uploaded_count, confirmed_count: @confirmed_count, ready_count: @ready_count }, status: :ok
+    @date = params[:date].to_datetime
+    @date_array = []
+    @uploaded_array = []
+    @confirmed_array = []
+    @ready_array = []
+    @days = params[:days].to_i
+    @days.times do
+      @uploaded_count = Document.by_day(@date).count()
+      @ready_count = Document.by_day(@date).where(status: :ready).count()
+      @confirmed_count = Document.by_day(@date).where(status: :confirmed).count()
+      @date_array << @date.strftime("%Y-%m-%d")
+      @uploaded_array << @uploaded_count
+      @confirmed_array << @confirmed_count
+      @ready_array << @ready_count
+      @date = @date - 1.day
+    end
+    render json: { success: true, date: @date_array, uploaded_count: @uploaded_array, confirmed_count: @confirmed_array, ready_count: @ready_array }, status: :ok
   end
 end
