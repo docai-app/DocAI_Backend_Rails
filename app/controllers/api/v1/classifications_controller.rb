@@ -10,9 +10,11 @@ class Api::V1::ClassificationsController < ApiController
   def confirm
     @document = Document.find(params[:document_id])
     @document.label_ids = params[:tag_id]
-    @document.status = 2
+    @document.status = :confirmed
     res = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: params[:document_id], label: params[:tag_id] }.to_json, {content_type: :json, accept: :json}
     if @document.save
+      puts "Document confirmed"
+      puts @document.inspect
       render json: { success: true, document: @document }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity

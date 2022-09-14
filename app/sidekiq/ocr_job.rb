@@ -1,6 +1,6 @@
 class OcrJob
   include Sidekiq::Worker
-  sidekiq_options retry: 7, dead: true, queue: "ocr", throttle: { threshold: 1, period: 5.second }
+  sidekiq_options retry: 0, dead: true, queue: "ocr", throttle: { threshold: 1, period: 5.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 24 * count }
 
