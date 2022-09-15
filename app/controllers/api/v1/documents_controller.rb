@@ -22,8 +22,8 @@ class Api::V1::DocumentsController < ApiController
 
   # Show documents by content like content param
   def show_by_content
-    @document = Document.where("content like ?", "%#{params[:content]}%").order(:created_at => :desc).as_json(except: [:label_list])
-    render json: { success: true, documents: @document }, status: :ok
+    @document = Document.includes([:taggings]).where("content like ?", "%#{params[:content]}%").order(:created_at => :desc).page params[:page]
+    render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
   end
 
   # Show documents by ActsAsTaggableOn tag id
