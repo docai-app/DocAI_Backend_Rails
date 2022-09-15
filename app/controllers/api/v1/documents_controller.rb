@@ -33,6 +33,12 @@ class Api::V1::DocumentsController < ApiController
     render json: { success: true, documents: @document }, status: :ok
   end
 
+  # Show documents by date
+  def show_by_date
+    @document = Document.includes([:taggings]).where("created_at >= ? AND created_at <= ?", params[:date].to_datetime.beginning_of_day, params[:date].to_datetime.end_of_day).order(:created_at => :desc).page params[:page]
+    render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+  end
+
   # Show and Predict the Latest Uploaded Document
   def show_latest_predict
     @document = Document.where(status: :ready).order(:created_at).last
@@ -98,5 +104,15 @@ class Api::V1::DocumentsController < ApiController
 
   def document_params
     params.require(:document).permit(:name, :storage_url, :content, :status, :folder_id)
+  end
+
+  def pagination_meta(object)
+    {
+      current_page: object.current_page,
+      next_page: object.next_page,
+      prev_page: object.prev_page,
+      total_pages: object.total_pages,
+      total_count: object.total_count,
+    }
   end
 end
