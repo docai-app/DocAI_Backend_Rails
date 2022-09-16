@@ -35,7 +35,7 @@ class Api::V1::DocumentsController < ApiController
 
   # Show documents by date
   def show_by_date
-    @document = Document.includes([:taggings]).where("created_at >= ? AND created_at <= ?", params[:date].to_datetime.beginning_of_day, params[:date].to_datetime.end_of_day).order(:created_at => :desc).page params[:page]
+    @document = Document.includes([:taggings]).where("created_at >= ?", params[:date]).order(:created_at => :desc).page params[:page]
     render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
   end
 
