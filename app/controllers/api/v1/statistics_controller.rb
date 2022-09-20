@@ -23,23 +23,43 @@ class Api::V1::StatisticsController < ApiController
     render json: { success: true, documents_count: @count, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count }, status: :ok
   end
 
+  # # Count document status by date
+  # def count_document_status_by_date
+  #   @date = params[:date].to_datetime
+  #   @days = params[:days].to_i
+  #   @data_array = []
+  #   @days.times do
+  #     @items = {}
+  #     @items[:date] = @date.strftime("%Y-%m-%d")
+  #     @items[:uploaded_count] = Document.by_day(@date).count()
+  #     @items[:ready_count] = Document.by_day(@date).where(status: :ready).count()
+  #     @items[:confirmed_count] = Document.by_day(@date).where(status: :confirmed).count()
+  #     @items[:non_ready_count] = Document.by_day(@date).where(status: :uploaded).count()
+  #     # estimated_time time is in minutes
+  #     @items[:estimated_time] = @items[:non_ready_count] * 20
+  #     @data_array << @items
+  #     @date = @date - 1.day
+  #   end
+  #   render json: { success: true, data: @data_array }, status: :ok
+  # end
+
   # Count document status by date
   def count_document_status_by_date
     @date = params[:date].to_datetime
-    @days = params[:days].to_i
-    @data_array = []
-    @days.times do
-      @items = {}
-      @items[:date] = @date.strftime("%Y-%m-%d")
-      @items[:uploaded_count] = Document.by_day(@date).count()
-      @items[:ready_count] = Document.by_day(@date).where(status: :ready).count()
-      @items[:confirmed_count] = Document.by_day(@date).where(status: :confirmed).count()
-      @items[:non_ready_count] = Document.by_day(@date).where(status: :uploaded).count()
-      # estimated_time time is in minutes
-      @items[:estimated_time] = @items[:non_ready_count] * 20
-      @data_array << @items
-      @date = @date - 1.day
-    end
-    render json: { success: true, data: @data_array }, status: :ok
+    @data = Document.includes([:taggings]).find_by_sql("SELECT DATE(created_at) AS date, COUNT(*) AS uploaded_count, SUM(CASE WHEN status = '5' THEN 1 ELSE 0 END) AS ready_count, SUM(CASE WHEN status = '2' THEN 1 ELSE 0 END) AS confirmed_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) AS non_ready_count FROM documents GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC")
+    @data = Kaminari.paginate_array(@data).page(params[:page])
+    render json: { success: true, data: @data, meta: pagination_meta(@data) }, status: :ok
+  end
+
+  private
+
+  def pagination_meta(object)
+    {
+      current_page: object.current_page,
+      next_page: object.next_page,
+      prev_page: object.prev_page,
+      total_pages: object.total_pages,
+      total_count: object.total_count,
+    }
   end
 end
