@@ -43,6 +43,22 @@ class Api::V1::AbsenceFormsController < ApiController
     end
   end
 
+  # Recognize one absence form
+  def recognize_specific
+    begin
+      @document = Document.find(params[:id])
+      recognizeRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/form/recognize/absence", { :document_url => @document.storage_url }
+      recognizeRes = JSON.parse(recognizeRes)
+      @form_data = FormDatum.new(data: recognizeRes["absence_form_data"], form_schema_id: FormSchema.where(name: "請假表").first.id, document_id: @document.id)
+      @form_data.save
+      @document_approval = DocumentApproval.new(document_id: @document.id, form_data_id: @form_data.id, approval_status: 0)
+      @document_approval.save
+      render json: { success: true, document: @document, form_data: @form_data }, status: :ok
+    rescue => e
+      render json: { success: false, error: e.message }, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def pagination_meta(object) {

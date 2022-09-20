@@ -32,4 +32,5 @@ class ApiController < ActionController::Base
     return json_fail("You are not authorized to perform this action.")
   end
 
+  rescue_from Exception, with: :render_error
 end

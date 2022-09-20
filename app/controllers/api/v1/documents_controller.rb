@@ -50,6 +50,17 @@ class Api::V1::DocumentsController < ApiController
     end
   end
 
+  # Show and Predict the Specify Date Latest Uploaded Document
+  def show_specify_date_latest_predict
+    @document = Document.where(status: :ready).where("created_at >= ?", params[:date]).order(:created_at).last
+    if @document.present?
+      res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
+      render json: { success: true, prediction: { tag: JSON.parse(res)["label"], document: @document } }, status: :ok
+    else
+      render json: { success: false, error: "No document found" }, status: :ok
+    end
+  end
+
   def create
     @document = Document.new(document_params)
     file = params["document"]["file"]

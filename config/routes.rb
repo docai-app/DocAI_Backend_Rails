@@ -27,6 +27,8 @@ Rails.application.routes.draw do
         end
         # Show and Predict the Latest Uploaded Document
         get "latest/predict", to: "documents#show_latest_predict"
+        # Show and Predict the Specify Date Latest Uploaded Document
+        get ":date/predict", to: "documents#show_specify_date_latest_predict"
         put ":id", to: "documents#update"
         get "ocr/:id", to: "documents#ocr"
       end
@@ -69,6 +71,7 @@ Rails.application.routes.draw do
       get "form/absence/approval/:id", to: "absence_forms#show_by_approval_id"
       post "form/absence", to: "absence_forms#upload"
       put "form/absence/:id", to: "absence_forms#update"
+      get "form/absence/recognition/:id", to: "absence_forms#recognize_specific"
 
       # **********Classification API**********
       get "classification/predict", to: "classifications#predict"
