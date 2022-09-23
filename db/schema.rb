@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
+ActiveRecord::Schema[7.0].define(version: 2022_09_23_184405) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -49,6 +49,8 @@ ActiveRecord::Schema[7.0].define(version: 2022_07_12_194819) do
     t.text "remark"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "signature"
+    t.string "signature_image_url"
     t.index ["approval_status"], name: "index_document_approvals_on_approval_status"
     t.index ["approval_user_id"], name: "index_document_approvals_on_approval_user_id"
     t.index ["document_id"], name: "index_document_approvals_on_document_id"
