@@ -31,8 +31,13 @@ class Api::V1::StorageController < ApiController
     end
   end
 
-  def document_params
-    # params.require(:document).permit(:name, :storage_url, :content, :status, :file)
-    # params.require(:document).permit(:name, :storage_url, :content, :status)
+  def upload_directly
+    file = params[:file]
+    begin
+      @file_url = AzureService.upload(file) if file.present?
+      render json: { success: true, file_url: @file_url }, status: :ok
+    rescue => e
+      render json: { success: false, error: e.message }, status: :unprocessable_entity
+    end
   end
 end

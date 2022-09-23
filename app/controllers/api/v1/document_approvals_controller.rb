@@ -20,6 +20,6 @@ class Api::V1::DocumentApprovalsController < ApiController
 
     private
     def document_approval_params
-        params.require(:document_approval).permit(:approval_status, :remark)
+        params.require(:document_approval).permit(:approval_status, :remark, :signature, :signature_image_url)
     end
 end
