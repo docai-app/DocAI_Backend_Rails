@@ -38,6 +38,6 @@ class Api::V1::TagsController < ApiController
   end
 
   def tag_params
-    params.require(:tag).permit(:name)
+    params.require(:tag).permit(:name, :is_checked)
   end
 end
