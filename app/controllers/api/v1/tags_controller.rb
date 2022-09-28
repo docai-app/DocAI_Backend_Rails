@@ -2,7 +2,7 @@ class Api::V1::TagsController < ApiController
   # Show all tags
   def index
     # Get all labels tags
-    @tags = Tag.all
+    @tags = Tag.all.includes([:taggings])
     render json: { success: true, tags: @tags }, status: :ok
   end
 
