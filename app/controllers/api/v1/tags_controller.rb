@@ -1,13 +1,14 @@
 class Api::V1::TagsController < ApiController
   # Show all tags
   def index
-    @tags = ActsAsTaggableOn::Tag.all
+    # Get all labels tags
+    @tags = Tag.all
     render json: { success: true, tags: @tags }, status: :ok
   end
 
   # Show tag by id
   def show
-    @tag = ActsAsTaggableOn::Tag.find(params[:id])
+    @tag = Tag.find(params[:id])
     render json: { success: true, tag: @tag }, status: :ok
   end
 
@@ -31,6 +32,17 @@ class Api::V1::TagsController < ApiController
   def update
     @tag = ActsAsTaggableOn::Tag.find(params[:id])
     if @tag.update(tag_params)
+      render json: { success: true, tag: @tag }, status: :ok
+    else
+      render json: { success: false }, status: :unprocessable_entity
+    end
+  end
+
+  # Add function to tag
+  def add_function
+    @tag = Tag.find(params[:id])
+    @tag.function_list.add(params[:function])
+    if @tag.save
       render json: { success: true, tag: @tag }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity

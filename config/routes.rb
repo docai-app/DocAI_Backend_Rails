@@ -51,6 +51,7 @@ Rails.application.routes.draw do
       get "tags/tagging/document", to: "tags#show_by_tagging"
       post "tags", to: "tags#create"
       put "tags/:id", to: "tags#update"
+      post "tags/:id/function", to: "tags#add_function"
 
       # # **********Storage API**********
       post "storage/upload", to: "storage#upload"
