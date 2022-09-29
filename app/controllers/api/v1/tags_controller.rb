@@ -2,7 +2,7 @@ class Api::V1::TagsController < ApiController
   # Show all tags
   def index
     # Get all labels tags
-    @tags = Tag.all.includes([:taggings])
+    @tags = ActsAsTaggableOn::Tag.for_context(:labels)
     render json: { success: true, tags: @tags }, status: :ok
   end
 
@@ -16,6 +16,12 @@ class Api::V1::TagsController < ApiController
   def show_by_tagging
     @tags = ActsAsTaggableOn::Tagging.distinct.pluck(:tag_id).map { |id| ActsAsTaggableOn::Tag.find(id) }
     render json: { success: true, tags: @tags }, status: :ok
+  end
+
+  # Show the functions of tag
+  def show_functions
+    @tag = Tag.find(params[:id])
+    render json: { success: true, functions: @tag.function_list }, status: :ok
   end
 
   # Create tag

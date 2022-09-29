@@ -49,6 +49,7 @@ Rails.application.routes.draw do
       get "tags", to: "tags#index"
       get "tags/:id", to: "tags#show"
       get "tags/tagging/document", to: "tags#show_by_tagging"
+      get "tags/:id/functions", to: "tags#show_functions"
       post "tags", to: "tags#create"
       put "tags/:id", to: "tags#update"
       post "tags/:id/function", to: "tags#add_function"
