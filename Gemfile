@@ -61,6 +61,7 @@ gem 'acts-as-taggable-on', '~> 9.0'
 gem 'closure_tree'
 gem 'rest-client'
 gem 'bullet', group: 'development'
+gem 'draper'
 
 gem 'kaminari'
 gem 'api-pagination'
