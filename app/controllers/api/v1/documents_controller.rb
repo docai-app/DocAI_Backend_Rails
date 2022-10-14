@@ -44,7 +44,7 @@ class Api::V1::DocumentsController < ApiController
     @document = Document.where(status: :ready).order(:created_at).last
     if @document.present?
       res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
-      @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json
+      @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
       render json: { success: true, prediction: { tag: @tag, document: @document } }, status: :ok
     else
       render json: { success: false, error: "No document found" }, status: :ok
@@ -58,7 +58,7 @@ class Api::V1::DocumentsController < ApiController
     @confirmed_count = Document.where(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
     if @document.present?
       res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
-      @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json
+      @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
       render json: { success: true, prediction: { tag: @tag, document: @document }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count }, status: :ok
     else
       render json: { success: false, error: "No document found" }, status: :ok

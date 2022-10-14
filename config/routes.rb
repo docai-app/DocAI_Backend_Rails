@@ -1,9 +1,9 @@
 # == Route Map
 #
 Rails.application.routes.draw do
-  require 'sidekiq/web'
+  require "sidekiq/web"
   require "sidekiq-scheduler/web"
-  mount Sidekiq::Web => '/sidekiq'
+  mount Sidekiq::Web => "/sidekiq"
 
   devise_for :users,
              controllers: {
@@ -52,9 +52,15 @@ Rails.application.routes.draw do
       get "tags/:id/functions", to: "tags#show_functions"
       post "tags", to: "tags#create"
       put "tags/:id", to: "tags#update"
-      post "tags/:id/function", to: "tags#add_function"
+      post "tags/function", to: "tag_functions#create"
 
-      # # **********Storage API**********
+      # **********Functions API**********
+      get "functions", to: "functions#index"
+      get "functions/:id", to: "functions#show"
+      post "functions", to: "functions#create"
+      put "functions/:id", to: "functions#update"
+
+      # **********Storage API**********
       post "storage/upload", to: "storage#upload"
       post "storage/upload/bulk/tag", to: "storage#upload_bulk_tag"
       post "storage/upload/directly", to: "storage#upload_directly"
@@ -88,6 +94,7 @@ Rails.application.routes.draw do
       # **********Document Approval API**********
       get "approval/documents", to: "document_approvals#index"
       get "approval/documents/:id", to: "document_approvals#show"
+      get "approval/normal/documents", to: "document_approvals#show_normal_approval"
       put "approval/documents/:id", to: "document_approvals#update"
 
       # **********Folder API**********

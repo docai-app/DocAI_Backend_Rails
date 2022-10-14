@@ -2,13 +2,14 @@ class Api::V1::TagsController < ApiController
   # Show all tags
   def index
     # Get all labels tags
-    @tags = ActsAsTaggableOn::Tag.for_context(:labels)
+    # @tags = ActsAsTaggableOn::Tag.for_context(:labels).includes(:functions)
+    @tags = Tag.all.includes([:functions, :tag_functions]).as_json(include: :functions)
     render json: { success: true, tags: @tags }, status: :ok
   end
 
   # Show tag by id
   def show
-    @tag = Tag.find(params[:id])
+    @tag = Tag.find(params[:id]).as_json(include: :functions)
     render json: { success: true, tag: @tag }, status: :ok
   end
 
@@ -20,8 +21,8 @@ class Api::V1::TagsController < ApiController
 
   # Show the functions of tag
   def show_functions
-    @tag = Tag.find(params[:id])
-    render json: { success: true, functions: @tag.function_list }, status: :ok
+    @tag = Tag.find(params[:id]).as_json(include: :functions)
+    render json: { success: true, functions: @tag['functions'] }, status: :ok
   end
 
   # Create tag
@@ -38,17 +39,6 @@ class Api::V1::TagsController < ApiController
   def update
     @tag = ActsAsTaggableOn::Tag.find(params[:id])
     if @tag.update(tag_params)
-      render json: { success: true, tag: @tag }, status: :ok
-    else
-      render json: { success: false }, status: :unprocessable_entity
-    end
-  end
-
-  # Add function to tag
-  def add_function
-    @tag = Tag.find(params[:id])
-    @tag.function_list.add(params[:function])
-    if @tag.save
       render json: { success: true, tag: @tag }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity

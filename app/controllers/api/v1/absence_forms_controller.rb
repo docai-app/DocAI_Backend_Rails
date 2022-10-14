@@ -4,7 +4,7 @@ class Api::V1::AbsenceFormsController < ApiController
   # Show absence form by approval status where form_schema is absence form
   def show_by_approval_status
     @date = Date.tomorrow - params[:days].to_i || Date.today - 3
-    @absence_forms = DocumentApproval.where(approval_status: params[:status]).where(form_data_id: FormDatum.where(form_schema_id: FormSchema.where(name: "請假表").first.id)).where("created_at >= ?", @date).includes([:document, :form_data]).as_json(include: [:document, :form_data])
+    @absence_forms = DocumentApproval.where(approval_status: params[:status]).where(form_data_id: FormDatum.where(form_schema_id: FormSchema.where(name: "請假表").first.id)).where("created_at >= ?", @date).includes([:document, :form_data, document: :taggings]).as_json(include: [:document, :form_data])
     @absence_forms = Kaminari.paginate_array(@absence_forms).page(params[:page])
     render json: { success: true, absence_forms: @absence_forms, meta: pagination_meta(@absence_forms) }, status: :ok
   end
