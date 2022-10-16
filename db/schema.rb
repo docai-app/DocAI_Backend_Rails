@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_10_12_071730) do
+ActiveRecord::Schema[7.0].define(version: 2022_10_16_171302) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -69,12 +69,14 @@ ActiveRecord::Schema[7.0].define(version: 2022_10_12_071730) do
     t.datetime "approval_at"
     t.uuid "folder_id"
     t.string "upload_local_path"
+    t.uuid "user_id"
     t.index ["approval_status"], name: "index_documents_on_approval_status"
     t.index ["approval_user_id"], name: "index_documents_on_approval_user_id"
     t.index ["folder_id"], name: "index_documents_on_folder_id"
     t.index ["name"], name: "index_documents_on_name"
     t.index ["status"], name: "index_documents_on_status"
     t.index ["upload_local_path"], name: "index_documents_on_upload_local_path"
+    t.index ["user_id"], name: "index_documents_on_user_id"
   end
 
   create_table "folder_hierarchies", id: false, force: :cascade do |t|

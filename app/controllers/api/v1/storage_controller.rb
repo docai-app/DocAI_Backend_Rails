@@ -1,5 +1,5 @@
 class Api::V1::StorageController < ApiController
-  before_action :authenticate_user!, only: []
+  before_action :authenticate_user!, only: [:upload]
   # Upload file to storage
   def upload
     files = params[:document]
@@ -8,6 +8,7 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename)
         @document.storage_url = AzureService.upload(file) if file.present?
+        @document.user_id = current_user.id
         @document.uploaded!
       end
       render json: { success: true }, status: :ok

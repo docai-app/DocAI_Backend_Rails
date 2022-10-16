@@ -1,6 +1,6 @@
 class Api::V1::DocumentsController < ApiController
   before_action :set_document, only: [:show, :update, :destroy, :approval]
-
+  before_action :current_user_documents, only: [:show_latest_predict, :show_specify_date_latest_predict]
   before_action :authenticate_user!, only: [:approval]
   # before_action :require_admin, only: []
 
@@ -41,7 +41,7 @@ class Api::V1::DocumentsController < ApiController
 
   # Show and Predict the Latest Uploaded Document
   def show_latest_predict
-    @document = Document.where(status: :ready).order(:created_at).last
+    @document = @current_user_documents.where(status: :ready).order(:created_at).last
     if @document.present?
       res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
       @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
@@ -53,9 +53,9 @@ class Api::V1::DocumentsController < ApiController
 
   # Show and Predict the Specify Date Latest Uploaded Document
   def show_specify_date_latest_predict
-    @document = Document.where(status: :ready).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).last
-    @unconfirmed_count = Document.where.not(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
-    @confirmed_count = Document.where(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
+    @document = @current_user_documents.where(status: :ready).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).last
+    @unconfirmed_count = @current_user_documents.where.not(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
+    @confirmed_count = @current_user_documents.where(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
     if @document.present?
       res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
       @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
@@ -119,6 +119,10 @@ class Api::V1::DocumentsController < ApiController
 
   def document_params
     params.require(:document).permit(:name, :storage_url, :content, :status, :folder_id)
+  end
+
+  def current_user_documents
+    @current_user_documents = Document.where(user_id: current_user.id).or(Document.where(user_id: nil))
   end
 
   def pagination_meta(object)

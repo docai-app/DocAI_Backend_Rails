@@ -23,6 +23,7 @@ class Document < ApplicationRecord
   has_one_attached :file #, service: :microsoft
 
   belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id" 
+  belongs_to :users, optional: true, class_name: "User", foreign_key: "user_id"
 
   scope :waiting_approve, lambda { |b|
     where("documents.approval_at is null")
