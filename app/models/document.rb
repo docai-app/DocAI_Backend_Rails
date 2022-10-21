@@ -21,8 +21,11 @@ class Document < ApplicationRecord
   enum status: [:pending, :uploaded, :confirmed, :ocring, :ocr_completed, :ready]
   enum approval_status: [:awaiting, :rejected, :approved]
   has_one_attached :file #, service: :microsoft
+  has_paper_trail
 
-  belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id" 
+  has_many :document_approval, dependent: :destroy, class_name: "DocumentApproval", foreign_key: "document_id"
+
+  belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id"
   belongs_to :users, optional: true, class_name: "User", foreign_key: "user_id"
 
   scope :waiting_approve, lambda { |b|

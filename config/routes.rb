@@ -31,6 +31,7 @@ Rails.application.routes.draw do
         get ":date/predict", to: "documents#show_specify_date_latest_predict"
         put ":id", to: "documents#update"
         get "ocr/:id", to: "documents#ocr"
+        delete ":id", to: "documents#destroy"
       end
 
       # **********Search API**********
@@ -53,6 +54,7 @@ Rails.application.routes.draw do
       post "tags", to: "tags#create"
       put "tags/:id", to: "tags#update"
       post "tags/function", to: "tag_functions#create"
+      delete "tags/function", to: "tag_functions#destroy"
 
       # **********Functions API**********
       get "functions", to: "functions#index"

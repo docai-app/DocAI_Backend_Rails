@@ -20,6 +20,16 @@ class Api::V1::TagFunctionsController < ApplicationController
         end
     end
 
+    def destroy
+        @tag_function = TagFunction.find_by(tag_id: params[:tag_id], function_id: params[:function_id])
+        puts @tag_function.inspect
+        if @tag_function.destroy
+            render json: { success: true }, status: :ok
+        else
+            render json: { success: false }, status: :unprocessable_entity
+        end
+    end
+
     def update
         @tag_function = TagFunction.find(params[:id])
         if @tag_function.update(tag_function_params)

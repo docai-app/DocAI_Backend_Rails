@@ -77,6 +77,12 @@ class Api::V1::DocumentsController < ApiController
   end
 
   def destroy
+    @document = Document.find(params[:id])
+    if @document.destroy
+      render json: { success: true }, status: :ok
+    else
+      render json: { success: false }, status: :unprocessable_entity
+    end
   end
 
   def update
