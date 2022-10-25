@@ -1,6 +1,6 @@
 class OcrJob
   include Sidekiq::Worker
-  sidekiq_options retry: 0, dead: true, queue: "ocr", throttle: { threshold: 1, period: 5.second }
+  sidekiq_options retry: 0, dead: true, queue: "ocr", throttle: { threshold: 1, period: 10.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 24 * count }
 
@@ -19,6 +19,6 @@ class OcrJob
       @document.ready!
     end
   rescue
-    puts "====== error ====== document.id: #{content}"
+    puts "====== error ====== document.id: #{@document.id}"
   end
 end

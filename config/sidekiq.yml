@@ -2,10 +2,15 @@
 :queues:
   - ['default', 1]
   - ['ocr', 1]
+  - ['document_classification', 1]
 :timeout: 86400
 
 :schedule:
   OcrJob:
-    every: '5s'
+    every: '10s'
     queue: ocr
+    enabled: true
+  DocumentClassificationJob:
+    every: '10s'
+    queue: document_classification
     enabled: true
