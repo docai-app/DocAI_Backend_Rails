@@ -85,4 +85,6 @@ Rails.application.configure do
   config.active_record.dump_schema_after_migration = false
 
   config.active_storage.service = :microsoft
+
+  config.time_zone = "Asia/Taipei"
 end

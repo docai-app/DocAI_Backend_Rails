@@ -77,5 +77,7 @@ Rails.application.configure do
 
   config.active_job.queue_adapter = :sidekiq
 
+  config.time_zone = "Asia/Taipei"
+
   Redis.exists_returns_integer = true
 end
