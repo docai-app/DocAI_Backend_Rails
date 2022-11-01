@@ -6,23 +6,6 @@ namespace :batch_upload do
     parent_folder = Folder.find_or_create_by(name: parent_dir_name)
   end
 
-  task :create_folders => :environment do
-
-    # 開一個 admin 帳號, 作為最權限
-    user = User.find_or_create_by(email: "admin@chyb.com")
-
-    # 開好 d folder
-    root_folder = Folder.find_or_create_by(name: "CHYB_人力資源部", user: user)
-
-    Dir["/Users/chonwai/Downloads/CHYB_人力資源部/**/*"].each do |f|
-      if File.directory?(f)
-        puts "#{f} ... "
-        folder_name = File.basename(f)
-        parent_folder(f).children.find_or_create_by name: folder_name, user: user
-      end
-    end
-  end
-
   def upload_file(file_name, blob_data)
     blob_client = Azure::Storage::Blob::BlobService
 
@@ -46,8 +29,40 @@ namespace :batch_upload do
     return "https://#{account_name}.blob.core.windows.net/#{container_name}/#{blob_name}"
   end
 
+  task :create_folders => :environment do
+
+    # 開一個 admin 帳號, 作為最權限
+    user = User.find_or_create_by(email: "vivi.long@chyb.com")
+
+    # 開好 d folder
+    root_folder = Folder.find_or_create_by(name: "建業文件", user: user)
+
+    Dir["/Users/chonwai/Downloads/建業文件/**/*"].each do |f|
+      if File.directory?(f)
+        puts "#{f} ... "
+        folder_name = File.basename(f)
+        parent_folder(f).children.find_or_create_by name: folder_name, user: user
+      end
+    end
+  end
+
+  task :create_folders_on_root => :environment do
+    user = User.find_or_create_by(email: "vivi.long@chyb.com")
+
+    Dir["/Users/chonwai/Downloads/建業文件/**/*"].each do |f|
+      if File.directory?(f)
+        puts "#{f} ... "
+        folder_name = File.basename(f)
+        Folder.find_or_create_by(name: folder_name, user: user)
+      end
+
+    end
+  end
+  
   task :documents => :environment do
-    Dir["/Users/chonwai/Downloads/CHYB_人力資源部_test6/**/*"].each do |f|
+    user = User.find_or_create_by(email: "vivi.long@chyb.com")
+
+    Dir["/Users/chonwai/Downloads/建業文件/**/*"].each do |f|
       next if File.directory?(f)
 
       # 先睇下條 record 係咪已經存在，即係已經 upload 左未
@@ -60,9 +75,36 @@ namespace :batch_upload do
       # doc.file.attach(io: data, filename: File.basename(f), content_type: "application/pdf")
       doc.storage_url = upload_file(File.basename(f), data)
       puts "Storage URL: #{doc.storage_url}"
+      doc.status = :uploaded
+      doc.user_id = user.id
       doc.save
       puts "Done #{f} .. "
       # binding.pry
     end
+  end
+
+  # rake batch_upload:documents_with_tag tag_id=xxx
+  task :documents_with_tag, [:folder_id, :tag_id] => :environment do |task, args|
+    tag_id = args[:tag_id]
+    folder_id = args[:folder_id]
+    puts "Folder ID: #{folder_id}"
+    puts "Tag ID: #{tag_id}"
+    Dir["/Users/chonwai/Downloads/建業文件/**/*"].each do |f|
+      next if File.directory?(f)
+
+      # 先睇下條 record 係咪已經存在，即係已經 upload 左未
+      # next if Document.where(upload_local_path: f).first.present?
+      # puts "Uploading #{f} .. "
+      # folder = parent_folder(f)
+      # puts "Folder: #{folder.name}"
+      # data = File.open(f, "rb")
+      # doc = Document.new(folder_id: folder.id, status: "uploaded", upload_local_path: f, name: File.basename(f))
+      doc = Document.where(folder_id: folder_id).where(status: "ready").first
+      doc.label_ids = tag_id
+      puts "Done Tag ID: #{doc.label_ids}"
+      doc.status = :confirmed
+      doc.save
+    end
+    puts "Done"
   end
 end
