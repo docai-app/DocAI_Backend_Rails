@@ -1,6 +1,6 @@
 class Api::V1::FoldersController < ApiController
-  before_action :current_user_folder, only: [:update]
-  before_action :authenticate_user!, only: [:create, :update]
+  before_action :current_user_folder, only: [:update, :destroy]
+  before_action :authenticate_user!, only: [:create, :update, :destroy]
 
   def index
     @folders = Folder.all.page params[:page]
@@ -34,6 +34,15 @@ class Api::V1::FoldersController < ApiController
   def update
     if @current_user_folder.update(folder_params)
       render json: { success: true, folder: @current_user_folder }, status: :ok
+    else
+      render json: { success: false }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @folder = Folder.find_by(id: params[:id], user_id: current_user.id)
+    if @folder.destroy
+      render json: { success: true }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity
     end

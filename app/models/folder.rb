@@ -11,13 +11,16 @@
 #
 class Folder < ApplicationRecord
   resourcify
-  acts_as_tree
+  acts_as_tree dependent: :destroy
   
   belongs_to :user
+  has_many :documents, dependent: :destroy, class_name: "Document", foreign_key: "folder_id"
+  has_many :folders, dependent: :destroy, class_name: "Folder", foreign_key: "parent_id"
 
   after_create :set_permissions_to_owner
 
   paginates_per 20
+  has_paper_trail
 
   def set_permissions_to_owner
     return if self['user_id'].nil?

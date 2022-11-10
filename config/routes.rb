@@ -105,6 +105,7 @@ Rails.application.routes.draw do
       get "folders/:id/ancestors", to: "folders#show_ancestors"
       post "folders", to: "folders#create"
       put "folders/:id", to: "folders#update"
+      delete "folders/:id", to: "folders#destroy"
       post "folders/documents", to: "folders#add_document"
 
       # **********Drive API**********
