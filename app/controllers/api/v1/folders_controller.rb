@@ -1,4 +1,5 @@
 class Api::V1::FoldersController < ApiController
+  before_action :current_user_folder, only: [:update]
   before_action :authenticate_user!, only: [:create, :update]
 
   def index
@@ -31,9 +32,8 @@ class Api::V1::FoldersController < ApiController
   end
 
   def update
-    @folder = Folder.find(params[:id])
-    if @folder.update(folder_params)
-      render json: { success: true, folder: @folder }, status: :ok
+    if @current_user_folder.update(folder_params)
+      render json: { success: true, folder: @current_user_folder }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity
     end
@@ -43,6 +43,14 @@ class Api::V1::FoldersController < ApiController
 
   def folder_params
     params.require(:folder).permit(:name, :parent_id)
+  end
+
+  def current_user_folder
+    if current_user.has_role? :w, Folder.find(params[:id])
+      @current_user_folder = Folder.find_by(id: params[:id], user_id: current_user.id)
+    else
+      render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
+    end
   end
 
   def pagination_meta(object) {

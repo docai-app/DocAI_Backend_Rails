@@ -26,6 +26,9 @@ class Api::V1::StatisticsController < ApiController
   # Count document status by date
   def count_document_status_by_date
     @data = Document.includes([:taggings]).find_by_sql("SELECT DATE(created_at) AS date, COUNT(*) AS uploaded_count, SUM(CASE WHEN status = '5' THEN 1 ELSE 0 END) AS ready_count, SUM(CASE WHEN status = '2' THEN 1 ELSE 0 END) AS confirmed_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) AS non_ready_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) * 20 AS estimated_time FROM documents GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC")
+    @data.each do |d|
+      d.date.in_time_zone("Asia/Taipei")
+    end
     @data = Kaminari.paginate_array(@data).page(params[:page])
     render json: { success: true, data: @data, meta: pagination_meta(@data) }, status: :ok
   end
