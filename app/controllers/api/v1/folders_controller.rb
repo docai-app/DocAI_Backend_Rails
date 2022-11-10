@@ -47,7 +47,7 @@ class Api::V1::FoldersController < ApiController
 
   def current_user_folder
     if current_user.has_role? :w, Folder.find(params[:id])
-      @current_user_folder = Folder.find_by(id: params[:id], user_id: current_user.id)
+      @current_user_folder = Folder.find_by(id: params[:id])
     else
       render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
     end
