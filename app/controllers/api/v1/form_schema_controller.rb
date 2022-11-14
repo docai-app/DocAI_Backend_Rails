@@ -13,4 +13,9 @@ class Api::V1::FormSchemaController < ApiController
         @form_schema = FormSchema.find_by(name: params[:name])
         render json: { success: true, form_schema: @form_schema }, status: :ok 
     end
+
+    def show_ready
+        @form_schema = FormSchema.where(is_ready: true)
+        render json: { success: true, form_schema: @form_schema }, status: :ok 
+    end
 end

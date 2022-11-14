@@ -71,6 +71,7 @@ Rails.application.routes.draw do
       get "form/schemas", to: "form_schema#index"
       get "form/schemas/:id", to: "form_schema#show"
       get "form/schemas/name/:name", to: "form_schema#show_by_name"
+      get "form/schemas/status/ready", to: "form_schema#show_ready"
 
       # **********FormDatum API**********
       get "form/datum", to: "form_datum#index"
