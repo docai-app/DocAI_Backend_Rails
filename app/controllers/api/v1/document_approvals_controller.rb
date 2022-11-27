@@ -9,11 +9,18 @@ class Api::V1::DocumentApprovalsController < ApiController
         render json: { success: true, document_approval: @document_approval }, status: :ok
     end
 
-    def show_normal_approval
+    def show_normal_documents_by_approval_status
         @date = Date.tomorrow - params[:days].to_i || Date.today - 3
-        @absence_forms = DocumentApproval.where(approval_status: params[:status]).where(form_data_id: nil).where("created_at >= ?", @date).includes([:document, document: :taggings]).as_json(include: [:document])
+        @normal_documents = DocumentApproval.where(approval_status: params[:status]).where(form_data_id: nil).where("created_at >= ?", @date).includes([:document, document: :taggings]).as_json(include: [:document])
+        @normal_documents = Kaminari.paginate_array(@normal_documents).page(params[:page])
+        render json: { success: true, forms: @normal_documents, meta: pagination_meta(@normal_documents) }, status: :ok
+    end
+
+    def show_forms_by_approval_status
+        @date = Date.tomorrow - params[:days].to_i || Date.today - 3
+        @absence_forms = DocumentApproval.where(approval_status: params[:status]).where(form_data_id: FormDatum.where(form_schema_id: params[:form_schema_id])).where("created_at >= ?", @date).includes([:document, :form_data, document: :taggings]).as_json(include: [:document, :form_data])
         @absence_forms = Kaminari.paginate_array(@absence_forms).page(params[:page])
-        render json: { success: true, absence_forms: @absence_forms, meta: pagination_meta(@absence_forms) }, status: :ok
+        render json: { success: true, forms: @absence_forms, meta: pagination_meta(@absence_forms) }, status: :ok
     end
 
     def update

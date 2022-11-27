@@ -97,7 +97,8 @@ Rails.application.routes.draw do
       # **********Document Approval API**********
       get "approval/documents", to: "document_approvals#index"
       get "approval/documents/:id", to: "document_approvals#show"
-      get "approval/normal/documents", to: "document_approvals#show_normal_approval"
+      get "approval/normal/documents", to: "document_approvals#show_normal_documents_by_approval_status"
+      get "approval/form/documents", to: "document_approvals#show_forms_by_approval_status"
       put "approval/documents/:id", to: "document_approvals#update"
 
       # **********Folder API**********
