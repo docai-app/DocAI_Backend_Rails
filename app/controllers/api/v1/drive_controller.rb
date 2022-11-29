@@ -3,8 +3,8 @@ class Api::V1::DriveController < ApiController
   before_action :current_user_folder, only: [:show, :share]
 
   def index
-    @folders = Folder.where(parent_id: nil)
-    @documents = Document.where(folder_id: nil).as_json(except: [:label_list])
+    @folders = Folder.where(parent_id: nil).includes(:user).as_json(include: { user: { only: [:id, :email, :nickname] } })
+    @documents = Document.where(folder_id: nil).includes(:users).as_json(except: [:label_list], include: { users: { only: [:id, :email, :nickname] } })
     render json: { success: true, folders: @folders, documents: @documents }, status: :ok
   end
 
