@@ -12,7 +12,7 @@ class OcrJob
   def perform()
     # Do something
     @document = Document.where(status: "uploaded").order(created_at: :desc).first
-    if @document.present?
+    if @document.present? && @document.is_document
       ocrRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/ocr", { :document_url => @document.storage_url }
       content = JSON.parse(ocrRes)["result"]
       @document.content = content

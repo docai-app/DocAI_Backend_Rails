@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_11_29_060556) do
+ActiveRecord::Schema[7.0].define(version: 2022_12_03_063051) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -71,6 +71,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_11_29_060556) do
     t.string "upload_local_path"
     t.uuid "user_id"
     t.boolean "is_classified", default: false
+    t.boolean "is_document", default: true
     t.index ["approval_status"], name: "index_documents_on_approval_status"
     t.index ["approval_user_id"], name: "index_documents_on_approval_user_id"
     t.index ["folder_id"], name: "index_documents_on_folder_id"

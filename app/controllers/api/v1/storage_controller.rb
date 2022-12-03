@@ -9,7 +9,12 @@ class Api::V1::StorageController < ApiController
         @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now)
         @document.storage_url = AzureService.upload(file) if file.present?
         @document.user_id = current_user.id
-        @document.uploaded!
+        if DocumentService.checkFileIsDocument(file)
+          @document.uploaded!
+        else
+          @document.is_document = false
+          @document.uploaded!
+        end
       end
       render json: { success: true }, status: :ok
     rescue => e
@@ -24,7 +29,12 @@ class Api::V1::StorageController < ApiController
         @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now)
         @document.storage_url = AzureService.upload(file) if file.present?
         @document.label_ids = params[:tag_id]
-        @document.uploaded!
+        if DocumentService.checkFileIsDocument(file)
+          @document.uploaded!
+        else
+          @document.is_document = false
+          @document.uploaded!
+        end
       end
       render json: { success: true }, status: :ok
     rescue => e
