@@ -17,15 +17,15 @@ class Api::V1::StatisticsController < ApiController
 
   # Count document by date
   def count_document_by_date
-    @count = Document.includes([:taggings]).by_day(params[:date]).count()
-    @confirmed_count = Document.includes([:taggings]).where(status: :confirmed).where("updated_at >= ?", params[:date]).count()
-    @unconfirmed_count = Document.includes([:taggings]).where.not(status: :confirmed).count()
+    @count = Document.includes([:taggings]).where("is_document = true").by_day(params[:date]).count()
+    @confirmed_count = Document.includes([:taggings]).where("is_document = true").where(status: :confirmed).where("updated_at >= ?", params[:date]).count()
+    @unconfirmed_count = Document.includes([:taggings]).where("is_document = true").where.not(status: :confirmed).count()
     render json: { success: true, documents_count: @count, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count }, status: :ok
   end
 
   # Count document status by date
   def count_document_status_by_date
-    @data = Document.includes([:taggings]).find_by_sql("SELECT DATE(created_at) AS date, COUNT(*) AS uploaded_count, SUM(CASE WHEN status = '5' THEN 1 ELSE 0 END) AS ready_count, SUM(CASE WHEN status = '2' THEN 1 ELSE 0 END) AS confirmed_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) AS non_ready_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) * 20 AS estimated_time FROM documents GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC")
+    @data = Document.includes([:taggings]).find_by_sql("SELECT DATE(created_at) AS date, COUNT(*) AS uploaded_count, SUM(CASE WHEN status = '5' THEN 1 ELSE 0 END) AS ready_count, SUM(CASE WHEN status = '2' THEN 1 ELSE 0 END) AS confirmed_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) AS non_ready_count, SUM(CASE WHEN status = '1' THEN 1 ELSE 0 END) * 20 AS estimated_time FROM documents WHERE is_document = TRUE GROUP BY DATE(created_at) ORDER BY DATE(created_at) DESC")
     @data.each do |d|
       d.date.in_time_zone("Asia/Taipei")
     end
