@@ -5,4 +5,5 @@ class Project < ApplicationRecord
 
     has_one :folder, class_name: 'Folder', foreign_key: 'folder_id'
     has_many :documents, through: :folder, class_name: 'Document', foreign_key: 'folder_id'
+    has_many :project_tasks, class_name: 'ProjectTask', foreign_key: 'project_id', dependent: :destroy
 end

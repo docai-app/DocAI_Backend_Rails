@@ -1,5 +1,5 @@
 class Api::V1::ProjectsController < ApiController
-    before_action :authenticate_user!, only: [:create, :update, :destroy]
+  before_action :authenticate_user!, only: [:create, :update, :destroy]
 
   def index
     @projects = Project.all.page params[:page]
@@ -9,6 +9,12 @@ class Api::V1::ProjectsController < ApiController
   def show
     @project = Project.find(params[:id])
     render json: { success: true, project: @project }, status: :ok
+  end
+
+  def show_tasks
+    @project = Project.find(params[:id])
+    @project_tasks = @project.project_tasks
+    render json: { success: true, project_tasks: @project_tasks }, status: :ok
   end
 
   def create

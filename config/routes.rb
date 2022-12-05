@@ -121,9 +121,17 @@ Rails.application.routes.draw do
       # **********Project API**********
       get "projects", to: "projects#index"
       get "projects/:id", to: "projects#show"
+      get "projects/:id/tasks", to: "projects#show_tasks"
       post "projects", to: "projects#create"
       put "projects/:id", to: "projects#update"
       delete "projects/:id", to: "projects#destroy"
+
+      # **********Project Tasks API**********
+      get "tasks", to: "project_tasks#index"
+      get "tasks/:id", to: "project_tasks#show"
+      post "tasks", to: "project_tasks#create"
+      put "tasks/:id", to: "project_tasks#update"
+      delete "tasks/:id", to: "project_tasks#destroy"
     end
   end
 end
