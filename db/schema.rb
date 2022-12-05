@@ -137,10 +137,10 @@ ActiveRecord::Schema[7.0].define(version: 2022_12_05_103137) do
   end
 
   create_table "projects", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "name"
+    t.string "name", null: false
     t.string "description"
-    t.uuid "user_id"
-    t.string "folder_id"
+    t.uuid "user_id", null: false
+    t.uuid "folder_id", null: false
     t.boolean "is_public", default: false
     t.boolean "is_finished", default: false
     t.datetime "created_at", null: false
@@ -238,5 +238,7 @@ ActiveRecord::Schema[7.0].define(version: 2022_12_05_103137) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "documents", "folders"
   add_foreign_key "folders", "users"
+  add_foreign_key "projects", "folders"
+  add_foreign_key "projects", "users"
   add_foreign_key "taggings", "tags"
 end

@@ -32,6 +32,7 @@ class User < ApplicationRecord
   has_many :approval_documents, class_name: 'Document', foreign_key: "approval_user_id"
   has_many :documents, class_name: 'Document', foreign_key: "user_id"
   has_many :folders, class_name: 'Folder', foreign_key: "user_id"
+  has_many :projects, class_name: 'Project', foreign_key: "user_id"
 
   '''如果需要 default 角色'''
   # after_create :assign_default_role

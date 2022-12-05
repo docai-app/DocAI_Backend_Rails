@@ -117,6 +117,13 @@ Rails.application.routes.draw do
 
       # **********Form API**********
       post "form/recognition", to: "forms#recognize"
+
+      # **********Project API**********
+      get "projects", to: "projects#index"
+      get "projects/:id", to: "projects#show"
+      post "projects", to: "projects#create"
+      put "projects/:id", to: "projects#update"
+      delete "projects/:id", to: "projects#destroy"
     end
   end
 end
