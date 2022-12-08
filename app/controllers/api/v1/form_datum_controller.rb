@@ -21,6 +21,13 @@ class Api::V1::FormDatumController < ApiController
     render json: { success: true, form_datum: @form_datum }, status: :ok
   end
 
+  # Show form data by filter params and form schema id
+  def show_by_filter_and_form_schema_id
+    puts params[:filter].to_json
+    @form_datum = FormDatum.where(form_schema_id: params[:form_schema_id]).where("data @> ?", params[:filter].to_json).includes([:document]).as_json(include: [:document])
+    render json: { success: true, form_datum: @form_datum }, status: :ok
+  end
+
   def create
     @form_data = FormDatum.new(form_data_params)
     if @form_data.save

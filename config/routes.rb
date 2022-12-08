@@ -76,6 +76,7 @@ Rails.application.routes.draw do
       # **********FormDatum API**********
       get "form/datum", to: "form_datum#index"
       get "form/datum/:id", to: "form_datum#show"
+      get "form/datum/:form_schema_id/search", to: "form_datum#show_by_filter_and_form_schema_id"
       put "form/datum/:id", to: "form_datum#update"
 
       # **********AbsenceForm API**********
