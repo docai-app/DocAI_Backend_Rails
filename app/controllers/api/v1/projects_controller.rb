@@ -2,7 +2,7 @@ class Api::V1::ProjectsController < ApiController
   before_action :authenticate_user!, only: [:create, :update, :destroy]
 
   def index
-    @projects = Project.all.includes([:project_tasks]).as_json(include: :project_tasks)
+    @projects = Project.all.includes([:project_tasks, :user]).as_json(include: [:project_tasks, :user])
     @projects = Kaminari.paginate_array(@projects).page(params[:page])
     render json: { success: true, projects: @projects, meta: pagination_meta(@projects) }, status: :ok
   end
