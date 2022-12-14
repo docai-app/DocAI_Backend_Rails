@@ -53,7 +53,7 @@ class Api::V1::ProjectsController < ApiController
   private
 
   def project_params
-    params.require(:project).permit(:name, :description, :user_id, :is_public, :is_finished)
+    params.require(:project).permit(:name, :description, :user_id, :is_public, :is_finished, :deadline_at)
   end
 
   def pagination_meta(object) {

@@ -42,7 +42,7 @@ class Api::V1::ProjectTasksController < ApiController
   private
 
   def project_task_params
-    params.require(:project_task).permit(:title, :description, :project_id, :is_completed, :order)
+    params.require(:project_task).permit(:title, :description, :project_id, :is_completed, :order, :deadline_at)
   end
 
   def pagination_meta(object) {
