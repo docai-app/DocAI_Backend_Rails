@@ -1,6 +1,6 @@
 class Api::V1::ProjectsController < ApiController
   before_action :authenticate_user!, only: [:create, :update, :destroy]
-  before_action :current_user_project, only: [:update]
+  before_action :current_user_project, only: [:update, :destroy]
 
   def index
     @projects = Project.all.includes([:project_tasks, :user]).as_json(include: [:project_tasks, :user])
@@ -20,7 +20,6 @@ class Api::V1::ProjectsController < ApiController
   end
 
   def create
-    # @project = Project.new(project_params)
     # Create a new folder for the project
     @folder = Folder.new(name: params[:project][:name], user_id: current_user.id)
     @folder.save
