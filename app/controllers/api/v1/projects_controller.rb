@@ -1,5 +1,6 @@
 class Api::V1::ProjectsController < ApiController
   before_action :authenticate_user!, only: [:create, :update, :destroy]
+  before_action :current_user_project, only: [:update]
 
   def index
     @projects = Project.all.includes([:project_tasks, :user]).as_json(include: [:project_tasks, :user])
@@ -24,7 +25,7 @@ class Api::V1::ProjectsController < ApiController
     @folder = Folder.new(name: params[:project][:name], user_id: current_user.id)
     @folder.save
     # Create a new project
-    @project = Project.new(name: params[:project][:name], description: params[:project][:description], user_id: current_user.id, folder_id: @folder.id)
+    @project = Project.new(name: params[:project][:name], description: params[:project][:description], deadline_at: params[:project][:deadline_at], user_id: current_user.id, folder_id: @folder.id)
     if @project.save
       render json: { success: true, project: @project, folder: @folder }, status: :ok
     else
@@ -54,6 +55,14 @@ class Api::V1::ProjectsController < ApiController
 
   def project_params
     params.require(:project).permit(:name, :description, :user_id, :is_public, :is_finished, :deadline_at)
+  end
+
+  def current_user_project
+    if current_user.has_role? :w, Project.find(params[:id])
+      @current_user_project = Project.where(user_id: current_user.id).or(Project.where(user_id: nil))
+    else
+      render json: { success: false, error: "You don't have permission to edit this project" }, status: :ok
+    end
   end
 
   def pagination_meta(object) {
