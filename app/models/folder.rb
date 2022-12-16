@@ -14,7 +14,6 @@ class Folder < ApplicationRecord
   acts_as_tree dependent: :destroy
   
   belongs_to :user, class_name: 'User', foreign_key: 'user_id'
-  belongs_to :project, dependent: :destroy, class_name: 'Project', foreign_key: 'folder_id'
   has_many :documents, dependent: :destroy, class_name: "Document", foreign_key: "folder_id"
   has_many :folders, dependent: :destroy, class_name: "Folder", foreign_key: "parent_id"
 

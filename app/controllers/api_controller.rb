@@ -13,7 +13,7 @@ class ApiController < ActionController::Base
 
   def render_error(exception = nil)
     @status_code = params[:code] || 400 #ActionDispatch::ExceptionWrapper.new(env, exception).status_code
-    render :json => { success: false, erorr: exception.message, status: @status_code }
+    render :json => { success: false, error: exception.message, status: @status_code }
   end
 
   def render_error_msg(msg, code = nil)
