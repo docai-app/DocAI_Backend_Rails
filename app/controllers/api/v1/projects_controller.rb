@@ -3,13 +3,13 @@ class Api::V1::ProjectsController < ApiController
   before_action :current_user_project, only: [:update, :destroy]
 
   def index
-    @projects = Project.all.includes([:project_tasks, :user]).as_json(include: [:project_tasks, :user])
+    @projects = Project.all.includes([:project_tasks, :user, :folder]).as_json(include: [:project_tasks, :user, :folder])
     @projects = Kaminari.paginate_array(@projects).page(params[:page])
     render json: { success: true, projects: @projects, meta: pagination_meta(@projects) }, status: :ok
   end
 
   def show
-    @project = Project.find(params[:id])
+    @project = Project.find(params[:id]).as_json(include: [:project_tasks, :user, :folder])
     render json: { success: true, project: @project }, status: :ok
   end
 
