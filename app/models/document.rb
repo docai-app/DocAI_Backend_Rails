@@ -26,7 +26,7 @@ class Document < ApplicationRecord
   has_many :document_approval, dependent: :destroy, class_name: "DocumentApproval", foreign_key: "document_id"
 
   belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id"
-  belongs_to :users, optional: true, class_name: "User", foreign_key: "user_id"
+  belongs_to :user, optional: true, class_name: "User", foreign_key: "user_id"
   belongs_to :folder, optional: true, class_name: "Folder", foreign_key: "folder_id"
 
   scope :waiting_approve, lambda { |b|

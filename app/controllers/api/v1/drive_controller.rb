@@ -4,14 +4,14 @@ class Api::V1::DriveController < ApiController
 
   def index
     @folders = Folder.where(parent_id: nil).includes(:user).as_json(include: { user: { only: [:id, :email, :nickname] } })
-    @documents = Document.where(folder_id: nil).includes(:users).as_json(except: [:label_list], include: { users: { only: [:id, :email, :nickname] } })
+    @documents = Document.where(folder_id: nil).includes(:user).as_json(except: [:label_list], include: { user: { only: [:id, :email, :nickname] } })
     render json: { success: true, folders: @folders, documents: @documents }, status: :ok
   end
 
   def show
-    @folder = Folder.where(parent_id: params[:id])
+    @folder = Folder.where(parent_id: params[:id]).includes(:user).as_json(include: { user: { only: [:id, :email, :nickname] } })
     @ancestors = @current_user_folder.ancestors
-    @documents = Document.where(folder_id: params[:id]).as_json(except: [:label_list])
+    @documents = Document.where(folder_id: params[:id]).includes(:user).as_json(except: [:label_list], include: { user: { only: [:id, :email, :nickname] } })
     render json: { success: true, folder: @current_user_folder, folders: @folder, ancestors: @ancestors, documents: @documents }, status: :ok
   end
 
