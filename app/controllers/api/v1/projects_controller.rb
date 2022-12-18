@@ -34,7 +34,7 @@ class Api::V1::ProjectsController < ApiController
 
   def update
     @project = Project.find(params[:id])
-    if @project.update(project_params) && @project.folder.update(parent_id: params[:parent_id])
+    if @project.update(project_params)
       render json: { success: true, project: @project }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity
