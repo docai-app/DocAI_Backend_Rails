@@ -21,7 +21,7 @@ class Api::V1::ProjectsController < ApiController
 
   def create
     # Create a new folder for the project
-    @folder = Folder.new(name: params[:project][:name], user_id: current_user.id)
+    @folder = Folder.new(name: params[:project][:name], user_id: current_user.id, parent_id: params[:parent_id])
     @folder.save
     # Create a new project
     @project = Project.new(name: params[:project][:name], description: params[:project][:description], deadline_at: params[:project][:deadline_at], user_id: current_user.id, folder_id: @folder.id)
@@ -34,7 +34,7 @@ class Api::V1::ProjectsController < ApiController
 
   def update
     @project = Project.find(params[:id])
-    if @project.update(project_params)
+    if @project.update(project_params) && @project.folder.update(parent_id: params[:parent_id])
       render json: { success: true, project: @project }, status: :ok
     else
       render json: { success: false }, status: :unprocessable_entity
