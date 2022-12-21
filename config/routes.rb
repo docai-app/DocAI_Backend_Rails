@@ -133,6 +133,10 @@ Rails.application.routes.draw do
       post "tasks", to: "project_tasks#create"
       put "tasks/:id", to: "project_tasks#update"
       delete "tasks/:id", to: "project_tasks#destroy"
+
+      # **********User API**********
+      get "users/:id", to: "users#show"
+      put "users/:id/profile", to: "users#update_profile"
     end
   end
 end
