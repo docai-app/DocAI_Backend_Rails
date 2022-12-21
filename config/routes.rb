@@ -135,7 +135,8 @@ Rails.application.routes.draw do
       delete "tasks/:id", to: "project_tasks#destroy"
 
       # **********User API**********
-      get "users/:id", to: "users#show"
+      get "users/:id/profile", to: "users#show"
+      get "users/me", to: "users#show_current_user"
       put "users/:id/profile", to: "users#update_profile"
     end
   end

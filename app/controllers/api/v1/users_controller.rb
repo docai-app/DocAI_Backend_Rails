@@ -11,6 +11,11 @@ class Api::V1::UsersController < ApplicationController
     render json: { success: true, user: @user }, status: :ok
   end
 
+  def show_current_user
+    @user = current_user
+    render json: { success: true, user: @user }, status: :ok
+  end
+
   def create
     @user = User.new(user_params)
     if @user.save
