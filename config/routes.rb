@@ -115,6 +115,7 @@ Rails.application.routes.draw do
       get "drive/files", to: "drive#index"
       get "drive/files/:id", to: "drive#show"
       post "drive/folders/share", to: "drive#share"
+      post "drive/items/move", to: "drive#move_items"
 
       # **********Form API**********
       post "form/recognition", to: "forms#recognize"

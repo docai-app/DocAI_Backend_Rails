@@ -1,5 +1,5 @@
 class Api::V1::DriveController < ApiController
-  before_action :authenticate_user!, only: [:index, :show, :share]
+  before_action :authenticate_user!
   before_action :current_user_folder, only: [:show, :share]
 
   def index
@@ -30,6 +30,24 @@ class Api::V1::DriveController < ApiController
     else
       render json: { success: false, error: "User not found" }, status: :ok
     end
+  end
+
+  def move_items
+    @target_folder = Folder.find(params[:target_folder])
+    @folder_items = params[:folder_items] || []
+    @document_items = params[:document_items] || []
+    @current_folder_id = params[:current_folder_id] || nil
+
+    @folder_items.each do |item|
+      @folder = Folder.find_by(id: item, parent_id: params[:current_folder_id])
+      @folder.update(parent_id: @target_folder[:id])
+    end
+
+    @document_items.each do |item|
+      @document = Document.find_by(id: item, folder_id: params[:current_folder_id])
+      @document.update(folder_id: @target_folder[:id])
+    end
+    render json: { success: true }, status: :ok
   end
 
   private

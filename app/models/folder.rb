@@ -12,9 +12,9 @@
 class Folder < ApplicationRecord
   resourcify
   acts_as_tree dependent: :destroy
-  
-  belongs_to :user, class_name: 'User', foreign_key: 'user_id'
-  has_one :project, class_name: 'Project', foreign_key: 'folder_id'
+
+  belongs_to :user, class_name: "User", foreign_key: "user_id"
+  has_one :project, class_name: "Project", foreign_key: "folder_id"
   has_many :documents, dependent: :destroy, class_name: "Document", foreign_key: "folder_id"
   has_many :folders, dependent: :destroy, class_name: "Folder", foreign_key: "parent_id"
 
@@ -24,7 +24,7 @@ class Folder < ApplicationRecord
   has_paper_trail
 
   def set_permissions_to_owner
-    return if self['user_id'].nil?
+    return if self["user_id"].nil?
     user.add_role :r, self
     user.add_role :w, self
   end
@@ -35,7 +35,7 @@ class Folder < ApplicationRecord
     other.add_role :r, self
     other.add_role :w, self
   end
-  
+
   # def set_sub_folder(sf)
   #   sf.update(ancestry: self['id'])
   # end
