@@ -1,6 +1,8 @@
 class Api::V1::DriveController < ApiController
   before_action :authenticate_user!
   before_action :current_user_folder, only: [:show, :share]
+  before_action :can_move_items_to_folder, only: [:move_items]
+  before_action :has_rights_to_move_items?, only: [:move_items]
 
   def index
     @folders = Folder.where(parent_id: nil).includes(:user).as_json(include: { user: { only: [:id, :email, :nickname] } })
@@ -39,14 +41,13 @@ class Api::V1::DriveController < ApiController
     @current_folder_id = params[:current_folder_id] || nil
 
     @folder_items.each do |item|
-      @folder = Folder.find_by(id: item, parent_id: params[:current_folder_id])
-      @folder.update(parent_id: @target_folder[:id])
+      @folder = Folder.find_by(id: item, parent_id: params[:current_folder_id]).update(parent_id: @target_folder[:id])
     end
 
     @document_items.each do |item|
-      @document = Document.find_by(id: item, folder_id: params[:current_folder_id])
-      @document.update(folder_id: @target_folder[:id])
+      @document = Document.find_by(id: item, folder_id: params[:current_folder_id]).update(folder_id: @target_folder[:id])
     end
+
     render json: { success: true }, status: :ok
   end
 
@@ -57,6 +58,35 @@ class Api::V1::DriveController < ApiController
       @current_user_folder = Folder.find_by(id: params[:id])
     else
       render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
+    end
+  end
+
+  def can_move_items_to_folder
+    if current_user.has_role? :w, Folder.find(params[:target_folder])
+      @can_move_items_to_folder = true
+    else
+      render json: { success: false, error: "You don't have permission to move to this folder" }, status: :ok
+    end
+  end
+
+  def has_rights_to_move_items?
+    @folder_items = params[:folder_items] || []
+    @document_items = params[:document_items] || []
+
+    @folder_items.each do |item|
+      if Folder.find_by(id: item, parent_id: params[:current_folder_id]).has_rights_to_write?(current_user)
+        next
+      else
+        render json: { success: false, error: "You don't have permission to move this folder" }, status: :ok
+      end
+    end
+
+    @document_items.each do |item|
+      if Document.find_by(id: item, folder_id: params[:current_folder_id]).has_rights_to_write?(current_user)
+        next
+      else
+        render json: { success: false, error: "You don't have permission to move this document" }, status: :ok
+      end
     end
   end
 

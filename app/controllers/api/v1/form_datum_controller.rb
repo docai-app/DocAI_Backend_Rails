@@ -23,7 +23,6 @@ class Api::V1::FormDatumController < ApiController
 
   # Show form data by filter params and form schema id
   def show_by_filter_and_form_schema_id
-    puts params[:filter].to_json
     @form_datum = FormDatum.where(form_schema_id: params[:form_schema_id]).where("data @> ?", params[:filter].to_json).includes([:document]).as_json(include: [:document])
     render json: { success: true, form_datum: @form_datum }, status: :ok
   end
@@ -47,6 +46,7 @@ class Api::V1::FormDatumController < ApiController
   end
 
   private
+
   def form_data_params
     params.require(:form_datum).permit(:data => {})
   end

@@ -40,14 +40,29 @@ class Document < ApplicationRecord
   end
 
   def has_file_uploaded?
-    self['storage_url'].present? || file.url.present?
+    self["storage_url"].present? || file.url.present?
   end
 
   def update_upload_status
-    if self['status'] == "pending" && has_file_uploaded?
+    if self["status"] == "pending" && has_file_uploaded?
       self.status = "uploaded"
       self.save
     end
   end
 
+  def has_rights_to_read?(user)
+    if self.user_id != nil
+      user.has_role? :r, self
+    else
+      return true
+    end
+  end
+
+  def has_rights_to_write?(user)
+    if self.user_id != nil
+      user.has_role? :w, self
+    else
+      return true
+    end
+  end
 end

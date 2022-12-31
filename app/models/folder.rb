@@ -40,4 +40,19 @@ class Folder < ApplicationRecord
   #   sf.update(ancestry: self['id'])
   # end
 
+  def has_rights_to_read?(user)
+    if self.user_id != nil
+      user.has_role? :r, self
+    else
+      return true
+    end
+  end
+
+  def has_rights_to_write?(user)
+    if self.user_id != nil
+      user.has_role? :w, self
+    else
+      return true
+    end
+  end
 end
