@@ -35,7 +35,7 @@ class Api::V1::DriveController < ApiController
   end
 
   def move_items
-    @target_folder = Folder.find(params[:target_folder])
+    @target_folder = Folder.find(params[:target_folder_id])
     @folder_items = params[:folder_items] || []
     @document_items = params[:document_items] || []
     @current_folder_id = params[:current_folder_id] || nil
@@ -62,7 +62,7 @@ class Api::V1::DriveController < ApiController
   end
 
   def can_move_items_to_folder
-    if current_user.has_role? :w, Folder.find(params[:target_folder])
+    if current_user.has_role? :w, Folder.find(params[:target_folder_id])
       @can_move_items_to_folder = true
     else
       render json: { success: false, error: "You don't have permission to move to this folder" }, status: :ok
