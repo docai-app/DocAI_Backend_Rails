@@ -3,10 +3,11 @@ class Api::V1::StorageController < ApiController
   # Upload file to storage
   def upload
     files = params[:document]
+    target_folder_id = params[:target_folder_id] || nil
     # try catch to upload the files
     begin
       files.each do |file|
-        @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now)
+        @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now, folder_id: target_folder_id)
         @document.storage_url = AzureService.upload(file) if file.present?
         @document.user_id = current_user.id
         if DocumentService.checkFileIsDocument(file)
