@@ -24,7 +24,8 @@ class Api::V1::FormDatumController < ApiController
   # Show form data by filter params and form schema id
   def show_by_filter_and_form_schema_id
     @form_datum = FormDatum.where(form_schema_id: params[:form_schema_id]).where("data @> ?", params[:filter].to_json).includes([:document]).as_json(include: [:document])
-    render json: { success: true, form_datum: @form_datum }, status: :ok
+    @form_datum = Kaminari.paginate_array(@form_datum).page(params[:page])
+    render json: { success: true, form_datum: @form_datum, meta: pagination_meta(@form_datum) }, status: :ok
   end
 
   def create
@@ -50,4 +51,12 @@ class Api::V1::FormDatumController < ApiController
   def form_data_params
     params.require(:form_datum).permit(:data => {})
   end
+
+  def pagination_meta(object) {
+    current_page: object.current_page,
+    next_page: object.next_page,
+    prev_page: object.prev_page,
+    total_pages: object.total_pages,
+    total_count: object.total_count,
+  }   end
 end
