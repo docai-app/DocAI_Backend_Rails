@@ -23,7 +23,7 @@ class Api::V1::FormDatumController < ApiController
 
   # Show form data by filter params and form schema id
   def show_by_filter_and_form_schema_id
-    @form_datum = FormDatum.where(form_schema_id: params[:form_schema_id]).where("data @> ?", params[:filter].to_json).includes([:document]).as_json(include: [:document])
+    @form_datum = FormDatum.where(form_schema_id: params[:form_schema_id]).where("data @> ?", params[:filter].to_json).includes([:form_schema]).as_json(include: [:form_schema])
     @form_datum = Kaminari.paginate_array(@form_datum).page(params[:page])
     render json: { success: true, form_datum: @form_datum, meta: pagination_meta(@form_datum) }, status: :ok
   end
