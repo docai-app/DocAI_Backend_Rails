@@ -72,3 +72,4 @@ gem 'sidekiq'
 gem 'sidekiq-scheduler'
 
 gem 'paper_trail'
+gem 'rmagick'
