@@ -18,4 +18,9 @@ class Api::V1::FormSchemaController < ApiController
         @form_schema = FormSchema.where(is_ready: true)
         render json: { success: true, form_schema: @form_schema }, status: :ok 
     end
+
+    def show_can_project
+        @form_schema = FormSchema.where(can_project: true)
+        render json: { success: true, form_schema: @form_schema }, status: :ok 
+    end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2022_12_13_135619) do
+ActiveRecord::Schema[7.0].define(version: 2023_01_28_190232) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -119,6 +119,10 @@ ActiveRecord::Schema[7.0].define(version: 2022_12_13_135619) do
     t.datetime "updated_at", null: false
     t.string "azure_form_model_id"
     t.boolean "is_ready", default: false, null: false
+    t.jsonb "form_fields", default: []
+    t.jsonb "form_projection", default: []
+    t.boolean "can_project", default: false, null: false
+    t.string "projection_image_url", default: ""
     t.index ["name"], name: "index_form_schemas_on_name"
   end
 

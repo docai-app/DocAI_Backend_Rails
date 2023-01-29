@@ -19,4 +19,19 @@ class AzureService
     
     return "https://#{@account_name}.blob.core.windows.net/#{@container_name}/#{blob_name}"
   end
+
+  def self.uploadPreviewImage(blob, filename, content_type)
+    blob_client = Azure::Storage::Blob::BlobService.create(
+      storage_account_name: @account_name,
+      storage_access_key: @account_key
+    )
+
+    blob_name = SecureRandom.uuid + "_" + filename
+    blob_name.downcase!
+
+    blob_client.create_block_blob(@container_name, blob_name, blob, content_type: content_type)
+    blob_client.get_blob_properties(@container_name, blob_name)
+    
+    return "https://#{@account_name}.blob.core.windows.net/#{@container_name}/#{blob_name}"
+  end
 end

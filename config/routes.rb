@@ -72,6 +72,7 @@ Rails.application.routes.draw do
       get "form/schemas/:id", to: "form_schema#show"
       get "form/schemas/name/:name", to: "form_schema#show_by_name"
       get "form/schemas/status/ready", to: "form_schema#show_ready"
+      get "form/schemas/status/project", to: "form_schema#show_can_project"
 
       # **********FormDatum API**********
       get "form/datum", to: "form_datum#index"
@@ -139,6 +140,10 @@ Rails.application.routes.draw do
       get "users/:id/profile", to: "users#show"
       get "users/me", to: "users#show_current_user"
       put "users/:id/profile", to: "users#update_profile"
+
+      # **********Form Projection API**********
+      post "form/projection/preview", to: "form_projection#preview"
+      post "form/projection/confirm", to: "form_projection#confirm"
     end
   end
 end
