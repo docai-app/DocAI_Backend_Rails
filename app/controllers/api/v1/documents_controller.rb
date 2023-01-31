@@ -41,11 +41,11 @@ class Api::V1::DocumentsController < ApiController
 
   # Show and Predict the Latest Uploaded Document
   def show_latest_predict
-    @document = @current_user_documents.where(status: :ready).order(:created_at).last
+    @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
     if @document.present?
-      res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
+      res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.last.id.to_s
       @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
-      render json: { success: true, prediction: { tag: @tag, document: @document } }, status: :ok
+      render json: { success: true, prediction: { tag: @tag, document: @document.last }, meta: pagination_meta(@document) }, status: :ok
     else
       render json: { success: false, error: "No document found" }, status: :ok
     end
@@ -53,13 +53,13 @@ class Api::V1::DocumentsController < ApiController
 
   # Show and Predict the Specify Date Latest Uploaded Document
   def show_specify_date_latest_predict
-    @document = @current_user_documents.where(status: :ready).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).last
+    @document = @current_user_documents.where(status: :ready).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).page(params[:page]).per(1)
     @unconfirmed_count = @current_user_documents.where.not(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
     @confirmed_count = @current_user_documents.where(status: :confirmed).where("created_at >= ?", params[:date].to_date).where("created_at <= ?", params[:date].to_date + 1.day).order(:created_at).count
     if @document.present?
-      res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.id.to_s
+      res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + @document.last.id.to_s
       @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
-      render json: { success: true, prediction: { tag: @tag, document: @document }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count }, status: :ok
+      render json: { success: true, prediction: { tag: @tag, document: @document.last }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count, meta: pagination_meta(@document) }, status: :ok
     else
       render json: { success: false, error: "No document found" }, status: :ok
     end
