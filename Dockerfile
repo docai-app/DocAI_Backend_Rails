@@ -5,6 +5,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+RUN apt-get install libmagickwand-dev
 RUN npm install -g yarn@1
 
 WORKDIR /docai-rails
