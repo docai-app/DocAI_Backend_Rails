@@ -1,4 +1,4 @@
-require "RMagick"
+require "RMagick/RMagick2"
 require "base64"
 
 class FormProjectionService
