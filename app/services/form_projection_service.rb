@@ -2,9 +2,20 @@ require "RMagick/RMagick2"
 require "base64"
 
 class FormProjectionService
+  def self.formatMessage(message)
+    if message === true
+      return "✓"
+    elsif message === false
+      return ""
+    else
+      return message
+    end
+  end
+
   def self.drawText(img, x1, y1, x2, y2, message)
     text = Magick::Draw.new
     text.font = "#{Rails.root}/lib/fonts/TaipeiSans.ttf"
+    message = formatMessage(message)
     # define the image file name
     img.annotate(text, x2 - x1, y2 - y1, x1, y1, message) do
       text.gravity = Magick::CenterGravity
@@ -65,7 +76,13 @@ class FormProjectionService
     formFields.each do |field|
       fieldIndex = formFields.index(field)
       fieldKey = field["fieldKey"]
-      coordinates = convertBoundingBoxes(formProjection[fieldIndex]["value"][0]["boundingBoxes"][0], projectionImage)
+      # Get a item from data which has the key name same as the fieldKey
+      if data.has_key?(fieldKey)
+        formProjectionItem = formProjection.find { |item| item["label"] == fieldKey }
+      else
+        next
+      end
+      coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
       projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3], data[fieldKey])
     end
 
