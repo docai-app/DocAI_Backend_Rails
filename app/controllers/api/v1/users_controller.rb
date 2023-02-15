@@ -41,22 +41,28 @@ class Api::V1::UsersController < ApplicationController
 
   # Write a method to update user his own profile
   def update_profile
-    @user = User.find(params[:id])
-    if @user == current_user
-      if @user.update(user_profile_params)
-        render json: { success: true, user: @user }, status: :ok
-      else
-        render json: { success: false, errors: @user.errors }, status: :ok
-      end
+    @user = current_user
+    if @user.update(user_profile_params)
+      render json: { success: true, user: @user }, status: :ok
     else
-      render json: { success: false, errors: "You are not authorized to update this user" }, status: :ok
+      render json: { success: false, errors: @user.errors }, status: :ok
+    end
+  end
+
+  # Write a method to update user his own password
+  def update_password
+    @user = current_user
+    if @user.update_with_password({ current_password: params[:current_password], password: params[:password], password_confirmation: params[:password_confirmation] })
+      render json: { success: true, user: @user }, status: :ok
+    else
+      render json: { success: false, errors: @user.errors }, status: :ok
     end
   end
 
   private
 
-  def user_params
-    params.require(:user).permit(:nickname, :phone, :position, :date_of_birth, :sex, :password, :password_confirmation)
+  def password_params
+    params.require(:user).permit(:password, :password_confirmation, :current_password)
   end
 
   def user_profile_params

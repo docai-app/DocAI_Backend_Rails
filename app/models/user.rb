@@ -35,6 +35,8 @@ class User < ApplicationRecord
   has_many :projects, class_name: 'Project', foreign_key: "user_id"
   has_many :project_tasks, class_name: 'ProjectTask', foreign_key: "user_id"
 
+  validates_confirmation_of :password
+
   '''如果需要 default 角色'''
   # after_create :assign_default_role
   # def assign_default_role

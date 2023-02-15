@@ -139,7 +139,8 @@ Rails.application.routes.draw do
       # **********User API**********
       get "users/:id/profile", to: "users#show"
       get "users/me", to: "users#show_current_user"
-      put "users/:id/profile", to: "users#update_profile"
+      put "users/me/password", to: "users#update_password"
+      put "users/me/profile", to: "users#update_profile"
 
       # **********Form Projection API**********
       post "form/projection/preview", to: "form_projection#preview"
