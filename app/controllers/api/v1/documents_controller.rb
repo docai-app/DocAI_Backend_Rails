@@ -39,6 +39,13 @@ class Api::V1::DocumentsController < ApiController
     render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
   end
 
+  # Show documents by filter
+  def show_by_tag_and_content
+    tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
+    @document = Document.includes([:taggings]).tagged_with(tag).where("content like ?", "%#{params[:content]}%").order(:created_at => :desc).page params[:page]
+    render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+  end
+
   # Show and Predict the Latest Uploaded Document
   def show_latest_predict
     @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
