@@ -73,3 +73,5 @@ gem 'sidekiq-scheduler'
 
 gem 'paper_trail'
 gem 'rmagick'
+
+gem "ruby-openai"

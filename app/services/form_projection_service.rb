@@ -82,8 +82,13 @@ class FormProjectionService
       else
         next
       end
-      coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
-      projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3], data[fieldKey])
+      puts formProjectionItem.inspect + "\n"
+      if formProjectionItem
+        coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
+        projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3], data[fieldKey])
+      else
+        next
+      end
     end
 
     return projectionImage
