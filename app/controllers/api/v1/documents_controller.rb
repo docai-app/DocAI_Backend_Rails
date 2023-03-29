@@ -42,7 +42,10 @@ class Api::V1::DocumentsController < ApiController
   # Show documents by filter
   def show_by_tag_and_content
     tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
-    @document = Document.includes([:taggings]).tagged_with(tag).where("content like ?", "%#{params[:content]}%").order(:created_at => :desc).page params[:page]
+    from = params[:from] || '1970-01-01'
+    to = params[:to] || Date.today
+    puts tag.inspect
+    @document = Document.includes([:taggings]).tagged_with(tag).where("content like ?", "%#{params[:content]}%").where("documents.created_at >= ?", from.to_date).where("documents.created_at <= ?", to.to_date).order(:created_at => :desc).page params[:page]
     render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
   end
 
@@ -132,6 +135,10 @@ class Api::V1::DocumentsController < ApiController
 
   def document_params
     params.require(:document).permit(:name, :storage_url, :content, :status, :folder_id)
+  end
+
+  def document_search_params
+    params.permit(:content, :tag_id, :from, :to)
   end
 
   def current_user_documents
