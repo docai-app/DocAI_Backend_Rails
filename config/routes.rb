@@ -147,6 +147,9 @@ Rails.application.routes.draw do
       # **********Form Projection API**********
       post "form/projection/preview", to: "form_projection#preview"
       post "form/projection/confirm", to: "form_projection#confirm"
+
+      # **********OpenAI API**********
+      post "ai/query", to: "open_ai#query"
     end
   end
 end
