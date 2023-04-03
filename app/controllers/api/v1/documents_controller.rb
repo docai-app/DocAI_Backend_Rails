@@ -42,10 +42,11 @@ class Api::V1::DocumentsController < ApiController
   # Show documents by filter
   def show_by_tag_and_content
     tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
-    from = params[:from] || '1970-01-01'
+    content = params[:content] || ""
+    from = params[:from] || "1970-01-01"
     to = params[:to] || Date.today
     puts tag.inspect
-    @document = Document.includes([:taggings]).tagged_with(tag).where("content like ?", "%#{params[:content]}%").where("documents.created_at >= ?", from.to_date).where("documents.created_at <= ?", to.to_date).order(:created_at => :desc).page params[:page]
+    @document = Document.includes([:taggings]).tagged_with(tag).where("content like ?", "%#{content}%").where("documents.created_at >= ?", from.to_date).where("documents.created_at <= ?", to.to_date).order(:created_at => :desc).page params[:page]
     render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
   end
 
