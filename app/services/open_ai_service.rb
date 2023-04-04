@@ -17,6 +17,7 @@ class OpenAiService
       },
     )
     puts response["choices"][0]["message"]["content"]
-    return response["choices"][0]["message"]["content"]
+    content = Utils.cleansingContentFromGPT(response["choices"][0]["message"]["content"])
+    return content
   end
 end
