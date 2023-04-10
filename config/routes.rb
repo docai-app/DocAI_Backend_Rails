@@ -19,6 +19,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       # **********Documents API**********
       resource :documents do
+        get "", to: "documents#index"
         get ":id", to: "documents#show"
         # Show documents by tag id
         get "tags/:tag_id", to: "documents#show_by_tag"

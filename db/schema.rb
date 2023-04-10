@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_01_28_190232) do
+ActiveRecord::Schema[7.0].define(version: 2023_04_09_121343) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -39,6 +39,13 @@ ActiveRecord::Schema[7.0].define(version: 2023_01_28_190232) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "departments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name"
+    t.string "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "document_approvals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -231,6 +238,8 @@ ActiveRecord::Schema[7.0].define(version: 2023_01_28_190232) do
     t.date "date_of_birth"
     t.integer "sex"
     t.jsonb "profile"
+    t.uuid "department_id"
+    t.index ["department_id"], name: "index_users_on_department_id"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
@@ -260,4 +269,5 @@ ActiveRecord::Schema[7.0].define(version: 2023_01_28_190232) do
   add_foreign_key "projects", "folders"
   add_foreign_key "projects", "users"
   add_foreign_key "taggings", "tags"
+  add_foreign_key "users", "departments"
 end

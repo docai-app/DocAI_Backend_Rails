@@ -29,6 +29,8 @@ class User < ApplicationRecord
          :registerable,
          jwt_revocation_strategy: JwtDenylist
 
+  belongs_to :department, class_name: 'Department', foreign_key: "department_id"
+
   has_many :approval_documents, class_name: 'Document', foreign_key: "approval_user_id"
   has_many :documents, class_name: 'Document', foreign_key: "user_id"
   has_many :folders, class_name: 'Folder', foreign_key: "user_id"
