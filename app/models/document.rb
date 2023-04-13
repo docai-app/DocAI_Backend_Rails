@@ -28,7 +28,7 @@ class Document < ApplicationRecord
   belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id"
   belongs_to :user, optional: true, class_name: "User", foreign_key: "user_id"
   belongs_to :folder, optional: true, class_name: "Folder", foreign_key: "folder_id"
-  belongs_to :department
+  # belongs_to :department
 
   scope :waiting_approve, lambda { |b|
     where("documents.approval_at is null")
