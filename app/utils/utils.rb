@@ -1,5 +1,3 @@
-require "json"
-
 class Utils
   def self.cleansingContentFromGPT(content)
     json_regex = /{.*}/m
@@ -10,7 +8,8 @@ class Utils
     if json_match
       json_str = json_match[0]
       puts "json_str: #{json_str}"
-      json_obj = JSON.parse(json_str)
+      # json_obj = JSON.parse(json_str)
+      json_obj = ActiveSupport::JSON.decode(json_str)
       return json_obj
     else
       puts "No JSON found in the paragraph"
