@@ -93,6 +93,7 @@ Rails.application.routes.draw do
       # **********Classification API**********
       get "classification/predict", to: "classifications#predict"
       post "classification/confirm", to: "classifications#confirm"
+      put "classification", to: "classifications#update_classification"
 
       # **********Statistics API**********
       get "statistics/count/tags/:date", to: "statistics#count_each_tags_by_date"

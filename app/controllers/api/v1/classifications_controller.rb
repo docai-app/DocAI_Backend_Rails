@@ -1,4 +1,6 @@
 class Api::V1::ClassificationsController < ApiController
+  before_action :authenticate_user!
+
   # Predict the Document
   def predict
     res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + params[:id]
@@ -18,5 +20,22 @@ class Api::V1::ClassificationsController < ApiController
     else
       render json: { success: false }, status: :unprocessable_entity
     end
+  end
+
+  # Update the Document Classification
+  def update_classification
+    document_ids = params[:document_ids]
+    tag_id = params[:tag_id]
+
+    Document.transaction do
+      @documents = Document.where(id: document_ids).each do |document|
+        document.update!(label_ids: tag_id, status: :confirmed, is_classified: false)
+        TagFunctionMappingService.mappping(document.id, tag_id)
+      end
+    end
+
+    render json: { success: true, documents: @documents }, status: :ok
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { success: false, error: e.message }, status: :unprocessable_entity
   end
 end
