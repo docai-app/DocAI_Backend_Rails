@@ -1,5 +1,5 @@
 class Api::V1::UsersController < ApplicationController
-  before_action :authenticate_user!
+  before_action :authenticate_user!, except: [:create]
 
   def index
     @users = User.all
@@ -16,14 +16,14 @@ class Api::V1::UsersController < ApplicationController
     render json: { success: true, user: @user }, status: :ok
   end
 
-  def create
-    @user = User.new(user_params)
-    if @user.save
-      render json: { success: true, user: @user }, status: :ok
-    else
-      render json: { success: false, errors: @user.errors }, status: :ok
-    end
-  end
+  # def create
+  #   @user = User.new(user_params)
+  #   if @user.save
+  #     render json: { success: true, user: @user }, status: :ok
+  #   else
+  #     render json: { success: false, errors: @user.errors }, status: :ok
+  #   end
+  # end
 
   # Only user can update his own profile
   def update
