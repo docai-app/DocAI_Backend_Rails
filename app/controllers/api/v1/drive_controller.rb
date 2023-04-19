@@ -7,7 +7,7 @@ class Api::V1::DriveController < ApiController
   def index
     @folders = Folder.where(parent_id: nil).includes(:user).as_json(include: { user: { only: [:id, :email, :nickname] } })
     @folders = Kaminari.paginate_array(@folders).page(params[:page]).per(50)
-    @documents = Document.where(folder_id: nil).includes(:user).as_json(except: [:label_list], include: { user: { only: [:id, :email, :nickname] } })
+    @documents = Document.where(folder_id: nil).includes(:user, :labels).as_json(except: [:label_list], include: { user: { only: [:id, :email, :nickname] }, labels: { only: [:id, :name] } })
     @documents = Kaminari.paginate_array(@documents).page(params[:page]).per(50)
     @meta = compare_pagination_meta(@folders, @documents)
     render json: { success: true, folders: @folders, documents: @documents, meta: @meta }, status: :ok
@@ -17,7 +17,7 @@ class Api::V1::DriveController < ApiController
     @folders = Folder.where(parent_id: params[:id]).includes(:user).as_json(include: { user: { only: [:id, :email, :nickname] } })
     @folders = Kaminari.paginate_array(@folders).page(params[:page]).per(50)
     @ancestors = @current_user_folder.ancestors
-    @documents = Document.where(folder_id: params[:id]).includes(:user).as_json(except: [:label_list], include: { user: { only: [:id, :email, :nickname] } })
+    @documents = Document.where(folder_id: params[:id]).includes([:user, :labels]).as_json(except: [:label_list], include: { user: { only: [:id, :email, :nickname] }, labels: { only: [:id, :name] } })
     @documents = Kaminari.paginate_array(@documents).page(params[:page]).per(50)
     @meta = compare_pagination_meta(@folders, @documents)
     render json: { success: true, folder: @current_user_folder, folders: @folders, ancestors: @ancestors, documents: @documents, meta: @meta }, status: :ok
