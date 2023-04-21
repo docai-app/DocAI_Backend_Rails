@@ -77,15 +77,28 @@ class FormProjectionService
       fieldIndex = formFields.index(field)
       fieldKey = field["fieldKey"]
       # Get a item from data which has the key name same as the fieldKey
-      if data.has_key?(fieldKey)
+      if data.has_key?(fieldKey) && !data[fieldKey].is_a?(Array)
         formProjectionItem = formProjection.find { |item| item["label"] == fieldKey }
-      else
-        next
-      end
-      puts formProjectionItem.inspect + "\n"
-      if formProjectionItem
-        coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
-        projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3], data[fieldKey])
+        if formProjectionItem
+          coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
+          projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3], data[fieldKey])
+        else
+          next
+        end
+      elsif data.has_key?(fieldKey) && data[fieldKey].is_a?(Array)
+        # Loop the data[fieldKey] and get the item and index
+        data[fieldKey].each_with_index do |tableItem, row|
+          # loop the item object and get the key, value and index
+          tableItem.to_unsafe_h.each_with_index do |(key, value), col|
+            formProjectionItem = formProjection.find { |item| item["label"] == "#{fieldKey}/#{row + 1}/#{col}" }
+            if formProjectionItem
+              coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
+              projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3], value)
+            else
+              next
+            end
+          end
+        end
       else
         next
       end
