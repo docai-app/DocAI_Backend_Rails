@@ -18,6 +18,13 @@
 class Document < ApplicationRecord
   resourcify
   acts_as_taggable_on :labels
+  # The status of the document.
+  # pending is the default status.
+  # uploaded is when the file is uploaded to the cloud.
+  # confirmed is when the file is confirmed by the user after ready to be ocr-ed.
+  # ocring is when the file is being ocr-ed.
+  # ocr_completed is when the file is ocr-ed.
+  # ready is when the file is ready to be used. This status is pre-confirm status. When the user confirms the file, the status will be changed to confirmed.
   enum status: [:pending, :uploaded, :confirmed, :ocring, :ocr_completed, :ready]
   enum approval_status: [:awaiting, :rejected, :approved]
   has_one_attached :file #, service: :microsoft

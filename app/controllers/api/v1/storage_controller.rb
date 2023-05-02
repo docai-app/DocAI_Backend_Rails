@@ -23,15 +23,17 @@ class Api::V1::StorageController < ApiController
     end
   end
 
-  def upload_bulk_tag
+  def upload_batch_tag
     files = params[:document]
+    target_folder_id = params[:target_folder_id] || nil
     begin
       files.each do |file|
-        @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now)
+        @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now, folder_id: target_folder_id)
         @document.storage_url = AzureService.upload(file) if file.present?
+        @document.user_id = current_user.id
         @document.label_ids = params[:tag_id]
         if DocumentService.checkFileIsDocument(file)
-          @document.uploaded!
+          @document.confirmed!
         else
           @document.is_document = false
           @document.uploaded!

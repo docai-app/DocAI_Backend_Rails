@@ -67,7 +67,7 @@ Rails.application.routes.draw do
 
       # **********Storage API**********
       post "storage/upload", to: "storage#upload"
-      post "storage/upload/bulk/tag", to: "storage#upload_bulk_tag"
+      post "storage/upload/batch/tag", to: "storage#upload_batch_tag"
       post "storage/upload/directly", to: "storage#upload_directly"
 
       # **********FormSchema API**********
