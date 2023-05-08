@@ -18,4 +18,12 @@ class Utils
 
     return {}
   end
+
+  def self.concatDocumentsContent(documents)
+    content = ""
+    documents.each_with_index do |document, index|
+      content += "Document #{index + 1}: #{document.content}\t "
+    end
+    return content
+  end
 end

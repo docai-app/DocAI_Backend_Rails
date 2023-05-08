@@ -152,6 +152,7 @@ Rails.application.routes.draw do
 
       # **********OpenAI API**********
       post "ai/query", to: "open_ai#query"
+      post "ai/query/documents", to: "open_ai#query_documents"
     end
   end
 end
