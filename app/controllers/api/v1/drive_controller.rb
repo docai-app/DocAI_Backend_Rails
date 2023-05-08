@@ -78,6 +78,7 @@ class Api::V1::DriveController < ApiController
         next
       else
         render json: { success: false, error: "You don't have permission to move this folder" }, status: :ok
+        break
       end
     end
 
@@ -86,6 +87,7 @@ class Api::V1::DriveController < ApiController
         next
       else
         render json: { success: false, error: "You don't have permission to move this document" }, status: :ok
+        break
       end
     end
   end

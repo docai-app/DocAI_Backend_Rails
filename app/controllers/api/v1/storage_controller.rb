@@ -9,7 +9,7 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now, folder_id: target_folder_id)
         @document.storage_url = AzureService.upload(file) if file.present?
-        @document.user_id = current_user.id
+        @document.user = current_user
         if DocumentService.checkFileIsDocument(file)
           @document.uploaded!
         else
@@ -30,7 +30,7 @@ class Api::V1::StorageController < ApiController
       files.each do |file|
         @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now, folder_id: target_folder_id)
         @document.storage_url = AzureService.upload(file) if file.present?
-        @document.user_id = current_user.id
+        @document.user = current_user
         @document.label_ids = params[:tag_id]
         if DocumentService.checkFileIsDocument(file)
           @document.confirmed!

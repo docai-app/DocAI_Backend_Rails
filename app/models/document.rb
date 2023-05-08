@@ -59,7 +59,7 @@ class Document < ApplicationRecord
   end
 
   def has_rights_to_read?(user)
-    if self.user_id != nil
+    if self.user_id != nil && self.user != user
       user.has_role? :r, self
     else
       return true
@@ -67,7 +67,8 @@ class Document < ApplicationRecord
   end
 
   def has_rights_to_write?(user)
-    if self.user_id != nil
+    if self.user_id != nil && self.user != user
+      puts "Checking role"
       user.has_role? :w, self
     else
       return true
