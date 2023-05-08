@@ -18,9 +18,10 @@ class Api::V1::StatisticsController < ApiController
   # Count document by date
   def count_document_by_date
     @count = Document.includes([:taggings]).where("is_document = true").by_day(params[:date]).count()
-    @confirmed_count = Document.includes([:taggings]).where("is_document = true").where(status: :confirmed).where("updated_at >= ?", params[:date]).count()
-    @unconfirmed_count = Document.includes([:taggings]).where("is_document = true").where.not(status: :confirmed).count()
-    render json: { success: true, documents_count: @count, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count }, status: :ok
+    @confirmed_count = Document.includes([:taggings]).where("is_document = true").where(status: :confirmed).where("created_at >= ?", params[:date]).count()
+    @unconfirmed_count = Document.includes([:taggings]).where("is_document = true").where.not(status: :confirmed).where("created_at >= ?", params[:date]).count()
+    @total_unconfirmed_count = Document.includes([:taggings]).where("is_document = true").where.not(status: :confirmed).count()
+    render json: { success: true, documents_count: @count, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count, total_unconfirmed_count: @total_unconfirmed_count }, status: :ok
   end
 
   # Count document status by date
