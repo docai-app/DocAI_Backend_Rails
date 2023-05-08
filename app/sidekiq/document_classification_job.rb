@@ -11,7 +11,7 @@ class DocumentClassificationJob
 
   def perform(*args)
     # Do something
-    @document = Document.where(status: "confirmed").where(is_classified: false).order(created_at: :desc).first
+    @document = Document.where(status: :confirmed).where(is_classified: false).where.not(content: nil).where(is_document: true).order(created_at: :desc).first
     if @document.present? && @document.is_document
       classificationRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: @document.id, label: @document.label_ids.first }.to_json, { content_type: :json, accept: :json }
       if JSON.parse(classificationRes)["status"]
