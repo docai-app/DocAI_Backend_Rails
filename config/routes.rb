@@ -18,21 +18,19 @@ Rails.application.routes.draw do
   namespace :api, :defaults => { :format => :json } do
     namespace :v1 do
       # **********Documents API**********
-      resource :documents do
-        get "", to: "documents#index"
-        get ":id", to: "documents#show"
-        # Show documents by tag id
-        get "tags/:tag_id", to: "documents#show_by_tag"
-        member do
-          post ":id/approval", to: "documents#approval"
+      resources :documents, only: [:index, :show, :update, :destroy] do
+        collection do
+          get "collection", to: "documents#show_by_ids", as: :show_documents_by_ids
+          get "latest/predict", to: "documents#show_latest_predict"
+          get ":date/predict", to: "documents#show_specify_date_latest_predict"
         end
-        # Show and Predict the Latest Uploaded Document
-        get "latest/predict", to: "documents#show_latest_predict"
-        # Show and Predict the Specify Date Latest Uploaded Document
-        get ":date/predict", to: "documents#show_specify_date_latest_predict"
-        put ":id", to: "documents#update"
-        get "ocr/:id", to: "documents#ocr"
-        delete ":id", to: "documents#destroy"
+
+        member do
+          post "approval", to: "documents#approval"
+          get "ocr", to: "documents#ocr"
+        end
+
+        get "tags/:tag_id", to: "documents#show_by_tag", as: :show_documents_by_tag
       end
 
       # **********Search API**********

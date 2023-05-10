@@ -24,7 +24,6 @@ class Api::V1::DriveController < ApiController
   end
 
   def share
-    # @folder = Folder.find(params[:id])
     @user = User.find_by(email: params[:user_email])
     if @user != nil
       @current_user_folder.share_with(@user)

@@ -14,6 +14,13 @@ class Api::V1::DocumentsController < ApiController
     render json: { success: true, document: @document }, status: :ok
   end
 
+  # Show documents by ids
+  def show_by_ids
+    puts params[:ids]
+    @documents = Document.find(params[:ids]).as_json(except: [:label_list])
+    render json: { success: true, documents: @documents }, status: :ok
+  end
+
   # Show documents by name like name param
   def show_by_name
     @document = Document.where("name like ?", "%#{params[:name]}%").order(:created_at => :desc).as_json(except: [:label_list])
