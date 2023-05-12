@@ -34,6 +34,9 @@ class Api::V1::StorageController < ApiController
         @document.label_ids = params[:tag_id]
         if DocumentService.checkFileIsDocument(file)
           @document.confirmed!
+          if params[:needs_deep_understanding] == "true"
+            FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], params[:needs_approval] ? params[:needs_approval] : false)
+          end
         else
           @document.is_document = false
           @document.uploaded!

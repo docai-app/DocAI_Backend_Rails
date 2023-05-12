@@ -3,7 +3,7 @@ development:
   host:     <%= ENV["DEV_DB_HOST"] %>
   encoding: unicode
   database: <%= ENV["DEV_DB"] %>
-  pool:     5
+  pool:     20
   username: <%= ENV["DEV_DB_USERNAME"] %>
   password: <%= ENV["DEV_DB_PASSWORD"] %>
   sslmode: require

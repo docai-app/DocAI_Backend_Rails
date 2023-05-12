@@ -1,9 +1,10 @@
-:concurrency: 10
+:concurrency: 1
 :queues:
   - ['default', 1]
   - ['ocr', 1]
-  - ['document_classification', 2]
-:timeout: 86400
+  - ['document_classification', 1]
+  - ['form_deep_understanding', 1]
+:timeout: 7200
 
 :schedule:
   OcrJob:

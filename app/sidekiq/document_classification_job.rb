@@ -2,7 +2,7 @@ class DocumentClassificationJob
   include Sidekiq::Worker
   sidekiq_options retry: 0, dead: true, queue: "document_classification", throttle: { threshold: 1, period: 10.second }
 
-  sidekiq_retry_in { |count| 60 * 60 * 24 * count }
+  sidekiq_retry_in { |count| 60 * 60 * 1 * count }
 
   sidekiq_retries_exhausted do |msg, _ex|
     subject = "[Api::CreateOrderWorker]Out of retries! #{msg["class"]} with #{msg["args"]}"
@@ -11,7 +11,8 @@ class DocumentClassificationJob
 
   def perform(*args)
     # Do something
-    @document = Document.where(status: :confirmed).where(is_classified: false).where.not(content: nil).where(is_document: true).order(created_at: :desc).first
+    # @document = Document.where(status: :confirmed).where(is_classified: false).where.not(content: nil).where(is_document: true).order(created_at: :desc).first
+    @document = Document.where(status: :confirmed).where(is_classified: false).where.not(content: nil).where(is_document: true).order(Arel.sql('RANDOM()')).first
     if @document.present? && @document.is_document
       classificationRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: @document.id, label: @document.label_ids.first }.to_json, { content_type: :json, accept: :json }
       if JSON.parse(classificationRes)["status"]
