@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_05_11_150035) do
+ActiveRecord::Schema[7.0].define(version: 2023_04_19_072636) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -80,8 +80,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_05_11_150035) do
     t.uuid "user_id"
     t.boolean "is_classified", default: false
     t.boolean "is_document", default: true
-    t.boolean "needs_deep_understanding", default: false, null: false
-    t.boolean "is_deep_understanding", default: false, null: false
     t.index ["approval_status"], name: "index_documents_on_approval_status"
     t.index ["approval_user_id"], name: "index_documents_on_approval_user_id"
     t.index ["folder_id"], name: "index_documents_on_folder_id"
