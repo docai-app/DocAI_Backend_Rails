@@ -8,3 +8,13 @@ development:
   password: <%= ENV["DEV_DB_PASSWORD"] %>
   sslmode: require
   template: template0
+production:
+  adapter:  postgresql
+  host:     <%= ENV["PROD_DB_HOST"] %>
+  encoding: unicode
+  database: <%= ENV["PROD_DB"] %>
+  pool:     20
+  username: <%= ENV["PROD_DB_USERNAME"] %>
+  password: <%= ENV["PROD_DB_PASSWORD"] %>
+  sslmode: require
+  template: template0
