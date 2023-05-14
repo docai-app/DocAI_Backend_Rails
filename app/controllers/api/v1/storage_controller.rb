@@ -1,5 +1,6 @@
 class Api::V1::StorageController < ApiController
   before_action :authenticate_user!, only: [:upload]
+  
   # Upload file to storage
   def upload
     files = params[:document]
@@ -12,6 +13,7 @@ class Api::V1::StorageController < ApiController
         @document.user = current_user
         if DocumentService.checkFileIsDocument(file)
           @document.uploaded!
+          OcrJob.perform_async(@document.id)
         else
           @document.is_document = false
           @document.uploaded!
@@ -34,6 +36,8 @@ class Api::V1::StorageController < ApiController
         @document.label_ids = params[:tag_id]
         if DocumentService.checkFileIsDocument(file)
           @document.confirmed!
+          OcrJob.perform_async(@document.id)
+          DocumentClassificationJob.perform_async(@document.id, params[:tag_id])
           if params[:needs_deep_understanding] == "true"
             FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], params[:needs_approval] ? params[:needs_approval] : false)
           end

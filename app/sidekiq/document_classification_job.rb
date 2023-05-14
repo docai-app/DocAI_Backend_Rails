@@ -1,6 +1,7 @@
 class DocumentClassificationJob
   include Sidekiq::Worker
-  sidekiq_options retry: 0, dead: true, queue: "document_classification", throttle: { threshold: 1, period: 10.second }
+
+  sidekiq_options retry: 3, dead: true, queue: "document_classification", throttle: { threshold: 1, period: 10.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 1 * count }
 
@@ -9,18 +10,18 @@ class DocumentClassificationJob
     _message = "error: #{msg["error_message"]}"
   end
 
-  def perform(*args)
+  def perform(document_id, label_id)
     # Do something
-    # @document = Document.where(status: :confirmed).where(is_classified: false).where.not(content: nil).where(is_document: true).order(created_at: :desc).first
-    @document = Document.where(status: :confirmed).where(is_classified: false).where.not(content: nil).where(is_document: true).order(Arel.sql('RANDOM()')).first
-    if @document.present? && @document.is_document
-      classificationRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: @document.id, label: @document.label_ids.first }.to_json, { content_type: :json, accept: :json }
+    document = Document.find(document_id)
+    if document.present? && document.is_document && !document.is_classified && document.content.present?
+      classificationRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: document_id, label: label_id }.to_json, { content_type: :json, accept: :json }
       if JSON.parse(classificationRes)["status"]
-        @document.is_classified = true
-        @document.save
+        document.is_classified = true
+        document.confirmed!
       end
     end
   rescue
-    puts "====== error ====== document.id: #{@document.id}"
+    puts "====== error ====== document.id: #{document_id}"
+    puts "Document Classification processing failed for document #{document_id}: #{e.message}"
   end
 end
