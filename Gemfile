@@ -75,3 +75,6 @@ gem 'paper_trail'
 gem 'rmagick'
 
 gem "ruby-openai"
+
+# multi-tenancy
+gem 'ros-apartment', require: 'apartment'
