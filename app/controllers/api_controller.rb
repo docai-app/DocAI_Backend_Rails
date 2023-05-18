@@ -41,21 +41,12 @@ class ApiController < ActionController::Base
 
     puts "subdomain: #{subdomain}"
 
-    if subdomain == nil
-      Apartment::Tenant.switch!("public")
-    elsif Apartment.tenant_names.include?(subdomain)
+    # Switch to the tenant, if it exists
+    if Apartment.tenant_names.include?(subdomain)
       Apartment::Tenant.switch!(subdomain)
     else
-      render json: { error: "Invalid subdomain" }, status: :unprocessable_entity
+      Apartment::Tenant.switch!("public")
+      # render json: { error: "Invalid subdomain" }, status: :unprocessable_entity
     end
-
-    # Switch to the tenant, if it exists
-    # if Apartment.tenant_names.include?(subdomain)
-    #   Apartment::Tenant.switch!(subdomain)
-    # elsif subdomain == nil
-    #   Apartment::Tenant.switch!("public")
-    # else
-    #   render json: { error: "Invalid subdomain" }, status: :unprocessable_entity
-    # end
   end
 end
