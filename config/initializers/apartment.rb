@@ -26,8 +26,6 @@ Apartment.configure do |config|
   # - a hash which keys are tenant names, and values custom db config
   # (must contain all key/values required in database.yml)
   #
-  config.default_schema = "public"
-
   config.tenant_names = lambda{ Customer.pluck(:tenant_name) }
   config.tenant_names = ['chyb-dev', 'wishcoffee-dev']
   # config.tenant_names = {
