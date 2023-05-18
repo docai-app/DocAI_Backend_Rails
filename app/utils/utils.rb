@@ -26,4 +26,13 @@ class Utils
     end
     return content
   end
+
+  def self.extractReferrerSubdomain(referrer)
+    if referrer
+      url = URI.parse(referrer)
+      # Assuming that your url is in the format "http://subdomain.domain.com"
+      subdomain = url.host.split('.').first
+    end
+    return subdomain
+  end
 end

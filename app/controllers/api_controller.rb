@@ -36,20 +36,24 @@ class ApiController < ActionController::Base
   rescue_from Exception, with: :render_error
 
   def switch_tenant
-    # Extract the subdomain from the host
-    subdomain = request.host.split(".").first
+    # Get the subdomain from the referrer
+    subdomain = Utils.extractReferrerSubdomain(request.referrer)
 
-    puts subdomain
+    puts "subdomain: #{subdomain}"
 
-    puts request.original_url
-
-    puts request.url
-
-    puts request.referrer
+    if subdomain == nil
+      Apartment::Tenant.switch!("public")
+    elsif Apartment.tenant_names.include?(subdomain)
+      Apartment::Tenant.switch!(subdomain)
+    else
+      render json: { error: "Invalid subdomain" }, status: :unprocessable_entity
+    end
 
     # Switch to the tenant, if it exists
     # if Apartment.tenant_names.include?(subdomain)
     #   Apartment::Tenant.switch!(subdomain)
+    # elsif subdomain == nil
+    #   Apartment::Tenant.switch!("public")
     # else
     #   render json: { error: "Invalid subdomain" }, status: :unprocessable_entity
     # end
