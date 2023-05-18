@@ -1,5 +1,5 @@
 class ApiController < ActionController::Base
-  before_action :set_paper_trail_whodunnit
+  before_action :set_paper_trail_whodunnit, :switch_tenant
   skip_before_action :verify_authenticity_token
 
   # 我平時係呢句
@@ -22,11 +22,11 @@ class ApiController < ActionController::Base
   end
 
   def json_success(data = nil)
-    render json: {success: true, doc: data}.compact
+    render json: { success: true, doc: data }.compact
   end
 
   def json_fail(msg)
-    render json: {success: false, error: msg}.compact
+    render json: { success: false, error: msg }.compact
   end
 
   def user_not_authorized
@@ -34,4 +34,18 @@ class ApiController < ActionController::Base
   end
 
   rescue_from Exception, with: :render_error
+
+  def switch_tenant
+    # Extract the subdomain from the host
+    subdomain = request.host.split(".").first
+
+    puts subdomain
+
+    # Switch to the tenant, if it exists
+    # if Apartment.tenant_names.include?(subdomain)
+    #   Apartment::Tenant.switch!(subdomain)
+    # else
+    #   render json: { error: "Invalid subdomain" }, status: :unprocessable_entity
+    # end
+  end
 end
