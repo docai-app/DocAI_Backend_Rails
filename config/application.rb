@@ -38,8 +38,10 @@ module DocaiApi
 
     config.active_job.queue_adapter = :sidekiq
 
-    # config.middleware.use Apartment::Elevators::Domain
     config.middleware.use Apartment::Elevators::Subdomain
+    # config.middleware.use Apartment::Elevators::FirstSubdomain
+
+    config.eager_load_paths << Rails.root.join('lib')
 
     Redis.exists_returns_integer = true
   end
