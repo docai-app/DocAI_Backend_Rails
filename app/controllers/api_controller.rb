@@ -41,9 +41,11 @@ class ApiController < ActionController::Base
 
     puts subdomain
 
-    puts request.domain
+    puts request.original_url
 
     puts request.url
+
+    puts request.referrer
 
     # Switch to the tenant, if it exists
     # if Apartment.tenant_names.include?(subdomain)
