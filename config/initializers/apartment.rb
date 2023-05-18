@@ -26,7 +26,9 @@ Apartment.configure do |config|
   # - a hash which keys are tenant names, and values custom db config
   # (must contain all key/values required in database.yml)
   #
-  # config.tenant_names = lambda{ Customer.pluck(:tenant_name) }
+  config.default_schema = "public"
+
+  config.tenant_names = lambda{ Customer.pluck(:tenant_name) }
   config.tenant_names = ['chyb-dev', 'wishcoffee-dev']
   # config.tenant_names = {
   #   'tenant1' => {
@@ -50,7 +52,7 @@ Apartment.configure do |config|
   #   end
   # end
   #
-  config.tenant_names = -> { ToDo_Tenant_Or_User_Model.pluck :database }
+  # config.tenant_names = -> { ToDo_Tenant_Or_User_Model.pluck :database }
 
   # PostgreSQL:
   #   Specifies whether to use PostgreSQL schemas or create a new database per Tenant.
