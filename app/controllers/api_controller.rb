@@ -39,7 +39,7 @@ class ApiController < ActionController::Base
     # Get the subdomain from the referrer
     subdomain = Utils.extractReferrerSubdomain(request.referrer)
 
-    puts "subdomain: #{subdomain}"
+    puts "Include subdomain? + #{subdomain}"
 
     # Switch to the tenant, if it exists
     if Apartment.tenant_names.include?(subdomain)

@@ -3,7 +3,9 @@ class Api::V1::ClassificationsController < ApiController
 
   # Predict the Document
   def predict
-    res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + params[:id]
+    subdomain = Utils.extractReferrerSubdomain(request.referrer) || "public"
+    puts "subdomain: #{subdomain}"
+    res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + params[:id] + "&model=" + subdomain
     @document = Document.find(params[:id])
     render json: { success: true, prediction: { tag: JSON.parse(res)["label"], document: @document } }, status: :ok
   end
