@@ -6,7 +6,7 @@
 #
 # require 'apartment/elevators/generic'
 # require 'apartment/elevators/domain'
-require 'apartment/elevators/subdomain'
+require "apartment/elevators/subdomain"
 # require 'apartment/elevators/first_subdomain'
 # require 'apartment/elevators/host'
 
@@ -27,7 +27,7 @@ Apartment.configure do |config|
   # (must contain all key/values required in database.yml)
   #
   # config.tenant_names = lambda{ Customer.pluck(:tenant_name) }
-  config.tenant_names = ['chyb-dev', 'wishcoffee-dev']
+  config.tenant_names = ["public", "chyb-dev", "wishcoffee-dev"]
   # config.tenant_names = {
   #   'tenant1' => {
   #     adapter: 'postgresql',

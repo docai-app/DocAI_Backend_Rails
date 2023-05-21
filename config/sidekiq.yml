@@ -18,10 +18,10 @@
   #   queue: document_classification
   #   enabled: true
   DocumentClassificationMonitorJob:
-    every: '1m'
+    every: '30s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:
-    every: '1m'
+    every: '30s'
     queue: ocr_monitor_job
     enabled: true

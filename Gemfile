@@ -78,3 +78,4 @@ gem "ruby-openai"
 
 # multi-tenancy
 gem 'ros-apartment', require: 'apartment'
+gem 'ros-apartment-sidekiq'
