@@ -11,7 +11,6 @@ class DocumentClassificationJob
   end
 
   def perform(document_id, label_id, subdomain)
-    # Do something
     Apartment::Tenant.switch!(subdomain)
     document = Document.find(document_id)
     if document.present? && document.is_document && !document.is_classified && document.content.present?

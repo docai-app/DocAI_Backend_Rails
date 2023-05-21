@@ -1,6 +1,6 @@
 class FormDeepUnderstandingJob
   include Sidekiq::Worker
-  
+
   sidekiq_options retry: 3, dead: true, queue: "form_deep_understanding", throttle: { threshold: 1, period: 10.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 1 * count }
@@ -10,10 +10,11 @@ class FormDeepUnderstandingJob
     _message = "error: #{msg["error_message"]}"
   end
 
-  def perform(document_id, form_schema_id, needs_approval)
+  def perform(document_id, form_schema_id, needs_approval, subdomain)
     puts "====== perform ====== document_id: #{document_id}"
     puts "====== perform ====== form_schema_id: #{form_schema_id}"
     puts "====== perform ====== needs_approval: #{needs_approval}"
+    Apartment::Tenant.switch!(subdomain)
     @document = Document.find(document_id)
     @form_schema = FormSchema.find(form_schema_id)
     recognizeRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/alpha/form/recognize", { :document_url => @document.storage_url, :model_id => @form_schema.azure_form_model_id }
