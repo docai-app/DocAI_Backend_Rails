@@ -3,10 +3,8 @@ class Api::V1::ClassificationsController < ApiController
 
   # Predict the Document
   def predict
-    subdomain = Utils.extractReferrerSubdomain(request.referrer) || "public"
-    puts "subdomain: #{subdomain}"
-    res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?id=" + params[:id] + "&model=" + subdomain
     @document = Document.find(params[:id])
+    res = RestClient.get ENV["DOCAI_ALPHA_URL"] + "/classification/predict?content=" + URI.encode_www_form_component(@document.last.content.to_s) + "&model=" + getSubdomain
     render json: { success: true, prediction: { tag: JSON.parse(res)["label"], document: @document } }, status: :ok
   end
 
@@ -16,7 +14,8 @@ class Api::V1::ClassificationsController < ApiController
     @document.label_ids = params[:tag_id]
     @document.status = :confirmed
     TagFunctionMappingService.mappping(@document.id, params[:tag_id])
-    DocumentClassificationMonitorJob.perform_async(@document.id, params[:tag_id])
+    puts "Subdomain: #{getSubdomain}"
+    DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
     if @document.save
       render json: { success: true, document: @document }, status: :ok
     else
@@ -33,12 +32,17 @@ class Api::V1::ClassificationsController < ApiController
       @documents = Document.where(id: document_ids).each do |document|
         document.update!(label_ids: tag_id, status: :confirmed, is_classified: false)
         TagFunctionMappingService.mappping(document.id, tag_id)
-        DocumentClassificationMonitorJob.perform_async(document.id, tag_id)
+        DocumentClassificationJob.perform_async(document.id, tag_id, getSubdomain)
       end
     end
 
     render json: { success: true, documents: @documents }, status: :ok
   rescue ActiveRecord::RecordInvalid => e
     render json: { success: false, error: e.message }, status: :unprocessable_entity
+  end
+
+  private
+  def getSubdomain
+    return Utils.extractReferrerSubdomain(request.referrer) || "public"
   end
 end

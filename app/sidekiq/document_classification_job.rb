@@ -10,8 +10,9 @@ class DocumentClassificationJob
     _message = "error: #{msg["error_message"]}"
   end
 
-  def perform(document_id, label_id)
+  def perform(document_id, label_id, subdomain)
     # Do something
+    Apartment::Tenant.switch!(subdomain)
     document = Document.find(document_id)
     if document.present? && document.is_document && !document.is_classified && document.content.present?
       classificationRes = RestClient.post ENV["DOCAI_ALPHA_URL"] + "/classification/confirm", { id: document_id, label: label_id }.to_json, { content_type: :json, accept: :json }

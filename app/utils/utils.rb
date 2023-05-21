@@ -28,10 +28,14 @@ class Utils
   end
 
   def self.extractReferrerSubdomain(referrer)
-    if referrer
+    if referrer && referrer != "localhost"
       url = URI.parse(referrer)
       # Assuming that your url is in the format "http://subdomain.domain.com"
-      subdomain = url.host.split('.').first
+      subdomain = url.host.split(".").first
+    elsif referrer == "localhost"
+      subdomain = "chyb_dev"
+    else
+      subdomain = "chyb_dev"
     end
     return subdomain
   end

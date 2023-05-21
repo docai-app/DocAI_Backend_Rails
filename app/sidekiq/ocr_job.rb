@@ -12,8 +12,8 @@ class OcrJob
     _message = "error: #{msg["error_message"]}"
   end
 
-  def perform(document_id)
-    # Do something
+  def perform(document_id, subdomain)
+    Apartment::Tenant.switch!(subdomain)
     document = Document.find(document_id)
     if document.present? && document.is_document && document.content.nil?
       ocr_res = RestClient.post("#{ENV["DOCAI_ALPHA_URL"]}/alpha/ocr", document_url: document.storage_url)

@@ -13,7 +13,7 @@ class Api::V1::StorageController < ApiController
         @document.user = current_user
         if DocumentService.checkFileIsDocument(file)
           @document.uploaded!
-          OcrJob.perform_async(@document.id)
+          OcrJob.perform_async(@document.id, getSubdomain)
         else
           @document.is_document = false
           @document.uploaded!
@@ -26,6 +26,7 @@ class Api::V1::StorageController < ApiController
   end
 
   def upload_batch_tag
+    subdomain = Utils
     files = params[:document]
     target_folder_id = params[:target_folder_id] || nil
     begin
@@ -36,8 +37,8 @@ class Api::V1::StorageController < ApiController
         @document.label_ids = params[:tag_id]
         if DocumentService.checkFileIsDocument(file)
           @document.confirmed!
-          OcrJob.perform_async(@document.id)
-          DocumentClassificationJob.perform_async(@document.id, params[:tag_id])
+          OcrJob.perform_async(@document.id, getSubdomain)
+          DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
           if params[:needs_deep_understanding] == "true"
             FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], params[:needs_approval] ? params[:needs_approval] : false)
           end
@@ -60,5 +61,10 @@ class Api::V1::StorageController < ApiController
     rescue => e
       render json: { success: false, error: e.message }, status: :unprocessable_entity
     end
+  end
+
+  private
+  def getSubdomain
+    return Utils.extractReferrerSubdomain(request.referrer) || "public"
   end
 end
