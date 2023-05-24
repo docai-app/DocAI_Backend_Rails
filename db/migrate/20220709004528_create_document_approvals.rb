@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateDocumentApprovals < ActiveRecord::Migration[7.0]
   def change
     add_column :documents, :approval_status, :integer, null: false, default: 0

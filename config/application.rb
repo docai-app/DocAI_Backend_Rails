@@ -1,6 +1,8 @@
-require_relative "boot"
+# frozen_string_literal: true
 
-require "rails/all"
+require_relative 'boot'
+
+require 'rails/all'
 require 'dotenv/load'
 require 'apartment/elevators/subdomain'
 
@@ -27,7 +29,7 @@ module DocaiApi
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    config.time_zone = "Asia/Taipei"
+    config.time_zone = 'Asia/Taipei'
     config.active_record.default_timezone = :local
     # config.eager_load_paths << Rails.root.join("extras")
     config.eager_load = true

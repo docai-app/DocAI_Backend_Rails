@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: users
@@ -31,11 +33,11 @@ class User < ApplicationRecord
 
   # belongs_to :department, class_name: 'Department', foreign_key: "department_id", optional: true
 
-  has_many :approval_documents, class_name: 'Document', foreign_key: "approval_user_id"
-  has_many :documents, class_name: 'Document', foreign_key: "user_id"
-  has_many :folders, class_name: 'Folder', foreign_key: "user_id"
-  has_many :projects, class_name: 'Project', foreign_key: "user_id"
-  has_many :project_tasks, class_name: 'ProjectTask', foreign_key: "user_id"
+  has_many :approval_documents, class_name: 'Document', foreign_key: 'approval_user_id'
+  has_many :documents, class_name: 'Document', foreign_key: 'user_id'
+  has_many :folders, class_name: 'Folder', foreign_key: 'user_id'
+  has_many :projects, class_name: 'Project', foreign_key: 'user_id'
+  has_many :project_tasks, class_name: 'ProjectTask', foreign_key: 'user_id'
 
   validates_confirmation_of :password
 
@@ -44,5 +46,4 @@ class User < ApplicationRecord
   # def assign_default_role
   #   add_role(:user) if roles.blank?
   # end
-  
 end

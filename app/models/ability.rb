@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Ability < ApplicationRecord
   include CanCan::Ability
 

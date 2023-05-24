@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: folders
@@ -13,10 +15,10 @@ class Folder < ApplicationRecord
   resourcify
   acts_as_tree dependent: :destroy
 
-  belongs_to :user, class_name: "User", foreign_key: "user_id"
-  has_one :project, class_name: "Project", foreign_key: "folder_id"
-  has_many :documents, dependent: :destroy, class_name: "Document", foreign_key: "folder_id"
-  has_many :folders, dependent: :destroy, class_name: "Folder", foreign_key: "parent_id"
+  belongs_to :user, class_name: 'User', foreign_key: 'user_id'
+  has_one :project, class_name: 'Project', foreign_key: 'folder_id'
+  has_many :documents, dependent: :destroy, class_name: 'Document', foreign_key: 'folder_id'
+  has_many :folders, dependent: :destroy, class_name: 'Folder', foreign_key: 'parent_id'
 
   after_create :set_permissions_to_owner
 
@@ -24,7 +26,8 @@ class Folder < ApplicationRecord
   has_paper_trail
 
   def set_permissions_to_owner
-    return if self["user_id"].nil?
+    return if self['user_id'].nil?
+
     user.add_role :r, self
     user.add_role :w, self
   end
@@ -32,6 +35,7 @@ class Folder < ApplicationRecord
   def share_with(other)
     # if user has permission to share folder, then add role to other user
     return unless user.has_role? :w, self
+
     other.add_role :r, self
     other.add_role :w, self
   end
@@ -41,18 +45,14 @@ class Folder < ApplicationRecord
   # end
 
   def has_rights_to_read?(user)
-    if self.user_id != nil
-      user.has_role? :r, self
-    else
-      return true
-    end
+    return true if user_id.nil?
+
+    user.has_role? :r, self
   end
 
   def has_rights_to_write?(user)
-    if self.user_id != nil
-      user.has_role? :w, self
-    else
-      return true
-    end
+    return true if user_id.nil?
+
+    user.has_role? :w, self
   end
 end

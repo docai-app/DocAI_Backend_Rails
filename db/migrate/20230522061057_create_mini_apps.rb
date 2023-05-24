@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateMiniApps < ActiveRecord::Migration[7.0]
   def change
     create_table :mini_apps, id: :uuid do |t|

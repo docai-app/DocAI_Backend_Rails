@@ -1,8 +1,14 @@
-require "test_helper"
+# frozen_string_literal: true
 
-class Api::V1::StorageControllerTest < ActionDispatch::IntegrationTest
-  test "should get –no-assets" do
-    get api_v1_storage_–no-assets_url
-    assert_response :success
+require 'test_helper'
+
+module Api
+  module V1
+    class StorageControllerTest < ActionDispatch::IntegrationTest
+      test 'should get –no-assets' do
+        get api_v1_storage_–no - assets_url
+        assert_response :success
+      end
+    end
   end
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class TagFunctionMappingService
   def self.mappping(document_id, tag_id)
     @document = Document.find(document_id)
@@ -5,7 +7,7 @@ class TagFunctionMappingService
     @functions = @tag.functions
     @functions.each do |function|
       case function.name
-      when "normal_approval"
+      when 'normal_approval'
         FunctionService.normal_approval(@document)
       end
     end
@@ -20,11 +22,11 @@ class TagFunctionMappingService
     @functions = @tag.functions
     @functions.each do |function|
       case function.name
-      when "normal_approval"
+      when 'normal_approval'
         @documents.each do |document|
           FunctionService.normal_approval(document)
         end
-      when "form_understanding"
+      when 'form_understanding'
         @documents.each do |document|
           FunctionService.form_understanding(document)
         end

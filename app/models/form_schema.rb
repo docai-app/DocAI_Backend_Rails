@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: form_schemas
@@ -12,5 +14,5 @@
 #  updated_at  :datetime         not null
 #
 class FormSchema < ApplicationRecord
-    has_many :form_datum, class_name: "FormDatum"
+  has_many :form_datum, class_name: 'FormDatum'
 end

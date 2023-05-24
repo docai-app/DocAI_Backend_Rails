@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ApplicationController < ActionController::API
   include Devise::Controllers::Helpers
   before_action :switch_tenant
@@ -9,7 +11,7 @@ class ApplicationController < ActionController::API
     if Apartment.tenant_names.include?(subdomain)
       Apartment::Tenant.switch!(subdomain)
     else
-      Apartment::Tenant.switch!("public")
+      Apartment::Tenant.switch!('public')
     end
   end
 end

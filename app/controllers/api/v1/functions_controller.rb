@@ -1,34 +1,41 @@
-class Api::V1::FunctionsController < ApplicationController
-    def index
-        @functions = Function.all
-        render json: { success: true, functions: @functions }, status: :ok 
-    end
+# frozen_string_literal: true
 
-    def show
+module Api
+  module V1
+    class FunctionsController < ApplicationController
+      def index
+        @functions = Function.all
+        render json: { success: true, functions: @functions }, status: :ok
+      end
+
+      def show
         @function = Function.find(params[:id])
         render json: { success: true, function: @function }, status: :ok
-    end
-    
-    def create
+      end
+
+      def create
         @function = Function.new(function_params)
         if @function.save
-            render json: { success: true, function: @function }, status: :ok
+          render json: { success: true, function: @function }, status: :ok
         else
-            render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false }, status: :unprocessable_entity
         end
-    end
+      end
 
-    def update
+      def update
         @function = Function.find(params[:id])
         if @function.update(function_params)
-            render json: { success: true, function: @function }, status: :ok
+          render json: { success: true, function: @function }, status: :ok
         else
-            render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false }, status: :unprocessable_entity
         end
-    end
+      end
 
-    private
-    def function_params
+      private
+
+      def function_params
         params.require(:function).permit(:name, :title, :description)
+      end
     end
+  end
 end

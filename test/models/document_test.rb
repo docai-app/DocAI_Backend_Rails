@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: documents
@@ -15,7 +17,7 @@
 #  folder_id         :uuid
 #  upload_local_path :string
 #
-require "test_helper"
+require 'test_helper'
 
 class DocumentTest < ActiveSupport::TestCase
   # test "the truth" do

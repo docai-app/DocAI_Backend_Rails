@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: document_approvals
@@ -12,9 +14,9 @@
 #  updated_at       :datetime         not null
 #
 class DocumentApproval < ApplicationRecord
-  belongs_to :document, optional: true, class_name: "Document", foreign_key: "document_id", dependent: :destroy
-  belongs_to :form_data, optional: true, class_name: "FormDatum", foreign_key: "form_data_id"
-  belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id"
+  belongs_to :document, optional: true, class_name: 'Document', foreign_key: 'document_id', dependent: :destroy
+  belongs_to :form_data, optional: true, class_name: 'FormDatum', foreign_key: 'form_data_id'
+  belongs_to :approval_user, optional: true, class_name: 'User', foreign_key: 'approval_user_id'
 
-  enum approval_status: [:awaiting, :approved, :rejected]
+  enum approval_status: %i[awaiting approved rejected]
 end

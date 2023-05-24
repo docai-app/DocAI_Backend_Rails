@@ -1,23 +1,21 @@
+# frozen_string_literal: true
+
 class DocumentService
   # Set document type is pdf and image file
-  @documentType = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
-  @documentExtension = [".pdf", ".jpeg", ".png", ".jpg"]
+  @documentType = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+  @documentExtension = ['.pdf', '.jpeg', '.png', '.jpg']
 
   def self.checkFileIsDocument(file)
     # Check file type is document
-    if @documentType.include?(file.content_type)
-      return true
-    else
-      return false
-    end
+    return true if @documentType.include?(file.content_type)
+
+    false
   end
 
   def self.checkFileUrlIsDocument(file_url)
     # Check file type is document
-    if @documentExtension.include?(File.extname(file_url))
-      return true
-    else
-      return false
-    end
+    return true if @documentExtension.include?(File.extname(file_url))
+
+    false
   end
 end
