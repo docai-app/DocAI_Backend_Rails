@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -153,7 +151,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_522_061_057) do
   create_table 'mini_apps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name'
     t.string 'description'
-    t.jsonb 'meta'
+    t.jsonb 'meta', default: {}
     t.uuid 'user_id', null: false
     t.uuid 'folder_id'
     t.datetime 'created_at', null: false

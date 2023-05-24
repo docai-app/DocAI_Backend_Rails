@@ -19,6 +19,7 @@ class Folder < ApplicationRecord
   has_one :project, class_name: 'Project', foreign_key: 'folder_id'
   has_many :documents, dependent: :destroy, class_name: 'Document', foreign_key: 'folder_id'
   has_many :folders, dependent: :destroy, class_name: 'Folder', foreign_key: 'parent_id'
+  has_many :mini_apps, dependent: :destroy, class_name: 'MiniApp', foreign_key: 'folder_id'
 
   after_create :set_permissions_to_owner
 

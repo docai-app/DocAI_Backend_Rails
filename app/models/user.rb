@@ -38,6 +38,7 @@ class User < ApplicationRecord
   has_many :folders, class_name: 'Folder', foreign_key: 'user_id'
   has_many :projects, class_name: 'Project', foreign_key: 'user_id'
   has_many :project_tasks, class_name: 'ProjectTask', foreign_key: 'user_id'
+  has_many :mini_apps, class_name: 'MiniApp', foreign_key: 'user_id'
 
   validates_confirmation_of :password
 
