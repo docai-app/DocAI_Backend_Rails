@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_04_19_072636) do
+ActiveRecord::Schema[7.0].define(version: 2023_05_22_061057) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -148,6 +148,18 @@ ActiveRecord::Schema[7.0].define(version: 2023_04_19_072636) do
     t.index ["jti"], name: "index_jwt_denylist_on_jti"
   end
 
+  create_table "mini_apps", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name"
+    t.string "description"
+    t.jsonb "meta"
+    t.uuid "user_id", null: false
+    t.uuid "folder_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["folder_id"], name: "index_mini_apps_on_folder_id"
+    t.index ["user_id"], name: "index_mini_apps_on_user_id"
+  end
+
   create_table "project_tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "title", default: "New Project Task", null: false
     t.text "description"
@@ -265,6 +277,8 @@ ActiveRecord::Schema[7.0].define(version: 2023_04_19_072636) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "documents", "folders"
   add_foreign_key "folders", "users"
+  add_foreign_key "mini_apps", "folders"
+  add_foreign_key "mini_apps", "users"
   add_foreign_key "projects", "folders"
   add_foreign_key "projects", "users"
   add_foreign_key "taggings", "tags"
