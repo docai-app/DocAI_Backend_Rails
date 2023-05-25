@@ -1,19 +1,16 @@
 class Api::V1::MiniAppsController < ApiController
-  before_action :authenticate_user!, only: %i[create update destroy]
+  before_action :authenticate_user!, only: %i[index show create update destroy]
+  before_action :current_user_mini_apps, only: %i[index]
 
   def index
-    @mini_apps = MiniApp.all.order(created_at: :desc).page params[:page]
+    @mini_apps = @current_user_mini_apps.includes(:folder).as_json(include: :folder)
+    @mini_apps = Kaminari.paginate_array(@mini_apps).page(params[:page])
     render json: { success: true, mini_apps: @mini_apps }, status: :ok
   end
 
   def show
     @mini_app = MiniApp.find(params[:id])
     render json: { success: true, mini_app: @mini_app }, status: :ok
-  end
-
-  def show_user_mini_apps
-    @mini_apps = @current_user_mini_apps.order(created_at: :desc).page params[:page]
-    render json: { success: true, mini_apps: @mini_apps }, status: :ok
   end
 
   def create
@@ -58,7 +55,7 @@ class Api::V1::MiniAppsController < ApiController
   end
 
   def current_user_mini_apps
-    @mini_app = current_user.mini_apps
+    @current_user_mini_apps = current_user.mini_apps.order(created_at: :desc)
   end
 
   def pagination_meta(object)
