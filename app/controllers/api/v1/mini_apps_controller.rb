@@ -1,5 +1,5 @@
 class Api::V1::MiniAppsController < ApiController
-  before_action :authenticate_user!, only: %i[index show create update destroy]
+  before_action :authenticate_user!, only: %i[create update destroy]
   before_action :current_user_mini_apps, only: %i[index]
 
   def index
