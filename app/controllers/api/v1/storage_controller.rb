@@ -33,6 +33,7 @@ module Api
       def upload_batch_tag
         files = params[:document]
         target_folder_id = params[:target_folder_id] || nil
+        needs_approval = params[:needs_approval] || false
         begin
           files.each do |file|
             @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now,
@@ -44,9 +45,8 @@ module Api
               @document.confirmed!
               OcrJob.perform_async(@document.id, getSubdomain)
               DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
-              if params[:needs_deep_understanding] == 'true'
-                FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id],
-                                                       params[:needs_approval] || false, getSubdomain)
+              if params[:needs_deep_understanding] == "true"
+                FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], needs_approval, getSubdomain)
               end
             else
               @document.is_document = false
@@ -72,7 +72,7 @@ module Api
       private
 
       def getSubdomain
-        Utils.extractReferrerSubdomain(request.referrer) || 'public'
+        Utils.extractReferrerSubdomain(request.referrer) || "public"
       end
     end
   end

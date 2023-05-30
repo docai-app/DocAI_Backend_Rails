@@ -3,8 +3,6 @@
 module Api
   module V1
     class FormProjectionController < ApplicationController
-      before_action :authenticate_user!, only: [:projection]
-
       def preview
         @form_schema = FormSchema.find(params[:form_schema_id])
         projectionImage = FormProjectionService.preview(@form_schema, params[:data])
