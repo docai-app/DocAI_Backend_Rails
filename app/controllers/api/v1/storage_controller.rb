@@ -45,8 +45,9 @@ module Api
               @document.confirmed!
               OcrJob.perform_async(@document.id, getSubdomain)
               DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
-              if params[:needs_deep_understanding] == "true"
-                FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], needs_approval, getSubdomain)
+              if params[:needs_deep_understanding] == 'true'
+                FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], needs_approval,
+                                                       getSubdomain)
               end
             else
               @document.is_document = false
@@ -72,7 +73,7 @@ module Api
       private
 
       def getSubdomain
-        Utils.extractReferrerSubdomain(request.referrer) || "public"
+        Utils.extractReferrerSubdomain(request.referrer) || 'public'
       end
     end
   end

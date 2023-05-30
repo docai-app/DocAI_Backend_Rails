@@ -3,7 +3,7 @@ class Api::V1::MiniAppsController < ApiController
   before_action :current_user_mini_apps, only: %i[index]
 
   def index
-    @mini_apps = @current_user_mini_apps.includes([:taggings, :folder]).as_json(include: :folder)
+    @mini_apps = @current_user_mini_apps.includes(%i[taggings folder]).as_json(include: :folder)
     @mini_apps = Kaminari.paginate_array(@mini_apps).page(params[:page])
     render json: { success: true, mini_apps: @mini_apps, meta: pagination_meta(@mini_apps) }, status: :ok
   end
