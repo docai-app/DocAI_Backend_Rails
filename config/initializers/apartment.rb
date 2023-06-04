@@ -27,7 +27,7 @@ Apartment.configure do |config|
   # (must contain all key/values required in database.yml)
   #
   # config.tenant_names = lambda{ Customer.pluck(:tenant_name) }
-  config.tenant_names = %w[public chyb-dev wishcoffee-dev]
+  config.tenant_names = %w[public chyb-dev chyb wishcoffee-dev wishcoffee docai-dev docai]
   # config.tenant_names = {
   #   'tenant1' => {
   #     adapter: 'postgresql',
