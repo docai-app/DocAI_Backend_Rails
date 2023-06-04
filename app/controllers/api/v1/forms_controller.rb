@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class FormsController < ApplicationController
+    class FormsController < ApiController
       before_action :authenticate_user!, only: []
       before_action :find_form_schema_by_azure_form_model_id, only: [:recognize]
 

@@ -15,8 +15,10 @@ class FormDeepUnderstandingJob
     puts "====== perform ====== document_id: #{document_id}"
     puts "====== perform ====== form_schema_id: #{form_schema_id}"
     puts "====== perform ====== needs_approval: #{needs_approval}"
+    puts "====== perform ====== subdomain: #{subdomain}"
     Apartment::Tenant.switch!(subdomain)
     @document = Document.find(document_id)
+    puts "====== perform ====== @document: #{@document.inspect}"
     @form_schema = FormSchema.find(form_schema_id)
     recognizeRes = RestClient.post "#{ENV['DOCAI_ALPHA_URL']}/alpha/form/recognize",
                                    { document_url: @document.storage_url, model_id: @form_schema.azure_form_model_id }

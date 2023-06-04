@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class TagFunctionsController < ApplicationController
+    class TagFunctionsController < ApiController
       before_action :authenticate_user!, only: %i[create update]
 
       def index

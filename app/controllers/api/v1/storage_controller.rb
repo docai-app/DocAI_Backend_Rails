@@ -34,6 +34,7 @@ module Api
         files = params[:document]
         target_folder_id = params[:target_folder_id] || nil
         needs_approval = params[:needs_approval] || false
+        puts "Application Tenant: #{getSubdomain}"
         begin
           files.each do |file|
             @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now,
@@ -41,11 +42,13 @@ module Api
             @document.storage_url = AzureService.upload(file) if file.present?
             @document.user = current_user
             @document.label_ids = params[:tag_id]
+            @document.save
             if DocumentService.checkFileIsDocument(file)
               @document.confirmed!
               OcrJob.perform_async(@document.id, getSubdomain)
               DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
               if params[:needs_deep_understanding] == 'true'
+                puts "#{@document.id} needs_deep_understanding, #{params[:form_schema_id]}, #{needs_approval}"
                 FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], needs_approval,
                                                        getSubdomain)
               end

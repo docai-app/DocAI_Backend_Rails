@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class FormProjectionController < ApplicationController
+    class FormProjectionController < ApiController
       def preview
         @form_schema = FormSchema.find(params[:form_schema_id])
         projectionImage = FormProjectionService.preview(@form_schema, params[:data])

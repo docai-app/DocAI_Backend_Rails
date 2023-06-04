@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class FunctionsController < ApplicationController
+    class FunctionsController < ApiController
       def index
         @functions = Function.all
         render json: { success: true, functions: @functions }, status: :ok

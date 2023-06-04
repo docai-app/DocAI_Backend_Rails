@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 class ApiController < ActionController::Base
-  before_action :set_paper_trail_whodunnit, :switch_tenant
+  before_action :set_paper_trail_whodunnit
+  before_action :switch_tenant
   skip_before_action :verify_authenticity_token
 
   # 我平時係呢句
@@ -39,6 +40,8 @@ class ApiController < ActionController::Base
 
   def switch_tenant
     # Get the subdomain from the referrer
+    puts "Original referrer: #{request.referrer}"
+
     subdomain = Utils.extractReferrerSubdomain(request.referrer)
 
     puts "Include subdomain? + #{subdomain}"

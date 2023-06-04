@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class UsersController < ApplicationController
+    class UsersController < ApiController
       before_action :authenticate_user!, except: [:create]
 
       def index
