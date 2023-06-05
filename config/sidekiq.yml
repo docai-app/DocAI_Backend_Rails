@@ -6,6 +6,7 @@
   - ['ocr', 1]
   - ['ocr_monitor_job', 1]
   - ['form_deep_understanding', 1]
+  - ['form_deep_understanding_monitor_job', 1]
 :timeout: 7200
 
 :schedule:
@@ -18,10 +19,14 @@
   #   queue: document_classification
   #   enabled: true
   DocumentClassificationMonitorJob:
-    every: '30s'
+    every: '15s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:
-    every: '30s'
+    every: '15s'
     queue: ocr_monitor_job
+    enabled: true
+  FormDeepUnderstandingMonitorJob:
+    every: '15s'
+    queue: form_deep_understanding_monitor_job
     enabled: true
