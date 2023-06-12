@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'json'
+require "json"
 
 class Utils
   def self.cleansingContentFromGPT(content)
@@ -14,7 +14,7 @@ class Utils
       puts "json_obj: #{json_obj}"
       return json_obj
     else
-      puts 'No JSON found in the paragraph'
+      puts "No JSON found in the paragraph"
       return {}
     end
 
@@ -22,7 +22,7 @@ class Utils
   end
 
   def self.concatDocumentsContent(documents)
-    content = ''
+    content = ""
     documents.each_with_index do |document, index|
       content += "Document #{index + 1}: #{document.content}\t "
     end
@@ -30,14 +30,14 @@ class Utils
   end
 
   def self.extractReferrerSubdomain(referrer)
-    if referrer && referrer != 'localhost'
+    if referrer && referrer != "localhost"
       url = URI.parse(referrer)
       # Assuming that your url is in the format "http://subdomain.domain.com"
-      subdomain = url.host.split('.').first
-    elsif referrer == 'localhost'
-      subdomain = 'chyb_dev'
+      subdomain = url.host.split(".").first
+    elsif referrer == "localhost"
+      subdomain = ENV.fetch("DEFAULT_TENANT_NAME", "public")
     else
-      subdomain = 'chyb_dev'
+      subdomain = ENV.fetch("DEFAULT_TENANT_NAME", "public")
     end
     subdomain
   end
