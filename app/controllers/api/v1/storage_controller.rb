@@ -55,11 +55,6 @@ module Api
               @document.confirmed!
               OcrJob.perform_async(@document.id, getSubdomain)
               DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
-              if needs_deep_understanding == 'true'
-                puts "#{@document.id} needs_deep_understanding, #{params[:form_schema_id]}, #{needs_approval}"
-                FormDeepUnderstandingJob.perform_async(@document.id, params[:form_schema_id], needs_approval,
-                                                       getSubdomain)
-              end
             else
               @document.is_document = false
               @document.uploaded!
