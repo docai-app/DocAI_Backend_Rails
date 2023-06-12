@@ -32,7 +32,8 @@ class DocumentClassificationMonitorJob
         puts '====== no document needs classification ======'
       end
     end
-  rescue StandardError
+  rescue StandardError => e
     puts "====== error ====== document.id: #{@document.id}"
+    puts "====== error ====== error: #{e.message}"
   end
 end

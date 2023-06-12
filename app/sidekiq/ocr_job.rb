@@ -22,8 +22,9 @@ class OcrJob
       document.content = content
       document.ready!
     end
+    puts "====== perform ====== document #{document_id} was successfully processed"
   rescue StandardError => e
-    puts "====== error ====== document.id: #{document.id}"
-    puts "OCR processing failed for document #{document_id}: #{e.message}"
+    puts "====== error ====== document.id: #{document_id.id}"
+    puts "====== error ====== error: #{e.message}"
   end
 end

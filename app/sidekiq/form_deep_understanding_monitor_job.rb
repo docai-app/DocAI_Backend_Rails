@@ -23,7 +23,7 @@ class FormDeepUnderstandingMonitorJob
       # I want to find the last document that meta.needs_deep_understanding is true and meta.is_deep_understanding is false
       @documents = Document.where("meta->>'needs_deep_understanding' != ?", 'false').where("meta->>'is_deep_understanding' = ?", 'false').where(
         "meta->>'needs_approval' != ?", 'false'
-      ).where.not(meta: { is_approved: nil }).where(is_document: true)
+      ).where.not("meta->>'is_approved' != ?", nil).where(is_document: true)
       if @documents.present?
         @document = @documents.last
         puts "====== document id: #{@document.id} needs deep understanding ======"
@@ -34,5 +34,8 @@ class FormDeepUnderstandingMonitorJob
         puts '====== no document needs deep understanding ======'
       end
     end
+  rescue StandardError => e
+    puts "====== error ====== document.id: #{@documents.id}"
+    puts "====== error ====== error: #{e.message}"
   end
 end

@@ -18,7 +18,7 @@ class FormDeepUnderstandingJob
     puts "====== perform ====== subdomain: #{subdomain}"
     Apartment::Tenant.switch!(subdomain)
     @document = Document.find(document_id)
-    puts "====== perform ====== @document: #{@document.inspect}"
+    puts "====== perform ====== document: #{@document.inspect}"
     @form_schema = FormSchema.find(form_schema_id)
     recognizeRes = RestClient.post "#{ENV['DOCAI_ALPHA_URL']}/alpha/form/recognize",
                                    { document_url: @document.storage_url, model_id: @form_schema.azure_form_model_id }
@@ -28,13 +28,14 @@ class FormDeepUnderstandingJob
     @document.meta['is_deep_understanding'] = true
     @form_data.save!
     if needs_approval == 'true'
-      @document_approval = DocumentApproval.new(document_id: @document.id, form_data_id: @form_data.id,
+      @document_approval = DocumentApproval.new(document_id:, form_data_id: @form_data.id,
                                                 approval_status: 0)
       @document_approval.save!
       @document.meta['is_approved'] = true
       @document.save!
     end
     @document.save!
+    puts "====== perform ====== document #{document_id} was successfully processed"
   rescue StandardError => e
     puts "====== error ====== document.id: #{document_id}"
     puts "====== error ====== error: #{e.message}"

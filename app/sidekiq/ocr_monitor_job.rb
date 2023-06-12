@@ -21,11 +21,12 @@ class OcrMonitorJob
         next
       end
       puts "====== tenant: #{tenant} ======"
-      @documents = Document.where.not(status: :pending).where(content: nil).where(is_document: true)
-      puts "====== document id: #{document.id} needs ocr ======"
+      @documents = Document.where(content: nil).where(is_document: true)
       if @documents.present?
         @document = @documents.last
-        OcrJob.perform_async(@document.last.id, tenant)
+        puts "====== document id: #{@document.id} needs ocr ======"
+        OcrJob.perform_async(@document.id, tenant)
+        puts "====== perform ====== document #{@document.id} was successfully processed"
       else
         puts '====== no document needs ocr ======'
       end
