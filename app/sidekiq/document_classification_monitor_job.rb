@@ -22,11 +22,11 @@ class DocumentClassificationMonitorJob
         next
       end
       puts "====== tenant: #{tenant} ======"
-      @documents = Document.where(is_classified: false).where.not(content: nil).where(is_document: true)
+      @documents = Document.where(is_classified: false).where(content: nil).where(is_document: true)
       if @documents.present?
         @document = @documents.last
         puts "====== document id: #{document.id} needs classification ======"
-        puts "====== document label: #{document.label_ids.first} ======"
+        puts "====== document label: #{document.first} ======"
         DocumentClassificationJob.perform_async(@document.id, @document.label_ids.first, tenant)
       else
         puts '====== no document needs classification ======'
