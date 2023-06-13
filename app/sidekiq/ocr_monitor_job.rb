@@ -22,6 +22,7 @@ class OcrMonitorJob
       end
       puts "====== tenant: #{tenant} ======"
       @documents = Document.where(content: nil).where(is_document: true)
+      puts "====== Documents found: #{@documents.length} ======"
       if @documents.present?
         @document = @documents.last
         puts "====== document id: #{@document.id} needs ocr ======"
@@ -32,7 +33,6 @@ class OcrMonitorJob
       end
     end
   rescue StandardError => e
-    puts "====== error ====== document.id: #{@document.id}"
     puts "====== error ====== error: #{e.message}"
   end
 end
