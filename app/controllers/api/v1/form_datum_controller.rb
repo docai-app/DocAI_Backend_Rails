@@ -3,6 +3,8 @@
 module Api
   module V1
     class FormDatumController < ApiController
+      before_action :authenticate_user!, only: %i[create update destroy]
+
       def index
         @form_datum = FormDatum.all
         render json: { success: true, form_datum: @form_datum }, status: :ok
@@ -53,6 +55,15 @@ module Api
         @form_data = FormDatum.find(params[:id])
         if @form_data.update(form_data_params)
           render json: { success: true, form_data: @form_data }, status: :ok
+        else
+          render json: { success: false }, status: :unprocessable_entity
+        end
+      end
+
+      def destroy
+        @form_data = FormDatum.find(params[:id])
+        if @form_data.destroy
+          render json: { success: true }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
         end

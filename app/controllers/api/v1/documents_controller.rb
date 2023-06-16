@@ -28,14 +28,14 @@ module Api
 
       # Show documents by name like name param
       def show_by_name
-        @document = Document.where("name like ?",
+        @document = Document.where('name like ?',
                                    "%#{params[:name]}%").order(created_at: :desc).as_json(except: [:label_list])
         render json: { success: true, documents: @document }, status: :ok
       end
 
       # Show documents by content like content param
       def show_by_content
-        @document = Document.includes([:taggings]).where("content like ?",
+        @document = Document.includes([:taggings]).where('content like ?',
                                                          "%#{params[:content]}%").order(created_at: :desc).page params[:page]
         render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
@@ -49,7 +49,7 @@ module Api
 
       # Show documents by date
       def show_by_date
-        @document = Document.includes([:taggings]).where("created_at >= ?",
+        @document = Document.includes([:taggings]).where('created_at >= ?',
                                                          params[:date]).order(created_at: :desc).page params[:page]
         render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
@@ -57,58 +57,58 @@ module Api
       # Show documents by filter
       def show_by_tag_and_content
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
-        content = params[:content] || ""
+        content = params[:content] || ''
         # if params[:from] == "" or params[:from] == nil, then from = "1970-01-01"
         # from = params[:from] || "1970-01-01"
         # to = params[:to] || Date.today
-        from = params[:from].present? ? params[:from] : "1970-01-01"
+        from = params[:from].present? ? params[:from] : '1970-01-01'
         to = params[:to].present? ? params[:to] : Date.today
         puts tag.inspect
-        @document = Document.includes([:taggings]).tagged_with(tag).where("content like ?", "%#{content}%").where("documents.created_at >= ?", from.to_date).where(
-          "documents.created_at <= ?", to.to_date
+        @document = Document.includes([:taggings]).tagged_with(tag).where('content like ?', "%#{content}%").where('documents.created_at >= ?', from.to_date).where(
+          'documents.created_at <= ?', to.to_date
         ).order(created_at: :desc).page params[:page]
         render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
 
       # Show and Predict the Latest Uploaded Document
       def show_latest_predict
-        subdomain = Utils.extractReferrerSubdomain(request.referrer) || "chyb_dev"
+        subdomain = Utils.extractReferrerSubdomain(request.referrer) || 'chyb_dev'
         @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
         if @document.present?
-          res = RestClient.get "#{ENV["DOCAI_ALPHA_URL"]}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{subdomain}"
-          @tag = Tag.find(JSON.parse(res)["label"]["id"]).as_json(include: :functions)
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{subdomain}"
+          @tag = Tag.find(JSON.parse(res)['label']['id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, meta: pagination_meta(@document) },
                  status: :ok
         else
-          render json: { success: false, error: "No document found" }, status: :ok
+          render json: { success: false, error: 'No document found' }, status: :ok
         end
       end
 
       # Show and Predict the Specify Date Latest Uploaded Document
       def show_specify_date_latest_predict
-        subdomain = Utils.extractReferrerSubdomain(request.referrer) || "chyb_dev"
-        @document = @current_user_documents.where(status: :ready).where("created_at >= ?", params[:date].to_date).where(
-          "created_at <= ?", params[:date].to_date + 1.day
+        subdomain = Utils.extractReferrerSubdomain(request.referrer) || 'chyb_dev'
+        @document = @current_user_documents.where(status: :ready).where('created_at >= ?', params[:date].to_date).where(
+          'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).page(params[:page]).per(1)
-        @unconfirmed_count = @current_user_documents.where.not(status: :confirmed).where("created_at >= ?", params[:date].to_date).where(
-          "created_at <= ?", params[:date].to_date + 1.day
+        @unconfirmed_count = @current_user_documents.where.not(status: :confirmed).where('created_at >= ?', params[:date].to_date).where(
+          'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).count
-        @confirmed_count = @current_user_documents.where(status: :confirmed).where("created_at >= ?", params[:date].to_date).where(
-          "created_at <= ?", params[:date].to_date + 1.day
+        @confirmed_count = @current_user_documents.where(status: :confirmed).where('created_at >= ?', params[:date].to_date).where(
+          'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).count
         if @document.present?
-          res = RestClient.get "#{ENV["DOCAI_ALPHA_URL"]}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{subdomain}"
-          @tag = Tag.find(JSON.parse(res)["label_id"]).as_json(include: :functions)
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{subdomain}"
+          @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count, meta: pagination_meta(@document) },
                  status: :ok
         else
-          render json: { success: false, error: "No document found" }, status: :ok
+          render json: { success: false, error: 'No document found' }, status: :ok
         end
       end
 
       def create
         @document = Document.new(document_params)
-        file = params["document"]["file"]
+        file = params['document']['file']
         @document.storage_url = AzureService.upload(file) if file.present?
         if @document.save
           render :show
@@ -139,11 +139,11 @@ module Api
         # binding.pry
         @document.approval_user = current_user
         @document.approval_at = DateTime.current
-        @document.approval_status = params["status"]
+        @document.approval_status = params['status']
         if @document.save
           render :show
         else
-          json_fail("Document approval failed")
+          json_fail('Document approval failed')
         end
       end
 
@@ -155,7 +155,7 @@ module Api
       def ocr
         @document = Document.first
         OcrJob.perform_async(@document.id, getSubdomain)
-        json_success("OCR job is queued")
+        json_success('OCR job is queued')
       end
 
       def deep_understanding
@@ -167,17 +167,17 @@ module Api
           if @document.meta.nil?
             @document.meta = {
               needs_deep_understanding: true,
-              needs_approval: needs_approval,
+              needs_approval:,
               is_deep_understanding: false,
               is_approved: false,
-              form_schema_id: params[:form_schema_id],
+              form_schema_id: params[:form_schema_id]
             }
           else
-            @document.meta["needs_deep_understanding"] = true
-            @document.meta["needs_approval"] = needs_approval
-            @document.meta["is_deep_understanding"] = false
-            @document.meta["is_approved"] = false
-            @document.meta["form_schema_id"] = params[:form_schema_id]
+            @document.meta['needs_deep_understanding'] = true
+            @document.meta['needs_approval'] = needs_approval
+            @document.meta['is_deep_understanding'] = false
+            @document.meta['is_approved'] = false
+            @document.meta['form_schema_id'] = params[:form_schema_id]
           end
           @document.save
           puts @document.inspect
@@ -210,23 +210,22 @@ module Api
           next_page: object.next_page,
           prev_page: object.prev_page,
           total_pages: object.total_pages,
-          total_count: object.total_count,
+          total_count: object.total_count
         }
       end
 
       def getSubdomain
-        Utils.extractReferrerSubdomain(request.referrer) || "public"
+        Utils.extractReferrerSubdomain(request.referrer) || 'public'
       end
 
       def checkDocumentItemsIsDocument
         document_items = params[:document_items] || []
         document_items.each do |document_item|
           @document = Document.find(document_item)
-          if @document.present? && @document.is_document?
-            next
-          else
-            render json: { success: false, error: "Document #{document_item} is not a document" }, status: :unprocessable_entity
-          end
+          next if @document.present? && @document.is_document?
+
+          render json: { success: false, error: "Document #{document_item} is not a document" },
+                 status: :unprocessable_entity
         end
       end
     end
