@@ -31,6 +31,7 @@ class FormDeepUnderstandingJob
       @document.meta['is_deep_understanding'] = true
       @form_data.save!
       if needs_approval == 'true'
+        puts "====== perform ====== document #{document_id} needs_approval: #{needs_approval}"
         @document_approval = DocumentApproval.new(document_id:, form_data_id: @form_data.id,
                                                   approval_status: 0)
         @document_approval.save!
