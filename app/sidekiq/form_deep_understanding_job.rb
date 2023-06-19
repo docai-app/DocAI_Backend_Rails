@@ -30,7 +30,7 @@ class FormDeepUnderstandingJob
                                  form_schema_id: FormSchema.where(azure_form_model_id: @form_schema.azure_form_model_id).first.id, document_id: @document.id)
       @document.meta['is_deep_understanding'] = true
       @form_data.save!
-      if needs_approval == 'true'
+      if ['true', true].include?(needs_approval)
         puts "====== perform ====== document #{document_id} needs_approval: #{needs_approval}"
         @document_approval = DocumentApproval.new(document_id:, form_data_id: @form_data.id,
                                                   approval_status: 0)
