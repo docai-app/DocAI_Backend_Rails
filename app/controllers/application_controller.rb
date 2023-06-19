@@ -10,8 +10,10 @@ class ApplicationController < ActionController::API
 
     if Apartment.tenant_names.include?(subdomain)
       Apartment::Tenant.switch!(subdomain)
+    elsif subdomain == "localhost"
+      Apartment::Tenant.switch!("public")
     else
-      Apartment::Tenant.switch!('public')
+      Apartment::Tenant.switch!("public")
     end
   end
 end

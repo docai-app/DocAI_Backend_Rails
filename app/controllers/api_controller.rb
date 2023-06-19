@@ -49,6 +49,8 @@ class ApiController < ActionController::Base
     # Switch to the tenant, if it exists
     if Apartment.tenant_names.include?(subdomain)
       Apartment::Tenant.switch!(subdomain)
+    elsif subdomain == 'localhost'
+      Apartment::Tenant.switch!('public')
     else
       Apartment::Tenant.switch!('public')
       # render json: { error: "Invalid subdomain" }, status: :unprocessable_entity

@@ -164,7 +164,7 @@ module Api
 
         document_items.each do |document_item|
           @document = Document.find(document_item)
-          if @document.meta.nil?
+          if @document.meta.blank?
             @document.meta = {
               needs_deep_understanding: true,
               needs_approval:,
