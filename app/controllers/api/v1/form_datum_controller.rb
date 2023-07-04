@@ -80,8 +80,13 @@ module Api
         chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/chart",
                                    { query: params[:query], content: content_list.to_s }, timeout: 600)
         chartRes = JSON.parse(chartRes)
-        html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>}) if chartRes['status'] == true
-        render json: { success: true, chart: html_code.to_s }, status: :ok
+        if chartRes['status'] == true
+          html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
+          render json: { success: true, chart: html_code.to_s }, status: :ok
+        else
+          html_code = 'Please reduce the number of form data selected.'
+          render json: { success: false, chart: html_code.to_s }, status: :ok
+        end
       end
 
       private
