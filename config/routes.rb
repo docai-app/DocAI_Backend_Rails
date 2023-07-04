@@ -84,6 +84,7 @@ Rails.application.routes.draw do
       post 'form/datum/:form_schema_id/search', to: 'form_datum#show_by_filter_and_form_schema_id'
       put 'form/datum/:id', to: 'form_datum#update'
       delete 'form/datum/:id', to: 'form_datum#destroy'
+      post 'form/datum/generate/chart', to: 'form_datum#generate_chart'
 
       # **********AbsenceForm API**********
       get 'form/absence/approval', to: 'absence_forms#show_by_approval_status'

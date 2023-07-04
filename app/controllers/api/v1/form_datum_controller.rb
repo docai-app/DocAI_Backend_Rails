@@ -69,6 +69,21 @@ module Api
         end
       end
 
+      def generate_chart
+        content_list = []
+        html_code = ''
+        @form_datum = FormDatum.find(params[:form_data_ids])
+        for form_data in @form_datum
+          content_list.append(form_data.data)
+        end
+        puts params[:query]
+        chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/chart",
+                                   { query: params[:query], content: content_list.to_s }, timeout: 600)
+        chartRes = JSON.parse(chartRes)
+        html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>}) if chartRes['status'] == true
+        render json: { success: true, chart: html_code.to_s }, status: :ok
+      end
+
       private
 
       def form_data_params
