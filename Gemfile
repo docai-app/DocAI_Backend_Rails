@@ -81,4 +81,5 @@ gem 'ruby-openai'
 gem 'ros-apartment', require: 'apartment'
 gem 'ros-apartment-sidekiq'
 
+gem 'redcarpet'
 gem 'rubocop', require: false

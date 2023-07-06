@@ -24,7 +24,8 @@ module Api
           end
           @document.user_id = current_user.id
           @document.uploaded!
-          @form_data = FormDatum.new(data: params[:data], form_schema_id: params[:form_schema_id], document_id: @document.id)
+          @form_data = FormDatum.new(data: params[:data], form_schema_id: params[:form_schema_id],
+                                     document_id: @document.id)
           @form_data.save
           render json: { success: true }, status: :ok
         rescue StandardError => e

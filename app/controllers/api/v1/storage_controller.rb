@@ -16,13 +16,17 @@ module Api
                                      folder_id: target_folder_id)
             @document.storage_url = AzureService.upload(file) if file.present?
             @document.user = current_user
-            if DocumentService.checkFileIsDocument(file)
-              @document.uploaded!
-              OcrJob.perform_async(@document.id, getSubdomain)
-            else
-              @document.is_document = false
-              @document.uploaded!
-            end
+            # if DocumentService.checkFileIsDocument(file)
+            #   @document.uploaded!
+            #   OcrJob.perform_async(@document.id, getSubdomain)
+            # elsif DocumentService.checkFileIsTextDocument(file)
+            #   @document.content = DocumentService.readTextDocument2Text(file)
+            #   @document.uploaded!
+            # else
+            #   @document.is_document = false
+            #   @document.uploaded!
+            # end
+            documentProcessors(file)
           end
           render json: { success: true }, status: :ok
         rescue StandardError => e
@@ -51,14 +55,15 @@ module Api
             @document.user = current_user
             @document.label_ids = params[:tag_id]
             @document.save
-            if DocumentService.checkFileIsDocument(file)
-              @document.confirmed!
-              OcrJob.perform_async(@document.id, getSubdomain)
-              DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
-            else
-              @document.is_document = false
-              @document.uploaded!
-            end
+            # if DocumentService.checkFileIsDocument(file)
+            #   @document.confirmed!
+            #   OcrJob.perform_async(@document.id, getSubdomain)
+            #   DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
+            # else
+            #   @document.is_document = false
+            #   @document.uploaded!
+            # end
+            documentProcessors(file)
           end
           render json: { success: true }, status: :ok
         rescue StandardError => e
@@ -80,6 +85,19 @@ module Api
 
       def getSubdomain
         Utils.extractReferrerSubdomain(request.referrer) || 'public'
+      end
+
+      def documentProcessors(file)
+        if DocumentService.checkFileIsDocument(file)
+          @document.uploaded!
+          OcrJob.perform_async(@document.id, getSubdomain)
+        elsif DocumentService.checkFileIsTextDocument(file)
+          @document.content = DocumentService.readTextDocument2Text(file)
+          @document.ready!
+        else
+          @document.is_document = false
+          @document.uploaded!
+        end
       end
     end
   end
