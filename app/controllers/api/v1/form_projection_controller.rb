@@ -19,8 +19,8 @@ module Api
           @document = Document.new(name: filename, created_at: Time.zone.now, updated_at: Time.zone.now,
                                    folder_id: target_folder_id)
           if projectionImage.present?
-            @document.storage_url = AzureService.uploadPreviewImage(projectionImage.to_blob, filename,
-                                                                    'image/png')
+            @document.storage_url = AzureService.uploadBlob(projectionImage.to_blob, filename,
+                                                            'image/png')
           end
           @document.user_id = current_user.id
           @document.uploaded!

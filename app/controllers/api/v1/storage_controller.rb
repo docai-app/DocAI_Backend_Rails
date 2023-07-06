@@ -81,6 +81,21 @@ module Api
         end
       end
 
+      def upload_generated_content
+        target_folder_id = params[:target_folder_id] || nil
+        filename = params[:filename] || SecureRandom.uuid
+        content = params[:content] || nil
+        begin
+          @document = Document.new(name: params[:filename], content:, folder_id: target_folder_id)
+          @document.storage_url = AzureService.uploadBlob(content.to_blob, params[:filename], 'text/plain')
+          @document.user = current_user
+          @document.uploaded!
+          render json: { success: true }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       def getSubdomain

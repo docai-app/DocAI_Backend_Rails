@@ -70,6 +70,7 @@ Rails.application.routes.draw do
       post 'storage/upload', to: 'storage#upload'
       post 'storage/upload/batch/tag', to: 'storage#upload_batch_tag'
       post 'storage/upload/directly', to: 'storage#upload_directly'
+      post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
