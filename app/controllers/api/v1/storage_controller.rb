@@ -108,6 +108,7 @@ module Api
           OcrJob.perform_async(@document.id, getSubdomain)
         elsif DocumentService.checkFileIsTextDocument(file)
           @document.content = DocumentService.readTextDocument2Text(file)
+          @document.meta['is_text_document'] = true
           @document.ready!
         else
           @document.is_document = false
