@@ -16,16 +16,6 @@ module Api
                                      folder_id: target_folder_id)
             @document.storage_url = AzureService.upload(file) if file.present?
             @document.user = current_user
-            # if DocumentService.checkFileIsDocument(file)
-            #   @document.uploaded!
-            #   OcrJob.perform_async(@document.id, getSubdomain)
-            # elsif DocumentService.checkFileIsTextDocument(file)
-            #   @document.content = DocumentService.readTextDocument2Text(file)
-            #   @document.uploaded!
-            # else
-            #   @document.is_document = false
-            #   @document.uploaded!
-            # end
             documentProcessors(file)
           end
           render json: { success: true }, status: :ok
@@ -55,14 +45,6 @@ module Api
             @document.user = current_user
             @document.label_ids = params[:tag_id]
             @document.save
-            # if DocumentService.checkFileIsDocument(file)
-            #   @document.confirmed!
-            #   OcrJob.perform_async(@document.id, getSubdomain)
-            #   DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
-            # else
-            #   @document.is_document = false
-            #   @document.uploaded!
-            # end
             documentProcessors(file)
           end
           render json: { success: true }, status: :ok
@@ -87,7 +69,8 @@ module Api
         content = params[:content] || nil
         begin
           @document = Document.new(name: params[:filename], content:, folder_id: target_folder_id)
-          @document.storage_url = AzureService.uploadBlob(content.to_blob, params[:filename], 'text/plain')
+          textImage = FormProjectionService.text2Image(content)
+          @document.storage_url = AzureService.uploadBlob(textImage.to_blob, params[:filename], 'image/png')
           @document.user = current_user
           @document.uploaded!
           render json: { success: true }, status: :ok
@@ -108,7 +91,9 @@ module Api
           OcrJob.perform_async(@document.id, getSubdomain)
         elsif DocumentService.checkFileIsTextDocument(file)
           @document.content = DocumentService.readTextDocument2Text(file)
-          @document.meta['is_text_document'] = true
+          @document.meta = {
+            is_text_document: true
+          }
           @document.ready!
         else
           @document.is_document = false

@@ -84,7 +84,6 @@ class FormProjectionService
         coordinates = convertBoundingBoxes(formProjectionItem['value'][0]['boundingBoxes'][0], projectionImage)
         projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3],
                                    data[fieldKey])
-
       elsif data.key?(fieldKey) && data[fieldKey].is_a?(Array)
         # Loop the data[fieldKey] and get the item and index
         data[fieldKey].each_with_index do |tableItem, row|
@@ -104,5 +103,21 @@ class FormProjectionService
     end
 
     projectionImage
+  end
+
+  def self.text2Image(text)
+    canvas = Magick::Image.new(2480, 3508)
+    canvas.format = 'png'
+
+    text_draw = Magick::Draw.new
+    text_draw.font = "#{Rails.root}/lib/fonts/TaipeiSans.ttf"
+    # draw the text on the canvas top of left and set padding 20
+    canvas.annotate(text_draw, 2480, 3508, 36, 36, text) do
+      text_draw.fill = 'black'
+      text_draw.gravity = Magick::NorthWestGravity
+      text_draw.pointsize = 36
+    end
+
+    canvas
   end
 end
