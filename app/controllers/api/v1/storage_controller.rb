@@ -69,8 +69,10 @@ module Api
         content = params[:content] || nil
         begin
           @document = Document.new(name: params[:filename], content:, folder_id: target_folder_id)
-          textImage = FormProjectionService.text2Image(content)
-          @document.storage_url = AzureService.uploadBlob(textImage.to_blob, params[:filename], 'image/png')
+          # textImage = FormProjectionService.text2Image(content)
+          # @document.storage_url = AzureService.uploadBlob(textImage.to_blob, params[:filename], 'image/png')
+          text2Pdf = FormProjectionService.text2Pdf(content)
+          @document.storage_url = AzureService.uploadBlob(text2Pdf, params[:filename], 'application/pdf')
           @document.user = current_user
           @document.uploaded!
           render json: { success: true }, status: :ok

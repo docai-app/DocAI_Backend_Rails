@@ -120,4 +120,11 @@ class FormProjectionService
 
     canvas
   end
+
+  def self.text2Pdf(text)
+    pdf = Prawn::Document.new(page_size: 'A4', page_layout: :portrait)
+    pdf.font("#{Rails.root}/lib/fonts/TaipeiSans.ttf")
+    pdf.text(text)
+    pdf.render.to_blob
+  end
 end

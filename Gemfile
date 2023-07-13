@@ -83,3 +83,6 @@ gem 'ros-apartment-sidekiq'
 
 gem 'redcarpet'
 gem 'rubocop', require: false
+
+gem 'matrix'
+gem 'prawn'
