@@ -10,4 +10,15 @@ class Api::V1::ToolsController < ApplicationController
       render json: { success: false, error: e.message }, status: :unprocessable_entity
     end
   end
+
+  def text_to_pdf
+    content = params[:content]
+    begin
+      pdfBlob = FormProjectionService.text2Pdf(content)
+      blob2Base64 = FormProjectionService.exportImage2Base64(pdfBlob)
+      render json: { success: true, pdf: blob2Base64 }, status: :ok
+    rescue StandardError => e
+      render json: { success: false, error: e.message }, status: :unprocessable_entity
+    end
+  end
 end
