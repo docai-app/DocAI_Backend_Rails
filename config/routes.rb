@@ -161,6 +161,9 @@ Rails.application.routes.draw do
       # **********Mini App API**********
       resources :mini_apps, only: %i[index show create update destroy] do
       end
+
+      # **********Tool API**********
+      post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
     end
   end
 end
