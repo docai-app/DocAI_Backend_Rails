@@ -19,6 +19,7 @@ module Api
         content = Utils.concatDocumentsContent(documents)
         response = OpenAiService.chatWithDocuments(params[:query], content, params[:response_format], params[:language],
                                                    params[:topic], params[:style])
+        # response = AiService.generateContentByDocuments(params[:query], content, params[:response_format], params[:language], params[:topic], params[:style])
         render json: { success: true, response: }, status: :ok
       rescue ActiveRecord::RecordNotFound => e
         render json: { success: false, error: e.message }, status: :not_found
