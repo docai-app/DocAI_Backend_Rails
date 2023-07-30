@@ -14,11 +14,13 @@ class DocumentClassificationJob
   def perform(document_id, label_id, subdomain)
     Apartment::Tenant.switch!(subdomain)
     document = Document.find(document_id)
-    if document.present? && document.is_document && !document.is_classified && document.content.present?
+    puts document_id, label_id, subdomain
+    if document.present? && document.is_document && document.content.present? && !document.is_classifier_trained
       classificationRes = RestClient.post "#{ENV['DOCAI_ALPHA_URL']}/classification/confirm",
-                                          { id: document_id, label: label_id }.to_json, { content_type: :json, accept: :json }
+                                          { content: document.content, label: label_id, model: subdomain }.to_json, { content_type: :json, accept: :json }
+      puts classificationRes
       if JSON.parse(classificationRes)['status']
-        document.is_classified = true
+        document.is_classifier_trained = true
         document.confirmed!
       end
     end

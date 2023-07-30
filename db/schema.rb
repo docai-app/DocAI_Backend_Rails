@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_230_605_062_348) do
+ActiveRecord::Schema[7.0].define(version: 20_230_730_083_752) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -146,6 +146,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_605_062_348) do
     t.boolean 'is_classified', default: false
     t.boolean 'is_document', default: true
     t.jsonb 'meta', default: {}
+    t.boolean 'is_classifier_trained', default: false
     t.index ['approval_status'], name: 'index_documents_on_approval_status'
     t.index ['approval_status'], name: 'index_documents_on_approval_status'
     t.index ['approval_user_id'], name: 'index_documents_on_approval_user_id'
@@ -178,6 +179,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_605_062_348) do
     t.boolean 'is_classified', default: false
     t.boolean 'is_document', default: true
     t.jsonb 'meta', default: {}
+    t.boolean 'is_classifier_trained', default: false
     t.index ['approval_status'], name: 'index_documents_on_approval_status'
     t.index ['approval_status'], name: 'index_documents_on_approval_status'
     t.index ['approval_user_id'], name: 'index_documents_on_approval_user_id'
