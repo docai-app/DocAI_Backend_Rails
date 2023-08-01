@@ -20,6 +20,7 @@ class DocumentClassificationJob
                                           { content: document.content, label: label_id, model: subdomain }.to_json, { content_type: :json, accept: :json }
       puts classificationRes
       if JSON.parse(classificationRes)['status']
+        document.is_classified = true
         document.is_classifier_trained = true
         document.confirmed!
       end

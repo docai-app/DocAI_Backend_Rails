@@ -34,7 +34,7 @@ module Api
 
         Document.transaction do
           @documents = Document.where(id: document_ids).each do |document|
-            document.update!(label_ids: tag_id, status: :confirmed, is_classified: false)
+            document.update!(label_ids: tag_id, status: :confirmed, is_classified: true)
             TagFunctionMappingService.mappping(document.id, tag_id)
             DocumentClassificationJob.perform_async(document.id, tag_id, getSubdomain)
           end

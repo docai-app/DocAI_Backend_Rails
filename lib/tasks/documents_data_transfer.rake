@@ -9,7 +9,7 @@ namespace :documents_data_transfer do
       nonLabeledCount = 0
       labeledDocumentIds = []
       nonLabeledDocumentIds = []
-      @documents = Document.includes([:taggings]).order('created_at': :desc).first(2000).as_json(include: [:taggings])
+      @documents = Document.includes([:taggings]).order('created_at': :desc).all.as_json(include: [:taggings])
 
       puts "Number of documents have to check: #{@documents.length}"
 
