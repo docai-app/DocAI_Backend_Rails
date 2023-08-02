@@ -1,7 +1,7 @@
 class DocumentEmbeddingMonitorJob
   include Sidekiq::Worker
 
-  sidekiq_options retry: 3, dead: true, queue: 'form_deep_understanding_monitor_job',
+  sidekiq_options retry: 3, dead: true, queue: 'document_embedding_monitor_job',
                   throttle: { threshold: 1, period: 10.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 1 * count }
