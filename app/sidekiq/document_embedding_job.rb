@@ -21,8 +21,8 @@ class DocumentEmbeddingJob
       puts "====== document #{@document.id} is not embedded"
       puts @document.inspect
       embeddingRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding", {
-                                       document: @document, schema: subdomain
-                                     }, { content_type: :json })
+        document: @document, schema: subdomain
+      }.to_json, { content_type: :json })
       embeddingRes = JSON.parse(embeddingRes)
       puts "====== embeddingRes: #{embeddingRes}"
       if embeddingRes['status'] == true
