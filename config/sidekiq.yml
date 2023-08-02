@@ -7,6 +7,7 @@
   - ['ocr_monitor_job', 1]
   - ['form_deep_understanding', 1]
   - ['form_deep_understanding_monitor_job', 1]
+  - ['document_embedding_monitor_job', 1]
 :timeout: 7200
 
 :schedule:
@@ -29,4 +30,8 @@
   FormDeepUnderstandingMonitorJob:
     every: '15s'
     queue: form_deep_understanding_monitor_job
+    enabled: true
+  DocumentEmbeddingMonitorJob:
+    every: '15s'
+    queue: document_embedding_monitor_job
     enabled: true
