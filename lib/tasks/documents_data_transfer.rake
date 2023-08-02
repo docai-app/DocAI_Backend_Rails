@@ -28,7 +28,6 @@ namespace :documents_data_transfer do
       puts "Number of documents without label: #{nonLabeledCount}"
 
       @labeledDocuments = Document.find(labeledDocumentIds)
-      # puts @labeledDocuments.inspect
       for @labeledDocument in @labeledDocuments
         @labeledDocument.is_classified = true
         @labeledDocument.save
@@ -37,7 +36,6 @@ namespace :documents_data_transfer do
       puts 'Finished updating labeled documents'
 
       @nonLabeledDocuments = Document.find(nonLabeledDocumentIds)
-      # puts @nonLabeledDocuments.inspect
       for @nonLabeledDocument in @nonLabeledDocuments
         @nonLabeledDocument.is_classified = false
         @nonLabeledDocument.save

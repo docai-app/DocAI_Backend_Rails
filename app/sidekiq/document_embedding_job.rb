@@ -14,7 +14,7 @@ class DocumentEmbeddingJob
     puts "====== perform ====== document_id: #{document_id}"
     puts "====== perform ====== subdomain: #{subdomain}"
     @document = Document.find(document_id)
-    if @document.present? && @document.is_document && @document.content.present? && !@document.is_embedded
+    if @document.present? && @document.is_document && @document.content && !@document.is_embedded
       embeddingRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding", {
         document: @document, schema: subdomain
       }.to_json, { content_type: :json })
