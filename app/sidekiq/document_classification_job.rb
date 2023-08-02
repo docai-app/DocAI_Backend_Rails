@@ -14,11 +14,9 @@ class DocumentClassificationJob
   def perform(document_id, label_id, subdomain)
     Apartment::Tenant.switch!(subdomain)
     document = Document.find(document_id)
-    puts document_id, label_id, subdomain
     if document.present? && document.is_document && document.content.present? && !document.is_classifier_trained
       classificationRes = RestClient.post "#{ENV['DOCAI_ALPHA_URL']}/classification/confirm",
                                           { content: document.content, label: label_id, model: subdomain }.to_json, { content_type: :json, accept: :json }
-      puts classificationRes
       if JSON.parse(classificationRes)['status']
         document.is_classified = true
         document.is_classifier_trained = true
