@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 class DocumentEmbeddingJob
   include Sidekiq::Worker
 
-  sidekiq_options retry: 3, dead: true, queue: 'document_classification', throttle: { threshold: 1, period: 10.second }
+  sidekiq_options retry: 3, dead: true, queue: 'document_embedding', throttle: { threshold: 1, period: 10.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 1 * count }
 
@@ -14,10 +16,13 @@ class DocumentEmbeddingJob
     puts "====== perform ====== document_id: #{document_id}"
     puts "====== perform ====== subdomain: #{subdomain}"
     @document = Document.find(document_id)
-    if @document.present? && @document.is_document && @document.content && !@document.is_embedded
+    puts @document.inspect
+    if @document.present? && @document.is_document && @document.content.present? && !@document.is_embedded
+      puts "====== document #{@document.id} is not embedded"
+      puts @document.inspect
       embeddingRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding", {
-        document: @document, schema: subdomain
-      }.to_json, { content_type: :json })
+                                       document: @document, schema: subdomain
+                                     }, { content_type: :json })
       embeddingRes = JSON.parse(embeddingRes)
       puts "====== embeddingRes: #{embeddingRes}"
       if embeddingRes['status'] == true
