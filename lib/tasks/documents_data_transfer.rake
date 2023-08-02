@@ -1,7 +1,7 @@
 namespace :documents_data_transfer do
   # Create a task for find all has label_ids.first's documents
   task update_documents_classified_status: :environment do
-    puts "find_documents_with_label_ids"
+    puts 'find_documents_with_label_ids'
     Apartment::Tenant.each do |tenant|
       Apartment::Tenant.switch!(tenant)
       puts "====== tenant: #{tenant} ======"
@@ -14,18 +14,14 @@ namespace :documents_data_transfer do
       puts "Number of documents have to check: #{@documents.length}"
 
       for @document in @documents
-        if @document["label_list"].first.present?
+        if @document['label_list'].first.present?
           labeledCound += 1
-          labeledDocumentIds << @document["id"]
-          if labeledCound % 100 == 0
-            puts "Number of documents with label: #{labeledCound}"
-          end
-        elsif @document["label_list"].first.blank?
+          labeledDocumentIds << @document['id']
+          puts "Number of documents with label: #{labeledCound}" if labeledCound % 100 == 0
+        elsif @document['label_list'].first.blank?
           nonLabeledCount += 1
-          nonLabeledDocumentIds << @document["id"]
-          if nonLabeledCount % 100 == 0
-            puts "Number of documents without label: #{nonLabeledCount}"
-          end
+          nonLabeledDocumentIds << @document['id']
+          puts "Number of documents without label: #{nonLabeledCount}" if nonLabeledCount % 100 == 0
         end
       end
       puts "Number of documents with label: #{labeledCound}"
@@ -38,7 +34,7 @@ namespace :documents_data_transfer do
         @labeledDocument.save
       end
 
-      puts "Finished updating labeled documents"
+      puts 'Finished updating labeled documents'
 
       @nonLabeledDocuments = Document.find(nonLabeledDocumentIds)
       # puts @nonLabeledDocuments.inspect
@@ -47,7 +43,7 @@ namespace :documents_data_transfer do
         @nonLabeledDocument.save
       end
 
-      puts "Finished updating non labeled documents"
+      puts 'Finished updating non labeled documents'
     rescue StandardError => e
       puts e
     end
