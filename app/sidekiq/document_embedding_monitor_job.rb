@@ -27,7 +27,19 @@ class DocumentEmbeddingMonitorJob
       @document = @documents.first
       puts "====== document id: #{@document.id} needs embedding ======"
       puts @document.inspect
-      DocumentEmbeddingJob.perform_async(@document.id, tenant)
+      # DocumentEmbeddingJob.perform_async(@document.id, tenant)
+      embeddingRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding", {
+        document: @document, schema: tenant
+      }.to_json, { content_type: :json })
+      embeddingRes = JSON.parse(embeddingRes)
+      puts "====== embeddingRes: #{embeddingRes}"
+      if embeddingRes['status'] == true
+        puts "====== document #{@document.id} was successfully processed"
+        @document.is_embedded = true
+        @document.save!
+      else
+        puts "====== document #{@document.id} was not successfully processed, error: #{embeddingRes}"
+      end
     end
   rescue StandardError => e
     puts "====== error ====== error: #{e.message}"
