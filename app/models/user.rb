@@ -39,6 +39,7 @@ class User < ApplicationRecord
   has_many :projects, class_name: 'Project', foreign_key: 'user_id'
   has_many :project_tasks, class_name: 'ProjectTask', foreign_key: 'user_id'
   has_many :mini_apps, class_name: 'MiniApp', foreign_key: 'user_id'
+  has_many :chatbots, class_name: 'Chatbot', foreign_key: 'user_id'
 
   validates_confirmation_of :password
 

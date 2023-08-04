@@ -27,4 +27,19 @@ class AiService
     puts res['data']['content']
     res['data']['content']
   end
+
+  def self.assistantQA(query, schema, metadata)
+    res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding/qa", {
+      query:,
+      schema:,
+      metadata:
+    }.to_json, { content_type: :json, accept: :json })
+    res = JSON.parse(res)
+    puts "Response from Document Embedding QA: #{res}"
+    if res['status'] == true
+      res
+    else
+      res['message']
+    end
+  end
 end
