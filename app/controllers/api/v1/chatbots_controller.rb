@@ -5,7 +5,7 @@ class Api::V1::ChatbotsController < ApplicationController
   def index
     @chatbots = @current_user_chatbots
     @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
-    render json: { success: true, chatbots: @chatbots }, status: :ok
+    render json: { success: true, chatbots: @chatbots, meta: pagination_meta(@chatbots) }, status: :ok
   end
 
   def show
