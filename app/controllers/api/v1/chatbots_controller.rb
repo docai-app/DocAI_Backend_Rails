@@ -10,7 +10,8 @@ class Api::V1::ChatbotsController < ApplicationController
 
   def show
     @chatbot = Chatbot.find(params[:id])
-    render json: { success: true, chatbot: @chatbot }, status: :ok
+    @folders = Folder.find(@chatbot.source['folder_id'])
+    render json: { success: true, chatbot: @chatbot, folders: @folders }, status: :ok
   end
 
   def create

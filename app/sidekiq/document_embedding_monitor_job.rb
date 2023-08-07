@@ -20,7 +20,7 @@ class DocumentEmbeddingMonitorJob
         next
       end
       puts "====== tenant: #{tenant} ======"
-      @documents = Document.where.not(content: nil).where(is_document: true).where(is_embedded: false).order('created_at': :desc)
+      @documents = Document.where.not(content: nil).where(is_document: true).where(is_embedded: false).order('created_at': :desc).first(20)
       puts "====== Documents found: #{@documents.length} ======"
       next unless @documents.present?
 
