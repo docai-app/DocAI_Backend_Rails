@@ -21,7 +21,7 @@ class FormDeepUnderstandingMonitorJob
       end
       puts "====== tenant: #{tenant} ======"
       # I want to find the last document that meta.needs_deep_understanding is true and meta.is_deep_understanding is false
-      @documents = Document.where("meta->>'needs_deep_understanding' != ?", 'false').where("meta->>'is_deep_understanding' = ?", 'false').where(
+      @documents = Document.where("meta->>'needs_deep_understanding' != ?", 'false').where("meta->>'is_deep_understanding' = ?", false).where(
         "meta->>'needs_approval' != ?", 'nil'
       ).where(is_document: true)
       puts "====== Documents found: #{@documents.length} ======"

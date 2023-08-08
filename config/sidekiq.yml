@@ -19,14 +19,14 @@
   #   queue: document_classification
   #   enabled: true
   DocumentClassificationMonitorJob:
-    every: '15s'
+    every: '20s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:
-    every: '15s'
+    every: '20s'
     queue: ocr_monitor_job
     enabled: true
   FormDeepUnderstandingMonitorJob:
-    every: '15s'
+    every: '20s'
     queue: form_deep_understanding_monitor_job
     enabled: true
