@@ -26,7 +26,7 @@ class FormDeepUnderstandingMonitorJob
       ).where(is_document: true)
       puts "====== Documents found: #{@documents.length} ======"
       if @documents.present?
-        @document = @documents.last
+        @document = @documents.first
         puts "====== document id: #{@document.id} needs deep understanding ======"
         puts "====== document meta form_schema_id: #{@document.meta['form_schema_id']} ======"
         FormDeepUnderstandingJob.perform_async(@document.id, @document.meta['form_schema_id'],

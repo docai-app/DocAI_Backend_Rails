@@ -19,6 +19,7 @@ class OcrJob
     if document.present? && document.is_document && document.content.nil?
       ocr_res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/alpha/ocr", document_url: document.storage_url)
       content = JSON.parse(ocr_res)['result']
+      puts "====== perform ====== document #{document_id} content: #{content}"
       document.content = content
       document.ready!
     end
