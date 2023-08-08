@@ -28,9 +28,10 @@ class AiService
     res['data']['content']
   end
 
-  def self.assistantQA(query, schema, metadata)
+  def self.assistantQA(query, chat_history, schema, metadata)
     res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding/qa", {
       query:,
+      chat_history:,
       schema:,
       metadata:
     }.to_json, { content_type: :json, accept: :json })
