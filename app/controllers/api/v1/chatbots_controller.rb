@@ -5,7 +5,12 @@ class Api::V1::ChatbotsController < ApplicationController
   def index
     @chatbots = @current_user_chatbots
     @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
-    render json: { success: true, chatbots: @chatbots, meta: pagination_meta(@chatbots) }, status: :ok
+    @chatbots_with_folders = @chatbots.map do |chatbot|
+      folders = Folder.find(chatbot.source['folder_id'])
+      { chatbot:, folders: }
+    end
+    puts @chatbots_with_folders
+    render json: { success: true, chatbots: @chatbots_with_folders, meta: pagination_meta(@chatbots) }, status: :ok
   end
 
   def show
