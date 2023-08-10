@@ -61,7 +61,7 @@ class Api::V1::ChatbotsController < ApplicationController
         document_id: @documents.map(&:id)
       }
       puts @documents.length
-      @qaRes = AiService.assistantQA(params[:query], getSubdomain, @metadata)
+      @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
       puts @qaRes
       render json: { success: true, message: @qaRes }, status: :ok
     else
