@@ -49,8 +49,8 @@ namespace :documents_data_transfer do
 
   task documents_content_embedding: :environment do
     puts 'find_documents_content_embedding'
-    # Write the 1000 times loops:
-    for i in 1..1000
+    # Write the 3000 times loops:
+    for i in 1..3000
       puts "====== Loop: #{i} ======"
       Apartment::Tenant.each do |tenant|
         Apartment::Tenant.switch!(tenant)
