@@ -44,6 +44,7 @@ module Api
             @document.storage_url = AzureService.upload(file) if file.present?
             @document.user = current_user
             @document.label_ids = params[:tag_id]
+            @document.is_classified = true
             @document.save
             documentProcessors(file)
           end
