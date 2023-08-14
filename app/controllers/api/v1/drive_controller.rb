@@ -9,9 +9,7 @@ module Api
       before_action :has_rights_to_move_items?, only: [:move_items]
 
       def index
-        @folders = Folder.where(parent_id: nil).order(updated_at: :desc).includes(:user).as_json(include: { user: { only: %i[
-                                                                                                   id email nickname
-                                                                                                 ] } })
+        @folders = current_user_accessible_folders
         @folders = Kaminari.paginate_array(@folders).page(params[:page]).per(50)
         @documents = Document.where(folder_id: nil).order(updated_at: :desc).includes(:user, :labels).as_json(
           except: [:label_list], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
@@ -73,6 +71,18 @@ module Api
         else
           render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
         end
+      end
+
+      def current_user_accessible_folders
+        all_root_folders = Folder.where(parent_id: nil).order(created_at: :desc).includes(:user)
+
+        folder_ids_with_rights = current_user.roles.where(name: 'w', resource_type: 'Folder').pluck(:resource_id)
+
+        accessible_folders = all_root_folders.select do |folder|
+          folder_ids_with_rights.include?(folder.id) || folder.user == current_user || folder.user.nil?
+        end
+
+        accessible_folders.as_json(include: { user: { only: %i[id email nickname] } })
       end
 
       def can_move_items_to_folder

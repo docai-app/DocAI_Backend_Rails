@@ -33,6 +33,7 @@ class User < ApplicationRecord
 
   # belongs_to :department, class_name: 'Department', foreign_key: "department_id", optional: true
 
+  has_and_belongs_to_many :roles, join_table: :users_roles
   has_many :approval_documents, class_name: 'Document', foreign_key: 'approval_user_id'
   has_many :documents, class_name: 'Document', foreign_key: 'user_id'
   has_many :folders, class_name: 'Folder', foreign_key: 'user_id'
