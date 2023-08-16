@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_230_803_172_736) do
+ActiveRecord::Schema[7.0].define(version: 20_230_816_072_404) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -84,6 +84,23 @@ ActiveRecord::Schema[7.0].define(version: 20_230_803_172_736) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['category'], name: 'index_chatbots_on_category'
+    t.index ['category'], name: 'index_chatbots_on_category'
+    t.index ['user_id'], name: 'index_chatbots_on_user_id'
+    t.index ['user_id'], name: 'index_chatbots_on_user_id'
+  end
+
+  create_table 'chatbots', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name'
+    t.string 'description'
+    t.uuid 'user_id', null: false
+    t.integer 'category', default: 0, null: false
+    t.jsonb 'meta', default: {}
+    t.jsonb 'source', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['category'], name: 'index_chatbots_on_category'
+    t.index ['category'], name: 'index_chatbots_on_category'
+    t.index ['user_id'], name: 'index_chatbots_on_user_id'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
   end
 
@@ -234,7 +251,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_803_172_736) do
   create_table 'folders', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name', default: 'New Folder', null: false
     t.uuid 'parent_id'
-    t.uuid 'user_id', null: false
+    t.uuid 'user_id'
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['parent_id'], name: 'index_folders_on_parent_id'
@@ -246,7 +263,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_803_172_736) do
   create_table 'folders', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name', default: 'New Folder', null: false
     t.uuid 'parent_id'
-    t.uuid 'user_id', null: false
+    t.uuid 'user_id'
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['parent_id'], name: 'index_folders_on_parent_id'
@@ -555,6 +572,8 @@ ActiveRecord::Schema[7.0].define(version: 20_230_803_172_736) do
     t.datetime 'updated_at', null: false
     t.integer 'taggings_count', default: 0
     t.boolean 'is_checked', default: false
+    t.uuid 'folder_id'
+    t.uuid 'user_id'
     t.index ['name'], name: 'index_tags_on_name', unique: true
     t.index ['name'], name: 'index_tags_on_name', unique: true
   end
@@ -565,6 +584,8 @@ ActiveRecord::Schema[7.0].define(version: 20_230_803_172_736) do
     t.datetime 'updated_at', null: false
     t.integer 'taggings_count', default: 0
     t.boolean 'is_checked', default: false
+    t.uuid 'folder_id'
+    t.uuid 'user_id'
     t.index ['name'], name: 'index_tags_on_name', unique: true
     t.index ['name'], name: 'index_tags_on_name', unique: true
   end

@@ -32,7 +32,9 @@ module Api
       # Create tag
       def create
         @tag = ActsAsTaggableOn::Tag.new(tag_params)
-        if @tag.save
+        @folder = Folder.new(name: @tag.name, user_id: nil, parent_id: nil)
+        if @tag.save && @folder.save
+          @tag.update(folder_id: @folder.id)
           render json: { success: true, tag: @tag }, status: :ok
         else
           render json: { success: false, errors: @tag.errors }, status: :ok
@@ -42,7 +44,8 @@ module Api
       # Update tag
       def update
         @tag = ActsAsTaggableOn::Tag.find(params[:id])
-        if @tag.update(tag_params)
+        @folder = Folder.find(@tag.folder_id)
+        if @tag.update(tag_params) && @folder.update(name: @tag.name)
           render json: { success: true, tag: @tag }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
