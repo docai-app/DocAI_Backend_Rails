@@ -82,16 +82,43 @@ module Api
         end
       end
 
+      def chatbot_upload
+        file = params[:file]
+        begin
+          @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now)
+          @document.storage_url = AzureService.upload(file) if file.present?
+          documentProcessors(file, false)
+          puts @document.inspect
+          if @document.content.present?
+            res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.content.to_s)}&model=#{getSubdomain}"
+            @label = Tag.find(JSON.parse(res)['label_id'])
+            render json: { success: true, prediction: { label: @label, document: @document } },
+                   status: :ok
+          else
+            render json: { success: false }, status: :unprocessable_entity
+          end
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       def getSubdomain
         Utils.extractReferrerSubdomain(request.referrer) || 'public'
       end
 
-      def documentProcessors(file)
+      def documentProcessors(file, async = true)
         if DocumentService.checkFileIsDocument(file)
           @document.uploaded!
-          OcrJob.perform_async(@document.id, getSubdomain)
+          if async
+            OcrJob.perform_async(@document.id, getSubdomain)
+          else
+            ocr_res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/alpha/ocr", document_url: @document.storage_url)
+            content = JSON.parse(ocr_res)['result']
+            @document.content = content
+            @document.ready!
+          end
         elsif DocumentService.checkFileIsTextDocument(file)
           @document.content = DocumentService.readTextDocument2Text(file)
           @document.meta = {
@@ -102,6 +129,7 @@ module Api
           @document.is_document = false
           @document.uploaded!
         end
+        puts @document.inspect
       end
     end
   end

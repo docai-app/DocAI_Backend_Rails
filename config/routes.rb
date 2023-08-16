@@ -71,6 +71,7 @@ Rails.application.routes.draw do
       post 'storage/upload/batch/tag', to: 'storage#upload_batch_tag'
       post 'storage/upload/directly', to: 'storage#upload_directly'
       post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
+      post 'storage/upload/chatbot', to: 'storage#chatbot_upload'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
