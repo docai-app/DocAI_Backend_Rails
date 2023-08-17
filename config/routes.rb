@@ -167,6 +167,7 @@ Rails.application.routes.draw do
       resources :chatbots, only: %i[index show create update destroy] do
         collection do
           post 'assistant/message', to: 'chatbots#assistantQA'
+          post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
         end
       end
 

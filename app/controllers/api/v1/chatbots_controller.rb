@@ -68,7 +68,27 @@ class Api::V1::ChatbotsController < ApplicationController
       render json: { success: false, error: 'Chatbot not found' }, status: :not_found
     end
   rescue StandardError => e
-    # Handle any other exceptions here
+    render json: { success: false, error: e.message }, status: :internal_server_error
+  end
+
+  def assistantQASuggestion
+    @chatbot = Chatbot.find(params[:id])
+    @documents = []
+    if @chatbot
+      @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+      @folders.each do |folder|
+        @documents.concat(folder.documents)
+      end
+      @metadata = {
+        document_id: @documents.map(&:id)
+      }
+      @qaRes = AiService.assistantQASuggestion(getSubdomain, @metadata)
+      puts @qaRes
+      render json: { success: true, suggestion: @qaRes }, status: :ok
+    else
+      render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+    end
+  rescue StandardError => e
     render json: { success: false, error: e.message }, status: :internal_server_error
   end
 
