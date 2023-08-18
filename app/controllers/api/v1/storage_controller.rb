@@ -70,8 +70,6 @@ module Api
         content = params[:content] || nil
         begin
           @document = Document.new(name: params[:filename], content:, folder_id: target_folder_id)
-          # textImage = FormProjectionService.text2Image(content)
-          # @document.storage_url = AzureService.uploadBlob(textImage.to_blob, params[:filename], 'image/png')
           text2Pdf = FormProjectionService.text2Pdf(content)
           @document.storage_url = AzureService.uploadBlob(text2Pdf, params[:filename], 'application/pdf')
           @document.user = current_user
@@ -84,8 +82,10 @@ module Api
 
       def chatbot_upload
         file = params[:file]
+        @chatbot = Chatbot.find(params[:chatbot_id])
         begin
-          @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now)
+          @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now,
+                                   folder_id: @chatbot.source['folder_id'][0] || nil)
           @document.storage_url = AzureService.upload(file) if file.present?
           documentProcessors(file, false)
           puts @document.inspect
