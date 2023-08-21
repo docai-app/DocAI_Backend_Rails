@@ -21,9 +21,11 @@ class Api::V1::ChatbotsController < ApplicationController
 
   def create
     @chatbot = Chatbot.new(chatbot_params)
-    puts params
+    puts @chatbot.inspect
+    puts params['source']['folder_id']
+    @folders = Folder.find(params['source']['folder_id'])
     @chatbot.user = current_user
-    @chatbot.source = params[:source]
+    @chatbot.source['folder_id'] = @folders.pluck(:id)
     @chatbot.meta['chain_features'] = params[:chain_features]
     if @chatbot.save
       render json: { success: true, chatbot: @chatbot }, status: :ok
@@ -34,7 +36,9 @@ class Api::V1::ChatbotsController < ApplicationController
 
   def update
     @chatbot = Chatbot.find(params[:id])
+    @folders = Folder.find(params['source']['folder_id'])
     @chatbot.meta['chain_features'] = params[:chain_features]
+    @chatbot.source['folder_id'] = @folders.pluck(:id)
     if @chatbot.update(chatbot_params)
       render json: { success: true, chatbot: @chatbot }, status: :ok
     else
