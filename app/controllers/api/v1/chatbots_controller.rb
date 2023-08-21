@@ -3,7 +3,8 @@ class Api::V1::ChatbotsController < ApplicationController
   before_action :current_user_chatbots, only: %i[index]
 
   def index
-    @chatbots = @current_user_chatbots
+    # @chatbots = @current_user_chatbots
+    @chatbots = Chatbot.all.order(created_at: :desc)
     @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
     @chatbots_with_folders = @chatbots.map do |chatbot|
       folders = Folder.find(chatbot.source['folder_id'])
