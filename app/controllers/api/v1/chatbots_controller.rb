@@ -24,6 +24,7 @@ class Api::V1::ChatbotsController < ApplicationController
     puts params
     @chatbot.user = current_user
     @chatbot.source = params[:source]
+    @chatbot.meta['chain_features'] = params[:chain_features]
     if @chatbot.save
       render json: { success: true, chatbot: @chatbot }, status: :ok
     else
@@ -33,6 +34,7 @@ class Api::V1::ChatbotsController < ApplicationController
 
   def update
     @chatbot = Chatbot.find(params[:id])
+    @chatbot.meta['chain_features'] = params[:chain_features]
     if @chatbot.update(chatbot_params)
       render json: { success: true, chatbot: @chatbot }, status: :ok
     else
