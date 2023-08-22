@@ -80,9 +80,10 @@ module Api
         all_root_folders = Folder.where(parent_id: nil).order(created_at: :desc).includes(:user)
 
         folder_ids_with_rights = current_user.roles.where(name: 'w', resource_type: 'Folder').pluck(:resource_id)
+        label_folders = ActsAsTaggableOn::Tag.for_context(:labels)
 
         accessible_folders = all_root_folders.select do |folder|
-          folder_ids_with_rights.include?(folder.id) || folder.user == current_user || folder.user.nil?
+          folder_ids_with_rights.include?(folder.id) || folder.user == current_user || folder.user.nil? && !label_folders.pluck(:folder_id).include?(folder.id)
         end
 
         accessible_folders.as_json(include: { user: { only: %i[id email nickname] } })
