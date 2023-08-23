@@ -5,9 +5,9 @@ module Api
     class TagsController < ApiController
       # Show all tags
       def index
-        @tags = Tag.joins(:taggings).select('tags.*,context').where("context = 'labels'").distinct.includes(%i[
-                                                                                                              functions tag_functions
-                                                                                                            ]).as_json(include: :functions)
+        @tags = Tag.joins(:taggings).select("tags.*,context").where("context = 'labels'").distinct.includes(%i[
+          functions tag_functions
+        ]).as_json(include: :functions)
         render json: { success: true, tags: @tags }, status: :ok
       end
 
@@ -26,7 +26,7 @@ module Api
       # Show the functions of tag
       def show_functions
         @tag = Tag.find(params[:id]).as_json(include: :functions)
-        render json: { success: true, functions: @tag['functions'] }, status: :ok
+        render json: { success: true, functions: @tag["functions"] }, status: :ok
       end
 
       # Create tag
@@ -43,9 +43,21 @@ module Api
 
       # Update tag
       def update
-        @tag = ActsAsTaggableOn::Tag.find(params[:id])
+        @tag = Tag.find(params[:id])
         @folder = Folder.find(@tag.folder_id)
         if @tag.update(tag_params) && @folder.update(name: @tag.name)
+          render json: { success: true, tag: @tag }, status: :ok
+        else
+          render json: { success: false }, status: :unprocessable_entity
+        end
+      end
+
+      # Update tag chain features
+      def update_chain_features
+        @tag = Tag.find(params[:id])
+        puts "Tag: #{@tag.inspect}"
+        puts "Chain features: #{params[:chain_features]}"
+        if @tag.update(meta: { chain_features: params[:chain_features] })
           render json: { success: true, tag: @tag }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity

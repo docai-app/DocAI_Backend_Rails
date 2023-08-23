@@ -57,6 +57,7 @@ Rails.application.routes.draw do
       get 'tags/:id/functions', to: 'tags#show_functions'
       post 'tags', to: 'tags#create'
       put 'tags/:id', to: 'tags#update'
+      put 'tags/:id/features', to: 'tags#update_chain_features'
       post 'tags/function', to: 'tag_functions#create'
       delete 'tags/function', to: 'tag_functions#destroy'
 
