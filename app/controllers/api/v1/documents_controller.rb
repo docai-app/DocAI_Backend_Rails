@@ -72,10 +72,9 @@ module Api
 
       # Show and Predict the Latest Uploaded Document
       def show_latest_predict
-        subdomain = Utils.extractReferrerSubdomain(request.referrer) || 'chyb_dev'
         @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
         if @document.present?
-          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{subdomain}"
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
           @tag = Tag.find(JSON.parse(res)['label']['id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, meta: pagination_meta(@document) },
                  status: :ok
@@ -86,7 +85,6 @@ module Api
 
       # Show and Predict the Specify Date Latest Uploaded Document
       def show_specify_date_latest_predict
-        subdomain = Utils.extractReferrerSubdomain(request.referrer) || 'chyb_dev'
         @document = @current_user_documents.where(status: :ready).where('created_at >= ?', params[:date].to_date).where(
           'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).page(params[:page]).per(1)
@@ -97,7 +95,7 @@ module Api
           'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).count
         if @document.present?
-          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{subdomain}"
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
           @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count, meta: pagination_meta(@document) },
                  status: :ok
@@ -215,7 +213,7 @@ module Api
       end
 
       def getSubdomain
-        Utils.extractReferrerSubdomain(request.referrer) || 'public'
+        Utils.extractRequestTenantByToken(request) || 'public'
       end
 
       def checkDocumentItemsIsDocument

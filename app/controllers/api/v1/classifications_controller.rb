@@ -48,7 +48,7 @@ module Api
       private
 
       def getSubdomain
-        Utils.extractReferrerSubdomain(request.referrer) || 'public'
+        Utils.extractRequestTenantByToken(request) || 'public'
       end
     end
   end

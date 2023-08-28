@@ -42,4 +42,34 @@ class Utils
     end
     subdomain
   end
+
+  def self.extractRequestTenantByToken(request)
+    api_token = request.headers['Authorization']&.split(' ')&.last
+    user_id = decodeToken(api_token)
+
+    return unless api_token && user_id
+
+    user = User.find_by(id: user_id)
+
+    return unless user
+
+    subdomain = user.email.split('@').last.split('.').first
+    puts "subdomain: #{subdomain}"
+    tenantName = getTenantName(subdomain)
+    puts "tenantName: #{tenantName}"
+
+    tenantName
+  end
+
+  def self.decodeToken(token)
+    jwt_payload = JWT.decode(token, ENV['DEVISE_JWT_SECRET_KEY']).first
+    puts "jwt_payload: #{jwt_payload}"
+    jwt_payload['sub']
+  rescue StandardError => e
+    puts e.message
+  end
+
+  def self.getTenantName(subdomain)
+    Apartment.tenant_names.include?(subdomain) ? subdomain : 'public'
+  end
 end

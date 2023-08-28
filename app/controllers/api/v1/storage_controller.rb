@@ -66,7 +66,7 @@ module Api
 
       def upload_generated_content
         target_folder_id = params[:target_folder_id] || nil
-        filename = params[:filename] || SecureRandom.uuid
+        params[:filename] || SecureRandom.uuid
         content = params[:content] || nil
         begin
           @document = Document.new(name: params[:filename], content:, folder_id: target_folder_id)
@@ -104,10 +104,6 @@ module Api
 
       private
 
-      def getSubdomain
-        Utils.extractReferrerSubdomain(request.referrer) || 'public'
-      end
-
       def documentProcessors(file, async = true)
         if DocumentService.checkFileIsDocument(file)
           @document.uploaded!
@@ -130,6 +126,10 @@ module Api
           @document.uploaded!
         end
         puts @document.inspect
+      end
+
+      def getSubdomain
+        Utils.extractRequestTenantByToken(request) || 'public'
       end
     end
   end

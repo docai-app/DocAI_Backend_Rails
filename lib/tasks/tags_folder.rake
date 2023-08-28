@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 namespace :tags_folder do
   task create_folder_for_each_tag: :environment do
     Apartment::Tenant.each do |tenant|

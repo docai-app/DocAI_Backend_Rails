@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 namespace :documents_data_transfer do
   # Create a task for find all has label_ids.first's documents
   task update_documents_classified_status: :environment do
@@ -13,22 +14,22 @@ namespace :documents_data_transfer do
 
       puts "Number of documents have to check: #{@documents.length}"
 
-      for @document in @documents
+      @documents.each do |@document|
         if @document['label_list'].first.present?
           labeledCound += 1
           labeledDocumentIds << @document['id']
-          puts "Number of documents with label: #{labeledCound}" if labeledCound % 100 == 0
+          puts "Number of documents with label: #{labeledCound}" if (labeledCound % 100).zero?
         elsif @document['label_list'].first.blank?
           nonLabeledCount += 1
           nonLabeledDocumentIds << @document['id']
-          puts "Number of documents without label: #{nonLabeledCount}" if nonLabeledCount % 100 == 0
+          puts "Number of documents without label: #{nonLabeledCount}" if (nonLabeledCount % 100).zero?
         end
       end
       puts "Number of documents with label: #{labeledCound}"
       puts "Number of documents without label: #{nonLabeledCount}"
 
       @labeledDocuments = Document.find(labeledDocumentIds)
-      for @labeledDocument in @labeledDocuments
+      @labeledDocuments.each do |@labeledDocument|
         @labeledDocument.is_classified = true
         @labeledDocument.save
       end
@@ -36,7 +37,7 @@ namespace :documents_data_transfer do
       puts 'Finished updating labeled documents'
 
       @nonLabeledDocuments = Document.find(nonLabeledDocumentIds)
-      for @nonLabeledDocument in @nonLabeledDocuments
+      @nonLabeledDocuments.each do |@nonLabeledDocument|
         @nonLabeledDocument.is_classified = false
         @nonLabeledDocument.save
       end
@@ -50,7 +51,7 @@ namespace :documents_data_transfer do
   task documents_content_embedding: :environment do
     puts 'find_documents_content_embedding'
     # Write the 3000 times loops:
-    for i in 1..3000
+    (1..3000).each do |i|
       puts "====== Loop: #{i} ======"
       Apartment::Tenant.each do |tenant|
         Apartment::Tenant.switch!(tenant)

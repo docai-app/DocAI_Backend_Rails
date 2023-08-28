@@ -3,6 +3,7 @@
 module Users
   class SessionsController < Devise::SessionsController
     respond_to :json
+    before_action :get_tenent_when_login
 
     private
 
@@ -29,6 +30,17 @@ module Users
 
     def login_failed
       render json: { success: false, message: 'Logged in failure.' }, status: :unauthorized
+    end
+
+    def get_tenent_when_login
+      email = params[:user][:email]
+      puts "email: #{email}"
+      # Get email subdomain
+      subdomain = email.split('@')[1].split('.')[0]
+      puts "subdomain: #{subdomain}"
+      tenantName = Utils.getTenantName(subdomain)
+      puts "tenantName: #{tenantName}"
+      Apartment::Tenant.switch!(tenantName)
     end
   end
 end

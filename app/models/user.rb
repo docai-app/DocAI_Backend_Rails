@@ -43,10 +43,16 @@ class User < ApplicationRecord
   has_many :chatbots, class_name: 'Chatbot', foreign_key: 'user_id'
 
   validates_confirmation_of :password
-
-  '''如果需要 default 角色'''
   # after_create :assign_default_role
   # def assign_default_role
   #   add_role(:user) if roles.blank?
   # end
+
+  def jwt_payload
+    {
+      'sub' => id,
+      'iat' => Time.now.to_i,
+      'email' => email
+    }
+  end
 end

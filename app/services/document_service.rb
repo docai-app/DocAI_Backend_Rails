@@ -45,16 +45,13 @@ class DocumentService
           content += line
         end
       end
-      content
     when 'text/markdown'
       File.open(file, 'r') do |f|
         f.each_line do |line|
           content += line
         end
       end
-      content
-    else
-      content
     end
+    content
   end
 end

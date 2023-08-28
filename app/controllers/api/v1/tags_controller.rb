@@ -5,9 +5,9 @@ module Api
     class TagsController < ApiController
       # Show all tags
       def index
-        @tags = Tag.joins(:taggings).select("tags.*,context").where("context = 'labels'").distinct.includes(%i[
-          functions tag_functions
-        ]).as_json(include: :functions)
+        @tags = Tag.joins(:taggings).select('tags.*,context').where("context = 'labels'").distinct.includes(%i[
+                                                                                                              functions tag_functions
+                                                                                                            ]).as_json(include: :functions)
         render json: { success: true, tags: @tags }, status: :ok
       end
 
@@ -26,7 +26,7 @@ module Api
       # Show the functions of tag
       def show_functions
         @tag = Tag.find(params[:id]).as_json(include: :functions)
-        render json: { success: true, functions: @tag["functions"] }, status: :ok
+        render json: { success: true, functions: @tag['functions'] }, status: :ok
       end
 
       # Create tag

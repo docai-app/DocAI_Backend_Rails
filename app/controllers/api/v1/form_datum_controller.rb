@@ -71,9 +71,8 @@ module Api
 
       def generate_chart
         content_list = []
-        html_code = ''
         @form_datum = FormDatum.find(params[:form_data_ids])
-        for form_data in @form_datum
+        @form_datum.each do |form_data|
           content_list.append(form_data.data)
         end
         puts params[:query]
