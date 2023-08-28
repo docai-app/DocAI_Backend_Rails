@@ -14,7 +14,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://test-dev.docai.net', 'http://test-dev.docai.net', 'https://test.docai.net', 'http://test.docai.net',
             'https://chatbot-demo.docai.net', 'http://chatbot-demo.docai.net', 'https://chatbot.docai.net', 'http://chatbot.docai.net',
             'https://chyb.docai.net', 'http://chyb.docai.net', 'https://*-dev.docai.net', 'http://*-dev.docai.net',
-            'https://chyb-dev.docai.net', 'http://chyb-dev.docai.net', 'https://chyb.docai.net', 'http://chyb.docai.net',
+            'https://chyb-dev.docai.net', 'http://chyb-dev.docai.net', 'https://chyb.docai.net', 'http://chyb.docai.net', 'https://chyb-dev.docai.net:8080', 'http://chyb-dev.docai.net:8080',
             'https://wishcoffee-dev.docai.net', 'http://wishcoffee-dev.docai.net', 'https://wishcoffee.docai.net', 'http://wishcoffee.docai.net',
             'https://docai-dev.docai.net', 'http://docai-dev.docai.net', 'https://docai.docai.net', 'http://docai.docai.net'
 

@@ -41,6 +41,7 @@ class ApiController < ActionController::Base
   def switch_tenant
     # Get the subdomain from the referrer
     tenantName = Utils.extractRequestTenantByToken(request)
+    puts "tenantName: #{tenantName}"
     Apartment::Tenant.switch!(tenantName)
 
     # puts "Original referrer: #{request.referrer}"

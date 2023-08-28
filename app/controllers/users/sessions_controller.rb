@@ -3,11 +3,12 @@
 module Users
   class SessionsController < Devise::SessionsController
     respond_to :json
-    before_action :get_tenent_when_login
+    before_action :switch_tenent_when_login, only: %i[create new]
 
     private
 
     def respond_with(resource, _opts = {})
+      puts "current tenant: #{Apartment::Tenant.current}"
       resource.persisted? ? login_success : login_failed
       # render json: { success: true, message: "Logged.", user: resource }, status: :ok
     end
@@ -32,7 +33,7 @@ module Users
       render json: { success: false, message: 'Logged in failure.' }, status: :unauthorized
     end
 
-    def get_tenent_when_login
+    def switch_tenent_when_login
       email = params[:user][:email]
       puts "email: #{email}"
       # Get email subdomain
