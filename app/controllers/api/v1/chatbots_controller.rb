@@ -4,7 +4,7 @@ module Api
   module V1
     class ChatbotsController < ApiController
       before_action :authenticate_user!, only: %i[create update destroy]
-      # before_action :current_user_chatbots, only: %i[index]
+      before_action :current_user_chatbots, only: %i[index]
 
       def index
         # @chatbots = @current_user_chatbots
