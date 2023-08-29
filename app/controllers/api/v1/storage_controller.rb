@@ -129,7 +129,7 @@ module Api
       end
 
       def getSubdomain
-        Utils.extractRequestTenantByToken(request) || 'public'
+        Utils.extractRequestTenantByToken(request)
       end
     end
   end

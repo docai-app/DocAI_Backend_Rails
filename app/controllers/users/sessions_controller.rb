@@ -9,6 +9,7 @@ module Users
 
     def respond_with(resource, _opts = {})
       puts "current tenant: #{Apartment::Tenant.current}"
+      puts "resource: #{resource.inspect}"
       resource.persisted? ? login_success : login_failed
       # render json: { success: true, message: "Logged.", user: resource }, status: :ok
     end
@@ -33,15 +34,29 @@ module Users
       render json: { success: false, message: 'Logged in failure.' }, status: :unauthorized
     end
 
+    # def switch_tenent_when_login
+    #   email = params[:user][:email]
+    #   puts "email: #{email}"
+    #   subdomain = email.split('@')[1].split('.')[0]
+    #   puts "subdomain: #{subdomain}"
+    #   tenantName = Utils.getTenantName(subdomain)
+    #   puts "tenantName: #{tenantName}"
+    #   Apartment::Tenant.switch!(tenantName)
+    # end
+
     def switch_tenent_when_login
       email = params[:user][:email]
       puts "email: #{email}"
-      # Get email subdomain
       subdomain = email.split('@')[1].split('.')[0]
       puts "subdomain: #{subdomain}"
       tenantName = Utils.getTenantName(subdomain)
       puts "tenantName: #{tenantName}"
-      Apartment::Tenant.switch!(tenantName)
+      begin
+        Apartment::Tenant.switch!(tenantName)
+        ActiveRecord::Base.connection.execute('SELECT 1')
+      rescue Apartment::TenantNotFound
+        render json: { success: false, message: 'Tenant not found.' }, status: :not_found
+      end
     end
   end
 end

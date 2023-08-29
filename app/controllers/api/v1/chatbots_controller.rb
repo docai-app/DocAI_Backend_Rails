@@ -14,7 +14,6 @@ module Api
           folders = Folder.find(chatbot.source['folder_id'])
           { chatbot:, folders: }
         end
-        puts @chatbots_with_folders
         render json: { success: true, chatbots: @chatbots_with_folders, meta: pagination_meta(@chatbots) }, status: :ok
       end
 
@@ -124,7 +123,7 @@ module Api
       end
 
       def getSubdomain
-        Utils.extractRequestTenantByToken(request) || 'public'
+        Utils.extractRequestTenantByToken(request)
       end
     end
   end

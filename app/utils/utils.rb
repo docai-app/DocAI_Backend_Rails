@@ -44,27 +44,19 @@ class Utils
   end
 
   def self.extractRequestTenantByToken(request)
-    api_token = request.headers['Authorization']&.split(' ')&.last
-    user_id = decodeToken(api_token)
+    apiToken = request.headers['Authorization']&.split(' ')&.last
+    jwtPayload = decodeToken(apiToken)
 
-    return unless api_token && user_id
+    return unless apiToken && jwtPayload
 
-    user = User.find_by(id: user_id)
-
-    return unless user
-
-    subdomain = user.email.split('@').last.split('.').first
-    puts "subdomain: #{subdomain}"
-    tenantName = getTenantName(subdomain)
-    puts "tenantName: #{tenantName}"
-
-    tenantName
+    subdomain = jwtPayload['email'].split('@').last.split('.').first
+    getTenantName(subdomain)
   end
 
   def self.decodeToken(token)
-    jwt_payload = JWT.decode(token, ENV['DEVISE_JWT_SECRET_KEY']).first
-    puts "jwt_payload: #{jwt_payload}"
-    jwt_payload['sub']
+    jwtPayload = JWT.decode(token, ENV['DEVISE_JWT_SECRET_KEY']).first
+    puts "jwt_payload: #{jwtPayload}"
+    jwtPayload
   rescue StandardError => e
     puts e.message
   end
