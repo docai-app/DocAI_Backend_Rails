@@ -3,7 +3,14 @@
 module Users
   class SessionsController < Devise::SessionsController
     respond_to :json
-    before_action :switch_tenent_when_login, only: %i[create new]
+
+    def create
+      self.resource = warden.authenticate!(auth_options)
+      set_flash_message!(:notice, :signed_in)
+      sign_in(resource_name, resource)
+      yield resource if block_given?
+      respond_with resource, location: after_sign_in_path_for(resource)
+    end
 
     private
 
@@ -32,31 +39,6 @@ module Users
 
     def login_failed
       render json: { success: false, message: 'Logged in failure.' }, status: :unauthorized
-    end
-
-    # def switch_tenent_when_login
-    #   email = params[:user][:email]
-    #   puts "email: #{email}"
-    #   subdomain = email.split('@')[1].split('.')[0]
-    #   puts "subdomain: #{subdomain}"
-    #   tenantName = Utils.getTenantName(subdomain)
-    #   puts "tenantName: #{tenantName}"
-    #   Apartment::Tenant.switch!(tenantName)
-    # end
-
-    def switch_tenent_when_login
-      email = params[:user][:email]
-      puts "email: #{email}"
-      subdomain = email.split('@')[1].split('.')[0]
-      puts "subdomain: #{subdomain}"
-      tenantName = Utils.getTenantName(subdomain)
-      puts "tenantName: #{tenantName}"
-      begin
-        Apartment::Tenant.switch!(tenantName)
-        ActiveRecord::Base.connection.execute('SELECT 1')
-      rescue Apartment::TenantNotFound
-        render json: { success: false, message: 'Tenant not found.' }, status: :not_found
-      end
     end
   end
 end

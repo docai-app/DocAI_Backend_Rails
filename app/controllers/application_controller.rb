@@ -2,19 +2,22 @@
 
 class ApplicationController < ActionController::API
   include Devise::Controllers::Helpers
-  # before_action :switch_tenant
+  before_action :switch_tenant
   before_action :set_paper_trail_whodunnit
 
-  # def switch_tenant
-  #   puts 'ApplicationController#switch_tenant'
-  #   subdomain = Utils.extractReferrerSubdomain(request.referrer)
-
-  #   if Apartment.tenant_names.include?(subdomain)
-  #     Apartment::Tenant.switch!(subdomain)
-  #   elsif subdomain == 'localhost'
-  #     Apartment::Tenant.switch!('public')
-  #   else
-  #     Apartment::Tenant.switch!('public')
-  #   end
-  # end
+  def switch_tenant
+    puts 'ApplicationController#switch_tenant'
+    email = params[:user][:email]
+    puts "email: #{email}"
+    subdomain = email.split('@')[1].split('.')[0]
+    puts "subdomain: #{subdomain}"
+    tenantName = Utils.getTenantName(subdomain)
+    puts "tenantName: #{tenantName}"
+    begin
+      Apartment::Tenant.switch!(tenantName)
+      ActiveRecord::Base.connection.execute('SELECT 1')
+    rescue Apartment::TenantNotFound
+      render json: { success: false, message: 'Tenant not found.' }, status: :not_found
+    end
+  end
 end
