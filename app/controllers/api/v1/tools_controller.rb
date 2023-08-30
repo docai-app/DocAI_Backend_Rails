@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class ToolsController < ApplicationController
+    class ToolsController < ApiNoauthController
       def upload_directly_ocr
         file = params[:file]
         begin
