@@ -176,5 +176,17 @@ Rails.application.routes.draw do
       post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
     end
+
+    namespace :schema do
+      namespace :v1 do
+        # **********Chatbot API**********
+        resources :chatbots, only: %i[index show create update destroy] do
+          collection do
+            post 'assistant/message', to: 'chatbots#assistantQA'
+            post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
+          end
+        end
+      end
+    end
   end
 end
