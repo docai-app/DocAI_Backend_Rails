@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 namespace :documents_data_transfer do
   # Create a task for find all has label_ids.first's documents
   task update_documents_classified_status: :environment do
@@ -14,14 +15,17 @@ namespace :documents_data_transfer do
 
       puts "Number of documents have to check: #{@documents.length}"
 
-      @documents.each do |@document|
+      @documents.each do |document|
         if @document['label_list'].first.present?
           labeledCound += 1
-          labeledDocumentIds << @document['id']
-          puts "Number of documents with label: #{labeledCound}" if (labeledCound % 100).zero?
+          labeledDocumentIds << document['id']
+          if (labeledCound % 100).zero?
+            puts "Number of documents with label: #{labeledCound}
+            "
+          end
         elsif @document['label_list'].first.blank?
           nonLabeledCount += 1
-          nonLabeledDocumentIds << @document['id']
+          nonLabeledDocumentIds << document['id']
           puts "Number of documents without label: #{nonLabeledCount}" if (nonLabeledCount % 100).zero?
         end
       end
@@ -29,17 +33,17 @@ namespace :documents_data_transfer do
       puts "Number of documents without label: #{nonLabeledCount}"
 
       @labeledDocuments = Document.find(labeledDocumentIds)
-      @labeledDocuments.each do |@labeledDocument|
-        @labeledDocument.is_classified = true
-        @labeledDocument.save
+      @labeledDocuments.each do |labeledDocument|
+        labeledDocument.is_classified = true
+        labeledDocument.save
       end
 
       puts 'Finished updating labeled documents'
 
       @nonLabeledDocuments = Document.find(nonLabeledDocumentIds)
-      @nonLabeledDocuments.each do |@nonLabeledDocument|
-        @nonLabeledDocument.is_classified = false
-        @nonLabeledDocument.save
+      @nonLabeledDocuments.each do |nonLabeledDocument|
+        nonLabeledDocument.is_classified = false
+        nonLabeledDocument.save
       end
 
       puts 'Finished updating non labeled documents'
