@@ -19,6 +19,7 @@ RUN apt-get update -qq \
         libxrender1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+RUN apt-get install -y –force-yes –no-install-recommends ttf-wqy-zenhei
 RUN apt-get install libmagickwand-dev imagemagick
 RUN npm install -g yarn@1
 
