@@ -9,13 +9,15 @@ RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
 RUN apt-get update -qq \
     && apt-get install -qq --no-install-recommends \
         nodejs \
-    && apt-get clean \
-    && apt-get install -y \
         xfonts-encodings \
         libfontenc1 \
         xfonts-utils \
         xfonts-75dpi \
         xfonts-base \
+        fontconfig \
+        libjpeg62-turbo \
+        libxrender1 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 RUN apt-get install libmagickwand-dev imagemagick
 RUN npm install -g yarn@1
