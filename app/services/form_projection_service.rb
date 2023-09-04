@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-require 'RMagick/RMagick2'
-require 'base64'
+require "RMagick/RMagick2"
+require "base64"
 
 class FormProjectionService
   def self.formatMessage(message)
     if message === true
-      '✓'
+      "✓"
     elsif message === false
-      ''
+      ""
     else
       message
     end
@@ -22,8 +22,8 @@ class FormProjectionService
     img.annotate(text, x2 - x1, y2 - y1, x1, y1, message) do
       text.gravity = Magick::CenterGravity
       text.pointsize = 36 # Font size
-      text.fill = '#000000' # Font color
-      img.format = 'png'
+      text.fill = "#000000" # Font color
+      img.format = "png"
     end
 
     img
@@ -40,16 +40,16 @@ class FormProjectionService
   # @param img: the projection image (Magick::Image)
   # @return the base64 string
   def self.exportImage2Base64(img)
-    Base64.encode64(img.to_blob).gsub(/\s+/, '')
+    Base64.encode64(img.to_blob).gsub(/\s+/, "")
   end
 
   # Export the projection image to blob
   # @param img: the data to be projected (Magick::Image)
   # @return the projection image (File)
   def self.exportImage2Blob(img)
-    img.format = 'png'
-    img.write('projection.png')
-    File.open('projection.png', 'rb')
+    img.format = "png"
+    img.write("projection.png")
+    File.open("projection.png", "rb")
   end
 
   # convert boundingBoxes to x1, y1, x2, y2, the boundingBoxes is array with 8 elements
@@ -75,13 +75,13 @@ class FormProjectionService
 
     formFields.each do |field|
       formFields.index(field)
-      fieldKey = field['fieldKey']
+      fieldKey = field["fieldKey"]
       # Get a item from data which has the key name same as the fieldKey
       if data.key?(fieldKey) && !data[fieldKey].is_a?(Array)
-        formProjectionItem = formProjection.find { |item| item['label'] == fieldKey }
+        formProjectionItem = formProjection.find { |item| item["label"] == fieldKey }
         next unless formProjectionItem
 
-        coordinates = convertBoundingBoxes(formProjectionItem['value'][0]['boundingBoxes'][0], projectionImage)
+        coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
         projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2], coordinates[3],
                                    data[fieldKey])
       elsif data.key?(fieldKey) && data[fieldKey].is_a?(Array)
@@ -89,10 +89,10 @@ class FormProjectionService
         data[fieldKey].each_with_index do |tableItem, row|
           # loop the item object and get the key, value and index
           tableItem.to_unsafe_h.each_with_index do |(_key, value), col|
-            formProjectionItem = formProjection.find { |item| item['label'] == "#{fieldKey}/#{row + 1}/#{col}" }
+            formProjectionItem = formProjection.find { |item| item["label"] == "#{fieldKey}/#{row + 1}/#{col}" }
             next unless formProjectionItem
 
-            coordinates = convertBoundingBoxes(formProjectionItem['value'][0]['boundingBoxes'][0], projectionImage)
+            coordinates = convertBoundingBoxes(formProjectionItem["value"][0]["boundingBoxes"][0], projectionImage)
             projectionImage = drawText(projectionImage, coordinates[0], coordinates[1], coordinates[2],
                                        coordinates[3], value)
           end
@@ -107,13 +107,13 @@ class FormProjectionService
 
   def self.text2Image(text)
     canvas = Magick::Image.new(2480, 3508)
-    canvas.format = 'png'
+    canvas.format = "png"
 
     text_draw = Magick::Draw.new
     text_draw.font = "#{Rails.root}/lib/fonts/TaipeiSans.ttf"
     # draw the text on the canvas top of left and set padding 20
     canvas.annotate(text_draw, 2480, 3508, 36, 36, text) do
-      text_draw.fill = 'black'
+      text_draw.fill = "black"
       text_draw.gravity = Magick::NorthWestGravity
       text_draw.pointsize = 36
     end
@@ -122,9 +122,12 @@ class FormProjectionService
   end
 
   def self.text2Pdf(text)
-    pdf = Prawn::Document.new(page_size: 'A4', page_layout: :portrait)
-    pdf.font("#{Rails.root}/lib/fonts/TaipeiSans.ttf")
-    pdf.text(text)
-    pdf.render.to_blob
+    # pdf = Prawn::Document.new(page_size: 'A4', page_layout: :portrait)
+    # pdf.font("#{Rails.root}/lib/fonts/TaipeiSans.ttf")
+    # pdf.text(text)
+    # pdf.render.to_blob
+    kit = PDFKit.new(text, page_size: "A4")
+    pdf = kit.to_pdf
+    pdf.to_blob
   end
 end

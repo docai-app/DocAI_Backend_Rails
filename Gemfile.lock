@@ -250,6 +250,7 @@ GEM
     parser (3.2.2.1)
       ast (~> 2.4.1)
     pdf-core (0.9.0)
+    pdfkit (0.8.7.3)
     pg (1.4.1)
     pkg-config (1.5.1)
     prawn (2.4.0)
@@ -378,6 +379,7 @@ GEM
     websocket-extensions (0.1.5)
     with_advisory_lock (4.6.0)
       activerecord (>= 4.2)
+    wkhtmltopdf-binary (0.12.6.6)
     zeitwerk (2.6.0)
 
 PLATFORMS
@@ -405,6 +407,7 @@ DEPENDENCIES
   kaminari
   matrix
   paper_trail
+  pdfkit
   pg
   prawn
   pry-byebug
@@ -423,6 +426,7 @@ DEPENDENCIES
   sidekiq-scheduler
   sqlite3 (~> 1.4)
   tzinfo-data
+  wkhtmltopdf-binary
 
 RUBY VERSION
    ruby 3.1.0p0
