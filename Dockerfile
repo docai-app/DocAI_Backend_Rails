@@ -6,7 +6,9 @@ RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
 #     && apt-get clean \
 #     && rm -rf /var/lib/apt/lists/* \
 #     && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
-RUN apt-get update -qq \
+RUN apt-get install -y ttf-wqy-zenhei \
+    && apt-get install -y libmagickwand-dev imagemagick \
+    && apt-get update -qq \
     && apt-get install -qq --no-install-recommends \
         nodejs \
         xfonts-encodings \
@@ -19,8 +21,6 @@ RUN apt-get update -qq \
         libxrender1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-RUN apt-get install -y ttf-wqy-zenhei
-RUN apt-get install libmagickwand-dev imagemagick
 RUN npm install -g yarn@1
 
 # install wkhtmltopdf
