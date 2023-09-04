@@ -74,7 +74,7 @@ module Api
           @document.storage_url = AzureService.uploadBlob(text2Pdf, params[:filename], 'application/pdf')
           @document.user = current_user
           @document.uploaded!
-          render json: { success: true }, status: :ok
+          render json: { success: true, document: @document }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :unprocessable_entity
         end
