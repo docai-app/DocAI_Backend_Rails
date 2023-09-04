@@ -5,7 +5,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base \
+    && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
 RUN apt-get install libmagickwand-dev imagemagick
 RUN npm install -g yarn@1
 
