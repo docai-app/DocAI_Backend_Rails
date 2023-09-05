@@ -55,12 +55,33 @@ module Api
       end
 
       # Show documents by filter
+      # def show_by_tag_and_content
+      #   tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
+      #   content = params[:content] || ''
+      #   folder_ids = params[:folder_ids] || nil
+      #   from = params[:from].presence || '1970-01-01'
+      #   to = params[:to].presence || Date.today
+      
+      #   documents = Document.includes(:taggings)
+      #                       .tagged_with(tag)
+      #                       .where('content LIKE ?', "%#{content}%")
+      #                       .where('documents.created_at >= ?', from.to_date)
+      #                       .where('documents.created_at <= ?', to.to_date)
+      #                       .order(created_at: :desc)
+      #                       .page(params[:page])
+      
+      #   documents = documents.where('documents.folder_id = ?', folder_ids) if folder_ids
+      
+      #   render json: { success: true, documents: documents, meta: pagination_meta(documents) }, status: :ok
+      # end
       def show_by_tag_and_content
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
         content = params[:content] || ''
-        folder_id = params[:folder_id] || nil
+        folder_ids = params[:folder_ids].presence || [] # Assuming folder_ids is passed as an array
         from = params[:from].presence || '1970-01-01'
         to = params[:to].presence || Date.today
+
+        puts "folder_ids: #{folder_ids}"
       
         documents = Document.includes(:taggings)
                             .tagged_with(tag)
@@ -70,10 +91,11 @@ module Api
                             .order(created_at: :desc)
                             .page(params[:page])
       
-        documents = documents.where('documents.folder_id = ?', folder_id) if folder_id
+        documents = documents.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
       
         render json: { success: true, documents: documents, meta: pagination_meta(documents) }, status: :ok
       end
+      
 
       # Show and Predict the Latest Uploaded Document
       def show_latest_predict
