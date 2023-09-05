@@ -58,16 +58,21 @@ module Api
       def show_by_tag_and_content
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
         content = params[:content] || ''
-        # if params[:from] == "" or params[:from] == nil, then from = "1970-01-01"
-        # from = params[:from] || "1970-01-01"
-        # to = params[:to] || Date.today
-        from = params[:from].present? ? params[:from] : '1970-01-01'
-        to = params[:to].present? ? params[:to] : Date.today
-        puts tag.inspect
-        @document = Document.includes([:taggings]).tagged_with(tag).where('content like ?', "%#{content}%").where('documents.created_at >= ?', from.to_date).where(
-          'documents.created_at <= ?', to.to_date
-        ).order(created_at: :desc).page params[:page]
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        folder_id = params[:folder_id] || nil
+        from = params[:from].presence || '1970-01-01'
+        to = params[:to].presence || Date.today
+      
+        documents = Document.includes(:taggings)
+                            .tagged_with(tag)
+                            .where('content LIKE ?', "%#{content}%")
+                            .where('documents.created_at >= ?', from.to_date)
+                            .where('documents.created_at <= ?', to.to_date)
+                            .order(created_at: :desc)
+                            .page(params[:page])
+      
+        documents = documents.where('documents.folder_id = ?', folder_id) if folder_id
+      
+        render json: { success: true, documents: documents, meta: pagination_meta(documents) }, status: :ok
       end
 
       # Show and Predict the Latest Uploaded Document
