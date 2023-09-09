@@ -10,6 +10,6 @@ class Chatbot < ApplicationRecord
   end
 
   def has_expired?
-    expires_at.present? && Time.current > expires_at
+    expired_at.present? && Time.current > expired_at
   end
 end

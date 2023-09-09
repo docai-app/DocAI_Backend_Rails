@@ -106,7 +106,7 @@ module Api
       private
 
       def chatbot_params
-        params.require(:chatbot).permit(:name, :description, :meta, :source, :category, :is_public, :expires_at)
+        params.require(:chatbot).permit(:name, :description, :meta, :source, :category, :is_public, :expired_at)
       end
 
       def current_user_chatbots
