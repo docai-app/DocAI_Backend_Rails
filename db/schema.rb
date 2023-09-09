@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -10,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_230_823_062_545) do
+ActiveRecord::Schema[7.0].define(version: 20_230_907_075_521) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -160,6 +162,30 @@ ActiveRecord::Schema[7.0].define(version: 20_230_823_062_545) do
     t.index ['form_data_id'], name: 'index_document_approvals_on_form_data_id'
   end
 
+  create_table 'document_smart_extraction_data', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.jsonb 'data'
+    t.uuid 'document_id', null: false
+    t.uuid 'smart_extraction_schema_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.integer 'status', default: 0
+    t.boolean 'is_ready', default: false
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+  end
+
+  create_table 'document_smart_extraction_data', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.jsonb 'data'
+    t.uuid 'document_id', null: false
+    t.uuid 'smart_extraction_schema_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.integer 'status', default: 0
+    t.boolean 'is_ready', default: false
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+  end
+
   create_table 'documents', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name'
     t.string 'storage_url'
@@ -468,6 +494,38 @@ ActiveRecord::Schema[7.0].define(version: 20_230_823_062_545) do
     t.index %w[name resource_type resource_id], name: 'index_roles_on_name_and_resource_type_and_resource_id'
     t.index %w[resource_type resource_id], name: 'index_roles_on_resource'
     t.index %w[resource_type resource_id], name: 'index_roles_on_resource'
+  end
+
+  create_table 'smart_extraction_schemas', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.string 'description'
+    t.uuid 'label_id', null: false
+    t.jsonb 'schema', default: {}
+    t.jsonb 'data_schema', default: {}
+    t.uuid 'user_id', null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
+  end
+
+  create_table 'smart_extraction_schemas', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.string 'description'
+    t.uuid 'label_id', null: false
+    t.jsonb 'schema', default: {}
+    t.jsonb 'data_schema', default: {}
+    t.uuid 'user_id', null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
   end
 
   create_table 'tag_functions', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|

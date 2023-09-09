@@ -63,7 +63,7 @@ module Api
         to = params[:to].presence || Date.today
 
         puts "folder_ids: #{folder_ids}"
-      
+
         documents = Document.includes(:taggings)
                             .tagged_with(tag)
                             .where('content LIKE ?', "%#{content}%")
@@ -71,12 +71,11 @@ module Api
                             .where('documents.created_at <= ?', to.to_date)
                             .order(created_at: :desc)
                             .page(params[:page])
-      
+
         documents = documents.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
-      
-        render json: { success: true, documents: documents, meta: pagination_meta(documents) }, status: :ok
+
+        render json: { success: true, documents:, meta: pagination_meta(documents) }, status: :ok
       end
-      
 
       # Show and Predict the Latest Uploaded Document
       def show_latest_predict
