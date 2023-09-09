@@ -19,6 +19,7 @@ module Api
 
       def show
         @chatbot = Chatbot.find(params[:id])
+        @chatbot.increment_access_count!
         @folders = Folder.find(@chatbot.source['folder_id'])
         render json: { success: true, chatbot: @chatbot, folders: @folders }, status: :ok
       end
@@ -105,7 +106,7 @@ module Api
       private
 
       def chatbot_params
-        params.require(:chatbot).permit(:name, :description, :meta, :source, :category)
+        params.require(:chatbot).permit(:name, :description, :meta, :source, :category, :is_public, :expires_at)
       end
 
       def current_user_chatbots

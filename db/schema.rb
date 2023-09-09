@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_230_907_075_521) do
+ActiveRecord::Schema[7.0].define(version: 20_230_909_055_523) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -85,6 +85,9 @@ ActiveRecord::Schema[7.0].define(version: 20_230_907_075_521) do
     t.jsonb 'source', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.boolean 'is_public', default: false, null: false
+    t.datetime 'expired_at'
+    t.integer 'access_count', default: 0
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
@@ -100,6 +103,9 @@ ActiveRecord::Schema[7.0].define(version: 20_230_907_075_521) do
     t.jsonb 'source', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.boolean 'is_public', default: false, null: false
+    t.datetime 'expired_at'
+    t.integer 'access_count', default: 0
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
