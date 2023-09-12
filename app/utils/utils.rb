@@ -21,6 +21,18 @@ class Utils
     {}
   end
 
+  def self.matchingKeys?(base_structure, comparison_structure)
+    # Extract keys from both base_structure and comparison_structure
+    base_keys = base_structure.keys
+    comparison_keys = comparison_structure.keys
+
+    puts "base_keys: #{base_keys}"
+    puts "comparison_keys: #{comparison_keys}"
+
+    # Check if the two key sets are equal
+    base_keys.sort == comparison_keys.sort
+  end
+
   def self.concatDocumentsContent(documents)
     content = ''
     documents.each_with_index do |document, index|

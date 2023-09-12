@@ -9,6 +9,8 @@
   - ['form_deep_understanding_monitor_job', 1]
   - ['document_embedding', 1]
   - ['document_embedding_monitor_job', 1]
+  - ['document_smart_extraction', 1]
+  - ['document_smart_extraction_monitor_job', 1]
 :timeout: 7200
 
 :schedule:
@@ -27,4 +29,8 @@
   DocumentEmbeddingMonitorJob:
     every: '120s'
     queue: document_embedding_monitor_job
+    enabled: true
+  DocumentSmartExtractionMonitorJob:
+    every: '60s'
+    queue: document_smart_extraction_monitor_job
     enabled: true
