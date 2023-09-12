@@ -177,7 +177,11 @@ Rails.application.routes.draw do
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
 
       # **********Smart Extraction Schema API**********
-      resources :smart_extraction_schemas, only: %i[index show create update destroy]
+      resources :smart_extraction_schemas, only: %i[index show create update destroy] do
+        collection do
+          get '/:id/data', to: 'smart_extraction_schemas#show_document_extracted_data'
+        end
+      end
     end
 
     namespace :schema do

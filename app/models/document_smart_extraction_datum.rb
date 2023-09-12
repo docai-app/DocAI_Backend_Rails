@@ -2,7 +2,7 @@
 
 class DocumentSmartExtractionDatum < ApplicationRecord
   belongs_to :document, class_name: 'Document', foreign_key: 'document_id'
-  belongs_to :smart_extraction_schema, class_name: 'SmartExtractionSchema', foreign_key: 'smart_extraction_schema_id'
+  belongs_to :smart_extraction_schema
 
   enum status: %i[awaiting extracting completed retry failed]
 end
