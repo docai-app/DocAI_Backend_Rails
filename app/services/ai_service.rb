@@ -28,6 +28,18 @@ class AiService
     res['data']['content']
   end
 
+  def self.documentSmartExtraction(schema, content, data_schema)
+    puts schema, content, data_schema
+    res = RestClient.post "#{ENV['PORMHUB_URL']}/prompts/docai_document_smart_extraction/run.json", { params: {
+      schema:,
+      content:,
+      data_schema:
+    } }
+    res = JSON.parse(res)
+    puts "Response from OpenAI: #{res}"
+    res['data']
+  end
+
   def self.assistantQA(query, chat_history, schema, metadata)
     res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/embedding/qa", {
       query:,

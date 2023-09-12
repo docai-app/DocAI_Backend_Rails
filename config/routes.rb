@@ -175,6 +175,9 @@ Rails.application.routes.draw do
       # **********Tool API**********
       post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
+
+      # **********Smart Extraction Schema API**********
+      resources :smart_extraction_schemas, only: %i[index show create update destroy]
     end
 
     namespace :schema do
