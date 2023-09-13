@@ -83,7 +83,11 @@ module Api
       def chatbot_upload
         file = params[:file]
         @chatbot = Chatbot.find(params[:chatbot_id])
-        return render json: { success: false, error: 'Cannot Upload File' }, status: :not_found unless @chatbot.is_public == false
+        unless @chatbot.is_public == false
+          return render json: { success: false, error: 'Cannot Upload File' },
+                        status: :not_found
+        end
+
         begin
           @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now,
                                    folder_id: params[:target_folder_id] || nil)

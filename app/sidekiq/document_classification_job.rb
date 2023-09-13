@@ -25,6 +25,10 @@ class DocumentClassificationJob
     end
     puts "====== perform ====== document #{document_id} was successfully processed"
   rescue StandardError => e
+    @document = Document.find(document_id)
+    @document.retry_count += 1
+    @document.error_message = e.message
+    @document.save!
     puts "====== error ====== document.id: #{document_id}"
     puts "Document Classification processing failed for document #{document_id}: #{e.message}"
   end

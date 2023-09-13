@@ -32,35 +32,35 @@ class Document < ApplicationRecord
   has_one_attached :file # , service: :microsoft
   has_paper_trail
 
-  has_many :document_approval, dependent: :destroy, class_name: "DocumentApproval", foreign_key: "document_id"
+  has_many :document_approval, dependent: :destroy, class_name: 'DocumentApproval', foreign_key: 'document_id'
 
-  belongs_to :approval_user, optional: true, class_name: "User", foreign_key: "approval_user_id"
-  belongs_to :user, optional: true, class_name: "User", foreign_key: "user_id"
-  belongs_to :folder, optional: true, class_name: "Folder", foreign_key: "folder_id"
-  has_many :form_data, dependent: :destroy, class_name: "FormDatum", foreign_key: "document_id"
-  has_many :document_smart_extraction_data, dependent: :destroy, class_name: "DocumentSmartExtractionDatum",
-                                            foreign_key: "document_id"
-  has_many :smart_extraction_schema, through: :document_smart_extraction_data, class_name: "SmartExtractionSchema",
-                                     foreign_key: "smart_extraction_schema_id"
+  belongs_to :approval_user, optional: true, class_name: 'User', foreign_key: 'approval_user_id'
+  belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
+  belongs_to :folder, optional: true, class_name: 'Folder', foreign_key: 'folder_id'
+  has_many :form_data, dependent: :destroy, class_name: 'FormDatum', foreign_key: 'document_id'
+  has_many :document_smart_extraction_data, dependent: :destroy, class_name: 'DocumentSmartExtractionDatum',
+                                            foreign_key: 'document_id'
+  has_many :smart_extraction_schema, through: :document_smart_extraction_data, class_name: 'SmartExtractionSchema',
+                                     foreign_key: 'smart_extraction_schema_id'
 
   scope :waiting_approve, lambda { |_b|
-    where("documents.approval_at is null")
+    where('documents.approval_at is null')
   }
 
-  scope :approved, -> { where("documents.approval_at is not null") }
+  scope :approved, -> { where('documents.approval_at is not null') }
 
   def self.last
-    order("documents.created_at desc").limit(1).first
+    order('documents.created_at desc').limit(1).first
   end
 
   def has_file_uploaded?
-    self["storage_url"].present? || file.url.present?
+    self['storage_url'].present? || file.url.present?
   end
 
   def update_upload_status
-    return unless self["status"] == "pending" && has_file_uploaded?
+    return unless self['status'] == 'pending' && has_file_uploaded?
 
-    self.status = "uploaded"
+    self.status = 'uploaded'
     save
   end
 
@@ -73,7 +73,7 @@ class Document < ApplicationRecord
   def has_rights_to_write?(user)
     return true unless !user_id.nil? && self.user != user
 
-    puts "Checking role"
+    puts 'Checking role'
     user.has_role? :w, self
   end
 

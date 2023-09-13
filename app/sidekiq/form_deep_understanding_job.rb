@@ -41,9 +41,16 @@ class FormDeepUnderstandingJob
       @document.save!
       puts "====== perform ====== document #{document_id} was successfully processed"
     else
+      @document.retry_count += 1
+      @document.error_message = recognizeRes
+      @document.save!
       puts "====== perform ====== document #{document_id} was not successfully processed, error: #{recognizeRes}"
     end
   rescue StandardError => e
+    @document = Document.find(document_id)
+    @document.retry_count += 1
+    @document.error_message = e.message
+    @document.save!
     puts "====== error ====== document.id: #{document_id}"
     puts "====== error ====== error: #{e.message}"
   end

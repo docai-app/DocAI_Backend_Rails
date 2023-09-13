@@ -25,7 +25,7 @@ class FormDeepUnderstandingMonitorJob
       # I want to find the last document that meta.needs_deep_understanding is true and meta.is_deep_understanding is false
       @documents = Document.where("meta->>'needs_deep_understanding' != ?", 'false').where("meta->>'is_deep_understanding' = ?", 'false').where(
         "meta->>'needs_approval' != ?", 'nil'
-      ).where(is_document: true)
+      ).where(is_document: true).where('retry_count < ?', 3).first(20)
       puts "====== Documents found: #{@documents.length} ======"
       if @documents.present?
         @document = @documents.first
