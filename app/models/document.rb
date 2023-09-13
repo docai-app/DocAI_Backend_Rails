@@ -38,7 +38,7 @@ class Document < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :folder, optional: true, class_name: 'Folder', foreign_key: 'folder_id'
   has_many :form_data, dependent: :destroy, class_name: 'FormDatum', foreign_key: 'document_id'
-  has_many :document_smart_extraction_data, dependent: :destroy, class_name: 'DocumentSmartExtractionData',
+  has_many :document_smart_extraction_data, dependent: :destroy, class_name: 'DocumentSmartExtractionDatum',
                                             foreign_key: 'document_id'
   has_many :smart_extraction_schema, through: :document_smart_extraction_data, class_name: 'SmartExtractionSchema',
                                      foreign_key: 'smart_extraction_schema_id'
