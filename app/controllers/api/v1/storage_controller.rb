@@ -83,9 +83,10 @@ module Api
       def chatbot_upload
         file = params[:file]
         @chatbot = Chatbot.find(params[:chatbot_id])
+        return render json: { success: false, error: 'Cannot Upload File' }, status: :not_found unless @chatbot.is_public == false
         begin
           @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now,
-                                   folder_id: @chatbot.source['folder_id'][0] || nil)
+                                   folder_id: params[:target_folder_id] || nil)
           @document.storage_url = AzureService.upload(file) if file.present?
           documentProcessors(file, false)
           puts @document.inspect
