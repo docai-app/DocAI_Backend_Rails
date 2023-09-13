@@ -5,4 +5,8 @@ class DocumentSmartExtractionDatum < ApplicationRecord
   belongs_to :smart_extraction_schema
 
   enum status: %i[awaiting extracting completed retry failed]
+
+  def max_retry
+    3
+  end
 end

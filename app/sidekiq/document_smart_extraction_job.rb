@@ -30,13 +30,23 @@ class DocumentSmartExtractionJob
       @document_smart_extraction_data.status = :completed
       @document_smart_extraction_data.save!
     else
-      @document_smart_extraction_data.status = :retry
+      @document_smart_extraction_data.retry_count += 1
+      if @document_smart_extraction_data.retry_count >= @document_smart_extraction_data.max_retry
+        @document_smart_extraction_data.status = :failed
+      else
+        @document_smart_extraction_data.status = :retry
+      end
       @document_smart_extraction_data.save!
       puts "====== DocumentSmartExtractionDatum retry ======"
     end
   rescue StandardError => e
     puts "====== error ====== error: #{e.message}"
-    @document_smart_extraction_data.status = :retry
+    @document_smart_extraction_data.retry_count += 1
+    if @document_smart_extraction_data.retry_count >= @document_smart_extraction_data.max_retry
+      @document_smart_extraction_data.status = :failed
+    else
+      @document_smart_extraction_data.status = :retry
+    end
     @document_smart_extraction_data.save!
   end
 end

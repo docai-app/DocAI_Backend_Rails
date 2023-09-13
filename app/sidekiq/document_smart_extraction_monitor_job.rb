@@ -21,7 +21,7 @@ class DocumentSmartExtractionMonitorJob
         next
       end
       puts "====== tenant: #{tenant} ======"
-      @document_smart_extraction_datum = DocumentSmartExtractionDatum.where(is_ready: false).where.not(status: :failed)
+      @document_smart_extraction_datum = DocumentSmartExtractionDatum.where(is_ready: false).where.not(status: :failed).where("retry_count < ?", 3)
       puts "====== DocumentSmartExtractionDatum found: #{@document_smart_extraction_datum.length} ======"
       if @document_smart_extraction_datum.present?
         # Randomly select one document_smart_extraction_datum to run
