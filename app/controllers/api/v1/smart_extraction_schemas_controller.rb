@@ -22,9 +22,18 @@ module Api
 
       def show_document_extracted_data
         @smart_extraction_schema = SmartExtractionSchema.find(params[:id])
-        @document_smart_extraction_datum = @smart_extraction_schema.document_smart_extraction_datum.where(status: 'completed').order(updated_at: :asc).page(params[:page])
-        render json: { success: true, document_smart_extraction_datum: @document_smart_extraction_datum, meta: pagination_meta(@document_smart_extraction_datum) },
-               status: :ok
+        @document_smart_extraction_datum = @smart_extraction_schema.document_smart_extraction_datum
+          .where(status: "completed")
+          .order(updated_at: :asc)
+          .includes([:document])
+          .as_json(include: { document: { only: %i[id name storage_url] } })
+        @document_smart_extraction_datum = Kaminari.paginate_array(@document_smart_extraction_datum)
+                                                   .page(params[:page])
+        render json: {
+                 success: true,
+                 document_smart_extraction_datum: @document_smart_extraction_datum,
+                 meta: pagination_meta(@document_smart_extraction_datum),
+               }, status: :ok
       end
 
       def create
