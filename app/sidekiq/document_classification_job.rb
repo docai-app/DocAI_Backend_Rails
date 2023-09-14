@@ -21,6 +21,10 @@ class DocumentClassificationJob
         document.is_classified = true
         document.is_classifier_trained = true
         document.confirmed!
+      else
+        document.retry_count += 1
+        document.error_message = JSON.parse(classificationRes)
+        document.save!
       end
     end
     puts "====== perform ====== document #{document_id} was successfully processed"

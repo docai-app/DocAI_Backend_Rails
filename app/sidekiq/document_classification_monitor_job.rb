@@ -22,7 +22,7 @@ class DocumentClassificationMonitorJob
         next
       end
       puts "====== tenant: #{tenant} ======"
-      @documents = Document.where(is_classified: true).where.not(content: nil).where(is_document: true).where(is_classifier_trained: false).where(
+      @documents = Document.where(is_classified: true).where.not(content: nil).where.not(content: '').where(is_document: true).where(is_classifier_trained: false).where(
         'retry_count < ?', 3
       ).order('created_at': :desc).first(20)
       puts "====== Documents found: #{@documents.length} ======"
