@@ -11,7 +11,7 @@ namespace :documents_data_transfer do
       nonLabeledCount = 0
       labeledDocumentIds = []
       nonLabeledDocumentIds = []
-      @documents = Document.includes([:taggings]).order('created_at': :desc).all.as_json(include: [:taggings])
+      @documents = Document.includes([:taggings]).order('created_at': :desc).all.as_json(include: [taggings: { only: [:label_list] }])
 
       puts "Number of documents have to check: #{@documents.length}"
 
@@ -50,6 +50,18 @@ namespace :documents_data_transfer do
     rescue StandardError => e
       puts e
     end
+  end
+
+  task :train_documents_classifier_again, %i[tenant] => :environment do |_t, args|
+    puts 'train_documents_classifier_again'
+    tenant = args[:tenant]
+    Apartment::Tenant.switch!(tenant)
+    puts "====== tenant: #{tenant} ======"
+    @documents = Document.where.not(content: '').where.not(content: nil).where(is_document: true).where(is_classified: true).where(
+      'retry_count < ?', 3
+    ).order('created_at': :desc).all
+    puts "====== Documents found: #{@documents.length} ======"
+    @documents.update_all(is_classifier_trained: false)
   end
 
   task documents_content_embedding: :environment do

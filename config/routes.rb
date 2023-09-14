@@ -180,6 +180,7 @@ Rails.application.routes.draw do
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
         collection do
           get '/:id/data', to: 'smart_extraction_schemas#show_document_extracted_data'
+          get '/label/:label_id', to: 'smart_extraction_schemas#show_by_label_id'
         end
       end
     end

@@ -3,7 +3,7 @@
 module Api
   module V1
     class SmartExtractionSchemasController < ApiController
-      before_action :authenticate_user!, only: %i[create update destroy]
+      before_action :authenticate_user!
 
       def index
         @smart_extraction_schemas = SmartExtractionSchema.order(created_at: :desc).page(params[:page])
@@ -35,6 +35,16 @@ module Api
           document_smart_extraction_datum: @document_smart_extraction_datum,
           meta: pagination_meta(@document_smart_extraction_datum)
         }, status: :ok
+      end
+
+      def show_by_label_id
+        @smart_extraction_schema = SmartExtractionSchema.where(label_id: params[:label_id]).order(created_at: :desc).page(params[:page])
+        render json: { success: true, smart_extraction_schema: @smart_extraction_schema, meta: pagination_meta(@smart_extraction_schema) },
+               status: :ok
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'SmartExtractionSchema not found' }, status: :not_found
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       def create
