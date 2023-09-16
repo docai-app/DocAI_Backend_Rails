@@ -185,7 +185,7 @@ Rails.application.routes.draw do
       end
 
       # **********Document Smart Extraction Datum API**********
-      resources :document_smart_extraction_datum, only: %i[index show] do
+      resources :document_smart_extraction_datum, only: %i[index show destroy] do
         collection do
           post ':smart_extraction_schema_id/search',
                to: 'document_smart_extraction_datum#show_by_filter_and_smart_extraction_schema_id'
