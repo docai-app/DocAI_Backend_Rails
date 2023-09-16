@@ -189,6 +189,7 @@ Rails.application.routes.draw do
         collection do
           post ':smart_extraction_schema_id/search',
                to: 'document_smart_extraction_datum#show_by_filter_and_smart_extraction_schema_id'
+          put ':id/data', to: 'document_smart_extraction_datum#update_data'
         end
       end
     end
