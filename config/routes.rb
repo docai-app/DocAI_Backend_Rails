@@ -179,8 +179,16 @@ Rails.application.routes.draw do
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
         collection do
-          get '/:id/data', to: 'smart_extraction_schemas#show_document_extracted_data'
-          get '/label/:label_id', to: 'smart_extraction_schemas#show_by_label_id'
+          get ':id/data', to: 'smart_extraction_schemas#show_document_extracted_data'
+          get 'label/:label_id', to: 'smart_extraction_schemas#show_by_label_id'
+        end
+      end
+
+      # **********Document Smart Extraction Datum API**********
+      resources :document_smart_extraction_datum, only: %i[index show] do
+        collection do
+          post ':smart_extraction_schema_id/search',
+               to: 'document_smart_extraction_datum#show_by_filter_and_smart_extraction_schema_id'
         end
       end
     end
