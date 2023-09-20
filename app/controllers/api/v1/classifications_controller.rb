@@ -20,6 +20,7 @@ module Api
         TagFunctionMappingService.mappping(@document.id, params[:tag_id])
         puts "Subdomain: #{getSubdomain}"
         DocumentClassificationJob.perform_async(@document.id, params[:tag_id], getSubdomain)
+        documentSmartExtraction(@document.id, params[:tag_id])
         if @document.save
           render json: { success: true, document: @document }, status: :ok
         else
@@ -37,6 +38,7 @@ module Api
             document.update!(label_ids: tag_id, status: :confirmed, is_classified: true)
             TagFunctionMappingService.mappping(document.id, tag_id)
             DocumentClassificationJob.perform_async(document.id, tag_id, getSubdomain)
+            documentSmartExtraction(document.id, tag_id)
           end
         end
 
@@ -46,6 +48,13 @@ module Api
       end
 
       private
+
+      def documentSmartExtraction(document_id, label_id)
+        SmartExtractionSchema.where(label_id:).each do |schema|
+          DocumentSmartExtractionDatum.create(document_id:, smart_extraction_schema_id: schema.id,
+                                              data: schema.data_schema)
+        end
+      end
 
       def getSubdomain
         Utils.extractRequestTenantByToken(request)

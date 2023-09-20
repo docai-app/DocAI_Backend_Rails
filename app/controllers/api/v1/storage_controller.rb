@@ -47,6 +47,7 @@ module Api
             @document.is_classified = true
             @document.save
             documentProcessors(file)
+            documentSmartExtraction(params[:tag_id])
           end
           render json: { success: true }, status: :ok
         rescue StandardError => e
@@ -131,6 +132,13 @@ module Api
           @document.uploaded!
         end
         puts @document.inspect
+      end
+
+      def documentSmartExtraction(label_id)
+        SmartExtractionSchema.where(label_id:).each do |schema|
+          DocumentSmartExtractionDatum.create(document_id: @document.id, smart_extraction_schema_id: schema.id,
+                                              data: schema.data_schema)
+        end
       end
 
       def getSubdomain
