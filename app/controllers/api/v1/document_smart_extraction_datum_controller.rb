@@ -39,13 +39,18 @@ module Api
       end
 
       def show_by_filter_and_smart_extraction_schema_id
-        @document_smart_extraction_datum = DocumentSmartExtractionDatum.where(smart_extraction_schema_id: params[:smart_extraction_schema_id]).where(
-          'data @> ?', params[:filter].to_json
-        ).order(created_at: :desc).includes(%i[
-                                              document
-                                            ]).as_json(include: {
-                                                         document: { except: [:label_list] }
-                                                       })
+        filter = params[:filter]
+
+        query = DocumentSmartExtractionDatum.where(smart_extraction_schema_id: params[:smart_extraction_schema_id])
+
+        filter.each do |key, value|
+          query = query.where('data->>? LIKE ?', key, "%#{value}%")
+        end
+
+        @document_smart_extraction_datum = query.order(created_at: :desc)
+                                                .includes(:document)
+                                                .as_json(include: { document: { except: [:label_list] } })
+
         render json: { success: true, document_smart_extraction_datum: @document_smart_extraction_datum }, status: :ok
       end
 

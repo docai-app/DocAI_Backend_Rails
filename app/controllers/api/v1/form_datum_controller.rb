@@ -33,13 +33,22 @@ module Api
 
       # Show form data by filter params and form schema id
       def show_by_filter_and_form_schema_id
-        @form_datum = FormDatum.where(form_schema_id: params[:form_schema_id]).where('data @> ?',
-                                                                                     params[:filter].to_json).order(created_at: :desc).includes(%i[form_schema
-                                                                                                                                                   document]).as_json(include: {
-                                                                                                                                                                        document: { except: [:label_list] }, form_schema: {}
-                                                                                                                                                                      })
+        filter = params[:filter]
+
+        query = FormDatum.where(form_schema_id: params[:form_schema_id])
+
+        filter.each do |key, value|
+          query = query.where('data->>? LIKE ?', key, "%#{value}%")
+        end
+
+        @form_datum = query.order(created_at: :desc)
+                           .includes(%i[form_schema document])
+                           .as_json(include: { document: { except: [:label_list] },
+                                               form_schema: {} })
+
         @form_datum = Kaminari.paginate_array(@form_datum).page(params[:page])
-        render json: { success: true, form_datum: @form_datum, meta: pagination_meta(@form_datum) }, status: :ok
+        render json: { success: true, form_datum: @form_datum, meta: pagination_meta(@form_datum) },
+               status: :ok
       end
 
       def create
