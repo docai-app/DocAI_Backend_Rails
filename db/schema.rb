@@ -178,6 +178,20 @@ ActiveRecord::Schema[7.0].define(version: 20_230_913_111_912) do
     t.boolean 'is_ready', default: false
     t.integer 'retry_count', default: 0
     t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+  end
+
+  create_table 'document_smart_extraction_data', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.jsonb 'data'
+    t.uuid 'document_id', null: false
+    t.uuid 'smart_extraction_schema_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.integer 'status', default: 0
+    t.boolean 'is_ready', default: false
+    t.integer 'retry_count', default: 0
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
+    t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
   end
 
   create_table 'documents', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -505,6 +519,24 @@ ActiveRecord::Schema[7.0].define(version: 20_230_913_111_912) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
+  end
+
+  create_table 'smart_extraction_schemas', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.string 'description'
+    t.uuid 'label_id', null: false
+    t.jsonb 'schema', default: {}
+    t.jsonb 'data_schema', default: {}
+    t.uuid 'user_id'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
+    t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
     t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
   end
 
