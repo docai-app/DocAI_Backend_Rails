@@ -112,6 +112,26 @@ module Api
         end
       end
 
+      def generate_chart
+        query = params[:query] || ''
+        @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
+        puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
+        chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart", {
+          query:,
+          views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
+          tenant: getSubdomain,
+          data_schema: @smart_extraction_schema.data_schema
+        }.to_json, { content_type: :json, accept: :json })
+        chartRes = JSON.parse(chartRes)
+        if chartRes['status'] == true
+          html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
+          render json: { success: true, chart: html_code.to_s }, status: :ok
+        else
+          html_code = 'Please reduce the number of form data selected.'
+          render json: { success: false, chart: html_code.to_s }, status: :ok
+        end
+      end
+
       private
 
       def smart_extraction_schema_params
