@@ -28,8 +28,9 @@ class SmartExtractionSchema < ApplicationRecord
   def data_schema_format
     schema_keys = schema.map { |s| s['key'] }
 
-    # Check if data_schema is a hash and if its keys correspond to keys from the schema
-    return if data_schema.is_a?(Hash) && (data_schema.keys - schema_keys).empty?
+    # Check if data_schema is a hash and if its keys same to keys from the schema
+    # return if data_schema.is_a?(Hash) && (data_schema.keys - schema_keys).empty?
+    return if data_schema.is_a?(Hash) && (data_schema.keys.sort == schema_keys.sort)
 
     errors.add(:data_schema, 'is not in the required format')
   end

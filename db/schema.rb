@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_230_913_111_912) do
+ActiveRecord::Schema[7.0].define(version: 20_230_927_075_037) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -177,6 +177,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_913_111_912) do
     t.integer 'status', default: 0
     t.boolean 'is_ready', default: false
     t.integer 'retry_count', default: 0
+    t.jsonb 'meta', default: {}
     t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
     t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
   end
@@ -190,6 +191,7 @@ ActiveRecord::Schema[7.0].define(version: 20_230_913_111_912) do
     t.integer 'status', default: 0
     t.boolean 'is_ready', default: false
     t.integer 'retry_count', default: 0
+    t.jsonb 'meta', default: {}
     t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
     t.index ['smart_extraction_schema_id'], name: 'index_smart_extraction_data_on_smart_extraction_schema_id'
   end

@@ -67,6 +67,8 @@ module Api
                                                 data: schema.data_schema)
           end
 
+          create_smart_extraction_schema_view(schema)
+
           render json: { success: true, smart_extraction_schema: schema }, status: :ok
         else
           render json: { success: false, error: schema.errors.messages }, status: :unprocessable_entity
@@ -82,6 +84,23 @@ module Api
         else
           render json: { success: false }, status: :unprocessable_entity
         end
+      end
+
+      def update_schema
+        @smart_extraction_schema = SmartExtractionSchema.find(params[:id])
+        @smart_extraction_schema.update(smart_extraction_schema_params)
+        @smart_extraction_schema.data_schema = params[:data_schema]
+
+        if @smart_extraction_schema.save!
+          update_document_smart_extraction_datum
+          drop_and_create_smart_extraction_schema_views
+
+          render json: { success: true, smart_extraction_schema: @smart_extraction_schema }, status: :ok
+        else
+          render json: { success: false }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       def destroy
@@ -100,6 +119,36 @@ module Api
                                                         schema: %i[key data_type query])
       end
 
+      def create_smart_extraction_schema_view(schema)
+        selectString = schema.data_schema.map { |row| "data->>'#{row[0]}' AS #{row[0]}" }.join(', ')
+        sql = "CREATE VIEW \"#{getSubdomain}\".\"smart_extraction_schema_#{schema.id}\" AS SELECT #{selectString}, meta->>'document_uploaded_at' AS uploaded_at FROM \"#{getSubdomain}\".document_smart_extraction_data WHERE smart_extraction_schema_id = '#{schema.id}';"
+        ActiveRecord::Base.connection.execute(sql)
+        true
+      rescue StandardError => e
+        puts e.message
+        false
+      end
+
+      def drop_smart_extraction_schema_view(schema)
+        sql = "DROP VIEW IF EXISTS \"#{getSubdomain}\".\"smart_extraction_schema_#{schema.id}\";"
+        ActiveRecord::Base.connection.execute(sql)
+        true
+      rescue StandardError => e
+        puts e.message
+        false
+      end
+
+      def drop_and_create_smart_extraction_schema_views
+        drop_smart_extraction_schema_view(@smart_extraction_schema)
+        create_smart_extraction_schema_view(@smart_extraction_schema)
+      end
+
+      def update_document_smart_extraction_datum
+        DocumentSmartExtractionDatum.where(smart_extraction_schema_id: @smart_extraction_schema.id)
+                                    .update_all(data: @smart_extraction_schema.data_schema, status: :awaiting,
+                                                is_ready: false, retry_count: 0)
+      end
+
       def pagination_meta(object)
         {
           current_page: object.current_page,
@@ -108,6 +157,10 @@ module Api
           total_pages: object.total_pages,
           total_count: object.total_count
         }
+      end
+
+      def getSubdomain
+        Utils.extractRequestTenantByToken(request)
       end
     end
   end
