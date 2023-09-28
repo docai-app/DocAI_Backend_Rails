@@ -79,26 +79,19 @@ module Api
 
       def update
         @smart_extraction_schema = SmartExtractionSchema.find(params[:id])
-        if @smart_extraction_schema.update(smart_extraction_schema_params)
-          render json: { success: true, smart_extraction_schema: @smart_extraction_schema }, status: :ok
-        else
-          render json: { success: false }, status: :unprocessable_entity
-        end
-      end
-
-      def update_schema
-        @smart_extraction_schema = SmartExtractionSchema.find(params[:id])
         @smart_extraction_schema.update(smart_extraction_schema_params)
-        @smart_extraction_schema.data_schema = params[:data_schema]
 
-        if @smart_extraction_schema.save!
+        if params[:data_schema] && JSON.generate(@smart_extraction_schema.data_schema.to_json) != JSON.generate(params[:data_schema].to_json)
+          @smart_extraction_schema.data_schema = params[:data_schema]
+          @smart_extraction_schema.save!
           update_document_smart_extraction_datum
           drop_and_create_smart_extraction_schema_views
-
-          render json: { success: true, smart_extraction_schema: @smart_extraction_schema }, status: :ok
-        else
-          render json: { success: false }, status: :unprocessable_entity
+        elsif params[:data_schema] && JSON.generate(@smart_extraction_schema.data_schema.to_json) == JSON.generate(params[:data_schema].to_json)
+          return render json: { success: false, message: 'Data schema is already up to date.' },
+                        status: :unprocessable_entity
         end
+
+        render json: { success: true, smart_extraction_schema: @smart_extraction_schema }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
