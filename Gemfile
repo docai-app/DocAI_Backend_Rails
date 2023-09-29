@@ -89,3 +89,6 @@ gem 'prawn'
 
 gem 'pdfkit'
 gem 'wkhtmltopdf-binary'
+
+gem 'addressable'
+gem 'zip_tricks'

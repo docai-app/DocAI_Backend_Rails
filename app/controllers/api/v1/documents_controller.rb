@@ -1,11 +1,16 @@
 # frozen_string_literal: true
 
+require 'zip_tricks'
+require 'open-uri'
+
 module Api
   module V1
     class DocumentsController < ApiController
+      include ActionController::Live # Ensure this line is there
+
       before_action :set_document, only: %i[show update destroy approval]
       before_action :current_user_documents, only: %i[show_latest_predict show_specify_date_latest_predict]
-      before_action :authenticate_user!, only: [:approval]
+      before_action :authenticate_user!, only: %i[approval download_zip]
       before_action :checkDocumentItemsIsDocument, only: [:deep_understanding]
       # before_action :require_admin, only: []
 
@@ -189,6 +194,26 @@ module Api
         end
 
         render json: { success: true }, status: :ok
+      end
+
+      def download_zip
+        documents = Document.find(params[:document_ids])
+        documents.map(&:storage_url)
+
+        # Set the appropriate headers for zip file download.
+        response.headers['Content-Type'] = 'application/zip'
+        response.headers['Content-Disposition'] = 'attachment; filename=documents.zip'
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['Last-Modified'] = Time.now.httpdate.to_s
+        response.headers['X-Accel-Buffering'] = 'no'
+        response.headers.delete('Content-Length') # Delete this for streaming
+
+        # Use the service object to stream the zip file.
+        DocumentsStreamerService.stream(documents) do |chunk|
+          response.stream.write(chunk)
+        end
+      ensure
+        response.stream.close
       end
 
       private

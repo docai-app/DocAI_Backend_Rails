@@ -26,6 +26,7 @@ Rails.application.routes.draw do
           get 'latest/predict', to: 'documents#show_latest_predict'
           get ':date/predict', to: 'documents#show_specify_date_latest_predict'
           post 'deep_understanding', to: 'documents#deep_understanding'
+          post 'download_zip', to: 'documents#download_zip'
         end
 
         member do
