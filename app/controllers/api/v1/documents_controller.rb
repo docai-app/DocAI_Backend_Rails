@@ -196,25 +196,25 @@ module Api
         render json: { success: true }, status: :ok
       end
 
-      def download_zip
-        documents = Document.find(params[:document_ids])
-        documents.map(&:storage_url)
+      # def download_zip
+      #   documents = Document.find(params[:document_ids])
+      #   documents.map(&:storage_url)
 
-        # Set the appropriate headers for zip file download.
-        response.headers['Content-Type'] = 'application/zip'
-        response.headers['Content-Disposition'] = 'attachment; filename=documents.zip'
-        response.headers['Cache-Control'] = 'no-cache'
-        response.headers['Last-Modified'] = Time.now.httpdate.to_s
-        response.headers['X-Accel-Buffering'] = 'no'
-        response.headers.delete('Content-Length') # Delete this for streaming
+      #   # Set the appropriate headers for zip file download.
+      #   response.headers['Content-Type'] = 'application/zip'
+      #   response.headers['Content-Disposition'] = 'attachment; filename=documents.zip'
+      #   response.headers['Cache-Control'] = 'no-cache'
+      #   response.headers['Last-Modified'] = Time.now.httpdate.to_s
+      #   response.headers['X-Accel-Buffering'] = 'no'
+      #   response.headers.delete('Content-Length') # Delete this for streaming
 
-        # Use the service object to stream the zip file.
-        DocumentsStreamerService.stream(documents) do |chunk|
-          response.stream.write(chunk)
-        end
-      ensure
-        response.stream.close
-      end
+      #   # Use the service object to stream the zip file.
+      #   DocumentsStreamerService.stream(documents) do |chunk|
+      #     response.stream.write(chunk)
+      #   end
+      # ensure
+      #   response.stream.close
+      # end
 
       private
 

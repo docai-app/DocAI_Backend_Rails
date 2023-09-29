@@ -3,6 +3,8 @@
 module Api
   module V1
     class DriveController < ApiController
+      include ActionController::Live # Ensure this line is there
+
       before_action :authenticate_user!
       before_action :current_user_folder, only: %i[show share]
       before_action :can_move_items_to_folder, only: [:move_items]
@@ -61,6 +63,29 @@ module Api
         end
 
         render json: { success: true }, status: :ok
+      end
+
+      def download_zip
+        folder_ids = params[:folder_ids] || []
+        document_ids = params[:document_ids] || []
+
+        folders = Folder.where(id: folder_ids)
+        documents = Document.where(id: document_ids)
+
+        # Set the appropriate headers for zip file download.
+        response.headers['Content-Type'] = 'application/zip'
+        response.headers['Content-Disposition'] = 'attachment; filename=documents.zip'
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['Last-Modified'] = Time.now.httpdate.to_s
+        response.headers['X-Accel-Buffering'] = 'no'
+        response.headers.delete('Content-Length') # Delete this for streaming
+
+        # Use the service object to stream the zip file.
+        DocumentsStreamerService.stream(documents:, folders:) do |chunk|
+          response.stream.write(chunk)
+        end
+      ensure
+        response.stream.close
       end
 
       private
