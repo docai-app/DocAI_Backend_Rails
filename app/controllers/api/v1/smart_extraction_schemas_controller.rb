@@ -55,6 +55,7 @@ module Api
 
         schema = SmartExtractionSchema.new(smart_extraction_schema_params)
         schema.user = current_user
+        schema.has_label = true
         schema.data_schema = params[:data_schema]
 
         if schema.save
@@ -63,6 +64,30 @@ module Api
 
           documents.each do |document|
             DocumentSmartExtractionDatum.create(document_id: document['id'],
+                                                smart_extraction_schema_id: schema.id,
+                                                data: schema.data_schema)
+          end
+
+          create_smart_extraction_schema_view(schema)
+
+          render json: { success: true, smart_extraction_schema: schema }, status: :ok
+        else
+          render json: { success: false, error: schema.errors.messages }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
+      end
+
+      def create_by_documents
+        document_ids = params[:document_ids] || []
+        schema = SmartExtractionSchema.new(smart_extraction_schema_params)
+        schema.user = current_user
+        schema.data_schema = params[:data_schema]
+
+        if schema.save
+          documents = Document.find(document_ids)
+          documents.each do |document|
+            DocumentSmartExtractionDatum.create(document_id: document.id,
                                                 smart_extraction_schema_id: schema.id,
                                                 data: schema.data_schema)
           end

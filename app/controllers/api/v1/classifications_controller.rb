@@ -50,7 +50,7 @@ module Api
       private
 
       def documentSmartExtraction(document_id, label_id)
-        SmartExtractionSchema.where(label_id:).each do |schema|
+        SmartExtractionSchema.where(label_id:).where(has_label: true).each do |schema|
           DocumentSmartExtractionDatum.create(document_id:, smart_extraction_schema_id: schema.id,
                                               data: schema.data_schema)
         end
