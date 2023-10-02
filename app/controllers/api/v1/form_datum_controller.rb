@@ -86,7 +86,7 @@ module Api
         end
         puts params[:query]
         chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/chart",
-                                   { query: params[:query], content: content_list.to_s }, timeout: 600)
+                                   { query: params[:query], content: content_list.to_s }, timeout: 1200)
         chartRes = JSON.parse(chartRes)
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})

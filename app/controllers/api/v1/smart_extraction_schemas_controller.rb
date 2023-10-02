@@ -139,7 +139,7 @@ module Api
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
           data_schema: @smart_extraction_schema.data_schema
-        }.to_json, { content_type: :json, accept: :json })
+        }.to_json, { content_type: :json, accept: :json, timeout: 1200 })
         chartRes = JSON.parse(chartRes)
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
