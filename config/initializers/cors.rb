@@ -16,7 +16,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://chyb.docai.net', 'http://chyb.docai.net', 'https://*-dev.docai.net', 'http://*-dev.docai.net',
             'https://chyb-dev.docai.net', 'http://chyb-dev.docai.net', 'https://chyb.docai.net', 'http://chyb.docai.net', 'https://chyb-dev.docai.net:8080', 'http://chyb-dev.docai.net:8080',
             'https://wishcoffee-dev.docai.net', 'http://wishcoffee-dev.docai.net', 'https://wishcoffee.docai.net', 'http://wishcoffee.docai.net',
-            'https://docai-dev.docai.net', 'http://docai-dev.docai.net', 'https://docai.docai.net', 'http://docai.docai.net'
+            'https://docai-dev.docai.net', 'http://docai-dev.docai.net', 'https://docai.docai.net', 'http://docai.docai.net',
+            'https://hku-dev.docai.net', 'http://hku-dev.docai.net', 'https://hku.docai.net', 'http://hku.docai.net',
+            'https://mastercorp-dev.docai.net', 'http://mastercorp-dev.docai.net', 'https://mastercorp.docai.net', 'http://mastercorp.docai.net',
+            'https://xinhua-dev.docai.net', 'http://xinhua-dev.docai.net', 'https://xinhua.docai.net', 'http://xinhua.docai.net'
 
     resource '*',
              headers: :any,
