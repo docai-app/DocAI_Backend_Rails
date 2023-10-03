@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  description: MyString
+  used_id: 
+  is_process_workflow: false
+  meta: 
+
+two:
+  name: MyString
+  description: MyString
+  used_id: 
+  is_process_workflow: false
+  meta: 

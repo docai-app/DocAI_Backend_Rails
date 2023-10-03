@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  position: 1
+  name: MyString
+  user: one
+  assignee: 1
+  project_workflow: one
+  meta: 
+  status: 1
+  human: false
+  dag_meta: 
+
+two:
+  position: 1
+  name: MyString
+  user: two
+  assignee: 1
+  project_workflow: two
+  meta: 
+  status: 1
+  human: false
+  dag_meta: 

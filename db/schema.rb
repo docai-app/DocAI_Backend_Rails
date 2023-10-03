@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
+ActiveRecord::Schema[7.0].define(version: 20_231_003_173_750) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -210,6 +210,40 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.index ['user_id'], name: 'index_project_tasks_on_user_id'
   end
 
+  create_table 'project_workflow_steps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.integer 'position'
+    t.string 'name', null: false
+    t.string 'description'
+    t.uuid 'user_id'
+    t.integer 'assignee_id'
+    t.uuid 'project_workflow_id', null: false
+    t.integer 'status', default: 0
+    t.boolean 'is_human', default: true
+    t.jsonb 'meta', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'deadline'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['assignee_id'], name: 'index_project_workflow_steps_on_assignee_id'
+    t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
+    t.index ['status'], name: 'index_project_workflow_steps_on_status'
+    t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
+  end
+
+  create_table 'project_workflows', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.integer 'status', default: 0, null: false
+    t.string 'description'
+    t.uuid 'used_id'
+    t.boolean 'is_process_workflow', default: false
+    t.datetime 'deadline'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
+    t.index ['status'], name: 'index_project_workflows_on_status'
+  end
+
   create_table 'projects', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name', default: 'New Project', null: false
     t.string 'description'
@@ -334,6 +368,8 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
   add_foreign_key 'folders', 'users'
   add_foreign_key 'mini_apps', 'folders'
   add_foreign_key 'mini_apps', 'users'
+  add_foreign_key 'project_workflow_steps', 'project_workflows'
+  add_foreign_key 'project_workflow_steps', 'users'
   add_foreign_key 'projects', 'folders'
   add_foreign_key 'projects', 'users'
   add_foreign_key 'taggings', 'tags'
