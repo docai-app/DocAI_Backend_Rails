@@ -1,5 +1,21 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: smart_extraction_schemas
+#
+#  id          :uuid             not null, primary key
+#  name        :string           not null
+#  description :string
+#  label_id    :uuid
+#  schema      :jsonb
+#  data_schema :jsonb
+#  user_id     :uuid
+#  meta        :jsonb
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  has_label   :boolean          default(FALSE), not null
+#
 class SmartExtractionSchema < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User'
   belongs_to :tag, optional: true, class_name: 'Tag', foreign_key: 'label_id'

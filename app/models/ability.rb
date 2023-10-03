@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Ability < ApplicationRecord
-  include CanCan::Ability
+  # include CanCan::Ability
 
   def initialize(user)
     user ||= User.new # guest user (not logged in)
