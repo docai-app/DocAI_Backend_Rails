@@ -19,7 +19,8 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://docai-dev.docai.net', 'http://docai-dev.docai.net', 'https://docai.docai.net', 'http://docai.docai.net',
             'https://hku-dev.docai.net', 'http://hku-dev.docai.net', 'https://hku.docai.net', 'http://hku.docai.net',
             'https://mastercorp-dev.docai.net', 'http://mastercorp-dev.docai.net', 'https://mastercorp.docai.net', 'http://mastercorp.docai.net',
-            'https://xinhua-dev.docai.net', 'http://xinhua-dev.docai.net', 'https://xinhua.docai.net', 'http://xinhua.docai.net'
+            'https://xinhua-dev.docai.net', 'http://xinhua-dev.docai.net', 'https://xinhua.docai.net', 'http://xinhua.docai.net',
+            'https://mjsse-dev.docai.net', 'http://mjsse-dev.docai.net', 'https://mjsse.docai.net', 'http://mjsse.docai.net'
 
     resource '*',
              headers: :any,
