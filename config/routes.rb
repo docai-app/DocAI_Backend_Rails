@@ -2,6 +2,7 @@
 
 # == Route Map
 #
+
 Rails.application.routes.draw do
   require 'sidekiq/web'
   require 'sidekiq-scheduler/web'
@@ -192,6 +193,19 @@ Rails.application.routes.draw do
           post ':smart_extraction_schema_id/search',
                to: 'document_smart_extraction_datum#show_by_filter_and_smart_extraction_schema_id'
           put ':id/data', to: 'document_smart_extraction_datum#update_data'
+        end
+      end
+
+      # **********Project Workflow API**********
+      resources :project_workflows, only: %i[index show create update destroy] do
+        collection do
+        end
+      end
+
+      # **********Project Workflow Step API**********
+      resources :project_workflow_steps, only: %i[index show create update destroy] do
+        collection do
+          get 'project_workflow/:project_workflow_id', to: 'project_workflow_steps#show_by_project_workflow_id'
         end
       end
     end
