@@ -184,6 +184,9 @@ Rails.application.routes.draw do
           get ':id/data', to: 'smart_extraction_schemas#show_document_extracted_data'
           get 'label/:label_id', to: 'smart_extraction_schemas#show_by_label_id'
           post 'generate/chart', to: 'smart_extraction_schemas#generate_chart'
+          post 'documents', to: 'smart_extraction_schemas#create_by_documents'
+          post 'documents/:smart_extraction_schema_id',
+               to: 'smart_extraction_schemas#push_documents_to_smart_extraction_schema'
         end
       end
 
