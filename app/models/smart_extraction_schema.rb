@@ -8,9 +8,6 @@ class SmartExtractionSchema < ApplicationRecord
   has_many :documents, through: :document_smart_extraction_datum, class_name: 'Document', foreign_key: 'document_id'
 
   validates :name, presence: true
-  validates :label_id, presence: true,
-                       format: { with: /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/ }
-
   validate :schema_format
   validate :data_schema_format
 
