@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -12,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_004_084_152) do
+ActiveRecord::Schema[7.0].define(version: 20_231_005_135_533) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -55,6 +53,8 @@ ActiveRecord::Schema[7.0].define(version: 20_231_004_084_152) do
     t.boolean 'is_public', default: false, null: false
     t.datetime 'expired_at'
     t.integer 'access_count', default: 0
+    t.string 'object_type'
+    t.uuid 'object_id'
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
   end
@@ -182,6 +182,21 @@ ActiveRecord::Schema[7.0].define(version: 20_231_004_084_152) do
     t.string 'jti', null: false
     t.datetime 'exp', null: false
     t.index ['jti'], name: 'index_jwt_denylist_on_jti'
+  end
+
+  create_table 'messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'chatbot_id', null: false
+    t.text 'content', null: false
+    t.string 'role', default: 'user', null: false
+    t.uuid 'user_id'
+    t.string 'object_type', null: false
+    t.boolean 'is_read', default: false, null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['object_type'], name: 'index_messages_on_object_type'
+    t.index ['user_id'], name: 'index_messages_on_user_id'
   end
 
   create_table 'mini_apps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -367,6 +382,8 @@ ActiveRecord::Schema[7.0].define(version: 20_231_004_084_152) do
   add_foreign_key 'active_storage_variant_records', 'active_storage_blobs', column: 'blob_id'
   add_foreign_key 'documents', 'folders'
   add_foreign_key 'folders', 'users'
+  add_foreign_key 'messages', 'chatbots'
+  add_foreign_key 'messages', 'users'
   add_foreign_key 'mini_apps', 'folders'
   add_foreign_key 'mini_apps', 'users'
   add_foreign_key 'project_workflow_steps', 'project_workflows'

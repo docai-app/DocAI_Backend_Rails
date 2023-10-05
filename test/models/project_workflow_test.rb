@@ -6,14 +6,15 @@
 #
 #  id                  :uuid             not null, primary key
 #  name                :string           not null
-#  status              :integer          default(0), not null
+#  status              :integer          default("draft"), not null
 #  description         :string
-#  used_id             :uuid
+#  user_id             :uuid
 #  is_process_workflow :boolean          default(FALSE)
 #  deadline            :datetime
 #  meta                :jsonb
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
+#  folder_id           :uuid
 #
 require 'test_helper'
 

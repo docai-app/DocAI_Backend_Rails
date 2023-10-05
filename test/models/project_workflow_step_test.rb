@@ -9,15 +9,15 @@
 #  name                :string           not null
 #  description         :string
 #  user_id             :uuid
-#  assignee_id         :integer
 #  project_workflow_id :uuid             not null
-#  status              :integer          default(0)
+#  status              :integer          default("pending")
 #  is_human            :boolean          default(TRUE)
 #  meta                :jsonb
 #  dag_meta            :jsonb
 #  deadline            :datetime
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
+#  assignee_id         :uuid
 #
 require 'test_helper'
 

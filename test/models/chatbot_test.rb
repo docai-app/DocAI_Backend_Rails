@@ -16,6 +16,8 @@
 #  is_public    :boolean          default(FALSE), not null
 #  expired_at   :datetime
 #  access_count :integer          default(0)
+#  object_type  :string
+#  object_id    :uuid
 #
 require 'test_helper'
 

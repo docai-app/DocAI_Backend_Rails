@@ -4,7 +4,8 @@ module Api
   module V1
     class ProjectWorkflowsController < ApiController
       def index
-        @project_workflows = ProjectWorkflow.all.page params[:page]
+        @project_workflows = ProjectWorkflow.all.as_json(include: :steps)
+        @project_workflows = Kaminari.paginate_array(@project_workflows).page(params[:page])
         render json: { success: true, project_workflows: @project_workflows, meta: pagination_meta(@project_workflows) },
                status: :ok
       end
@@ -17,19 +18,13 @@ module Api
       def create
         @project_workflow = ProjectWorkflow.new(project_workflow_params)
         @project_workflow.user_id = current_user.id if current_user.present?
-        steps = params[:steps]
+
         if @project_workflow.save
-          steps.each do |step|
-            @project_workflow.steps << ProjectWorkflowStep.create(
-              name: step[:name],
-              description: step[:description],
-              user_id: @project_workflow.user_id,
-              assignee_id: step[:assignee_id],
-              deadline: step[:deadline],
-              project_workflow_id: @project_workflow.id
-            )
-          end
-          render json: { success: true, project_workflow: @project_workflow.as_json(include: :steps) }, status: :ok
+          chatbot = create_chatbot(@project_workflow)
+          create_workflow_steps(params[:steps])
+
+          render json: { success: true, project_workflow: @project_workflow.as_json(include: :steps), chatbot: },
+                 status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
         end
@@ -67,6 +62,29 @@ module Api
           total_pages: object.total_pages,
           total_count: object.total_count
         }
+      end
+
+      def create_workflow_steps(steps)
+        steps.each do |step|
+          @project_workflow.steps << ProjectWorkflowStep.create(
+            name: step[:name],
+            description: step[:description],
+            user_id: @project_workflow.user_id,
+            assignee_id: step[:assignee_id],
+            deadline: step[:deadline],
+            project_workflow_id: @project_workflow.id
+          )
+        end
+      end
+
+      def create_chatbot(project_workflow)
+        Chatbot.create(
+          name: project_workflow.name,
+          user_id: project_workflow.user_id,
+          object_type: 'ProjectWorkflow',
+          object_id: project_workflow.id,
+          source: { folder_id: [project_workflow.folder_id] }
+        )
       end
     end
   end
