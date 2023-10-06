@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -12,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_006_102_117) do
+ActiveRecord::Schema[7.0].define(version: 20_231_006_191_643) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -282,6 +280,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_006_102_117) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.uuid 'folder_id'
+    t.boolean 'is_template', default: false, null: false
     t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
     t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
     t.index ['status'], name: 'index_project_workflows_on_status'
