@@ -43,7 +43,11 @@ class ProjectWorkflowStep < ApplicationRecord
     return unless saved_change_to_assignee_id?
 
     chatbot = Chatbot.find_by(object_id: project_workflow_id, object_type: 'ProjectWorkflow')
-    chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
-                        { belongs_user_id: assignee_id })
+    if chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
+                           { belongs_user_id: assignee_id })
+      ActionCable.server.broadcast(
+        "chatbot_#{chatbot.id}_#{assignee_id}", message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
+      )
+    end
   end
 end

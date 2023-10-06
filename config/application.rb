@@ -43,5 +43,7 @@ module DocaiApi
     config.active_job.queue_adapter = :sidekiq
 
     Redis.exists_returns_integer = true
+
+    config.action_cable.mount_path = '/cable'
   end
 end
