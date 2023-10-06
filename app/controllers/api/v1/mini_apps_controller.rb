@@ -19,7 +19,6 @@ module Api
 
       def create
         @mini_app = MiniApp.new(mini_app_params)
-        puts params.inspect
         @mini_app.document_label_list = params[:document_label_list]
         @mini_app.app_function_list = params[:app_function_list]
         @mini_app.meta = params[:meta] if params[:meta]

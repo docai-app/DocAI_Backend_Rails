@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  dag_name: MyString
+  dag_status: 1
+  meta: 
+  statistic: 
+  dag_meta: 
+
+two:
+  dag_name: MyString
+  dag_status: 1
+  meta: 
+  statistic: 
+  dag_meta: 

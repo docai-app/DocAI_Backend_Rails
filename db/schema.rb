@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_005_135_533) do
+ActiveRecord::Schema[7.0].define(version: 20_231_006_102_117) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -59,6 +59,31 @@ ActiveRecord::Schema[7.0].define(version: 20_231_005_135_533) do
     t.uuid 'object_id'
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
+  end
+
+  create_table 'dag_runs', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id'
+    t.string 'dag_name'
+    t.integer 'dag_status', default: 0, null: false
+    t.jsonb 'meta', default: {}
+    t.jsonb 'statistic', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
+    t.index ['user_id'], name: 'index_dag_runs_on_user_id'
+  end
+
+  create_table 'dags', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id'
+    t.string 'dag_name'
+    t.integer 'dag_status', default: 0
+    t.jsonb 'meta', default: {}
+    t.jsonb 'statistic', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['user_id'], name: 'index_dags_on_user_id'
   end
 
   create_table 'departments', force: :cascade do |t|
@@ -382,6 +407,8 @@ ActiveRecord::Schema[7.0].define(version: 20_231_005_135_533) do
 
   add_foreign_key 'active_storage_attachments', 'active_storage_blobs', column: 'blob_id'
   add_foreign_key 'active_storage_variant_records', 'active_storage_blobs', column: 'blob_id'
+  add_foreign_key 'dag_runs', 'users'
+  add_foreign_key 'dags', 'users'
   add_foreign_key 'documents', 'folders'
   add_foreign_key 'folders', 'users'
   add_foreign_key 'messages', 'chatbots'
