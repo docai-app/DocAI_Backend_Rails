@@ -37,9 +37,14 @@ class ApiController < ActionController::Base
   end
 
   def switch_tenant
-    # Get the subdomain from the referrer
+    # Get the subdomain from the auth jwt token or referrer
     puts 'API controller working............'
-    tenantName = Utils.extractRequestTenantByToken(request)
+    if request.headers['Authorization'].present?
+      tenantName = Utils.extractRequestTenantByToken(request)
+    else
+      puts 'API controller working............'
+      tenantName = Utils.extractReferrerSubdomain(request.referrer)
+    end
     puts "tenantName: #{tenantName}"
     Apartment::Tenant.switch!(tenantName)
   end
