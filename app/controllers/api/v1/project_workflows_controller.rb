@@ -51,7 +51,7 @@ module Api
       private
 
       def project_workflow_params
-        params.require(:project_workflow).permit(:name, :description, :deadline, :folder_id)
+        params.require(:project_workflow).permit(:name, :description, :deadline, :folder_id, :is_process_workflow)
       end
 
       def pagination_meta(object)

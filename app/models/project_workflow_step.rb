@@ -45,8 +45,9 @@ class ProjectWorkflowStep < ApplicationRecord
     chatbot = Chatbot.find_by(object_id: project_workflow_id, object_type: 'ProjectWorkflow')
     if chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
                            { belongs_user_id: assignee_id })
+      puts "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
       ActionCable.server.broadcast(
-        "chatbot_#{chatbot.id}_#{assignee_id}", message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
+        "chat_ProjectWorkflow_#{chatbot.id}_#{assignee_id}", { message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}" }
       )
     end
   end
