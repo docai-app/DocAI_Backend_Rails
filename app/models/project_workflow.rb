@@ -15,6 +15,7 @@
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #  folder_id           :uuid
+#  is_template         :boolean          default(FALSE), not null
 #
 class ProjectWorkflow < ApplicationRecord
   has_one :chatbot, dependent: :destroy, class_name: 'Chatbot', foreign_key: 'object_id'

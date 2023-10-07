@@ -15,6 +15,7 @@
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #  folder_id           :uuid
+#  is_template         :boolean          default(FALSE), not null
 #
 require 'test_helper'
 
