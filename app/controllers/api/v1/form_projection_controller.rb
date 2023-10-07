@@ -27,6 +27,9 @@ module Api
           @form_data = FormDatum.new(data: params[:data], form_schema_id: params[:form_schema_id],
                                      document_id: @document.id)
           @form_data.save
+          @document_approval = DocumentApproval.new(document_id: @document.id, form_data_id: @form_data.id,
+                                                    approval_status: 0)
+          @document_approval.save
           render json: { success: true }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :unprocessable_entity
