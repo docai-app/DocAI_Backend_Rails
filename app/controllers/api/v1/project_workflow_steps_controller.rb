@@ -6,22 +6,27 @@ module Api
       before_action :authenticate_user!
 
       def index
+        # @project_workflow_steps = ProjectWorkflowStep.where('assignee_id = ? OR user_id = ?', current_user.id, current_user.id)
         @project_workflow_steps = ProjectWorkflowStep.where(assignee_id: current_user.id)
         @project_workflow_steps = @project_workflow_steps.where(status: params[:status]) if params[:status].present?
-        # @project_workflow_steps = @project_workflow_steps.page params[:page]
-        @project_workflow_steps = @project_workflow_steps.includes(:project_workflow).as_json(include: :project_workflow)
+        @project_workflow_steps = @project_workflow_steps.includes(%i[project_workflow
+                                                                      assignee]).as_json(include: %i[project_workflow
+                                                                                                     assignee])
         @project_workflow_steps = Kaminari.paginate_array(@project_workflow_steps).page(params[:page])
         render json: { success: true, project_workflow_steps: @project_workflow_steps, meta: pagination_meta(@project_workflow_steps) },
                status: :ok
       end
 
       def show
-        @project_workflow_step = ProjectWorkflowStep.find(params[:id])
+        @project_workflow_step = ProjectWorkflowStep.find(params[:id]).includes(%i[project_workflow
+                                                                                   assignee]).as_json(include: %i[
+                                                                                                        project_workflow assignee
+                                                                                                      ])
         render json: { success: true, project_workflow_step: @project_workflow_step }, status: :ok
       end
 
       def show_by_project_workflow_id
-        @project_workflow_steps = ProjectWorkflowStep.where(project_workflow_id: params[:project_workflow_id]).where(assignee_id: current_user.id)
+        @project_workflow_steps = ProjectWorkflowStep.where(project_workflow_id: params[:project_workflow_id])
         @project_workflow_steps = @project_workflow_steps.where(status: params[:status]) if params[:status].present?
         render json: { success: true, project_workflow_steps: @project_workflow_steps }, status: :ok
       end

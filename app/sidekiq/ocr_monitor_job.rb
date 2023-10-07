@@ -21,7 +21,7 @@ class OcrMonitorJob
         next
       end
       puts "====== tenant: #{tenant} ======"
-      @documents = Document.where(content: nil).where(is_document: true)
+      @documents = Document.where(content: nil).where(is_document: true).where.not(status: :ready)
       puts "====== Documents found: #{@documents.length} ======"
       if @documents.present?
         @document = @documents.last
