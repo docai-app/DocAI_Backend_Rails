@@ -4,10 +4,11 @@ module Api
   module V1
     class ProjectWorkflowsController < ApiController
       def index
-        @project_workflows = ProjectWorkflow.all.as_json(include: :steps)
+        @project_workflows = ProjectWorkflow.all
         if params[:is_template].present?
           @project_workflows = @project_workflows.where(is_template: params[:is_template])
         end
+        @project_workflow = @project_workflows.as_json(include: :steps)
         @project_workflows = Kaminari.paginate_array(@project_workflows).page(params[:page])
         render json: { success: true, project_workflows: @project_workflows, meta: pagination_meta(@project_workflows) },
                status: :ok
