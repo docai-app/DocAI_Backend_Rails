@@ -8,7 +8,9 @@ module Api
       def index
         @project_workflow_steps = ProjectWorkflowStep.where(assignee_id: current_user.id)
         @project_workflow_steps = @project_workflow_steps.where(status: params[:status]) if params[:status].present?
-        @project_workflow_steps = @project_workflow_steps.page params[:page]
+        # @project_workflow_steps = @project_workflow_steps.page params[:page]
+        @project_workflow_steps = @project_workflow_steps.includes(:project_workflow).as_json(include: :project_workflow)
+        @project_workflow_steps = Kaminari.paginate_array(@project_workflow_steps).page(params[:page])
         render json: { success: true, project_workflow_steps: @project_workflow_steps, meta: pagination_meta(@project_workflow_steps) },
                status: :ok
       end

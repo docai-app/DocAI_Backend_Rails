@@ -6,8 +6,8 @@ module Api
       before_action :authenticate_user!, except: [:create]
 
       def index
-        @users = User.all
-        render json: { success: true, users: @users }, status: :ok
+        @users = User.all.page(params[:page])
+        render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
       end
 
       def show
@@ -72,6 +72,16 @@ module Api
 
       def user_profile_params
         params.require(:user).permit(:nickname, :phone, :position, :date_of_birth, :sex)
+      end
+
+      def pagination_meta(object)
+        {
+          current_page: object.current_page,
+          next_page: object.next_page,
+          prev_page: object.prev_page,
+          total_pages: object.total_pages,
+          total_count: object.total_count
+        }
       end
     end
   end
