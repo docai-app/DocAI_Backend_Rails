@@ -15,7 +15,7 @@ module Api
       end
 
       def show
-        @project_workflow = ProjectWorkflow.find(params[:id]).as_json(include: :steps)
+        @project_workflow = ProjectWorkflow.find(params[:id]).as_json(include: { steps: { include: :assignee } })
         render json: { success: true, project_workflow: @project_workflow }, status: :ok
       end
 
