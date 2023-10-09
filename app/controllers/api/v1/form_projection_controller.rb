@@ -22,7 +22,7 @@ module Api
             @document.storage_url = AzureService.uploadBlob(projectionImage.to_blob, filename,
                                                             'image/png')
           end
-          @document.user_id = current_user.id
+          @document.user_id = current_user.id if current_user.present?
           @document.uploaded!
           @form_data = FormDatum.new(data: params[:data], form_schema_id: params[:form_schema_id],
                                      document_id: @document.id)
