@@ -15,15 +15,15 @@
 
 :schedule:
   DocumentClassificationMonitorJob:
-    every: '20s'
+    every: '30s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:
-    every: '20s'
+    every: '30s'
     queue: ocr_monitor_job
     enabled: true
   FormDeepUnderstandingMonitorJob:
-    every: '20s'
+    every: '30s'
     queue: form_deep_understanding_monitor_job
     enabled: true
   DocumentEmbeddingMonitorJob:
