@@ -32,13 +32,17 @@ module Api
       end
 
       def create
-        @project_workflow_step = ProjectWorkflowStep.new(project_workflow_step_params)
+        @project_workflow_step = ProjectWorkflowStep.create(project_workflow_step_params)
         @project_workflow_step.user_id = current_user.id if current_user.present?
-        if @project_workflow_step.save
-          render json: { success: true, project_workflow_step: @project_workflow_step }, status: :ok
-        else
-          render json: { success: false }, status: :unprocessable_entity
+
+        if params[:project_workflow_id].present?
+          @project_workflow = ProjectWorkflow.find(params[:project_workflow_id])
+          @project_workflow.steps << @project_workflow_step
         end
+
+        render json: { success: true, project_workflow_step: @project_workflow_step }, status: :ok
+      rescue StandardError => e
+        render json: { success: false, errors: e.message }, status: :unprocessable_entity
       end
 
       def update
@@ -62,8 +66,7 @@ module Api
       private
 
       def project_workflow_step_params
-        params.require(:project_workflow_step).permit(:name, :description, :assignee_id, :deadline, :status,
-                                                      :project_workflow_id)
+        params.require(:project_workflow_step).permit(:name, :description, :assignee_id, :deadline, :status)
       end
 
       def pagination_meta(object)

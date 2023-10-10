@@ -7,7 +7,7 @@
 #  name                :string           not null
 #  description         :string
 #  user_id             :uuid
-#  project_workflow_id :uuid             not null
+#  project_workflow_id :uuid
 #  status              :integer          default("pending")
 #  is_human            :boolean          default(TRUE)
 #  meta                :jsonb
