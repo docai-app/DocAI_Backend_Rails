@@ -43,6 +43,9 @@ class User < ApplicationRecord
   has_many :chatbots, class_name: 'Chatbot', foreign_key: 'user_id'
   has_many :smart_extraction_schemas, class_name: 'SmartExtractionSchema', foreign_key: 'user_id'
   has_many :project_workflows, class_name: 'ProjectWorkflow', foreign_key: 'user_id'
+  has_one :system_assistant, lambda {
+    where(object_type: 'UserSystemAssistant')
+  }, class_name: 'Chatbot', foreign_key: 'user_id', dependent: :destroy
 
   validates_confirmation_of :password
   # after_create :assign_default_role

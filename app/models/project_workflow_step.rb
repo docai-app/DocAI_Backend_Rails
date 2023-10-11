@@ -22,7 +22,7 @@
 class ProjectWorkflowStep < ApplicationRecord
   belongs_to :user, class_name: 'User', foreign_key: 'user_id', optional: true
   belongs_to :assignee, class_name: 'User', foreign_key: 'assignee_id', optional: true
-  belongs_to :project_workflow
+  belongs_to :project_workflow, optional: true, class_name: 'ProjectWorkflow', foreign_key: 'project_workflow_id'
 
   before_save :store_assignee_id
   after_save :handle_assignee_change
@@ -42,13 +42,27 @@ class ProjectWorkflowStep < ApplicationRecord
   def handle_assignee_change
     return unless saved_change_to_assignee_id?
 
-    chatbot = Chatbot.find_by(object_id: project_workflow_id, object_type: 'ProjectWorkflow')
-    if chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
-                           { belongs_user_id: assignee_id })
-      puts "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
-      ActionCable.server.broadcast(
-        "chat_ProjectWorkflow_#{chatbot.id}_#{assignee_id}", { message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}" }
-      )
+    if !project_workflow_id.nil?
+      chatbot = Chatbot.find_by(object_id: project_workflow_id, object_type: 'ProjectWorkflow')
+      puts chatbot.inspect
+      if chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
+                             { belongs_user_id: assignee_id })
+        puts "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
+        ActionCable.server.broadcast(
+          "chat_ProjectWorkflow_#{chatbot.id}_#{assignee_id}", { message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}" }
+        )
+      end
+    else
+      puts 'No project workflow id!'
+      chatbot = Chatbot.find_by(object_id: assignee_id, object_type: 'UserSystemAssistant')
+      puts 'Chatbot: ', chatbot.inspect
+      if chatbot.add_message('system', 'talk', "#{name} has assigned to #{assignee.email}",
+                             { belongs_user_id: assignee_id })
+        puts "#{name} has assigned to #{assignee.email}"
+        ActionCable.server.broadcast(
+          "chat_SystemAssistant_#{chatbot.id}_#{assignee_id}", { message: "#{name} has assigned to #{assignee.email}" }
+        )
+      end
     end
   end
 end
