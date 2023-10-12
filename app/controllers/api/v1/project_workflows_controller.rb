@@ -37,6 +37,7 @@ module Api
       def update
         @project_workflow = ProjectWorkflow.find(params[:id])
         if @project_workflow.update(project_workflow_params)
+          update_chatbot_folder_id if params[:folder_id].present?
           render json: { success: true, project_workflow: @project_workflow }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
@@ -90,6 +91,12 @@ module Api
           object_id: project_workflow.id,
           source: { folder_id: [project_workflow.folder_id] }
         )
+      end
+
+      def update_chatbot_folder_id
+        @chatbot = Chatbot.find_by(object_id: @project_workflow.id, object_type: 'ProjectWorkflow')
+        @chatbot.source = { folder_id: [params[:folder_id]] }
+        @chatbot.save
       end
     end
   end

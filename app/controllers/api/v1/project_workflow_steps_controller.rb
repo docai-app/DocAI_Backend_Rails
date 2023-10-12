@@ -41,8 +41,6 @@ module Api
           @project_workflow.steps << @project_workflow_step
         end
 
-        puts 'ProjectWorkflowStep: ', @project_workflow_step.inspect
-
         if @project_workflow_step.save
           render json: { success: true, project_workflow_step: @project_workflow_step }, status: :ok
         else
