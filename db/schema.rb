@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_010_093_621) do
+ActiveRecord::Schema[7.0].define(version: 20_231_012_174_424) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -194,6 +194,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_010_093_621) do
     t.jsonb 'form_projection', default: []
     t.boolean 'can_project', default: false, null: false
     t.string 'projection_image_url', default: ''
+    t.uuid 'label_id'
     t.index ['name'], name: 'index_form_schemas_on_name'
   end
 

@@ -21,4 +21,5 @@
 #
 class FormSchema < ApplicationRecord
   has_many :form_datum, class_name: 'FormDatum'
+  belongs_to :label, optional: true, class_name: 'Tag', foreign_key: 'label_id'
 end

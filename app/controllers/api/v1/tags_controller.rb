@@ -6,8 +6,10 @@ module Api
       # Show all tags
       def index
         @tags = Tag.joins(:taggings).select('tags.*,context').where("context = 'labels'").distinct.includes(%i[
-                                                                                                              functions tag_functions
-                                                                                                            ]).as_json(include: :functions)
+                                                                                                              functions tag_functions form_schema
+                                                                                                            ]).as_json(include: %i[
+                                                                                                                         functions form_schema
+                                                                                                                       ])
         render json: { success: true, tags: @tags }, status: :ok
       end
 
