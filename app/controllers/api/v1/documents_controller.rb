@@ -59,15 +59,12 @@ module Api
         render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
 
-      # Show documents by filter
       def show_by_tag_and_content
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
         content = params[:content] || ''
-        folder_ids = params[:folder_ids] || [] # Assuming folder_ids is passed as an array
-        from = params[:from] || '1970-01-01'
-        to = params[:to] || Date.today
-
-        puts "folder_ids: #{folder_ids}"
+        folder_ids = Array(params[:folder_ids])
+        from = params[:from].nil? ? '1970-01-01' : params[:from]
+        to = params[:to].nil? ? Date.today : params[:to]
 
         documents = Document.includes(:taggings)
                             .tagged_with(tag)
