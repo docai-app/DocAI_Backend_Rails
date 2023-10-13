@@ -66,6 +66,8 @@ module Api
         from = params[:from] == '' ? '1970-01-01' : params[:from]
         to = params[:to] == '' ? Date.today : params[:to]
 
+        puts "from: #{from}, to: #{to}"
+
         documents = Document.includes(:taggings)
                             .tagged_with(tag)
                             .where('content LIKE ?', "%#{content}%")
