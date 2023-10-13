@@ -64,7 +64,7 @@ module Api
         content = params[:content] || ''
         folder_ids = Array(params[:folder_ids])
         from = params[:from] == '' ? '1970-01-01' : params[:from]
-        to = params[:to] == '' ? Date.today : params[:to]
+        to = params[:to] == '' ? Date.today + 1 : params[:to]
 
         puts "from: #{from}, to: #{to}"
 
