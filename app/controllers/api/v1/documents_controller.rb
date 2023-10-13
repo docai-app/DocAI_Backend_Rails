@@ -63,8 +63,8 @@ module Api
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
         content = params[:content] || ''
         folder_ids = Array(params[:folder_ids])
-        from = params[:from].nil? ? '1970-01-01' : params[:from]
-        to = params[:to].nil? ? Date.today : params[:to]
+        from = params[:from] == '' ? '1970-01-01' : params[:from]
+        to = params[:to] == '' ? Date.today : params[:to]
 
         documents = Document.includes(:taggings)
                             .tagged_with(tag)
