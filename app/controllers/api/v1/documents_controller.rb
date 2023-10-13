@@ -63,9 +63,9 @@ module Api
       def show_by_tag_and_content
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
         content = params[:content] || ''
-        folder_ids = params[:folder_ids].presence || [] # Assuming folder_ids is passed as an array
-        from = params[:from].presence || '1970-01-01'
-        to = params[:to].presence || Date.today
+        folder_ids = params[:folder_ids] || [] # Assuming folder_ids is passed as an array
+        from = params[:from] || '1970-01-01'
+        to = params[:to] || Date.today
 
         puts "folder_ids: #{folder_ids}"
 
