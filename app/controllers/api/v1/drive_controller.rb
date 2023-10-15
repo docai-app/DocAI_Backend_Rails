@@ -93,7 +93,7 @@ module Api
       def current_user_folder
         @folder = Folder.find(params[:id])
         if @folder.user.nil?
-          @current_user_folder = @folderr
+          @current_user_folder = @folder
         elsif current_user.has_role? :w, Folder.find(params[:id]) || @folder.user.nil?
           @current_user_folder = Folder.find_by(id: params[:id])
         else
