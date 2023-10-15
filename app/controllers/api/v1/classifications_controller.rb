@@ -33,6 +33,8 @@ module Api
         document_ids = params[:document_ids]
         tag_id = params[:tag_id]
 
+        puts "Document IDs: #{document_ids.inspect} Tag ID: #{tag_id.inspect}"
+
         Document.transaction do
           @documents = Document.where(id: document_ids).each do |document|
             document.update!(label_ids: tag_id, status: :confirmed, is_classified: true)
