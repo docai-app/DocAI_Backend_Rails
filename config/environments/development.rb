@@ -72,6 +72,7 @@ Rails.application.configure do
 
   # Uncomment if you wish to allow Action Cable access from any origin.
   config.action_cable.disable_request_forgery_protection = true
+  config.action_cable.url = ENV.fetch('ACTION_CABLE_URL', 'ws://localhost:3000/cable')
   # config.action_cable.mount_path = nil
   # config.action_cable.url = ['ws://localhost:3000/cable', 'wss://localhost:3000/cable', 'ws://localhost:3010/cable', 'wss://localhost:3010/cable',
   #                            'ws://docai-dev.m2mda.com/cable', 'wss://docai-dev.m2mda.com/cable', 'ws://chatbot-dev.docai.net/cable', 'wss://chatbot-dev.docai.net/cable', 'ws://dev-docai-chatbot-plus.vercel.app/cable', 'wss://dev-docai-chatbot-plus.vercel.app/cable']
