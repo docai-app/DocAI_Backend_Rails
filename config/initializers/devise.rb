@@ -320,4 +320,10 @@ Devise.setup do |config|
     ]
     jwt.expiration_time = 15.day.to_i
   end
+
+  config.omniauth :google_oauth2, ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_ID'], ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_SECRET'], {
+    scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send email',
+    access_type: 'offline',
+    prompt: 'consent'
+  }
 end

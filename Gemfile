@@ -92,3 +92,7 @@ gem 'wkhtmltopdf-binary'
 
 gem 'addressable'
 gem 'zip_tricks'
+
+gem 'omniauth'
+gem 'omniauth-google-oauth2'
+gem 'omniauth-rails_csrf_protection'
