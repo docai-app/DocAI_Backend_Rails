@@ -22,9 +22,11 @@ module Api
       def create
         @project_workflow = ProjectWorkflow.new(project_workflow_params)
         @project_workflow.user_id = current_user.id if current_user.present?
+        @project_workflow.description = params[:description]
+        @project_workflow.is_process_workflow = params[:is_process_workflow]
 
         if @project_workflow.save
-          chatbot = create_chatbot(@project_workflow)
+          chatbot = create_chatbot(@project_workflow) if current_user.present?
           create_workflow_steps(params[:steps])
 
           render json: { success: true, project_workflow: @project_workflow.as_json(include: :steps), chatbot: },
@@ -36,12 +38,29 @@ module Api
 
       def update
         @project_workflow = ProjectWorkflow.find(params[:id])
-        if @project_workflow.update(project_workflow_params)
+        @project_workflow.name = params[:name] if params[:name].present?
+        @project_workflow.description = params[:description] if params[:description].present?
+        @project_workflow.status = params[:status] if params[:status].present?
+        @project_workflow.is_process_workflow = params[:is_process_workflow].to_b if params[:is_process_workflow].present?
+
+        if @project_workflow.save
           update_chatbot_folder_id if params[:folder_id].present?
           render json: { success: true, project_workflow: @project_workflow }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
         end
+      end
+
+      def duplicate
+        @project_workflow = ProjectWorkflow.find(params[:id])
+        new_wf = @project_workflow.duplicate!
+        render json: { success: false, project_workflow: new_wf }, status: :ok
+      end
+
+      def start
+        @project_workflow = ProjectWorkflow.find(params[:id])
+        @project_workflow.start!
+        render json: { success: true, project_workflow: @project_workflow }, status: :ok
       end
 
       def destroy
@@ -78,7 +97,8 @@ module Api
             user_id: @project_workflow.user_id,
             assignee_id: step[:assignee_id],
             deadline: step[:deadline],
-            project_workflow_id: @project_workflow.id
+            project_workflow_id: @project_workflow.id,
+            dag_id: step[:dag_id]
           )
         end
       end

@@ -155,7 +155,7 @@ class DagRun < ApplicationRecord
   end
 
   def response_url
-    "https://docai-dev.m2mda.com/api/dag_runs/#{self.id}"
+    "https://docai-dev.m2mda.com/api/v1/dag_runs/#{self.id}"
   end
 
   def dag_status_check!
