@@ -96,3 +96,6 @@ gem 'zip_tricks'
 gem 'omniauth'
 gem 'omniauth-google-oauth2'
 gem 'omniauth-rails_csrf_protection'
+
+gem 'net-scp'
+gem 'net-ssh'

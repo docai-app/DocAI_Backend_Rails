@@ -212,6 +212,14 @@ Rails.application.routes.draw do
           get 'project_workflow/:project_workflow_id', to: 'project_workflow_steps#show_by_project_workflow_id'
         end
       end
+
+      # ********** Dags API ***********
+      resources :dags
+      resources :dag_runs do
+        member do 
+          get 'check_status_finish'
+        end
+      end
     end
 
     namespace :schema do
