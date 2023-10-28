@@ -97,7 +97,11 @@ gem 'omniauth'
 gem 'omniauth-google-oauth2'
 gem 'omniauth-rails_csrf_protection'
 
+<<<<<<< HEAD
 gem 'net-scp'
 gem 'net-ssh'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 gem 'acts_as_list'
+=======
+gem 'google-api-client'
+>>>>>>> b883518 (Add: Added the basic structure on the identities and oauth2.)

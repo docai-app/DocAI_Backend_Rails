@@ -18,6 +18,7 @@
 #  form_projection      :jsonb
 #  can_project          :boolean          default(FALSE), not null
 #  projection_image_url :string           default("")
+#  label_id             :uuid
 #
 class FormSchema < ApplicationRecord
   has_many :form_datum, class_name: 'FormDatum'

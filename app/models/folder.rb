@@ -23,6 +23,7 @@ class Folder < ApplicationRecord
   has_many :mini_apps, dependent: :destroy, class_name: 'MiniApp', foreign_key: 'folder_id'
 
   after_create :set_permissions_to_owner
+  before_destroy :unlink_from_chatbots
 
   paginates_per 20
   has_paper_trail
@@ -56,5 +57,16 @@ class Folder < ApplicationRecord
     return true if user_id.nil?
 
     user.has_role? :w, self
+  end
+
+  private
+
+  def unlink_from_chatbots
+    Chatbot.all.find_each do |chatbot|
+      if chatbot.source['folder_id'].is_a?(Array) && chatbot.source['folder_id'].include?(id.to_s)
+        chatbot.source['folder_id'].delete(id.to_s)
+        chatbot.save
+      end
+    end
   end
 end

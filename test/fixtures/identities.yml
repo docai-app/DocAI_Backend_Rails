@@ -1,0 +1,22 @@
+# == Schema Information
+#
+# Table name: identities
+#
+#  id         :uuid             not null, primary key
+#  user_id    :uuid             not null
+#  provider   :string
+#  uid        :string
+#  metadata   :jsonb
+#  created_at :datetime         not null
+#  updated_at :datetime         not null
+#
+
+one:
+  provider: MyString
+  uid: MyString
+  metadata: 
+
+two:
+  provider: MyString
+  uid: MyString
+  metadata: 
