@@ -1,11 +1,36 @@
-:concurrency: 10
+:concurrency: 1
 :queues:
   - ['default', 1]
+  - ['document_classification', 1]
+  - ['document_classification_monitor_job', 1]
   - ['ocr', 1]
-:timeout: 86400
+  - ['ocr_monitor_job', 1]
+  - ['form_deep_understanding', 1]
+  - ['form_deep_understanding_monitor_job', 1]
+  - ['document_embedding', 1]
+  - ['document_embedding_monitor_job', 1]
+  - ['document_smart_extraction', 1]
+  - ['document_smart_extraction_monitor_job', 1]
+:timeout: 7200
 
 :schedule:
-  OcrJob:
-    every: '5s'
-    queue: ocr
+  DocumentClassificationMonitorJob:
+    every: '30s'
+    queue: document_classification_monitor_job
+    enabled: true
+  OcrMonitorJob:
+    every: '30s'
+    queue: ocr_monitor_job
+    enabled: true
+  FormDeepUnderstandingMonitorJob:
+    every: '30s'
+    queue: form_deep_understanding_monitor_job
+    enabled: true
+  DocumentEmbeddingMonitorJob:
+    every: '120s'
+    queue: document_embedding_monitor_job
+    enabled: true
+  DocumentSmartExtractionMonitorJob:
+    every: '60s'
+    queue: document_smart_extraction_monitor_job
     enabled: true

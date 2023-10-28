@@ -1,7 +1,10 @@
-require_relative "boot"
+# frozen_string_literal: true
 
-require "rails/all"
+require_relative 'boot'
+
+require 'rails/all'
 require 'dotenv/load'
+require 'apartment/elevators/subdomain'
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -11,6 +14,8 @@ module DocaiApi
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.0
+
+    config.middleware.use Apartment::Elevators::Subdomain
 
     # ActionDispatch::Request::Session::DisabledSessionError - Your application has sessions disabled
     config.session_store :cookie_store, key: '_interslice_session'
@@ -24,7 +29,7 @@ module DocaiApi
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    config.time_zone = "Asia/Taipei"
+    config.time_zone = 'Asia/Taipei'
     config.active_record.default_timezone = :local
     # config.eager_load_paths << Rails.root.join("extras")
     config.eager_load = true
@@ -38,5 +43,7 @@ module DocaiApi
     config.active_job.queue_adapter = :sidekiq
 
     Redis.exists_returns_integer = true
+
+    config.action_cable.mount_path = '/cable'
   end
 end

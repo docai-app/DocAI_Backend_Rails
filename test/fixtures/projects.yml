@@ -1,0 +1,25 @@
+# == Schema Information
+#
+# Table name: projects
+#
+#  id          :uuid             not null, primary key
+#  name        :string           default("New Project"), not null
+#  description :string
+#  user_id     :uuid             not null
+#  folder_id   :uuid             not null
+#  is_public   :boolean          default(FALSE)
+#  is_finished :boolean          default(FALSE)
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  deadline_at :datetime
+#
+
+# This model initially had no columns defined. If you add columns to the
+# model remove the "{}" from the fixture names and add the columns immediately
+# below each fixture, per the syntax in the comments below
+#
+one: {}
+# column: value
+#
+two: {}
+# column: value

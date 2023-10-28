@@ -1,0 +1,31 @@
+# == Schema Information
+#
+# Table name: project_workflows
+#
+#  id                  :uuid             not null, primary key
+#  name                :string           not null
+#  status              :integer          default("draft"), not null
+#  description         :string
+#  user_id             :uuid
+#  is_process_workflow :boolean          default(FALSE)
+#  deadline            :datetime
+#  meta                :jsonb
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
+#  folder_id           :uuid
+#  is_template         :boolean          default(FALSE), not null
+#
+
+one:
+  name: MyString
+  description: MyString
+  used_id: 
+  is_process_workflow: false
+  meta: 
+
+two:
+  name: MyString
+  description: MyString
+  used_id: 
+  is_process_workflow: false
+  meta: 

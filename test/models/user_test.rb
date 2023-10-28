@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: users
@@ -10,14 +12,14 @@
 #  remember_created_at    :datetime
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
-#  name                   :string
+#  nickname               :string
 #  phone                  :string
 #  position               :string
 #  date_of_birth          :date
 #  sex                    :integer
 #  profile                :jsonb
 #
-require "test_helper"
+require 'test_helper'
 
 class UserTest < ActiveSupport::TestCase
   # test "the truth" do

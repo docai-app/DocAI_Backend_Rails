@@ -1,0 +1,28 @@
+# == Schema Information
+#
+# Table name: dag_runs
+#
+#  id         :uuid             not null, primary key
+#  user_id    :uuid
+#  dag_name   :string
+#  dag_status :integer          default(0), not null
+#  meta       :jsonb
+#  statistic  :jsonb
+#  dag_meta   :jsonb
+#  created_at :datetime         not null
+#  updated_at :datetime         not null
+#
+
+one:
+  dag_name: MyString
+  dag_status: 1
+  meta: 
+  statistic: 
+  dag_meta: 
+
+two:
+  dag_name: MyString
+  dag_status: 1
+  meta: 
+  statistic: 
+  dag_meta: 
