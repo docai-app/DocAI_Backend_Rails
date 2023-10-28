@@ -42,3 +42,5 @@ docker-compose.yml
 
 # Ignore the redis dump.rdb file
 dump.rdb
+
+.byebug_history

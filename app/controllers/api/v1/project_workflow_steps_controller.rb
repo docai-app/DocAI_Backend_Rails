@@ -3,7 +3,7 @@
 module Api
   module V1
     class ProjectWorkflowStepsController < ApiController
-      before_action :authenticate_user!
+      # before_action :authenticate_user!
 
       def index
         # @project_workflow_steps = ProjectWorkflowStep.where('assignee_id = ? OR user_id = ?', current_user.id, current_user.id)
@@ -35,6 +35,8 @@ module Api
         @project_workflow_step = ProjectWorkflowStep.create(project_workflow_step_params)
         @project_workflow_step.user_id = current_user.id if current_user.present?
         @project_workflow_step.assignee_id = current_user.id unless params[:assignee_id].present?
+        @project_workflow_step.deadline = params[:deadline] if params[:deadline].present?
+        @project_workflow_step.description = params[:description] if params[:description].present?
 
         if params[:project_workflow_id].present?
           @project_workflow = ProjectWorkflow.find(params[:project_workflow_id])
@@ -51,12 +53,15 @@ module Api
       end
 
       def update
-        @project_workflow_step = ProjectWorkflowStep.find(params[:id])
-        if @project_workflow_step.update(project_workflow_step_params)
-          render json: { success: true, project_workflow_step: @project_workflow_step }, status: :ok
-        else
-          render json: { success: false }, status: :unprocessable_entity
-        end
+        @wfs = ProjectWorkflowStep.find(params[:id])
+        @wfs.name = params[:name] if params[:name].present?
+        @wfs.description = params[:description] if params[:description].present?
+        @wfs.criteria = params[:criteria] if params[:criteria].present?
+        @wfs.status = params[:status] if params[:status].present?
+        @wfs.deadline = params[:deadline] if params[:deadline].present?
+        @wfs.dag_id = params[:dag_id] if params[:dag_id].present?
+        @wfs.save
+        render json: { success: true, project_workflow_step: @wfs }, status: :ok
       end
 
       def destroy
@@ -65,6 +70,15 @@ module Api
           render json: { success: true }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
+        end
+      end
+
+      def start
+        @wfs = ProjectWorkflowStep.find(params[:id])
+        if(@wfs.start)
+          render json: { success: true, project_workflow_step: @wfs }, status: :ok
+        else
+          render json: { success: false, errors: @wfs.errors.full_messages }, status: :unprocessable_entity
         end
       end
 

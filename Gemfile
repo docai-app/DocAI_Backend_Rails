@@ -96,3 +96,8 @@ gem 'zip_tricks'
 gem 'omniauth'
 gem 'omniauth-google-oauth2'
 gem 'omniauth-rails_csrf_protection'
+
+gem 'net-scp'
+gem 'net-ssh'
+gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
+gem 'acts_as_list'

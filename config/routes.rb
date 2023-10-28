@@ -202,14 +202,32 @@ Rails.application.routes.draw do
 
       # **********Project Workflow API**********
       resources :project_workflows, only: %i[index show create update destroy] do
+        member do
+          post 'start'
+        end
+        
         collection do
+          post 'duplicate' # 複製一個 project workflow 出黎
         end
       end
 
       # **********Project Workflow Step API**********
       resources :project_workflow_steps, only: %i[index show create update destroy] do
+        member do
+          post 'start'
+          post 'finish'
+        end
+
         collection do
           get 'project_workflow/:project_workflow_id', to: 'project_workflow_steps#show_by_project_workflow_id'
+        end
+      end
+
+      # ********** Dags API ***********
+      resources :dags
+      resources :dag_runs do
+        member do 
+          get 'check_status_finish'
         end
       end
     end
