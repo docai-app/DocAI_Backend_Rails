@@ -57,7 +57,11 @@ class ProjectWorkflowStep < ApplicationRecord
                              { belongs_user_id: assignee_id })
         puts "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
         ActionCable.server.broadcast(
-          "chat_ProjectWorkflow_#{chatbot.id}_#{assignee_id}", { message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}" }
+          "chat_ProjectWorkflow_#{chatbot.id}_#{assignee_id}", { 
+            message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
+            chatbot_id: chatbot.id,
+            assignee_id: assignee_id
+          }
         )
       end
     else
@@ -68,7 +72,11 @@ class ProjectWorkflowStep < ApplicationRecord
                              { belongs_user_id: assignee_id })
         puts "#{name} has assigned to #{assignee.email}"
         ActionCable.server.broadcast(
-          "chat_SystemAssistant_#{chatbot.id}_#{assignee_id}", { message: "#{name} has assigned to #{assignee.email}" }
+          "chat_SystemAssistant_#{chatbot.id}_#{assignee_id}", { 
+            message: "#{name} has assigned to #{assignee.email}" ,
+            chatbot_id: chatbot.id,
+            assignee_id: assignee_id
+          }
         )
       end
     end
