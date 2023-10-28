@@ -75,7 +75,7 @@ module Api
 
       def start
         @wfs = ProjectWorkflowStep.find(params[:id])
-        if(@wfs.start)
+        if @wfs.start
           render json: { success: true, project_workflow_step: @wfs }, status: :ok
         else
           render json: { success: false, errors: @wfs.errors.full_messages }, status: :unprocessable_entity

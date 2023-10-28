@@ -206,7 +206,7 @@ Rails.application.routes.draw do
         member do
           post 'start'
         end
-        
+
         collection do
           post 'duplicate' # 複製一個 project workflow 出黎
         end
@@ -227,7 +227,7 @@ Rails.application.routes.draw do
       # ********** Dags API ***********
       resources :dags
       resources :dag_runs do
-        member do 
+        member do
           get 'check_status_finish'
         end
       end

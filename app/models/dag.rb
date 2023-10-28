@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: dags
@@ -22,8 +24,7 @@ require 'net/scp'
 require 'net/ssh'
 require 'tempfile'
 class Dag < ApplicationRecord
-
-  store_accessor :meta #, :dag_name
+  store_accessor :meta # , :dag_name
 
   belongs_to :user
 
@@ -41,20 +42,18 @@ class Dag < ApplicationRecord
   end
 
   def self.normalize_name(name)
-    special_chars_regex = /[<>\/\\|:"*?()']/
+    special_chars_regex = %r{[<>/\\|:"*?()']}
     name.gsub(/\s+/, '_').gsub(special_chars_regex, '')
   end
 
   def sync_to_airflow
     # {input: sfsf} 變成 [input: sfsf]
-    wf = self['meta']['workflow'].transform_values do |value| 
-      if value.key?("prompt")
-        value["prompt"] = value["prompt"].gsub(/\{([^{}]+)\}(?!\})/, "[\\1]")
-      end
+    wf = self['meta']['workflow'].transform_values do |value|
+      value['prompt'] = value['prompt'].gsub(/\{([^{}]+)\}(?!\})/, '[\\1]') if value.key?('prompt')
       value
     end
 
-    json_string = {name: name, workflow: wf}.to_json
+    json_string = { name:, workflow: wf }.to_json
     json_string = json_string.gsub(/\{\{\s*(.*?)\s*\}\}/, '{\1}') # {{background}} 變成 {background}
     # binding.pry
     tempfile = Tempfile.new("#{name}.json")
@@ -67,11 +66,11 @@ class Dag < ApplicationRecord
     dag_file_path_on_remote = "/home/akali/airflow_docker/dag_json_configs/#{name}.json"
     Net::SSH.start(ENV['airflow_host'], ENV['airflow_host_user_name'], password: ENV['airflow_host_user_pass']) do |ssh|
       ssh.scp.upload!(tempfile.path, dag_file_path_on_remote)
-      puts "完成上傳"
+      puts '完成上傳'
 
       # 组合切换目录和执行脚本的命令字符串
       command = "cd /home/akali/airflow_docker && bash /home/akali/airflow_docker/import_dag_json.sh #{dag_file_path_on_remote}"
-      
+
       # 执行命令字符串
       result = ssh.exec!(command)
 
@@ -87,7 +86,7 @@ class Dag < ApplicationRecord
     Net::SSH.start(ENV['airflow_host'], ENV['airflow_host_user_name'], password: ENV['airflow_host_user_pass']) do |ssh|
       # 组合切换目录和执行脚本的命令字符串
       command = "cd /home/akali/airflow_docker && bash /home/akali/airflow_docker/remove_dag_json.sh #{dag_file_path_on_remote}"
-      
+
       # 执行命令字符串
       result = ssh.exec!(command)
 
@@ -98,11 +97,11 @@ class Dag < ApplicationRecord
 
   def input_params
     return if self['meta']['workflow'].nil?
+
     r = {}
     self['meta']['workflow'].each do |k, v|
       r[k] = v['input_params']
     end
     r
   end
-
 end

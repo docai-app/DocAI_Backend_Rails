@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: dag_runs
@@ -22,7 +24,6 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class DagRun < ApplicationRecord
-
   store_accessor :meta, :status_stack, :params
   store_accessor :statistic, :current_progress, :blocking_by_user, :notification_sent
   store_accessor :dag_meta, :workflow, :input_params
@@ -38,7 +39,7 @@ class DagRun < ApplicationRecord
 
   after_update :handle_finish_status, if: :status_changed_to_finish?
 
-  enum dag_status: {pending: 0, in_progress: 1, finish: 2}
+  enum dag_status: { pending: 0, in_progress: 1, finish: 2 }
   # TODO: 整個 dag 的 status 都記得要更新, 多數時間係 in_progress
 
   def initialize(*args)
@@ -73,7 +74,7 @@ class DagRun < ApplicationRecord
   end
 
   def as_json(options = {})
-    super(options.merge(methods: [:show_status])).merge(show_status).except("show_status")
+    super(options.merge(methods: [:show_status])).merge(show_status).except('show_status')
   end
 
   def reset_workflow!
@@ -86,23 +87,23 @@ class DagRun < ApplicationRecord
     completed_tasks_count = status_stack.try(:count) || 0
 
     total_tasks_count = workflow.size
-    progress = (completed_tasks_count.to_f / total_tasks_count * 100).round(2)
+    (completed_tasks_count.to_f / total_tasks_count * 100).round(2)
   end
 
   def current_task
-    status_task_names = status_stack.map { |task| task["task_name"] }
-    
+    status_task_names = status_stack.map { |task| task['task_name'] }
+
     workflow.each do |task|
       return task unless status_task_names.include?(task)
     end
-    
-    return nil  # 如果没有找到当前进行中的任务，则返回 nil
+
+    nil # 如果没有找到当前进行中的任务，则返回 nil
   end
 
   def show_status
     {
-      progress: progress,
-      current_task: current_task
+      progress:,
+      current_task:
     }
   end
 
@@ -116,11 +117,11 @@ class DagRun < ApplicationRecord
   end
 
   def find_status_stack_by_key(key)
-    status_stack.find { |obj| obj.key?("name") && obj["name"] == key }
+    status_stack.find { |obj| obj.key?('name') && obj['name'] == key }
   end
 
   def add_or_replace_status_stack(obj)
-    existing_index = status_stack.index { |item| item.key?("name") && item["name"] == obj["name"] }
+    existing_index = status_stack.index { |item| item.key?('name') && item['name'] == obj['name'] }
     if existing_index
       status_stack[existing_index] = obj
     else
@@ -146,16 +147,17 @@ class DagRun < ApplicationRecord
 
   def check_status_finish(name = nil)
     if name.present?
-      status_object = status_stack.find { |item| item.key?("name") && item["name"] == name }
+      status_object = status_stack.find { |item| item.key?('name') && item['name'] == name }
       return false unless status_object
-      status_object["status"] == "finish"
+
+      status_object['status'] == 'finish'
     else
       status_stack
     end
   end
 
   def response_url
-    "https://docai-dev.m2mda.com/api/v1/dag_runs/#{self.id}"
+    "https://docai-dev.m2mda.com/api/v1/dag_runs/#{id}"
   end
 
   def dag_status_check!
@@ -163,14 +165,12 @@ class DagRun < ApplicationRecord
     if p.to_i == 100
       self['dag_status'] = 2
       self['statistic']['current_progress'] = 100
-      save
     else
       self['dag_status'] = 1
       self['statistic']['current_progress'] = p
-      save
     end
+    save
   end
 
-  protected
   # callback methods
 end

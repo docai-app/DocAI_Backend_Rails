@@ -41,7 +41,9 @@ module Api
         @project_workflow.name = params[:name] if params[:name].present?
         @project_workflow.description = params[:description] if params[:description].present?
         @project_workflow.status = params[:status] if params[:status].present?
-        @project_workflow.is_process_workflow = params[:is_process_workflow].to_b if params[:is_process_workflow].present?
+        if params[:is_process_workflow].present?
+          @project_workflow.is_process_workflow = params[:is_process_workflow].to_b
+        end
 
         if @project_workflow.save
           update_chatbot_folder_id if params[:folder_id].present?
