@@ -64,6 +64,12 @@ module Api
         end
       end
 
+      def google_oauth2
+        puts current_user.inspect
+        @user = User.find_for_google_oauth2(params[:uid], params[:access_token], params[:refresh_token], current_user)
+        render json: { success: true, user: @user }, status: :ok
+      end
+
       private
 
       def password_params
@@ -82,6 +88,19 @@ module Api
           total_pages: object.total_pages,
           total_count: object.total_count
         }
+      end
+
+      def find_for_google_oauth2(uid, access_token, refresh_token)
+        user = Identity.where(provider: 'Google', uid:).first&.user
+        # user = User.where(:google_token => access_token.credentials.token, :google_uid => access_token.uid ).first
+        return user if user
+
+        existing_user = current_user
+        return unless existing_user
+
+        existing_user.identities.find_or_create_by(provider: 'Google', uid:,
+                                                   meta: { google_token: access_token, google_refresh_token: refresh_token })
+        existing_user
       end
     end
   end

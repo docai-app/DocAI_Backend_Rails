@@ -62,6 +62,7 @@ gem 'closure_tree'
 gem 'devise'
 gem 'devise-jwt'
 gem 'draper'
+gem 'filterrific'
 gem 'rest-client'
 gem 'rolify'
 

@@ -2,7 +2,7 @@
 
 class ApplicationController < ActionController::API
   include Devise::Controllers::Helpers
-  # before_action :switch_tenant
+  before_action :switch_tenant
   before_action :set_paper_trail_whodunnit
 
   def switch_tenant

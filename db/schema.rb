@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_024_064_932) do
+ActiveRecord::Schema[7.0].define(version: 20_231_029_102_926) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -207,17 +207,11 @@ ActiveRecord::Schema[7.0].define(version: 20_231_024_064_932) do
     t.uuid 'user_id', null: false
     t.string 'provider'
     t.string 'uid'
-    t.jsonb 'metadata', default: {}
+    t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['provider'], name: 'index_identities_on_provider'
     t.index ['user_id'], name: 'index_identities_on_user_id'
-  end
-
-  create_table 'jwt_denylist', force: :cascade do |t|
-    t.string 'jti', null: false
-    t.datetime 'exp', null: false
-    t.index ['jti'], name: 'index_jwt_denylist_on_jti'
   end
 
   create_table 'jwt_denylist', force: :cascade do |t|

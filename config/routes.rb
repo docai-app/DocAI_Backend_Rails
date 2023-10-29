@@ -11,8 +11,7 @@ Rails.application.routes.draw do
   devise_for :users,
              controllers: {
                sessions: 'users/sessions',
-               registrations: 'users/registrations',
-               omniauth_callbacks: 'omniauth_callbacks'
+               registrations: 'users/registrations'
              }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -155,6 +154,7 @@ Rails.application.routes.draw do
       get 'users/me', to: 'users#show_current_user'
       put 'users/me/password', to: 'users#update_password'
       put 'users/me/profile', to: 'users#update_profile'
+      post 'users/auth/google_oauth2', to: 'users#google_oauth2'
 
       # **********Form Projection API**********
       post 'form/projection/preview', to: 'form_projection#preview'

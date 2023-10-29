@@ -30,8 +30,7 @@ class User < ApplicationRecord
          :jwt_authenticatable,
          :registerable,
          :omniauthable,
-         jwt_revocation_strategy: JwtDenylist,
-         omniauth_providers: [:google_oauth2]
+         jwt_revocation_strategy: JwtDenylist
 
   # belongs_to :department, class_name: 'Department', foreign_key: "department_id", optional: true
 
@@ -48,13 +47,15 @@ class User < ApplicationRecord
   has_one :system_assistant, lambda {
     where(object_type: 'UserSystemAssistant')
   }, class_name: 'Chatbot', foreign_key: 'user_id', dependent: :destroy
-  has_many :identities, dependent: :destroy
+  has_many :identities, dependent: :destroy, class_name: 'Identity', foreign_key: 'user_id'
 
   validates_confirmation_of :password
   # after_create :assign_default_role
   # def assign_default_role
   #   add_role(:user) if roles.blank?
   # end
+
+  require 'google/apis/gmail_v1'
 
   def jwt_payload
     {
@@ -64,28 +65,27 @@ class User < ApplicationRecord
     }
   end
 
-  def find_for_google_oauth2(access_token, _signed_in_resource = nil)
-    access_token.info
-    user = Identity.where(provider: 'Google', uid: access_token.uid).first&.user
+  def self.find_for_google_oauth2(uid, access_token, refresh_token, current_user = nil)
+    user = Identity.where(provider: 'Google', uid:).first&.user
     # user = User.where(:google_token => access_token.credentials.token, :google_uid => access_token.uid ).first
     return user if user
 
     existing_user = current_user
     return unless existing_user
 
-    existing_user.identities.find_or_create_by(provider: 'Google', uid: access_token.uid,
-                                               meta: { google_token: access_token.credentials.token })
-    # existing_user.google_uid = access_token.uid
-    # existing_user.google_token = access_token.credentials.token
-    # existing_user.save!
+    existing_user.identities.find_or_create_by(provider: 'Google', uid:,
+                                               meta: { google_token: access_token, google_refresh_token: refresh_token })
     existing_user
   end
 
   def read_gmail_list
+    puts 'read_gmail_list'
+    puts "refresh_token: #{identities.find_by(provider: 'Google').meta['google_refresh_token']}"
+
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id: ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_ID'],
       client_secret: ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_SECRET'],
-      refresh_token: google_token,
+      refresh_token: identities.find_by(provider: 'Google').meta['google_refresh_token'],
       scope: 'https://www.googleapis.com/auth/gmail.readonly'
     )
 
@@ -93,6 +93,8 @@ class User < ApplicationRecord
     gmail.authorization = credentials
 
     result = gmail.list_user_messages('me', max_results: 10)
+
+    puts "result: #{result}"
 
     if result.messages.any?
       result.messages.each do |message|
