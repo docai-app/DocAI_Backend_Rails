@@ -107,8 +107,15 @@ class User < ApplicationRecord
         created_at = Time.at(internal_date.to_i)
         puts "Full Message Created At: #{created_at}"
         # Find the full_message payload header array one item named 'Subject'
+        puts "Full Message Payload Headers: #{full_message.payload.headers.pretty_inspect}"
         subject = full_message.payload.headers.find { |header| header.name == 'Subject' }
         puts "Full Message Subject: #{subject.value}"
+        message_date = full_message.payload.headers.find { |header| header.name == 'Date' }
+        puts "Full Message Date: #{message_date.value}"
+        message_from = full_message.payload.headers.find { |header| header.name == 'From' }
+        puts "Full Message From: #{message_from.value}"
+        message_to = full_message.payload.headers.find { |header| header.name == 'To' }
+        puts "Full Message To: #{message_to.value}"
 
         message_content_utf8 = full_message.payload.parts.second.body.data.scrub('').force_encoding('UTF-8')
         puts "Message Content UTF-8: #{message_content_utf8}"

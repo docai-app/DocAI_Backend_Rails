@@ -10,10 +10,10 @@ module Api
         if params[:has_label].present?
           @smart_extraction_schemas = @smart_extraction_schemas.where(has_label: params[:has_label]).order(created_at: :desc).page(params[:page])
         end
-        render json: { 
-          success: true, 
+        render json: {
+          success: true,
           smart_extraction_schemas: @smart_extraction_schemas,
-          meta: pagination_meta(@smart_extraction_schemas) 
+          meta: pagination_meta(@smart_extraction_schemas)
         }, status: :ok
       end
 
@@ -110,7 +110,7 @@ module Api
 
       def push_documents_to_smart_extraction_schema
         document_ids = params[:document_ids] || []
-        @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id]).where(has_label: false)
+        @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         documents = Document.find(document_ids)
         documents.each do |document|
           DocumentSmartExtractionDatum.create(document_id: document.id,
