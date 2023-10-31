@@ -10,8 +10,11 @@ module Api
         if params[:has_label].present?
           @smart_extraction_schemas = @smart_extraction_schemas.where(has_label: params[:has_label]).order(created_at: :desc).page(params[:page])
         end
-        render json: { success: true, smart_extraction_schemas: @smart_extraction_schemas, meta: pagination_meta(@smart_extraction_schemas) },
-               status: :ok
+        render json: { 
+          success: true, 
+          smart_extraction_schemas: @smart_extraction_schemas,
+          meta: pagination_meta(@smart_extraction_schemas) 
+        }, status: :ok
       end
 
       def show

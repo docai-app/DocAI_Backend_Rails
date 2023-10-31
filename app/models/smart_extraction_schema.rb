@@ -49,4 +49,21 @@ class SmartExtractionSchema < ApplicationRecord
 
     errors.add(:data_schema, 'is not in the required format')
   end
+
+  def as_json(options = {})
+    super(options.merge(
+      include: {
+        tag: { only: [:id, :name] },
+        user: { only: [:id, :nickname, :email] }
+      }
+    )).transform_keys do |key|
+      case key
+      when "tag"
+        "label"
+      else
+        key
+      end
+    end
+  end
+
 end

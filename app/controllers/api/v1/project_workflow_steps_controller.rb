@@ -37,6 +37,7 @@ module Api
         @project_workflow_step.assignee_id = current_user.id unless params[:assignee_id].present?
         @project_workflow_step.deadline = params[:deadline] if params[:deadline].present?
         @project_workflow_step.description = params[:description] if params[:description].present?
+        @project_workflow_step.is_human = params[:is_human] if params[:is_human].present?
 
         if params[:project_workflow_id].present?
           @project_workflow = ProjectWorkflow.find(params[:project_workflow_id])
@@ -61,6 +62,7 @@ module Api
         @wfs.deadline = params[:deadline] if params[:deadline].present?
         @wfs.dag_id = params[:dag_id] if params[:dag_id].present?
         @wfs.assignee_id = params[:assignee_id] if params[:assignee_id].present?
+        @wfs.is_human = params[:is_human] if params[:is_human].present?
         @wfs.save
         render json: { success: true, project_workflow_step: @wfs }, status: :ok
       end

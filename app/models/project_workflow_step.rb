@@ -23,7 +23,7 @@ class ProjectWorkflowStep < ApplicationRecord
   acts_as_list scope: :project_workflow
 
   store_accessor :meta, :started_at, :criteria, :custom_conditions, :description
-  store_accessor :dag_meta, :dag_id, :dag_run_id
+  store_accessor :dag_meta, :dag_id, :dag_run_id, :dag_name
 
   belongs_to :user, class_name: 'User', foreign_key: 'user_id', optional: true
   belongs_to :assignee, class_name: 'User', foreign_key: 'assignee_id', optional: true
@@ -33,6 +33,8 @@ class ProjectWorkflowStep < ApplicationRecord
   before_save :set_custom_conditions_from_dag
 
   after_save :handle_assignee_change
+
+  scope :has_dag, -> { where("dag_meta->>'dag_id' IS NOT NULL") }
 
   enum status: {
     pending: 0,
@@ -134,6 +136,7 @@ class ProjectWorkflowStep < ApplicationRecord
         }
       end
     }
+    self['dag_meta']['dag_name'] = dag.name
   end
 
   protected
