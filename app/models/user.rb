@@ -92,21 +92,77 @@ class User < ApplicationRecord
     gmail = Google::Apis::GmailV1::GmailService.new
     gmail.authorization = credentials
 
-    result = gmail.list_user_messages('me', max_results: 10)
+    # Doesn't have attachments
+    no_attachments_result = gmail.list_user_messages('me', max_results: 10, include_spam_trash: false,
+                                                           q: 'after:2023/10/30 !has:attachment')
+    puts "No Attachments Result: #{no_attachments_result.inspect}"
 
-    puts "result: #{result}"
+    if no_attachments_result.messages
+      no_attachments_result.messages.each do |message|
+        # puts "Message: #{message.inspect}"
 
-    if result.messages.any?
-      result.messages.each do |message|
         full_message = gmail.get_user_message('me', message.id)
+        internal_date = full_message.internal_date.to_s.chop.chop.chop
+        puts "Full Message Internal Date: #{internal_date}"
+        created_at = Time.at(internal_date.to_i)
+        puts "Full Message Created At: #{created_at}"
+        # Find the full_message payload header array one item named 'Subject'
+        subject = full_message.payload.headers.find { |header| header.name == 'Subject' }
+        puts "Full Message Subject: #{subject.value}"
 
-        message_content = full_message.payload.body.data || 'No Content'
-        message_content_utf8 = message_content.scrub('').force_encoding('UTF-8')
-        puts "Message Content: #{message_content_utf8}"
-        puts '------------------------'
+        message_content_utf8 = full_message.payload.parts.second.body.data.scrub('').force_encoding('UTF-8')
+        puts "Message Content UTF-8: #{message_content_utf8}"
+        puts '------------------------\n\n'
+      rescue StandardError => e
+        puts "Exception: #{e}"
+        puts '------------------------\n\n'
+        next
+
+        # puts "Full Message Payload Second Parts Second Parts Body Data: #{full_message.payload.parts.second.body.data.to_s}"
+        # puts "Full Message Payload Second Parts Body Data: #{full_message.payload.parts.second.pretty_inspect}"
+        # puts "Full Message Payload Second Parts Body Data to_s: #{full_message.payload.parts.second.body.data.to_s}"
+        # puts "Full message payload body data: #{full_message.payload.body.inspect}"
+        # message_content = full_message.payload.body.data || 'No Content'
+        # puts "Message Content: #{message_content}"
       end
     else
       puts 'No messages found.'
     end
+
+    # Has attachments
+    # attachments_result = gmail.list_user_messages('me', max_results: 20, include_spam_trash: false, q: 'after:2023/10/30 has:attachment', )
+
+    # if attachments_result.messages
+    #   attachments_result.messages.each do |message|
+    #     # Write the try catch block here:
+    #     begin
+    #       full_message = gmail.get_user_message('me', message.id)
+    #       internal_date = full_message.internal_date.to_s.chop.chop.chop
+    #       puts "Full Message Internal Date: #{internal_date}"
+    #       created_at = Time.at(internal_date.to_i)
+    #       puts "Full Message Created At: #{created_at}"
+    #       # Find the full_message payload header array one item named 'Subject'
+    #       subject = full_message.payload.headers.find { |header| header.name == 'Subject' }
+    #       puts "Full Message Subject: #{subject.value}"
+
+    #       puts "Full Message Payload Second Parts Second Parts Body Data: #{full_message.payload.parts.first.parts.last.body.data.to_s}"
+    #       message_content_utf8 = full_message.payload.parts.first.parts.last.body.data.scrub('').force_encoding('UTF-8')
+    #       puts "Message Content UTF-8: #{message_content_utf8}"
+    #       puts '------------------------\n\n'
+    #     rescue => exception
+    #       puts "Exception: #{exception}"
+    #       puts '------------------------\n\n'
+    #       next
+    #     end
+    #     # puts "Full Message Payload Second Parts Second Parts Body Data: #{full_message.payload.parts.second.body.data.to_s}"
+    #     # puts "Full Message Payload Second Parts Body Data: #{full_message.payload.parts.second.pretty_inspect}"
+    #     # puts "Full Message Payload Second Parts Body Data to_s: #{full_message.payload.parts.second.body.data.to_s}"
+    #     # puts "Full message payload body data: #{full_message.payload.body.inspect}"
+    #     # message_content = full_message.payload.body.data || 'No Content'
+    #     # puts "Message Content: #{message_content}"
+    #   end
+    # else
+    #   puts 'No messages found.'
+    # end
   end
 end
