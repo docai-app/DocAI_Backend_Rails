@@ -60,6 +60,7 @@ module Api
         @wfs.status = params[:status] if params[:status].present?
         @wfs.deadline = params[:deadline] if params[:deadline].present?
         @wfs.dag_id = params[:dag_id] if params[:dag_id].present?
+        @wfs.assignee_id = params[:assignee_id] if params[:assignee_id].present?
         @wfs.save
         render json: { success: true, project_workflow_step: @wfs }, status: :ok
       end
