@@ -20,11 +20,11 @@
 #  assignee_id         :uuid
 #
 class ProjectWorkflowStep < ApplicationRecord
-
   include AASM
   acts_as_list scope: :project_workflow
 
-  store_accessor :meta, :started_at, :criteria, :custom_conditions, :description, :notification_interval, :notification_last_sent_at, :log_data, :notification_method
+  store_accessor :meta, :started_at, :criteria, :custom_conditions, :description, :notification_interval,
+                 :notification_last_sent_at, :log_data, :notification_method
   store_accessor :dag_meta, :dag_id, :dag_run_id, :dag_name
 
   belongs_to :user, class_name: 'User', foreign_key: 'user_id', optional: true
@@ -92,15 +92,15 @@ class ProjectWorkflowStep < ApplicationRecord
     state :failed
 
     event :start do
-      transitions from: :pending, to: :running, after: Proc.new { execute! }
+      transitions from: :pending, to: :running, after: proc { execute! }
     end
 
     event :finish do
-      transitions from: :running, to: :completed, after: Proc.new { set_log_data('finish') }
+      transitions from: :running, to: :completed, after: proc { set_log_data('finish') }
     end
 
     event :cancel do
-      transitions from: :completed, to: :running, after: Proc.new { set_log_data('cancel') }
+      transitions from: :completed, to: :running, after: proc { set_log_data('cancel') }
     end
 
     # after_transition on: :start, do: :send_notification_if_status_changed
@@ -175,15 +175,16 @@ class ProjectWorkflowStep < ApplicationRecord
     # 发送应用内通知给 assignee
     # 这里是示例代码，你需要根据实际情况进行实现
     # InAppNotificationService.send_set_log_data(assignee, log_data[:message])
-    if chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}", { belongs_user_id: assignee_id })
+    if chatbot.add_message('system', 'talk', "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
+                           { belongs_user_id: assignee_id })
       puts "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}"
       ActionCable.server.broadcast(
         "chat_ProjectWorkflow_#{chatbot.id}_#{assignee_id}", {
-        message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
-        chatbot_id: chatbot.id,
-        assignee_id: 
-      }
-    )
+          message: "#{project_workflow.name}'s #{name} has assigned to #{assignee.email}",
+          chatbot_id: chatbot.id,
+          assignee_id:
+        }
+      )
     end
   end
 
@@ -224,6 +225,7 @@ class ProjectWorkflowStep < ApplicationRecord
 
   def complete!
     return unless fulfill_criteria?
+
     complete
   end
 

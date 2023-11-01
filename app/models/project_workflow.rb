@@ -70,15 +70,13 @@ class ProjectWorkflow < ApplicationRecord
   def execute_next_step_execution!(current_step_execution)
     next_step_execution = steps.find_by(position: current_step_execution.position + 1)
     if next_step_execution.present?
-      next_step_execution.start! 
+      next_step_execution.start!
       update_column(:meta, self['meta'].merge(current_task_id: next_step_execution.id))
-    else
+    elsif steps.pluck(:status).all?('completed')
       # 如果冇下一步，即係應該做完了
-      if steps.pluck(:status).all?("completed")
-        completed!
-      else
-        failed!
-      end
+      completed!
+    else
+      failed!
     end
   end
 

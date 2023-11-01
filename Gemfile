@@ -104,5 +104,5 @@ gem 'net-scp'
 gem 'net-ssh'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 
-gem 'google-api-client'
 gem 'aasm'
+gem 'google-api-client'
