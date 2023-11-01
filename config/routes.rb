@@ -170,6 +170,10 @@ Rails.application.routes.draw do
 
       # **********Chatbot API**********
       resources :chatbots, only: %i[index show create update destroy] do
+        member do
+          get 'messages'
+          post 'mark_messages_read'
+        end
         collection do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'

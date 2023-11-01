@@ -64,7 +64,22 @@ class ProjectWorkflow < ApplicationRecord
 
   def start!
     running!
-    start_first_step_execution
+    start_first_step_execution if is_process_workflow?
+  end
+
+  def execute_next_step_execution!(current_step_execution)
+    next_step_execution = steps.find_by(position: current_step_execution.position + 1)
+    if next_step_execution.present?
+      next_step_execution.start! 
+      update_column(:meta, self['meta'].merge(current_task_id: next_step_execution.id))
+    else
+      # 如果冇下一步，即係應該做完了
+      if steps.pluck(:status).all?("completed")
+        completed!
+      else
+        failed!
+      end
+    end
   end
 
   def start_first_step_execution

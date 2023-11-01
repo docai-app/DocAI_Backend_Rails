@@ -1,6 +1,8 @@
 GEM
-  remote: https://rubygems.org/
+  remote: https://gems.ruby-china.com/
   specs:
+    aasm (5.5.0)
+      concurrent-ruby (~> 1.0)
     actioncable (7.0.3)
       actionpack (= 7.0.3)
       activesupport (= 7.0.3)
@@ -474,6 +476,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  aasm
   acts-as-taggable-on (~> 9.0)
   acts_as_list
   addressable
