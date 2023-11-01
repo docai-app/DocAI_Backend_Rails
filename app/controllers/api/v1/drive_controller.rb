@@ -12,11 +12,11 @@ module Api
 
       def index
         @folders = current_user_accessible_folders
-        @folders = Kaminari.paginate_array(@folders).page(params[:page]).per(50)
+        @folders = Kaminari.paginate_array(@folders).page(params[:page])
         @documents = Document.where(folder_id: nil).order(updated_at: :desc).includes(:user, :labels).as_json(
           except: [:label_list], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
         )
-        @documents = Kaminari.paginate_array(@documents).page(params[:page]).per(50)
+        @documents = Kaminari.paginate_array(@documents).page(params[:page])
         @meta = compare_pagination_meta(@folders, @documents)
         render json: { success: true, folders: @folders, documents: @documents, meta: @meta }, status: :ok
       end
@@ -25,12 +25,12 @@ module Api
         @folders = Folder.where(parent_id: params[:id]).order(updated_at: :desc).includes(:user).as_json(include: { user: { only: %i[
                                                                                                            id email nickname
                                                                                                          ] } })
-        @folders = Kaminari.paginate_array(@folders).page(params[:page]).per(50)
+        @folders = Kaminari.paginate_array(@folders).page(params[:page])
         @ancestors = @current_user_folder.ancestors
         @documents = Document.where(folder_id: params[:id]).order(updated_at: :desc).includes(%i[user labels]).as_json(
           except: [:label_list], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
         )
-        @documents = Kaminari.paginate_array(@documents).page(params[:page]).per(50)
+        @documents = Kaminari.paginate_array(@documents).page(params[:page])
         @meta = compare_pagination_meta(@folders, @documents)
         render json: { success: true, folder: @current_user_folder, folders: @folders, ancestors: @ancestors, documents: @documents, meta: @meta },
                status: :ok
