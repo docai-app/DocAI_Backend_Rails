@@ -3,7 +3,7 @@
 module Api
   module V1
     class ChatbotsController < ApiController
-      before_action :authenticate_user!, only: %i[create update destroy]
+      before_action :authenticate_user!, only: %i[create update destroy mark_messages_read]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
@@ -22,6 +22,22 @@ module Api
         @chatbot.increment_access_count!
         @folders = Folder.find(@chatbot.source['folder_id']) if @chatbot.source['folder_id'][0].present?
         render json: { success: true, chatbot: @chatbot, folders: @folders }, status: :ok
+      end
+
+      def messages
+        @chatbot = Chatbot.find(params[:id])
+        @messages = @chatbot.messages.where(is_read: false).order(created_at: :desc)
+        @messages = Kaminari.paginate_array(@messages).page(params[:page])
+        render json: { success: true, messages: @messages, meta: pagination_meta(@messages) }, status: :ok
+      end
+
+      def mark_messages_read
+        # 只有 assignee 係自己的先會 mark read
+        @chatbot = Chatbot.find(params[:id])
+        @messages = @chatbot.messages.where(is_read: false).order(created_at: :desc)
+        @messages.update(is_read: true) # load 過呢條 api, 就當係全部都 read 了
+        @messages = Kaminari.paginate_array(@messages).page(params[:page])
+        render json: { success: true }
       end
 
       def create

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-source 'https://rubygems.org'
-# source 'https://gems.ruby-china.com'
+# source 'https://rubygems.org'
+source 'https://gems.ruby-china.com'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
 ruby '3.1.0'
@@ -105,3 +105,4 @@ gem 'net-ssh'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 
 gem 'google-api-client'
+gem 'aasm'
