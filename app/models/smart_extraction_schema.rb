@@ -53,17 +53,16 @@ class SmartExtractionSchema < ApplicationRecord
   def as_json(options = {})
     super(options.merge(
       include: {
-        tag: { only: [:id, :name] },
-        user: { only: [:id, :nickname, :email] }
+        tag: { only: %i[id name] },
+        user: { only: %i[id nickname email] }
       }
     )).transform_keys do |key|
       case key
-      when "tag"
-        "label"
+      when 'tag'
+        'label'
       else
         key
       end
     end
   end
-
 end

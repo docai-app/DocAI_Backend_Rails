@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_029_102_926) do
+ActiveRecord::Schema[7.0].define(version: 20_231_031_081_447) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -381,6 +381,24 @@ ActiveRecord::Schema[7.0].define(version: 20_231_029_102_926) do
     t.index ['name'], name: 'index_tags_on_name', unique: true
   end
 
+  create_table 'user_mailboxes', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.uuid 'document_id', null: false
+    t.string 'message_id'
+    t.string 'subject'
+    t.string 'sender'
+    t.string 'recipient'
+    t.datetime 'sent_at'
+    t.datetime 'received_at'
+    t.jsonb 'attachment'
+    t.text 'content'
+    t.boolean 'read', default: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['document_id'], name: 'index_user_mailboxes_on_document_id'
+    t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
+  end
+
   create_table 'users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'email', default: '', null: false
     t.string 'encrypted_password', default: '', null: false
@@ -434,4 +452,6 @@ ActiveRecord::Schema[7.0].define(version: 20_231_029_102_926) do
   add_foreign_key 'projects', 'folders'
   add_foreign_key 'projects', 'users'
   add_foreign_key 'taggings', 'tags'
+  add_foreign_key 'user_mailboxes', 'documents'
+  add_foreign_key 'user_mailboxes', 'users'
 end
