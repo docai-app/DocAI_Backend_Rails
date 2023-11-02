@@ -209,6 +209,9 @@ Rails.application.routes.draw do
       resources :project_workflows, only: %i[index show create update destroy] do
         member do
           post 'start'
+          post 'pause'
+          post 'resume'
+          post 'restart'
         end
 
         collection do

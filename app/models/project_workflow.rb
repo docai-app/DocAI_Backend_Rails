@@ -18,7 +18,7 @@
 #  is_template         :boolean          default(FALSE), not null
 #
 class ProjectWorkflow < ApplicationRecord
-  store_accessor :meta, :description, :current_task_id
+  store_accessor :meta, :description, :current_task_id, :executed_times
 
   has_one :chatbot, dependent: :destroy, class_name: 'Chatbot', foreign_key: 'object_id'
   has_many :steps, lambda {
@@ -33,8 +33,20 @@ class ProjectWorkflow < ApplicationRecord
   enum status: {
     draft: 0,
     running: 1,
-    finish: 2
+    finish: 2,
+    paused: 3
   }
+
+  def calc_executed_times
+    # 其實即係自己有幾多個衍生物
+    # 如果不是衍生物，咁就係 start! 時將 source_workflow_id 改成是自己的 id, 即自己係自己的衍生
+    ProjectWorkflow.where(source_workflow_id: source_workflow_id).count
+  end
+
+  def update_executed_times
+    self['meta']['executed_times'] = calc_executed_times
+    save
+  end
 
   def duplicate!
     return nil unless is_process_workflow?
@@ -54,17 +66,37 @@ class ProjectWorkflow < ApplicationRecord
     new_workflow
   end
 
-  # 如果要開始運行這個 process workflow
-  # 即係要搬返 workflow_exection 入邊D code 過黎
   def restart!
-    steps.each do |step|
+    # 重開其實相當於複製一個新的出黎，而原本的呢個就相當於一個運行記錄了
+    new_wf = duplicate!
+    new_wf.steps.each do |step|
       step.update(status: 0)
     end
+    new_wf.start!
+  end
+
+  def pause!
+    paused!
+  end
+
+  def resume!
+    running!
   end
 
   def start!
-    running!
-    start_first_step_execution if is_process_workflow?
+    if source_workflow_id.nil?
+      update(source_workflow_id: id)
+    end
+
+    begin
+      update_executed_times
+      running!
+      start_first_step_execution if is_process_workflow?
+    rescue => error
+      puts error
+      logger.error error
+      false
+    end
   end
 
   def execute_next_step_execution!(current_step_execution)
