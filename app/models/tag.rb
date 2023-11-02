@@ -21,8 +21,4 @@ class Tag < ApplicationRecord
   has_many :smart_extraction_schemas, class_name: 'SmartExtractionSchema', foreign_key: 'label_id'
   has_one :folder, class_name: 'Folder', foreign_key: 'folder_id'
   has_one :form_schema, class_name: 'FormSchema', foreign_key: 'label_id'
-
-  def smart_extraction_schemas_count
-    smart_extraction_schemas.count
-  end
 end

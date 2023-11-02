@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_102_071_022) do
+ActiveRecord::Schema[7.0].define(version: 20_231_102_075_419) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -378,6 +378,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_102_071_022) do
     t.uuid 'folder_id'
     t.uuid 'user_id'
     t.jsonb 'meta', default: {}
+    t.integer 'smart_extraction_schemas_count', default: 0
     t.index ['name'], name: 'index_tags_on_name', unique: true
   end
 

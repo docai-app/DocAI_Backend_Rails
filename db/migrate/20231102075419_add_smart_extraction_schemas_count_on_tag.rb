@@ -5,4 +5,3 @@ class AddSmartExtractionSchemasCountOnTag < ActiveRecord::Migration[7.0]
     add_column :tags, :smart_extraction_schemas_count, :integer, default: 0
   end
 end
-

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-namespace :tags_folder do
+namespace :tags do
   task create_folder_for_each_tag: :environment do
     Apartment::Tenant.each do |tenant|
       Apartment::Tenant.switch!(tenant)
@@ -18,5 +18,17 @@ namespace :tags_folder do
         tag.update(folder_id: @folder.id, user_id: nil)
       end
     end
+  end
+
+  task update_smart_extraction_schemas_count_on_tag: :environment do
+    Apartment::Tenant.each do |tenant|
+      Apartment::Tenant.switch!(tenant)
+      puts "====== tenant: #{tenant} ======"
+      Tag.all.each do |t|
+        Tag.reset_counters(t.id, :smart_extraction_schemas)
+        puts "====== Tag: #{t.name}, smart_extraction_schemas_count: #{t.smart_extraction_schemas_count} ======"
+      end
+    end
+    puts '====== Done ======'
   end
 end
