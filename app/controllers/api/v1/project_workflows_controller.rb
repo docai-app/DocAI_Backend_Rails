@@ -5,9 +5,17 @@ module Api
     class ProjectWorkflowsController < ApiController
       def index
         @project_workflows = ProjectWorkflow.where(user_id: current_user.id).includes([:steps])
+        
+        
+        # 其實 is template 同 is process workflow 好似係一樣的野，唔知之前 api 用左邊個，就咁兩個都寫
         if params[:is_template].present?
-          @project_workflows = @project_workflows.where(is_template: params[:is_template]).includes([:steps])
+          @project_workflows = @project_workflows.where(is_template: params[:is_template]) #.includes([:steps])
         end
+
+        if params[:is_process_workflow].present?
+          @project_workflows = @project_workflows.where(is_process_workflow: params[:is_process_workflow]) #.includes([:steps])
+        end
+
         @project_workflows = @project_workflows.includes([:steps]).as_json(include: :steps)
         @project_workflows = Kaminari.paginate_array(@project_workflows).page(params[:page])
         render json: { success: true, project_workflows: @project_workflows, meta: pagination_meta(@project_workflows) },
@@ -62,6 +70,24 @@ module Api
       def start
         @project_workflow = ProjectWorkflow.find(params[:id])
         @project_workflow.start!
+        render json: { success: true, project_workflow: @project_workflow }, status: :ok
+      end
+
+      def pause
+        @project_workflow = ProjectWorkflow.find(params[:id])
+        @project_workflow.pause!
+        render json: { success: true, project_workflow: @project_workflow }, status: :ok
+      end
+
+      def resume
+        @project_workflow = ProjectWorkflow.find(params[:id])
+        @project_workflow.resume!
+        render json: { success: true, project_workflow: @project_workflow }, status: :ok
+      end
+
+      def restart
+        @project_workflow = ProjectWorkflow.find(params[:id])
+        @project_workflow.restart!
         render json: { success: true, project_workflow: @project_workflow }, status: :ok
       end
 
