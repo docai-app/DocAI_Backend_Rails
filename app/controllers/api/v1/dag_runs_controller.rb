@@ -4,10 +4,11 @@ module Api
   module V1
     class DagRunsController < ApiController
       before_action :set_dag_run, except: %i[create index]
+      before_action :authenticate_user!
 
       # 不限 user 可以使用
       def api_user
-        nil
+        current_user
       end
 
       def index
