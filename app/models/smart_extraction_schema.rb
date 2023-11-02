@@ -18,7 +18,7 @@
 #
 class SmartExtractionSchema < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User'
-  belongs_to :tag, optional: true, class_name: 'Tag', foreign_key: 'label_id'
+  belongs_to :tag, optional: true, class_name: 'Tag', foreign_key: 'label_id', counter_cache: true
   has_many :document_smart_extraction_datum, dependent: :destroy, class_name: 'DocumentSmartExtractionDatum',
                                              foreign_key: 'smart_extraction_schema_id'
   has_many :documents, through: :document_smart_extraction_datum, class_name: 'Document', foreign_key: 'document_id'

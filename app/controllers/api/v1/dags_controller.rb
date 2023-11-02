@@ -3,7 +3,7 @@
 module Api
   module V1
     class DagsController < ApiController
-      before_action :authenticate_user!, only: [:create, :update]
+      before_action :authenticate_user!, only: %i[create update]
       before_action :set_dag, except: [:create]
 
       def index
@@ -19,7 +19,7 @@ module Api
         # 先檢查 dag 的名稱，如果已有的話，咁就 update
         @dag = Dag.where(name: Dag.normalize_name(param['name'])).first
         @dag = Dag.new(user: current_user) unless @dag.nil?
-        
+
         @dag['meta'] = param
         @dag.name = param['name']
         if @dag.save!
