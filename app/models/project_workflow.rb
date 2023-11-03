@@ -40,7 +40,7 @@ class ProjectWorkflow < ApplicationRecord
   def calc_executed_times
     # 其實即係自己有幾多個衍生物
     # 如果不是衍生物，咁就係 start! 時將 source_workflow_id 改成是自己的 id, 即自己係自己的衍生
-    ProjectWorkflow.where(source_workflow_id: source_workflow_id).count
+    ProjectWorkflow.where(source_workflow_id:).count
   end
 
   def update_executed_times
@@ -84,17 +84,15 @@ class ProjectWorkflow < ApplicationRecord
   end
 
   def start!
-    if source_workflow_id.nil?
-      update(source_workflow_id: id)
-    end
+    update(source_workflow_id: id) if source_workflow_id.nil?
 
     begin
       update_executed_times
       running!
       start_first_step_execution if is_process_workflow?
-    rescue => error
-      puts error
-      logger.error error
+    rescue StandardError => e
+      puts e
+      logger.error e
       false
     end
   end

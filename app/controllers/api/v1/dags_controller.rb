@@ -3,7 +3,7 @@
 module Api
   module V1
     class DagsController < ApiController
-      before_action :authenticate_user!, only: [:create, :update]
+      before_action :authenticate_user!, only: %i[create update]
       before_action :set_dag, except: [:create]
 
       def index

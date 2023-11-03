@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AlterSourceWorkflowIdToUuid < ActiveRecord::Migration[7.0]
   def change
     remove_column :project_workflows, :source_workflow_id
