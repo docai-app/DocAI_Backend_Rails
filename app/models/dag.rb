@@ -24,7 +24,7 @@ require 'net/scp'
 require 'net/ssh'
 require 'tempfile'
 class Dag < ApplicationRecord
-  store_accessor :meta # , :dag_name
+  store_accessor :meta #, :original_name
 
   belongs_to :user
 
@@ -37,7 +37,6 @@ class Dag < ApplicationRecord
   def name_no_space
     # special_chars_regex = /[<>\/\\|:"*?()']/
     # self['name'] = self['name'].gsub(/\s+/, '_').gsub(special_chars_regex, '')
-
     self['name'] = Dag.normalize_name(self['name'])
   end
 
