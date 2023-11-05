@@ -174,7 +174,13 @@ module Api
 
       def smart_extraction_schema_params
         params.require(:smart_extraction_schema).permit(:name, :description, :label_id, :data_schema, :user_id,
-                                                        schema: %i[key data_type query])
+                                                        schema: [:key, :data_type, { query: [] }]).tap do |whitelisted|
+          if params[:smart_extraction_schema] && params[:smart_extraction_schema][:schema]
+            params[:smart_extraction_schema][:schema].each_with_index do |schema, index|
+              whitelisted[:schema][index][:query] = schema[:query] if schema[:query].is_a?(String)
+            end
+          end
+        end
       end
 
       def create_smart_extraction_schema_view(schema)

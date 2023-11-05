@@ -33,8 +33,28 @@ class SmartExtractionSchema < ApplicationRecord
       return
     end
 
+    # 檢查query的類型是否一致
+    first_query_type = nil
+
     schema.each do |s|
-      errors.add(:schema, "invalid entry: #{s.inspect}") unless s.is_a?(Hash) && s.keys.sort == %w[data_type key query]
+      # 確保每個entry包含這三個鍵
+      puts s
+      unless s.keys.sort == %w[key data_type query].sort
+        errors.add(:schema, "invalid entry: #{s.inspect}")
+        next
+      end
+
+      # 確認query類型
+      query = s['query']
+      current_query_type = query.is_a?(Array) ? :array : :string
+
+      # 設置或檢查query類型是否一致
+      if first_query_type.nil?
+        first_query_type = current_query_type # 記錄第一個query的類型
+      elsif current_query_type != first_query_type
+        errors.add(:schema, 'All query fields should be of the same type')
+        break # 如果類型不一致，中斷檢查
+      end
     end
   end
 
@@ -44,8 +64,8 @@ class SmartExtractionSchema < ApplicationRecord
     # Check if data_schema is a hash and if its keys same to keys from the schema
     # return if data_schema.is_a?(Hash) && (data_schema.keys - schema_keys).empty?
     return if data_schema.is_a?(Hash) && (data_schema.keys.sort == schema_keys.sort) && schema_keys.all? do |key|
-                key.match?(/\A[a-z_]+\z/)
-              end
+      key.match?(/\A[a-z_]+\z/)
+    end
 
     errors.add(:data_schema, 'is not in the required format')
   end
