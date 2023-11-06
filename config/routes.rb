@@ -11,8 +11,7 @@ Rails.application.routes.draw do
   devise_for :users,
              controllers: {
                sessions: 'users/sessions',
-               registrations: 'users/registrations',
-               omniauth_callbacks: 'omniauth_callbacks'
+               registrations: 'users/registrations'
              }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -155,6 +154,7 @@ Rails.application.routes.draw do
       get 'users/me', to: 'users#show_current_user'
       put 'users/me/password', to: 'users#update_password'
       put 'users/me/profile', to: 'users#update_profile'
+      post 'users/auth/google_oauth2', to: 'users#google_oauth2'
 
       # **********Form Projection API**********
       post 'form/projection/preview', to: 'form_projection#preview'
@@ -170,6 +170,10 @@ Rails.application.routes.draw do
 
       # **********Chatbot API**********
       resources :chatbots, only: %i[index show create update destroy] do
+        member do
+          get 'messages'
+          post 'mark_messages_read'
+        end
         collection do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
@@ -205,8 +209,11 @@ Rails.application.routes.draw do
       resources :project_workflows, only: %i[index show create update destroy] do
         member do
           post 'start'
+          post 'pause'
+          post 'resume'
+          post 'restart'
         end
-        
+
         collection do
           post 'duplicate' # 複製一個 project workflow 出黎
         end
@@ -227,7 +234,7 @@ Rails.application.routes.draw do
       # ********** Dags API ***********
       resources :dags
       resources :dag_runs do
-        member do 
+        member do
           get 'check_status_finish'
         end
       end

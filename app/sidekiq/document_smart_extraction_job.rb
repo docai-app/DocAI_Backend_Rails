@@ -22,7 +22,7 @@ class DocumentSmartExtractionJob
     @document = Document.find(document_id)
     @smart_extraction_schema = SmartExtractionSchema.find(smart_extraction_id)
     @document_smart_extraction_data = DocumentSmartExtractionDatum.find(document_smart_extraction_data_id)
-    res = AiService.documentSmartExtraction(@smart_extraction_schema.schema, @document.content,
+    res = AiService.documentSmartExtraction(@smart_extraction_schema.schema, @document.content, @document.storage_url,
                                             @smart_extraction_schema.data_schema)
     puts "====== perform ====== res: #{res}"
     if Utils.matchingKeys?(@smart_extraction_schema.data_schema, res)

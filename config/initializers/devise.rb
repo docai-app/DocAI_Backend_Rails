@@ -188,7 +188,7 @@ Devise.setup do |config|
   # ==> Configuration for :timeoutable
   # The time you want to timeout the user session without activity. After this
   # time the user will be asked for credentials again. Default is 30 minutes.
-  config.timeout_in = 7.days
+  config.timeout_in = 14.days
 
   # ==> Configuration for :lockable
   # Defines which strategy will be used to lock an account.
@@ -324,6 +324,6 @@ Devise.setup do |config|
     jwt.revocation_requests = [
       ['DELETE', %r{^/sign_out$}]
     ]
-    jwt.expiration_time = 15.day.to_i
+    jwt.expiration_time = 14.day.to_i
   end
 end

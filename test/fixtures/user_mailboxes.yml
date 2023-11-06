@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  document: one
+  message_id: MyString
+  subject: MyString
+  sender: MyString
+  recipient: MyString
+  sent_at: 2023-10-31 16:14:47
+  received_at: 2023-10-31 16:14:47
+  attachment: 
+  content: MyText
+  read: false
+
+two:
+  user: two
+  document: two
+  message_id: MyString
+  subject: MyString
+  sender: MyString
+  recipient: MyString
+  sent_at: 2023-10-31 16:14:47
+  received_at: 2023-10-31 16:14:47
+  attachment: 
+  content: MyText
+  read: false

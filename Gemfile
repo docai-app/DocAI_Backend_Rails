@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-#source 'https://rubygems.org'
-source 'https://gems.ruby-china.com'
+source 'https://rubygems.org'
+# source 'https://gems.ruby-china.com'
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
 ruby '3.1.0'
@@ -62,6 +62,7 @@ gem 'closure_tree'
 gem 'devise'
 gem 'devise-jwt'
 gem 'draper'
+gem 'filterrific'
 gem 'rest-client'
 gem 'rolify'
 
@@ -98,8 +99,10 @@ gem 'omniauth'
 gem 'omniauth-google-oauth2'
 gem 'omniauth-rails_csrf_protection'
 
+gem 'acts_as_list'
 gem 'net-scp'
 gem 'net-ssh'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
-gem 'acts_as_list'
+
+gem 'aasm'
 gem 'google-api-client'

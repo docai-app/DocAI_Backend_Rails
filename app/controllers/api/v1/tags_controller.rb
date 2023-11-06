@@ -9,7 +9,7 @@ module Api
                                                                                                               functions tag_functions form_schema
                                                                                                             ]).as_json(include: %i[
                                                                                                                          functions form_schema
-                                                                                                                       ], methods: :smart_extraction_schemas_count)
+                                                                                                                       ])
         render json: { success: true, tags: @tags }, status: :ok
       end
 
@@ -17,7 +17,7 @@ module Api
       def show
         @tag = Tag.find(params[:id]).as_json(include: %i[
                                                functions form_schema
-                                             ], methods: :smart_extraction_schemas_count)
+                                             ])
         render json: { success: true, tag: @tag }, status: :ok
       end
 

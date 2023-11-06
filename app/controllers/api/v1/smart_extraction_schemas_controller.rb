@@ -10,8 +10,11 @@ module Api
         if params[:has_label].present?
           @smart_extraction_schemas = @smart_extraction_schemas.where(has_label: params[:has_label]).order(created_at: :desc).page(params[:page])
         end
-        render json: { success: true, smart_extraction_schemas: @smart_extraction_schemas, meta: pagination_meta(@smart_extraction_schemas) },
-               status: :ok
+        render json: {
+          success: true,
+          smart_extraction_schemas: @smart_extraction_schemas,
+          meta: pagination_meta(@smart_extraction_schemas)
+        }, status: :ok
       end
 
       def show
@@ -107,7 +110,7 @@ module Api
 
       def push_documents_to_smart_extraction_schema
         document_ids = params[:document_ids] || []
-        @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id]).where(has_label: false)
+        @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         documents = Document.find(document_ids)
         documents.each do |document|
           DocumentSmartExtractionDatum.create(document_id: document.id,
@@ -171,7 +174,13 @@ module Api
 
       def smart_extraction_schema_params
         params.require(:smart_extraction_schema).permit(:name, :description, :label_id, :data_schema, :user_id,
-                                                        schema: %i[key data_type query])
+                                                        schema: [:key, :data_type, { query: [] }]).tap do |whitelisted|
+          if params[:smart_extraction_schema] && params[:smart_extraction_schema][:schema]
+            params[:smart_extraction_schema][:schema].each_with_index do |schema, index|
+              whitelisted[:schema][index][:query] = schema[:query] if schema[:query].is_a?(String)
+            end
+          end
+        end
       end
 
       def create_smart_extraction_schema_view(schema)

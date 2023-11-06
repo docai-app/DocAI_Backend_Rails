@@ -1,6 +1,8 @@
 GEM
-  remote: https://gems.ruby-china.com/
+  remote: https://rubygems.org/
   specs:
+    aasm (5.5.0)
+      concurrent-ruby (~> 1.0)
     actioncable (7.0.3)
       actionpack (= 7.0.3)
       activesupport (= 7.0.3)
@@ -172,6 +174,7 @@ GEM
     faraday-retry (1.0.3)
     faraday_middleware (1.2.0)
       faraday (~> 1.0)
+    filterrific (5.2.5)
     fugit (1.6.0)
       et-orbi (~> 1, >= 1.2.7)
       raabro (~> 1.4)
@@ -473,6 +476,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  aasm
   acts-as-taggable-on (~> 9.0)
   acts_as_list
   addressable
@@ -489,6 +493,7 @@ DEPENDENCIES
   devise-jwt
   dotenv
   draper
+  filterrific
   google-api-client
   jbuilder
   kaminari
