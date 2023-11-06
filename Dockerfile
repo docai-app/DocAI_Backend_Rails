@@ -8,9 +8,8 @@ RUN . ~/.nvm/nvm.sh && nvm install node
 #     && apt-get clean \
 #     && rm -rf /var/lib/apt/lists/* \
 #     && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
-RUN apt-get install -y fonts-wqy-zenhei \
+RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
     && apt-get install -y libmagickwand-dev imagemagick \
-    && apt-get update -qq \
     && apt-get install -qq --no-install-recommends \
     nodejs \
     xfonts-encodings \
