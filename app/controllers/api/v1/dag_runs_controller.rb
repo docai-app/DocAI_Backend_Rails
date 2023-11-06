@@ -3,6 +3,7 @@
 module Api
   module V1
     class DagRunsController < ApiController
+      before_action :set_tenant
       before_action :set_dag_run, except: %i[create index]
       before_action :authenticate_user!
 
@@ -41,10 +42,6 @@ module Api
       # {task_name: 'task1', content: {}}
 
       def update
-        if params[:subdomain].present?
-          Apartment::Tenant.switch!(params[:subdomain])
-        end
-
         @dag_run.find_status_stack_by_key(params[:task_name])
         obj = { task_name: params[:task_name], content: params[:content] }
         @dag_run.add_or_replace_status_stack(obj)
@@ -54,6 +51,12 @@ module Api
       end
 
       protected
+
+      def set_tenant
+        if params[:subdomain].present?
+          Apartment::Tenant.switch!(params[:subdomain])
+        end
+      end
 
       def set_dag_run
         @dag_run = DagRun.find(params[:id])
