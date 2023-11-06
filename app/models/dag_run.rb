@@ -53,6 +53,11 @@ class DagRun < ApplicationRecord
     dag_status_changed? && dag_status == 'finish'
   end
 
+  def chatbot
+    return if chatbot_id.nil?
+    Chatbot.find(chatbot_id)
+  end
+
   def handle_finish_status
     # 在状态更新为 'finish' 后执行的逻辑
     # 执行您需要的动作

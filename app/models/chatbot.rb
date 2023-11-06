@@ -24,7 +24,7 @@ class Chatbot < ApplicationRecord
 
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
-  has_many :messages
+  has_many :messages, -> { order(:created_at) }
 
   def increment_access_count!
     increment(:access_count).save
