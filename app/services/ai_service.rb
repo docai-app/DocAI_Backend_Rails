@@ -31,8 +31,9 @@ class AiService
   def self.documentSmartExtraction(schema, content, storage_url, data_schema)
     puts "DocumentSmartExtraction: #{schema}, #{content}, #{storage_url} #{data_schema}"
     if schema.first['query'].is_a?(Array)
-      puts "DocumentSmartExtraction: Array Task!"
-      res = RestClient.post "#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce", { storage_url: storage_url, schema: schema, data_schema: data_schema }, timeout: 3000
+      puts 'DocumentSmartExtraction: Array Task!'
+      res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce",
+                            { storage_url:, schema:, data_schema: }, timeout: 3000)
       puts "Res: #{res}"
     else
       res = RestClient.post "#{ENV['PORMHUB_URL']}/prompts/docai_document_smart_extraction/run.json", { params: {
@@ -43,6 +44,7 @@ class AiService
       res = JSON.parse(res)
       puts "Response from OpenAI: #{res}"
       res['data']
+    end
   end
 
   def self.assistantQA(query, chat_history, schema, metadata)
