@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require 'net/http'
+require 'uri'
+require 'json'
+
 class AiService
   def self.generateContentByDocuments(query, content, response_format, language, topic, style)
     puts query, content, response_format, language, topic, style
@@ -32,8 +36,22 @@ class AiService
     puts "DocumentSmartExtraction: #{schema}, #{content}, #{storage_url} #{data_schema}"
     if schema.first['query'].is_a?(Array)
       puts 'DocumentSmartExtraction: Array Task!'
-      res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce",
-                            { storage_url:, schema:, data_schema: }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
+      # res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce", { storage_url:, schema:, data_schema: }.to_json, { content_type: :json, accept: :json, timeout: 30000 })
+      # puts "Res: #{res}"
+      uri = URI("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == 'https' # 啟用 SSL/TLS 如果是 https URL
+      request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+      request.body = { storage_url:, schema:, data_schema: }.to_json
+
+      # 設定超時
+      http.read_timeout = 30_000 # 秒為單位
+
+      # 發送請求
+      response = http.request(request)
+
+      # 解析響應
+      res = JSON.parse(response.body)
       puts "Res: #{res}"
     else
       res = RestClient.post "#{ENV['PORMHUB_URL']}/prompts/docai_document_smart_extraction/run.json", { params: {
@@ -43,8 +61,8 @@ class AiService
       } }
       res = JSON.parse(res)
       puts "Response from OpenAI: #{res}"
-      res['data']
     end
+    res['data']
   end
 
   def self.assistantQA(query, chat_history, schema, metadata)
