@@ -27,6 +27,7 @@ module Api
       def create
         dr = DagRun.new(user: api_user, dag_name: Dag.normalize_name(params[:dag_name]))
         dr['meta']['params'] = params.permit!.to_h['params']
+        dr.chatbot_id = params[:chatbot_id]
         if dr.save
           dr.reset_workflow!
           dr.start
@@ -40,6 +41,10 @@ module Api
       # {task_name: 'task1', content: {}}
 
       def update
+        if params[:subdomain].present?
+          Apartment::Tenant.switch!(params[:subdomain])
+        end
+
         @dag_run.find_status_stack_by_key(params[:task_name])
         obj = { task_name: params[:task_name], content: params[:content] }
         @dag_run.add_or_replace_status_stack(obj)
