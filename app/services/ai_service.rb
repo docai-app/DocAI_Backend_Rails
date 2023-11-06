@@ -33,7 +33,7 @@ class AiService
     if schema.first['query'].is_a?(Array)
       puts 'DocumentSmartExtraction: Array Task!'
       res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce",
-                            { storage_url:, schema:, data_schema: }, timeout: 3000)
+                            { storage_url:, schema:, data_schema: }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
       puts "Res: #{res}"
     else
       res = RestClient.post "#{ENV['PORMHUB_URL']}/prompts/docai_document_smart_extraction/run.json", { params: {
@@ -70,6 +70,7 @@ class AiService
     }.to_json, { content_type: :json, accept: :json })
     res = JSON.parse(res)
     puts "Response from Document Embedding QA Suggestion: #{res}"
+
     if res['status'] == true
       res['suggestion']
     else

@@ -67,18 +67,31 @@ class DagRun < ApplicationRecord
     if finish? && chatbot_id.present?
       chatbot = Chatbot.find(self['meta']['chatbot_id'])
       msg = {
-        input_params: input_params,
+        input_params:,
         output: status_stack.last
       }
       chatbot.add_message('system', 'talk', msg.to_s, {})
       ActionCable.server.broadcast(
-        "#{chatbot.id}", {
+        chatbot.id.to_s, {
           message: msg.to_s,
           chatbot_id: chatbot.id
         }
       )
     end
 
+    chatbot = Chatbot.find(id: chatbot_id)
+    msg = {
+      input_params:,
+      output: status_stack.last
+    }
+    chatbot.add_message('system', 'talk', msg.to_s, {})
+    ActionCable.server.broadcast(
+      chatbot.id.to_s, {
+        message: msg.to_s,
+        chatbot_id: chatbot.id,
+        assignee_id:
+      }
+    )
   end
 
   def reset_init!
