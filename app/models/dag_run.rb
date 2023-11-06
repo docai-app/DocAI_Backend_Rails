@@ -65,7 +65,7 @@ class DagRun < ApplicationRecord
     # 更新相关记录
     # 触发其他业务逻辑
     if finish? && chatbot_id.present?
-      chatbot = Chatbot.find(id: chatbot_id)
+      chatbot = Chatbot.find(self['meta']['chatbot_id'])
       msg = {
         input_params: input_params,
         output: status_stack.last
@@ -74,8 +74,7 @@ class DagRun < ApplicationRecord
       ActionCable.server.broadcast(
         "#{chatbot.id}", {
           message: msg.to_s,
-          chatbot_id: chatbot.id,
-          assignee_id:
+          chatbot_id: chatbot.id
         }
       )
     end
