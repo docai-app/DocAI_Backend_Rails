@@ -1,9 +1,8 @@
 FROM ruby:3.1.0
 
 # RUN curl -sL https://deb.nodesource.com/setup_16.x | bash -
-RUN touch ~/.bashrc && chmod +x ~/.bashrc
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
-RUN . ~/.nvm/nvm.sh && source ~/.bashrc && nvm install node
+RUN . ~/.nvm/nvm.sh && nvm install node
 # RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 #     nodejs \
 #     && apt-get clean \
