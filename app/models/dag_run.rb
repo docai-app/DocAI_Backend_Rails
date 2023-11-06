@@ -24,7 +24,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class DagRun < ApplicationRecord
-  store_accessor :meta, :status_stack, :params
+  store_accessor :meta, :status_stack, :params, :project_workflow_step_id, :chatbot_id
   store_accessor :statistic, :current_progress, :blocking_by_user, :notification_sent
   store_accessor :dag_meta, :workflow, :input_params
 
@@ -64,6 +64,22 @@ class DagRun < ApplicationRecord
     # 发送通知邮件
     # 更新相关记录
     # 触发其他业务逻辑
+    if finish? && chatbot_id.present?
+      chatbot = Chatbot.find(id: chatbot_id)
+      msg = {
+        input_params: input_params,
+        output: status_stack.last
+      }
+      chatbot.add_message('system', 'talk', msg.to_s, {})
+      ActionCable.server.broadcast(
+        "#{chatbot.id}", {
+          message: msg.to_s,
+          chatbot_id: chatbot.id,
+          assignee_id:
+        }
+      )
+    end
+
   end
 
   def reset_init!
@@ -157,7 +173,11 @@ class DagRun < ApplicationRecord
   end
 
   def response_url
-    "https://docai-dev.m2mda.com/api/v1/dag_runs/#{id}"
+    # 根據 user id 讀返個 domain 出黎
+    subdomain = user.email.split('@')[1].split('.')[0]
+    # "https://#{subdomain}.m2mda.com/api/v1/dag_runs/#{id}"
+
+    "https://docai-dev.m2mda.com/api/v1/dag_runs/#{id}?subdomain=#{subdomain}"
   end
 
   def dag_status_check!
