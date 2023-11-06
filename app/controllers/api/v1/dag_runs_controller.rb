@@ -5,7 +5,7 @@ module Api
     class DagRunsController < ApiController
       before_action :set_tenant
       before_action :set_dag_run, except: %i[create index]
-      before_action :authenticate_user!
+      before_action :authenticate_user!, except: %i[update]
 
       # 不限 user 可以使用
       def api_user
