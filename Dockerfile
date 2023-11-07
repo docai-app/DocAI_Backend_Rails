@@ -1,9 +1,17 @@
 FROM ruby:3.1.0
 
 # RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
-RUN . ~/.nvm/nvm.sh && nvm install node
-RUN nvm install --lts --latest-npm
+RUN mkdir /usr/local/nvm
+ENV NVM_DIR /usr/local/nvm
+ENV NODE_VERSION 14.18.1
+RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash \
+    && . $NVM_DIR/nvm.sh \
+    && nvm install $NODE_VERSION \
+    && nvm alias default $NODE_VERSION \
+    && nvm use default
+
+ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
+ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 # RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 #     nodejs \
 #     && apt-get clean \
