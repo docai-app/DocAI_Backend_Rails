@@ -3,6 +3,7 @@ FROM ruby:3.1.0
 # RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 RUN . ~/.nvm/nvm.sh && nvm install node
+RUN nvm install --lts --latest-npm
 # RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 #     nodejs \
 #     && apt-get clean \
