@@ -122,10 +122,6 @@ class FormProjectionService
   end
 
   def self.text2Pdf(text)
-    # pdf = Prawn::Document.new(page_size: 'A4', page_layout: :portrait)
-    # pdf.font("#{Rails.root}/lib/fonts/TaipeiSans.ttf")
-    # pdf.text(text)
-    # pdf.render.to_blob
     kit = PDFKit.new(text, page_size: 'A4', encoding: 'UTF-8')
     pdf = kit.to_pdf
     pdf.to_blob
