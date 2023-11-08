@@ -10,13 +10,9 @@ module Api
         @chatbots = Chatbot.all.order(created_at: :desc)
         @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
         @chatbots_with_folders = @chatbots.map do |chatbot|
-          if chatbot.source['folder_id'].present?
-            folders = Folder.find(chatbot.source['folder_id']) if chatbot.source['folder_id'][0].present?
-            { chatbot:, folders: }
-          elsif chatbot.source['document_id'].present?
-            documents = Document.find(chatbot.source['document_id'])
-            { chatbot:, documents: }
-          end
+          puts chatbot.inspect
+          folders = Folder.find(chatbot.source['folder_id']) if chatbot.source['folder_id'][0].present?
+          { chatbot:, folders: }
         end
         render json: { success: true, chatbots: @chatbots_with_folders, meta: pagination_meta(@chatbots) }, status: :ok
       end
@@ -24,16 +20,8 @@ module Api
       def show
         @chatbot = Chatbot.find(params[:id])
         @chatbot.increment_access_count!
-
-        if @chatbot.source['folder_id'].present?
-          @folders = Folder.find(@chatbot.source['folder_id']) if @chatbot.source['folder_id'][0].present?
-          render json: { success: true, chatbot: @chatbot, folders: @folders }, status: :ok
-        elsif @chatbot.source['document_id'].present?
-          @documents = Document.find(@chatbot.source['document_id'])
-          render json: { success: true, chatbot: @chatbot, documents: @documents }, status: :ok
-        else
-          render json: { success: false }, status: :unprocessable_entity
-        end
+        @folders = Folder.find(@chatbot.source['folder_id']) if @chatbot.source['folder_id'][0].present?
+        render json: { success: true, chatbot: @chatbot, folders: @folders }, status: :ok
       end
 
       def messages
@@ -54,18 +42,12 @@ module Api
 
       def create
         @chatbot = Chatbot.new(chatbot_params)
+        puts @chatbot.inspect
+        puts params['source']['folder_id']
+        @folders = Folder.find(params['source']['folder_id'])
         @chatbot.user = current_user
-
-        if params['source']['folder_id'].present?
-          @folders = Folder.find(params['source']['folder_id'])
-          @chatbot.source['folder_id'] = @folders.pluck(:id)
-        elsif params['source']['document_id'].present?
-          @documents = Document.find(params['source']['document_id'])
-          @chatbot.source['document_id'] = @documents.pluck(:id)
-        end
-
+        @chatbot.source['folder_id'] = @folders.pluck(:id)
         @chatbot.meta['chain_features'] = params[:chain_features]
-
         if @chatbot.save
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
@@ -75,14 +57,9 @@ module Api
 
       def update
         @chatbot = Chatbot.find(params[:id])
+        @folders = Folder.find(params['source']['folder_id'])
         @chatbot.meta['chain_features'] = params[:chain_features]
-        if params['source']['folder_id'].present?
-          @folders = Folder.find(params['source']['folder_id'])
-          @chatbot.source['folder_id'] = @folders.pluck(:id)
-        elsif params['source']['document_id'].present?
-          @documents = Document.find(params['source']['document_id'])
-          @chatbot.source['document_id'] = @documents.pluck(:id)
-        end
+        @chatbot.source['folder_id'] = @folders.pluck(:id)
         if @chatbot.update(chatbot_params)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
@@ -103,14 +80,9 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @documents = []
         if @chatbot
-          if @chatbot.source['folder_id'].present?
-            @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-            @folders.each do |folder|
-              @documents.concat(folder.documents)
-            end
-          elsif @chatbot.source['document_id'].present?
-            @docs = Document.find(@chatbot.source['document_id'])
-            @documents.concat(@docs)
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
           end
           @metadata = {
             document_id: @documents.map(&:id)
@@ -130,14 +102,9 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @documents = []
         if @chatbot
-          if @chatbot.source['folder_id'].present?
-            @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-            @folders.each do |folder|
-              @documents.concat(folder.documents)
-            end
-          elsif @chatbot.source['document_id'].present?
-            @docs = Document.find(@chatbot.source['document_id'])
-            @documents.concat(@docs)
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
           end
           @metadata = {
             document_id: @documents.map(&:id)
