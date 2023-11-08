@@ -73,12 +73,12 @@ class DagRun < ApplicationRecord
       chatbot = Chatbot.find(self['meta']['chatbot_id'])
       msg = {
         input_params:,
-        output: status_stack.last
+        output: status_stack
       }
-      chatbot.add_message('system', 'talk', msg.to_s, {})
+      chatbot.add_message('system', 'talk', msg.to_json, {})
       ActionCable.server.broadcast(
         chatbot.id.to_s, {
-          message: msg.to_s,
+          message: msg.to_json,
           chatbot_id: chatbot.id
         }
       )
