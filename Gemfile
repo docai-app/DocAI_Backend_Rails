@@ -106,3 +106,6 @@ gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 
 gem 'aasm'
 gem 'google-api-client'
+
+gem 'open-uri'
+gem 'pdf-reader'
