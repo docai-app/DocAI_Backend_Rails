@@ -53,9 +53,9 @@ module Api
       protected
 
       def set_tenant
-        if params[:subdomain].present?
-          Apartment::Tenant.switch!(params[:subdomain])
-        end
+        return unless params[:subdomain].present?
+
+        Apartment::Tenant.switch!(params[:subdomain])
       end
 
       def set_dag_run
