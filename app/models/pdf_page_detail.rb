@@ -19,6 +19,6 @@ class PdfPageDetail < ApplicationRecord
   end
 
   def mark_failed
-    update(status: 'failed')
+    update(status: 'failed', retry_count: retry_count + 1)
   end
 end
