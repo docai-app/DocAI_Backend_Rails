@@ -159,7 +159,7 @@ module Api
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
           data_schema: @smart_extraction_schema.data_schema
-        }.to_json, { content_type: :json, accept: :json, timeout: 1200 })
+        }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
         chartRes = JSON.parse(chartRes)
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
@@ -167,6 +167,25 @@ module Api
         else
           html_code = 'Please reduce the number of form data selected.'
           render json: { success: false, chart: html_code.to_s }, status: :ok
+        end
+      end
+
+      def generate_statistics
+        query = params[:query] || ''
+        @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
+        puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
+        statisticsReportRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/statistics", {
+          query:,
+          views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
+          tenant: getSubdomain,
+          data_schema: @smart_extraction_schema.data_schema
+        }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
+        statisticsReportRes = JSON.parse(statisticsReportRes)
+        if statisticsReportRes['status'] == true
+          render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
+        else
+          html_code = 'Please reduce the number of form data selected.'
+          render json: { success: false, report: html_code.to_s }, status: :ok
         end
       end
 
