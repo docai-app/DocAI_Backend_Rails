@@ -55,6 +55,7 @@ class DagRun < ApplicationRecord
 
   def chatbot
     return if chatbot_id.nil?
+
     Chatbot.find(chatbot_id)
   end
 
