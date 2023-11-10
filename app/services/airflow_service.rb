@@ -7,7 +7,8 @@ class AirflowService
   @basic_auth = 'Basic YWlyZmxvdzphaXJmbG93'
   @use_ssl = true
 
-  def self.run_dag(dag_run)
+  def self.run_dag(dr)
+    dag_run = DagRun.find(dr.id) # 強制 reload 一次
     escape_name = CGI.escape(dag_run.dag_name)
     url = URI("#{@domain}/api/v1/dags/#{escape_name}/dagRuns")
     payload = {
