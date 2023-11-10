@@ -213,7 +213,7 @@ class ProjectWorkflowStep < ApplicationRecord
 
     # 執行一次這個 dag
     dr = DagRun.new(user_id:, dag_name: dag.name)
-    dr.project_workflow_step_id = self.id
+    dr.project_workflow_step_id = id
     dr.save
     dr.reset_workflow!
 

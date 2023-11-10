@@ -1,24 +1,34 @@
 FROM ruby:3.1.0
 
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
+# RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
+RUN mkdir /usr/local/nvm
+ENV NVM_DIR /usr/local/nvm
+ENV NODE_VERSION 14.18.1
+RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash \
+    && . $NVM_DIR/nvm.sh \
+    && nvm install $NODE_VERSION \
+    && nvm alias default $NODE_VERSION \
+    && nvm use default
+
+ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
+ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 # RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 #     nodejs \
 #     && apt-get clean \
 #     && rm -rf /var/lib/apt/lists/* \
 #     && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
-RUN apt-get install -y ttf-wqy-zenhei \
+RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
     && apt-get install -y libmagickwand-dev imagemagick \
-    && apt-get update -qq \
     && apt-get install -qq --no-install-recommends \
-        nodejs \
-        xfonts-encodings \
-        libfontenc1 \
-        xfonts-utils \
-        xfonts-75dpi \
-        xfonts-base \
-        fontconfig \
-        libjpeg62-turbo \
-        libxrender1 \
+    nodejs \
+    xfonts-encodings \
+    libfontenc1 \
+    xfonts-utils \
+    xfonts-75dpi \
+    xfonts-base \
+    fontconfig \
+    libjpeg62-turbo \
+    libxrender1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g yarn@1

@@ -24,7 +24,7 @@ require 'net/scp'
 require 'net/ssh'
 require 'tempfile'
 class Dag < ApplicationRecord
-  store_accessor :meta #, :original_name
+  store_accessor :meta # , :original_name
 
   belongs_to :user
 

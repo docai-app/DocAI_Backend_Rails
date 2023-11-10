@@ -5,7 +5,7 @@ module Api
     class DagRunsController < ApiController
       before_action :set_tenant
       before_action :set_dag_run, except: %i[create index]
-      before_action :authenticate_user!
+      before_action :authenticate_user!, except: %i[update]
 
       # 不限 user 可以使用
       def api_user
@@ -31,6 +31,7 @@ module Api
         dr.chatbot_id = params[:chatbot_id]
         if dr.save
           dr.reset_workflow!
+          dr.reload
           dr.start
           json_success(dr)
         else
@@ -53,9 +54,9 @@ module Api
       protected
 
       def set_tenant
-        if params[:subdomain].present?
-          Apartment::Tenant.switch!(params[:subdomain])
-        end
+        return unless params[:subdomain].present?
+
+        Apartment::Tenant.switch!(params[:subdomain])
       end
 
       def set_dag_run

@@ -33,11 +33,22 @@ module Api
         render json: { success: true, functions: @tag['functions'] }, status: :ok
       end
 
-      # Create tag
       def create
-        @tag = ActsAsTaggableOn::Tag.new(tag_params)
-        @folder = Folder.new(name: @tag.name, user_id: nil, parent_id: nil)
-        if @tag.save && @folder.save
+        @tag = ActsAsTaggableOn::Tag.create(tag_params)
+
+        @folder = Folder.create(name: @tag.name, user_id: nil, parent_id: nil)
+
+        @document = Document.new(name: @tag.name, content: @tag.name, folder_id: @folder.id)
+        text2Pdf = FormProjectionService.text2Pdf(@tag.name)
+        @document.label_ids = @tag.id
+        @document.status = :confirmed
+        @document.name = @tag.name
+        @document.storage_url = AzureService.uploadBlob(text2Pdf, @tag.name, 'application/pdf')
+        @document.user = current_user
+        @document.save!
+        DocumentClassificationJob.perform_async(@document.id, @tag.id, getSubdomain)
+
+        if @tag && @folder
           @tag.update(folder_id: @folder.id)
           render json: { success: true, tag: @tag }, status: :ok
         else
@@ -70,6 +81,12 @@ module Api
 
       def tag_params
         params.require(:tag).permit(:name, :is_checked)
+      end
+
+      private
+
+      def getSubdomain
+        Utils.extractRequestTenantByToken(request)
       end
     end
   end

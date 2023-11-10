@@ -50,7 +50,13 @@ class DagRun < ApplicationRecord
   end
 
   def status_changed_to_finish?
-    dag_status_changed? && dag_status == 'finish'
+    previous_changes['dag_status'].present? && dag_status == 'finish'
+  end
+
+  def chatbot
+    return if chatbot_id.nil?
+
+    Chatbot.find(chatbot_id)
   end
 
   def handle_finish_status
@@ -64,22 +70,21 @@ class DagRun < ApplicationRecord
     # 发送通知邮件
     # 更新相关记录
     # 触发其他业务逻辑
-    if finish? && chatbot_id.present?
-      chatbot = Chatbot.find(id: chatbot_id)
-      msg = {
-        input_params: input_params,
-        output: status_stack.last
-      }
-      chatbot.add_message('system', 'talk', msg.to_s, {})
-      ActionCable.server.broadcast(
-        "#{chatbot.id}", {
-          message: msg.to_s,
-          chatbot_id: chatbot.id,
-          assignee_id:
-        }
-      )
-    end
+    return unless finish? && chatbot_id.present?
 
+    chatbot = Chatbot.find(self['meta']['chatbot_id'])
+    msg = {
+      input_params:,
+      output: status_stack
+    }
+    message_come_from = pws.present? ? 'project_workflow_step' : 'chain_feature'
+    chatbot.add_message('system', 'talk', msg.to_json, { message_come_from: })
+    ActionCable.server.broadcast(
+      chatbot.id.to_s, {
+        message: msg.to_json,
+        chatbot_id: chatbot.id
+      }
+    )
   end
 
   def reset_init!
@@ -182,7 +187,7 @@ class DagRun < ApplicationRecord
 
   def dag_status_check!
     p = progress
-    if p.to_i == 100
+    if p.to_i >= 100
       self['dag_status'] = 2
       self['statistic']['current_progress'] = 100
     else
