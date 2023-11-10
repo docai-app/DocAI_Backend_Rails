@@ -21,6 +21,13 @@ class DocumentService
     false
   end
 
+  def self.checkFileUrlIsPDF(file_url)
+    # Check file type is pdf
+    return true if File.extname(file_url) == '.pdf'
+
+    false
+  end
+
   def self.checkFileIsTextDocument(file)
     # Check file type is text document
     puts file.content_type

@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_102_075_419) do
+ActiveRecord::Schema[7.0].define(version: 20_231_109_080_932) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -247,6 +247,19 @@ ActiveRecord::Schema[7.0].define(version: 20_231_102_075_419) do
     t.index ['user_id'], name: 'index_mini_apps_on_user_id'
   end
 
+  create_table 'pdf_page_details', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'document_id', null: false
+    t.integer 'page_number'
+    t.text 'summary'
+    t.string 'keywords'
+    t.integer 'status', default: 0, null: false
+    t.integer 'retry_count', default: 0, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.text 'error_message'
+    t.index ['document_id'], name: 'index_pdf_page_details_on_document_id'
+  end
+
   create_table 'project_tasks', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'title', default: 'New Project Task', null: false
     t.text 'description'
@@ -447,6 +460,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_102_075_419) do
   add_foreign_key 'messages', 'users'
   add_foreign_key 'mini_apps', 'folders'
   add_foreign_key 'mini_apps', 'users'
+  add_foreign_key 'pdf_page_details', 'documents'
   add_foreign_key 'project_workflow_steps', 'project_workflows'
   add_foreign_key 'project_workflow_steps', 'users'
   add_foreign_key 'project_workflows', 'folders'

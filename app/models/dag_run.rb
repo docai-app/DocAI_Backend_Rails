@@ -55,6 +55,7 @@ class DagRun < ApplicationRecord
 
   def chatbot
     return if chatbot_id.nil?
+
     Chatbot.find(chatbot_id)
   end
 
@@ -69,21 +70,21 @@ class DagRun < ApplicationRecord
     # 发送通知邮件
     # 更新相关记录
     # 触发其他业务逻辑
-    if finish? && chatbot_id.present?
-      chatbot = Chatbot.find(self['meta']['chatbot_id'])
-      msg = {
-        input_params:,
-        output: status_stack
+    return unless finish? && chatbot_id.present?
+
+    chatbot = Chatbot.find(self['meta']['chatbot_id'])
+    msg = {
+      input_params:,
+      output: status_stack
+    }
+    message_come_from = pws.present? ? 'project_workflow_step' : 'chain_feature'
+    chatbot.add_message('system', 'talk', msg.to_json, { message_come_from: })
+    ActionCable.server.broadcast(
+      chatbot.id.to_s, {
+        message: msg.to_json,
+        chatbot_id: chatbot.id
       }
-      message_come_from = pws.present? ? 'project_workflow_step' : 'chain_feature'
-      chatbot.add_message('system', 'talk', msg.to_json, {message_come_from: message_come_from})
-      ActionCable.server.broadcast(
-        chatbot.id.to_s, {
-          message: msg.to_json,
-          chatbot_id: chatbot.id
-        }
-      )
-    end
+    )
   end
 
   def reset_init!

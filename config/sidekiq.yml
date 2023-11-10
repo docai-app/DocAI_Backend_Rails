@@ -11,6 +11,9 @@
   - ['document_embedding_monitor_job', 1]
   - ['document_smart_extraction', 1]
   - ['document_smart_extraction_monitor_job', 1]
+  - ['pdf_pages_creation', 1]
+  - ['pdf_page']
+  - ['pdf_page_monitor_job', 1]
 :timeout: 7200
 
 :schedule:
@@ -33,4 +36,8 @@
   DocumentSmartExtractionMonitorJob:
     every: '60s'
     queue: document_smart_extraction_monitor_job
+    enabled: true
+  PdfPageMonitorJob:
+    every: '60s'
+    queue: pdf_page_monitor_job
     enabled: true
