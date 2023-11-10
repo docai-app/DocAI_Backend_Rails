@@ -50,7 +50,7 @@ class Document < ApplicationRecord
                                             foreign_key: 'document_id'
   has_many :smart_extraction_schema, through: :document_smart_extraction_data, class_name: 'SmartExtractionSchema',
                                      foreign_key: 'smart_extraction_schema_id'
-  has_many :pdf_page_details, dependent: :destroy
+  has_many :pdf_page_details, dependent: :destroy, class_name: 'PdfPageDetail', foreign_key: 'document_id'
 
   after_create :process_pdf_if_applicable
 
