@@ -31,6 +31,7 @@ module Api
         dr.chatbot_id = params[:chatbot_id]
         if dr.save
           dr.reset_workflow!
+          dr.reload
           dr.start
           json_success(dr)
         else
