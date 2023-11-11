@@ -28,6 +28,7 @@ Rails.application.routes.draw do
           get ':date/predict', to: 'documents#show_specify_date_latest_predict'
           post 'deep_understanding', to: 'documents#deep_understanding'
           get 'pdf/page_details', to: 'documents#show_pdf_page_details'
+          post ':id/qa', to: 'documents#qa'
         end
 
         member do

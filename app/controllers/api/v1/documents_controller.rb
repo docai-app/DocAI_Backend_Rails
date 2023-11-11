@@ -205,6 +205,20 @@ module Api
         render json: { success: true }, status: :ok
       end
 
+      def qa
+        @document = Document.find(params[:id])
+        if @document.present?
+          @metadata = {
+            document_id: [@document.id]
+          }
+          @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
+          puts @qaRes
+          render json: { success: true, message: @qaRes }, status: :ok
+        else
+          render json: { success: false, error: 'Document not found' }, status: :not_found
+        end
+      end
+
       private
 
       def set_document
