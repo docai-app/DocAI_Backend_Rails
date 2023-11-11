@@ -44,7 +44,7 @@ module Api
 
       def update
         @dag_run.find_status_stack_by_key(params[:task_name])
-        obj = { task_name: params[:task_name], content: params[:content] }
+        obj = { task_name: params[:task_name], content: params[:content], function: params[:function] }
         @dag_run.add_or_replace_status_stack(obj)
         @dag_run.dag_status_check!
 
