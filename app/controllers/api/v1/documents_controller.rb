@@ -115,6 +115,14 @@ module Api
         end
       end
 
+      # Show the PDF document details which involved each page summary and keywords
+      def show_pdf_page_details
+        # @document = Document.find(params[:id]).includes([:pdf_page_details]).as_json(except: [:label_list])
+        @document = Document.find(params[:id]).as_json(include: { pdf_page_details: { only: %i[page_number summary
+                                                                                               keywords] } })
+        render json: { success: true, document: @document }, status: :ok
+      end
+
       def create
         @document = Document.new(document_params)
         file = params['document']['file']
