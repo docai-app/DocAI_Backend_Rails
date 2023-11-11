@@ -20,7 +20,9 @@ module Api
 
       # Show document by id
       def show
-        @document = Document.find(params[:id])
+        @document = Document.includes(:user, :labels).find(params[:id]).as_json(
+          include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
+        )
         render json: { success: true, document: @document }, status: :ok
       end
 
