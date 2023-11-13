@@ -181,6 +181,7 @@ module Api
           data_schema: @smart_extraction_schema.data_schema
         }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
         statisticsReportRes = JSON.parse(statisticsReportRes)
+        print(statisticsReportRes)
         if statisticsReportRes['status'] == true
           render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
         else
