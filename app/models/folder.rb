@@ -34,18 +34,15 @@ class Folder < ApplicationRecord
     user.add_role :r, self
 
     user.add_role :w, self
-
   end
 
   def share_with(other)
     # if user has permission to share folder, then add role to other user
     return unless user.has_role? :w, self
 
-
     other.add_role :r, self
 
     other.add_role :w, self
-
   end
 
   # def set_sub_folder(sf)
@@ -56,19 +53,17 @@ class Folder < ApplicationRecord
     return true if user_id.nil?
 
     user.has_role? :r, self
-
   end
 
   def has_rights_to_write?(user)
     return true if user_id.nil?
 
     user.has_role? :w, self
-
   end
 
   def allow_user_access?(user)
     # 睇下呢個 folder 的 parent folders 會唔會有權限
-    folder_ids = folder.ancestors.pluck(:id)
+    folder_ids = ancestors.pluck(:id)
     user.roles.includes(:roles).where(resource_type: 'Folder', resource_id: folder_ids, name: 'r').exists?
   end
 
