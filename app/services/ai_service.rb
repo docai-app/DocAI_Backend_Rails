@@ -41,7 +41,8 @@ class AiService
       http.use_ssl = uri.scheme == 'https' # 啟用 SSL/TLS 如果是 https URL
       request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
       request.body = { storage_url:, schema:, data_schema: }.to_json
-      http.read_timeout = 30_000 # 秒為單位
+      http.read_timeout = 600_000
+      # 秒為單位
       response = http.request(request)
 
       res = JSON.parse(response.body)

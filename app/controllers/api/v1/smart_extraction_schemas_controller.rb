@@ -172,7 +172,7 @@ module Api
           tenant: getSubdomain,
           data_schema: @smart_extraction_schema.data_schema
         }.to_json
-        http.read_timeout = 30_000
+        http.read_timeout = 600_000
 
         response = http.request(request)
         chartRes = JSON.parse(response.body)
@@ -201,7 +201,7 @@ module Api
           tenant: getSubdomain,
           data_schema: @smart_extraction_schema.data_schema
         }.to_json
-        http.read_timeout = 30_000
+        http.read_timeout = 600_000
 
         response = http.request(request)
         statisticsReportRes = JSON.parse(response.body)
