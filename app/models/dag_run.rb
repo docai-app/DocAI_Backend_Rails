@@ -80,7 +80,7 @@ class DagRun < ApplicationRecord
     message_come_from = pws.present? ? 'project_workflow_step' : 'chain_feature'
     chatbot.add_message('system', 'talk', msg.to_json, { message_come_from: })
     ActionCable.server.broadcast(
-      "chat_#{chatbot.id.to_s}", {
+      "chat_#{chatbot.id}", {
         message: msg.to_json,
         chatbot_id: chatbot.id
       }
