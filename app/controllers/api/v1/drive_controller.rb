@@ -93,10 +93,9 @@ module Api
 
       def current_user_folder
         @folder = Folder.find(params[:id])
-        if @folder.user.nil?
+
+        if @folder.user.nil? || current_user.has_role?(:w, @folder) || @folder.allow_user_access?(current_user)
           @current_user_folder = @folder
-        elsif current_user.has_role? :w, Folder.find(params[:id]) || @folder.user.nil?
-          @current_user_folder = Folder.find_by(id: params[:id])
         else
           render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
         end
