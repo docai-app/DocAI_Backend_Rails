@@ -154,13 +154,29 @@ module Api
         query = params[:query] || ''
         @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
-        chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart", {
+        # chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart", {
+        #   query:,
+        #   views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
+        #   tenant: getSubdomain,
+        #   data_schema: @smart_extraction_schema.data_schema
+        # }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
+        # chartRes = JSON.parse(chartRes)
+
+        uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+        request.body = {
           query:,
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
           data_schema: @smart_extraction_schema.data_schema
-        }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
-        chartRes = JSON.parse(chartRes)
+        }.to_json
+        http.read_timeout = 600_000
+
+        response = http.request(request)
+        chartRes = JSON.parse(response.body)
+
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
           render json: { success: true, chart: html_code.to_s }, status: :ok
@@ -174,13 +190,22 @@ module Api
         query = params[:query] || ''
         @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
-        statisticsReportRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/statistics", {
+
+        uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/statistics")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+        request.body = {
           query:,
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
           data_schema: @smart_extraction_schema.data_schema
-        }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
-        statisticsReportRes = JSON.parse(statisticsReportRes)
+        }.to_json
+        http.read_timeout = 600_000
+
+        response = http.request(request)
+        statisticsReportRes = JSON.parse(response.body)
+        print(statisticsReportRes)
         if statisticsReportRes['status'] == true
           render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
         else

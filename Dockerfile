@@ -1,6 +1,5 @@
 FROM ruby:3.1.0
 
-# RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
 RUN mkdir /usr/local/nvm
 ENV NVM_DIR /usr/local/nvm
 ENV NODE_VERSION 14.18.1
@@ -12,11 +11,7 @@ RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash 
 
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
-# RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-#     nodejs \
-#     && apt-get clean \
-#     && rm -rf /var/lib/apt/lists/* \
-#     && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
+
 RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
     && apt-get install -y libmagickwand-dev imagemagick \
     && apt-get install -qq --no-install-recommends \
@@ -54,4 +49,3 @@ COPY . /docai-rails
 
 # RUN SECRET_KEY_BASE=1 RAILS_ENV=production bundle exec rake assets:precompile
 #CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
-
