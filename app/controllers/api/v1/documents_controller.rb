@@ -125,6 +125,16 @@ module Api
         render json: { success: true, document: @document }, status: :ok
       end
 
+      def pdf_search_keyword
+        @document = Document.find(params[:id])
+        if @document.present?
+          results = VectorDbPgEmbedding.find_document_sentences_containing(params[:query], getSubdomain, @document.id)
+          render json: { success: true, document: @document, results: }, status: :ok
+        else
+          render json: { success: false, error: 'Document not found' }, status: :not_found
+        end
+      end
+
       def create
         @document = Document.new(document_params)
         file = params['document']['file']
