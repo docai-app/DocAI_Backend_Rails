@@ -28,37 +28,42 @@ module Api
 
       # Show documents by ids
       def show_by_ids
-        puts params[:ids]
-        @documents = Document.find(params[:ids]).as_json(except: [:label_list])
-        render json: { success: true, documents: @documents }, status: :ok
+        conditions = Document.where(id: params[:ids]).select('id')
+        @documents = filter_documents_by_conditions(conditions)
+        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
 
       # Show documents by name like name param
       def show_by_name
-        @document = Document.where('name like ?',
-                                   "%#{params[:name]}%").order(created_at: :desc).as_json(except: [:label_list])
-        render json: { success: true, documents: @document }, status: :ok
+        conditions = Document.where('name like ?', "%#{params[:name]}%").order(created_at: :desc).select('id')
+        @documents = filter_documents_by_conditions(conditions)                       
+        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
 
       # Show documents by content like content param
       def show_by_content
-        @document = Document.includes([:taggings]).where('content like ?',
-                                                         "%#{params[:content]}%").order(created_at: :desc).page params[:page]
+        conditions = Document.includes([:taggings]).where('content like ?', "%#{params[:content]}%").select('id')
+        @documents = filter_documents_by_conditions(conditions)                                           
         render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
       end
 
       # Show documents by ActsAsTaggableOn tag id
       def show_by_tag
         tag = ActsAsTaggableOn::Tag.find(params[:tag_id])
-        @document = Document.tagged_with(tag).order(created_at: :desc).as_json(except: [:label_list])
-        render json: { success: true, documents: @document }, status: :ok
+        conditions = Document.tagged_with(tag).select("id")
+
+        @documents = filter_documents_by_conditions(conditions)
+
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by date
       def show_by_date
-        @document = Document.includes([:taggings]).where('created_at >= ?',
-                                                         params[:date]).order(created_at: :desc).page params[:page]
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        conditions = Document.includes([:taggings]).where('created_at >= ?', params[:date]).select("id")
+
+        @documents = filter_documents_by_conditions(conditions)
+
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
       end
 
       def show_by_tag_and_content
@@ -70,17 +75,25 @@ module Api
 
         puts "from: #{from}, to: #{to}"
 
-        documents = Document.includes(:taggings)
-                            .tagged_with(tag)
-                            .where('content LIKE ?', "%#{content}%")
-                            .where('documents.created_at >= ?', from.to_date)
-                            .where('documents.created_at <= ?', to.to_date)
-                            .order(created_at: :desc)
-                            .page(params[:page])
+        conditions =  Document.tagged_with(tag)
+                              .where('content LIKE ?', "%#{content}%")
+                              .where('documents.created_at >= ?', from.to_date)
+                              .where('documents.created_at <= ?', to.to_date)
+        conditions = conditions.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
+        conditions = conditions.select("id")   
 
-        documents = documents.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
+        @documents = filter_documents_by_conditions(conditions)
+        
+        # @documents = Document.tagged_with(tag)
+        #                     .where('content LIKE ?', "%#{content}%")
+        #                     .where('documents.created_at >= ?', from.to_date)
+        #                     .where('documents.created_at <= ?', to.to_date)
+        #                     .select(Document.attribute_names - %w[label_list content])
+        #                     .page(params[:page])
 
-        render json: { success: true, documents:, meta: pagination_meta(documents) }, status: :ok
+        # @documents = documents.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
+
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show and Predict the Latest Uploaded Document
@@ -259,6 +272,18 @@ module Api
 
       def getSubdomain
         Utils.extractRequestTenantByToken(request)
+      end
+
+      def filter_documents_by_conditions(conditions)
+        documents = Document.where(id: Document.accessible_by_user(current_user.id, conditions).pluck(:id))
+        
+        documents = documents.select(Document.attribute_names - %w[label_list content])
+                    .order(created_at: :desc)
+                    .includes(:user, :labels)
+                    .as_json(
+                      except: %i[label_list content], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } 
+                    })
+        documents = Kaminari.paginate_array(documents).page(params[:page])
       end
 
       def checkDocumentItemsIsDocument
