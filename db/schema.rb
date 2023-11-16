@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_109_080_932) do
+ActiveRecord::Schema[7.0].define(version: 20_231_115_100_218) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -57,6 +57,8 @@ ActiveRecord::Schema[7.0].define(version: 20_231_109_080_932) do
     t.integer 'access_count', default: 0
     t.string 'object_type'
     t.uuid 'object_id'
+    t.jsonb 'assistive_questions', default: [], null: false
+    t.boolean 'has_chatbot_updated', default: false, null: false
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
   end

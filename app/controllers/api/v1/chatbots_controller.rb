@@ -49,6 +49,8 @@ module Api
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         @chatbot.meta['chain_features'] = params[:chain_features]
         if @chatbot.save
+          @metadata = chatbot_documents_metadata(@chatbot)
+          UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
@@ -61,6 +63,8 @@ module Api
         @chatbot.meta['chain_features'] = params[:chain_features]
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         if @chatbot.update(chatbot_params)
+          @metadata = chatbot_documents_metadata(@chatbot)
+          UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
@@ -127,6 +131,20 @@ module Api
 
       def current_user_chatbots
         @current_user_chatbots = current_user.chatbots.order(created_at: :desc)
+      end
+
+      def chatbot_documents_metadata(chatbot)
+        @documents = []
+        @folders = chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+        puts @folders.inspect
+        @folders.each do |folder|
+          puts 'Folder document: ', folder.documents
+          @documents.concat(folder.documents)
+        end
+        @metadata = {
+          document_id: @documents.map(&:id)
+        }
+        @metadata
       end
 
       def pagination_meta(object)

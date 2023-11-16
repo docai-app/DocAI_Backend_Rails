@@ -41,4 +41,16 @@ class Chatbot < ApplicationRecord
   def get_chatbot_messages
     messages.where("meta->>'belongs_user_id' = ?", current_user.id).order(created_at: :desc)
   end
+
+  def update_assistive_questions(getSubdomain, metadata)
+    res = AiService.assistantQASuggestion(getSubdomain, metadata)
+    puts "Res: #{res}"
+    if res['assistant_questions'].present?
+      puts "Res assistive_questions: #{res['assistant_questions']}"
+      self.assistive_questions = res['assistant_questions']
+    else
+      self.assistive_questions = []
+    end
+    save
+  end
 end
