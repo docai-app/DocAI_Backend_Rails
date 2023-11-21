@@ -3,7 +3,9 @@
 module Api
   module V1
     class ChatbotsController < ApiController
-      before_action :authenticate_user!, only: %i[create update destroy mark_messages_read]
+      include Authenticatable
+
+      before_action :authenticate, only: %i[show create update destroy mark_messages_read]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
@@ -160,6 +162,18 @@ module Api
       def getSubdomain
         Utils.extractRequestTenantByToken(request)
       end
+
+      # def authenticate!
+      #   api_key = request.headers['X-API-KEY']
+      #   if !api_key.present?
+      #     authenticate_user!
+      #   end
+      # end
+      # def authenticate_with_api_key(key)
+      #   unless ApiKey.active.exists?(key: key)
+      #     render json: { success: false, error: 'Invalid API Key' }, status: :unauthorized
+      #   end
+      # end
     end
   end
 end
