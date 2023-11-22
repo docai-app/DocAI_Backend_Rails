@@ -5,8 +5,8 @@ module Api
     class SmartExtractionSchemasController < ApiController
       include Authenticatable
 
-      before_action :authenticate, only: %i[generate_chart generate_statistics]
-      before_action :authenticate_user!, except: %i[generate_chart generate_statistics]
+      before_action :authenticate, only: %i[index generate_chart generate_statistics]
+      before_action :authenticate_user!, except: %i[index generate_chart generate_statistics]
 
       def index
         @smart_extraction_schemas = SmartExtractionSchema.order(created_at: :desc).page(params[:page])
