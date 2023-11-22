@@ -3,6 +3,9 @@
 require 'json'
 
 class Utils
+  ENCRYPTION_KEY = ENV['ENCRYPT_SECRET_KEY'] || 'secret'
+  ALGO = 'aes-256-cbc' # AES in CBC mode with a 256-bit key
+
   def self.cleansingContentFromGPT(content)
     json_regex = /{[\s\S]*?}/m
     json_match = content.match(json_regex)
@@ -75,5 +78,14 @@ class Utils
 
   def self.getTenantName(subdomain)
     Apartment.tenant_names.include?(subdomain) ? subdomain : 'public'
+  end
+
+  def self.encrypt(value)
+    cipher = OpenSSL::Cipher.new(ALGO)
+    cipher.send(:encrypt)
+    cipher.pkcs5_keyivgen(ENCRYPTION_KEY)
+    result = cipher.update(value)
+    result << cipher.final
+    Base64.encode64(value.to_s)
   end
 end

@@ -125,6 +125,19 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def shareChatbotWithSignature
+        @chatbot = Chatbot.find(params[:id])
+        apiKey = current_user.active_api_key.key
+        signature = Utils.encrypt(apiKey) if apiKey.present?
+        if @chatbot && apiKey
+          render json: { success: true, chatbot: @chatbot, signature: }, status: :ok
+        else
+          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       private
 
       def chatbot_params
