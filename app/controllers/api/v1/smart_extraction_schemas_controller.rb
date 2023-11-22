@@ -3,7 +3,10 @@
 module Api
   module V1
     class SmartExtractionSchemasController < ApiController
-      before_action :authenticate_user!
+      include Authenticatable
+
+      before_action :authenticate, only: %i[generate_chart generate_statistics]
+      before_action :authenticate_user!, except: %i[generate_chart generate_statistics]
 
       def index
         @smart_extraction_schemas = SmartExtractionSchema.order(created_at: :desc).page(params[:page])
@@ -154,13 +157,6 @@ module Api
         query = params[:query] || ''
         @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
-        # chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart", {
-        #   query:,
-        #   views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
-        #   tenant: getSubdomain,
-        #   data_schema: @smart_extraction_schema.data_schema
-        # }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
-        # chartRes = JSON.parse(chartRes)
 
         uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart")
         http = Net::HTTP.new(uri.host, uri.port)

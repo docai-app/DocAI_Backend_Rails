@@ -3,9 +3,6 @@
 require 'json'
 
 class Utils
-  ENCRYPTION_KEY = ENV['ENCRYPT_SECRET_KEY'] || 'secret'
-  ALGO = 'aes-256-cbc' # AES in CBC mode with a 256-bit key
-
   def self.cleansingContentFromGPT(content)
     json_regex = /{[\s\S]*?}/m
     json_match = content.match(json_regex)
@@ -58,14 +55,24 @@ class Utils
     subdomain
   end
 
+  # Extract tenant name from JWT token or API key
   def self.extractRequestTenantByToken(request)
-    apiToken = request.headers['Authorization']&.split(' ')&.last
-    jwtPayload = decodeToken(apiToken)
+    if request.headers['Authorization'].present?
+      apiToken = request.headers['Authorization']&.split(' ')&.last
+      jwtPayload = decodeToken(apiToken)
 
-    return unless apiToken && jwtPayload
+      return unless apiToken && jwtPayload
 
-    subdomain = jwtPayload['email'].split('@').last.split('.').first
-    getTenantName(subdomain)
+      subdomain = jwtPayload['email'].split('@').last.split('.').first
+      getTenantName(subdomain)
+    elsif request.headers['X-API-KEY'].present?
+      x_api_key = request.headers['X-API-KEY']
+      api_key = ApiKey.active.find_by(key: x_api_key)
+      tenant_name = api_key.tenant
+      Apartment::Tenant.switch!(tenant_name)
+      @current_user = api_key.user
+      tenant_name
+    end
   end
 
   def self.decodeToken(token)
@@ -81,11 +88,6 @@ class Utils
   end
 
   def self.encrypt(value)
-    cipher = OpenSSL::Cipher.new(ALGO)
-    cipher.send(:encrypt)
-    cipher.pkcs5_keyivgen(ENCRYPTION_KEY)
-    result = cipher.update(value)
-    result << cipher.final
     Base64.encode64(value.to_s)
   end
 end
