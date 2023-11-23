@@ -3,7 +3,9 @@
 module Api
   module V1
     class StorageController < ApiController
-      before_action :authenticate_user!, only: [:upload]
+      include Authenticatable
+
+      before_action :authenticate, only: [:upload]
 
       # Upload file to storage
       def upload

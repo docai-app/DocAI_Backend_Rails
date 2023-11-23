@@ -132,7 +132,6 @@ class Document < ApplicationRecord
     SQL
 
     find_by_sql(sql)
-    
   end
 
   def self.last

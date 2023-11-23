@@ -180,6 +180,7 @@ Rails.application.routes.draw do
         collection do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
+          post ':id/share', to: 'chatbots#shareChatbotWithSignature'
         end
       end
 
