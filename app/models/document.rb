@@ -118,14 +118,14 @@ class Document < ApplicationRecord
           GROUP BY document_id
       ),
       user_accessible_documents AS (
-          SELECT d.*
-          FROM documents d
-          JOIN all_ancestors a ON d.id = a.document_id
-          JOIN LATERAL unnest(string_to_array(a.parent_folder_ids, ',')) AS ancestor_folder(id) ON true
-          JOIN roles r ON r.resource_type = 'Folder' AND r.resource_id = ancestor_folder.id::uuid
-          JOIN users_roles ur ON ur.role_id = r.id
-          WHERE ur.user_id = '#{user_id}'
-          GROUP BY d.id
+        SELECT d.*
+        FROM documents d
+        LEFT JOIN all_ancestors a ON d.id = a.document_id
+        LEFT JOIN LATERAL unnest(string_to_array(COALESCE(a.parent_folder_ids, ''), ',')) AS ancestor_folder(id) ON true
+        LEFT JOIN roles r ON r.resource_type = 'Folder' AND r.resource_id = ancestor_folder.id::uuid
+        LEFT JOIN users_roles ur ON ur.role_id = r.id
+        WHERE (ur.user_id = '#{user_id}' AND d.id in (#{where_clause})) OR (d.user_id = '#{user_id}' AND d.id in (#{where_clause}))
+        GROUP BY d.id
       )
       SELECT id
       FROM user_accessible_documents;
