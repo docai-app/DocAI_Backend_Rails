@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_125_083_047) do
+ActiveRecord::Schema[7.0].define(version: 20_231_125_155_055) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -44,7 +44,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_125_083_047) do
   end
 
   create_table 'api_keys', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
-    t.uuid 'user_id'
+    t.uuid 'user_id', null: false
     t.string 'key', null: false
     t.datetime 'expires_at'
     t.boolean 'active', default: true
@@ -504,7 +504,6 @@ ActiveRecord::Schema[7.0].define(version: 20_231_125_083_047) do
 
   add_foreign_key 'active_storage_attachments', 'active_storage_blobs', column: 'blob_id'
   add_foreign_key 'active_storage_variant_records', 'active_storage_blobs', column: 'blob_id'
-  add_foreign_key 'api_keys', 'users'
   add_foreign_key 'dag_runs', 'users'
   add_foreign_key 'dags', 'users'
   add_foreign_key 'documents', 'folders'
