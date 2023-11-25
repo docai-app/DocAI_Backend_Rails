@@ -127,6 +127,7 @@ module Api
 
       def shareChatbotWithSignature
         @chatbot = Chatbot.find(params[:id])
+        puts current_user
         apiKey = current_user.active_api_key.key
         signature = Utils.encrypt(apiKey) if apiKey.present?
         if @chatbot && apiKey

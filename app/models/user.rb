@@ -49,7 +49,7 @@ class User < ApplicationRecord
   }, class_name: 'Chatbot', foreign_key: 'user_id', dependent: :destroy
   has_many :identities, dependent: :destroy, class_name: 'Identity', foreign_key: 'user_id'
   has_one :active_api_key, lambda {
-                             where(active: true)
+                             where(active: true).where(tenant: Apartment::Tenant.current)
                            }, class_name: 'ApiKey', foreign_key: 'user_id', dependent: :destroy
 
   validates_confirmation_of :password
