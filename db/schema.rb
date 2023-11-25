@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_120_064_252) do
+ActiveRecord::Schema[7.0].define(version: 20_231_125_083_047) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -368,6 +368,40 @@ ActiveRecord::Schema[7.0].define(version: 20_231_120_064_252) do
     t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
   end
 
+  create_table 'storyboard_item_associations', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'storyboard_id', null: false
+    t.uuid 'storyboard_item_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['storyboard_id'], name: 'index_storyboard_item_associations_on_storyboard_id'
+    t.index ['storyboard_item_id'], name: 'index_storyboard_item_associations_on_storyboard_item_id'
+  end
+
+  create_table 'storyboard_items', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.text 'description'
+    t.uuid 'user_id', null: false
+    t.string 'query', null: false
+    t.string 'item_type', null: false
+    t.text 'data', default: ''
+    t.text 'sql', default: ''
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['item_type'], name: 'index_storyboard_items_on_item_type'
+    t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
+  end
+
+  create_table 'storyboards', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'title', null: false
+    t.text 'description'
+    t.uuid 'user_id', null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['user_id'], name: 'index_storyboards_on_user_id'
+  end
+
   create_table 'tag_functions', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.uuid 'tag_id', null: false
     t.uuid 'function_id', null: false
@@ -486,6 +520,10 @@ ActiveRecord::Schema[7.0].define(version: 20_231_120_064_252) do
   add_foreign_key 'project_workflows', 'folders'
   add_foreign_key 'projects', 'folders'
   add_foreign_key 'projects', 'users'
+  add_foreign_key 'storyboard_item_associations', 'storyboard_items'
+  add_foreign_key 'storyboard_item_associations', 'storyboards'
+  add_foreign_key 'storyboard_items', 'users'
+  add_foreign_key 'storyboards', 'users'
   add_foreign_key 'taggings', 'tags'
   add_foreign_key 'user_mailboxes', 'documents'
   add_foreign_key 'user_mailboxes', 'users'
