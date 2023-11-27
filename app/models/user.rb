@@ -52,6 +52,8 @@ class User < ApplicationRecord
                              where(active: true).where(tenant: Apartment::Tenant.current)
                            }, class_name: 'ApiKey', foreign_key: 'user_id', dependent: :destroy
 
+  after_create :create_user_api_key
+
   validates_confirmation_of :password
   # after_create :assign_default_role
   # def assign_default_role
@@ -174,5 +176,13 @@ class User < ApplicationRecord
     # else
     #   puts 'No messages found.'
     # end
+  end
+
+  def create_user_api_key
+    tenant = Apartment::Tenant.current
+    ApiKey.create!(
+      tenant:,
+      user_id: id
+    )
   end
 end
