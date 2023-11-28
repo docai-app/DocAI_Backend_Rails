@@ -4,8 +4,9 @@
 module Authenticatable
   extend ActiveSupport::Concern
 
-  def set_authentication_actions(*actions)
-    before_action :authenticate, only: actions
+  def set_authentication_actions(options = {})
+    skip_before_action :authenticate, raise: false
+    before_action :authenticate, options
   end
 
   private
