@@ -16,6 +16,7 @@
 #  updated_at          :datetime         not null
 #  folder_id           :uuid
 #  is_template         :boolean          default(FALSE), not null
+#  source_workflow_id  :uuid
 #
 require 'test_helper'
 

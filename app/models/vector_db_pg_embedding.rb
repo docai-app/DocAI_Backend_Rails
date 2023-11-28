@@ -1,5 +1,16 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: langchain_pg_embedding
+#
+#  uuid          :uuid             not null, primary key
+#  collection_id :uuid
+#  embedding     :vector(1536)
+#  document      :string
+#  cmetadata     :json
+#  custom_id     :string
+#
 class VectorDbPgEmbedding < ApplicationRecord
   establish_connection :vector_db
   self.table_name = 'langchain_pg_embedding'

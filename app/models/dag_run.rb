@@ -4,24 +4,16 @@
 #
 # Table name: dag_runs
 #
-#  id         :bigint(8)        not null, primary key
-#  user_id    :bigint(8)
-#  dag_name   :string
-#  dag_status :integer          default("pending"), not null
-#  meta       :json             not null
-#  statistic  :json             not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  dag_meta   :jsonb            not null
-#
-# Indexes
-#
-#  index_dag_runs_on_dag_status  (dag_status)
-#  index_dag_runs_on_user_id     (user_id)
-#
-# Foreign Keys
-#
-#  fk_rails_...  (user_id => users.id)
+#  id               :uuid             not null, primary key
+#  user_id          :uuid
+#  dag_name         :string
+#  dag_status       :integer          default("pending"), not null
+#  meta             :jsonb
+#  statistic        :jsonb
+#  dag_meta         :jsonb
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  airflow_accepted :boolean          default(FALSE), not null
 #
 class DagRun < ApplicationRecord
   store_accessor :meta, :status_stack, :params, :project_workflow_step_id, :chatbot_id

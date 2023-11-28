@@ -16,6 +16,7 @@
 #  updated_at          :datetime         not null
 #  folder_id           :uuid
 #  is_template         :boolean          default(FALSE), not null
+#  source_workflow_id  :uuid
 #
 class ProjectWorkflow < ApplicationRecord
   store_accessor :meta, :description, :current_task_id, :executed_times
