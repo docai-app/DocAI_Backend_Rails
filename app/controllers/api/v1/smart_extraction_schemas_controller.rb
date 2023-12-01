@@ -205,6 +205,8 @@ module Api
         statisticsReportRes = JSON.parse(response.body)
         print(statisticsReportRes)
         if statisticsReportRes['status'] == true
+          create_storyboard_item("Smart Extraction Statistics #{@smart_extraction_schema.id}",
+                                 current_user.id, query, 'SmartExtractionSchema_Statistics', @smart_extraction_schema.id, statisticsReportRes['status'], '')
           render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
