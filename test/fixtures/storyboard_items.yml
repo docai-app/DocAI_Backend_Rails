@@ -7,12 +7,15 @@
 #  description :text
 #  user_id     :uuid             not null
 #  query       :string           not null
-#  item_type   :string           not null
 #  data        :text             default("")
 #  sql         :text             default("")
 #  meta        :jsonb
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
+#  is_ready    :boolean          default(FALSE), not null
+#  status      :integer          default("cached"), not null
+#  object_type :string           not null
+#  object_id   :uuid             not null
 #
 
 one:

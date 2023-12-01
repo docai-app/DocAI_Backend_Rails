@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_125_155_055) do
+ActiveRecord::Schema[7.0].define(version: 20_231_201_080_609) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -382,13 +382,15 @@ ActiveRecord::Schema[7.0].define(version: 20_231_125_155_055) do
     t.text 'description'
     t.uuid 'user_id', null: false
     t.string 'query', null: false
-    t.string 'item_type', null: false
     t.text 'data', default: ''
     t.text 'sql', default: ''
     t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
-    t.index ['item_type'], name: 'index_storyboard_items_on_item_type'
+    t.boolean 'is_ready', default: false, null: false
+    t.integer 'status', default: 0, null: false
+    t.string 'object_type', null: false
+    t.uuid 'object_id', null: false
     t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
   end
 

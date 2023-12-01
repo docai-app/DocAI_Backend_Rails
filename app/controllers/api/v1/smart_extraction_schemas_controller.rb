@@ -175,7 +175,9 @@ module Api
 
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
-          render json: { success: true, chart: html_code.to_s }, status: :ok
+          storyboard_item_cache = create_storyboard_item("Smart Extraction Chart #{@smart_extraction_schema.id}",
+                                                         current_user.id, query, 'SmartExtractionSchema_Chart', @smart_extraction_schema.id, html_code, '')
+          render json: { success: true, chart: html_code.to_s, item_id: storyboard_item_cache.id }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
           render json: { success: false, chart: html_code.to_s }, status: :ok
@@ -251,6 +253,11 @@ module Api
         DocumentSmartExtractionDatum.where(smart_extraction_schema_id: @smart_extraction_schema.id)
                                     .update_all(data: @smart_extraction_schema.data_schema, status: :awaiting,
                                                 is_ready: false, retry_count: 0)
+      end
+
+      def create_storyboard_item(name, user_id, query, object_type, object_id, data, sql = nil)
+        @storyboard_item = StoryboardItem.create!(name:, user_id:, query:, object_type:, object_id:, data:, sql:)
+        @storyboard_item
       end
 
       def pagination_meta(object)
