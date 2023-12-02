@@ -243,6 +243,14 @@ Rails.application.routes.draw do
           get 'check_status_finish'
         end
       end
+
+      # ********** Storyboard and related API ***********
+      resources :storyboard_items, only: %i[index show update destroy]
+      resources :storyboards, only: %i[index show create update destroy] do
+        member do
+          get 'storyboard_items'
+        end
+      end
     end
 
     namespace :schema do
