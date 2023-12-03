@@ -6,7 +6,7 @@ module Api
       include Authenticatable
 
       def index
-        @storyboard_items = StoryboardItem.order(created_at: :desc).page(params[:page])
+        @storyboard_items = StoryboardItem.where(is_ready: true).where(status: :saved).order(created_at: :desc).page(params[:page])
         render json: { success: true, storyboard_items: @storyboard_items, meta: pagination_meta(@storyboard_items) },
                status: :ok
       end

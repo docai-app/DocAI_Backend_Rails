@@ -14,6 +14,6 @@
 #
 class Storyboard < ApplicationRecord
   has_many :storyboard_item_associations, dependent: :destroy
-  has_many :items, through: :storyboard_item_associations
+  has_many :items, through: :storyboard_item_associations, source: :storyboard_item
   belongs_to :user
 end

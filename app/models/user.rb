@@ -51,6 +51,8 @@ class User < ApplicationRecord
   has_one :active_api_key, lambda {
                              where(active: true).where(tenant: Apartment::Tenant.current)
                            }, class_name: 'ApiKey', foreign_key: 'user_id', dependent: :destroy
+  has_many :storyboards, class_name: 'Storyboard', foreign_key: 'user_id', dependent: :destroy
+  has_many :storyboard_items, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
 
   after_create :create_user_api_key
 
