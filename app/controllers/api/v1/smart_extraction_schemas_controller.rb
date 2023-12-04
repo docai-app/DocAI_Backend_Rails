@@ -166,7 +166,8 @@ module Api
           query:,
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
-          data_schema: @smart_extraction_schema.data_schema
+          data_schema: @smart_extraction_schema.data_schema,
+          schema: @smart_extraction_schema.schema
         }.to_json
         http.read_timeout = 600_000
 
@@ -176,7 +177,7 @@ module Api
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
           storyboard_item_cache = create_storyboard_item("Smart Extraction Chart #{@smart_extraction_schema.id}",
-                                                         current_user.id, query, 'SmartExtractionSchema_Chart', @smart_extraction_schema.id, html_code, '')
+                                                         current_user.id, query, 'SmartExtractionSchema_Chart', @smart_extraction_schema.id, html_code, chartRes['sql'] || '')
           render json: { success: true, chart: html_code.to_s, item_id: storyboard_item_cache.id }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
@@ -197,7 +198,8 @@ module Api
           query:,
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
-          data_schema: @smart_extraction_schema.data_schema
+          data_schema: @smart_extraction_schema.data_schema,
+          schema: @smart_extraction_schema.schema
         }.to_json
         http.read_timeout = 600_000
 
@@ -206,7 +208,7 @@ module Api
         print(statisticsReportRes)
         if statisticsReportRes['status'] == true
           create_storyboard_item("Smart Extraction Statistics #{@smart_extraction_schema.id}",
-                                 current_user.id, query, 'SmartExtractionSchema_Statistics', @smart_extraction_schema.id, statisticsReportRes['result'], '')
+                                 current_user.id, query, 'SmartExtractionSchema_Statistics', @smart_extraction_schema.id, statisticsReportRes['result'], statisticsReportRes['sql'] || '')
           render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
