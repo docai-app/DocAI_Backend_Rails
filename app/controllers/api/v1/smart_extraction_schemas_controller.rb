@@ -207,9 +207,10 @@ module Api
         statisticsReportRes = JSON.parse(response.body)
         print(statisticsReportRes)
         if statisticsReportRes['status'] == true
-          create_storyboard_item("Smart Extraction Statistics #{@smart_extraction_schema.id}",
-                                 current_user.id, query, 'SmartExtractionSchema_Statistics', @smart_extraction_schema.id, statisticsReportRes['result'], statisticsReportRes['sql'] || '')
-          render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
+          storyboard_item_cache = create_storyboard_item("Smart Extraction Statistics #{@smart_extraction_schema.id}",
+                                                         current_user.id, query, 'SmartExtractionSchema_Statistics', @smart_extraction_schema.id, statisticsReportRes['result'], statisticsReportRes['sql'] || '')
+          render json: { success: true, report: statisticsReportRes['result'], item_id: storyboard_item_cache.id },
+                 status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
           render json: { success: false, report: html_code.to_s }, status: :ok
