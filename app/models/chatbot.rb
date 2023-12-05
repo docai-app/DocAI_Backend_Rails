@@ -22,6 +22,9 @@
 #  has_chatbot_updated :boolean          default(FALSE), not null
 #
 class Chatbot < ApplicationRecord
+  resourcify
+  has_paper_trail
+
   enum category: %i[assistant]
 
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
@@ -30,13 +33,30 @@ class Chatbot < ApplicationRecord
 
   after_create :set_permissions_to_owner
 
-  has_paper_trail
-
   def set_permissions_to_owner
     return if self['user_id'].nil?
 
     user.add_role :r, self
     user.add_role :w, self
+  end
+
+  def has_rights_to_read?(user)
+    return true if user_id.nil?
+
+    user.has_role? :r, self
+  end
+
+  def has_rights_to_write?(user)
+    return true if user_id.nil?
+
+    user.has_role? :w, self
+  end
+
+  def has_rights_to_read_and_write?(user)
+    return true if user_id.nil?
+
+    user.has_role? :r, self
+    user.has_role? :w, self
   end
 
   def increment_access_count!
