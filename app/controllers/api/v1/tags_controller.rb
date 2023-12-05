@@ -43,7 +43,7 @@ module Api
         @document.label_ids = @tag.id
         @document.status = :confirmed
         @document.name = @tag.name
-        @document.storage_url = AzureService.uploadBlob(text2Pdf, @tag.name, 'application/pdf')
+        @document.storage_url = AzureService.uploadBlob(text2Pdf, "#{@tag.name}.pdf", 'application/pdf')
         @document.user = current_user
         @document.save!
         DocumentClassificationJob.perform_async(@document.id, @tag.id, getSubdomain)
