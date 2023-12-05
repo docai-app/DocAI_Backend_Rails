@@ -74,12 +74,14 @@ module Api
       end
 
       def destroy
-        @chatbot = Chatbot.find(params[:id])
+        @chatbot = Chatbot.find(params[:id], user_id: current_user.id)
         if @chatbot.destroy
           render json: { success: true }, status: :ok
         else
-          render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false, error: @chatbot.errors }, status: :unprocessable_entity
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       def assistantQA

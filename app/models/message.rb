@@ -18,4 +18,6 @@
 class Message < ApplicationRecord
   store_accessor :meta, :belongs_user_id
   belongs_to :chatbot, class_name: 'Chatbot', foreign_key: 'chatbot_id', optional: true, dependent: :destroy
+
+  has_paper_trail
 end
