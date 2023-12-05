@@ -9,7 +9,7 @@ module Api
       before_action :current_user_chatbots, only: %i[index]
 
       def index
-        @chatbots = Chatbot.all.order(created_at: :desc)
+        @chatbots = current_user.chatbots.all.order(created_at: :desc)
         @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
         @chatbots_with_folders = @chatbots.map do |chatbot|
           puts chatbot.inspect
