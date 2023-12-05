@@ -6,7 +6,8 @@ module Api
       include Authenticatable
 
       def index
-        @storyboard_items = StoryboardItem.where(is_ready: true).where(status: :saved).order(created_at: :desc).page(params[:page])
+        @storyboard_items = current_user.storyboard_items.where(is_ready: true).where(status: :saved).order(created_at: :desc).as_json(except: %i[sql])
+        @storyboard_items = Kaminari.paginate_array(@storyboard_items).page(params[:page])
         render json: { success: true, storyboard_items: @storyboard_items, meta: pagination_meta(@storyboard_items) },
                status: :ok
       end
