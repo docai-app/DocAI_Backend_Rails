@@ -98,10 +98,21 @@ class DocumentSmartExtractionDatum < ApplicationRecord
   private 
   # 將日期格式化為 "%Y/%m/%d"
   def format_date(date_str)
-    date = Date.parse(date_str)
-    date.strftime("%Y/%m/%d")
-  rescue ArgumentError
-    nil
+    # 定義可能的日期格式
+    date_formats = ["%Y年%m月%d日", "%y/%m/%d", "%y.%m.%d", "%Y.%m.%d", "%Y-%m-%d"]
+    
+    date_formats.each do |format|
+      begin
+        # 嘗試用每種格式解析日期
+        date = Date.strptime(date_str, format)
+        return date.strftime("%Y/%m/%d") # 如果成功解析，則格式化並返回
+      rescue ArgumentError
+        # 如果當前格式不匹配，則嘗試下一個格式
+        next
+      end
+    end
+
+    nil # 如果所有格式都不匹配，返回 nil
   end
 
 end
