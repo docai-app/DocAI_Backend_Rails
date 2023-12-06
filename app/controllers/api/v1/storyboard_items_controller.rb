@@ -34,6 +34,7 @@ module Api
 
       def destroy
         @storyboard_item = StoryboardItem.find(params[:id])
+        puts "StoryboardItem: #{@storyboard_item.inspect}"
         if @storyboard_item.destroy
           render json: { success: true }, status: :ok
         else

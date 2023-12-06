@@ -181,7 +181,8 @@ module Api
           render json: { success: true, chart: html_code.to_s, item_id: storyboard_item_cache.id }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
-          render json: { success: false, chart: html_code.to_s }, status: :ok
+          render json: { success: false, chart: html_code.to_s, message: chartRes['result'].to_s }, status: :ok
+          
         end
       end
 
@@ -213,7 +214,8 @@ module Api
                  status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
-          render json: { success: false, report: html_code.to_s }, status: :ok
+          render json: { success: false, report: html_code.to_s, message: statisticsReportRes['result'].to_s },
+                 status: :ok
         end
       end
 
