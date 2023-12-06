@@ -9,7 +9,7 @@ module Api
       before_action :current_user_chatbots, only: %i[index]
 
       def index
-        @chatbots = Chatbot.all.order(created_at: :desc)
+        @chatbots = current_user.chatbots.all.order(created_at: :desc)
         @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
         @chatbots_with_folders = @chatbots.map do |chatbot|
           puts chatbot.inspect
@@ -74,12 +74,14 @@ module Api
       end
 
       def destroy
-        @chatbot = Chatbot.find(params[:id])
+        @chatbot = Chatbot.find(params[:id], user_id: current_user.id)
         if @chatbot.destroy
           render json: { success: true }, status: :ok
         else
-          render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false, error: @chatbot.errors }, status: :unprocessable_entity
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       def assistantQA

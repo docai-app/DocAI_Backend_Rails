@@ -21,4 +21,22 @@ namespace :user_chatbot_transfer do
       end
     end
   end
+
+  task add_permission_for_users: :environment do
+    puts 'add_permission_for_user'
+    Apartment::Tenant.each do |tenant|
+      Apartment::Tenant.switch!(tenant)
+      puts "====== tenant: #{tenant} ======"
+      @users = User.all
+      @users.each do |user|
+        next if user.chatbots.empty?
+
+        user.chatbots.each do |chatbot|
+          puts "====== #{chatbot.name} ======"
+          chatbot.set_permissions_to_owner
+          puts "====== #{user.email}'s permission created ======"
+        end
+      end
+    end
+  end
 end
