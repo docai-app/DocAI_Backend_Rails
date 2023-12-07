@@ -127,6 +127,34 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def assistantMultiagent
+        @chatbot = Chatbot.find(params[:id])
+        @documents = []
+        if @chatbot
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
+          end
+          @metadata = {
+            document_id: @documents.map(&:id)
+          }
+          
+          document_ids = Document.where(id: @metadata[:document_id]).pluck(:id)
+          # smart_extraction_schemas = SmartExtractionSchema.distinct.joins(:document_smart_extraction_datum).where(document_smart_extraction_data: { document_id: documents })
+
+          ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
+          smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
+
+          # binding.pry
+          @qaRes = AiService.assistantMultiagent(getSubdomain, @metadata, smart_extraction_schemas)
+          render json: { success: true, suggestion: @qaRes }, status: :ok
+        else
+          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       def shareChatbotWithSignature
         @chatbot = Chatbot.find(params[:id])
         puts current_user

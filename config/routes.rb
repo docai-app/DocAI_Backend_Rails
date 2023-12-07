@@ -180,6 +180,7 @@ Rails.application.routes.draw do
         collection do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
+          post 'assistant/multiagent', to: 'chatbots#assistantMultiagent'
           post ':id/share', to: 'chatbots#shareChatbotWithSignature'
         end
       end
@@ -253,16 +254,16 @@ Rails.application.routes.draw do
       end
     end
 
-    namespace :schema do
-      namespace :v1 do
-        # **********Chatbot API**********
-        resources :chatbots, only: %i[index show create update destroy] do
-          collection do
-            post 'assistant/message', to: 'chatbots#assistantQA'
-            post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
-          end
-        end
-      end
-    end
+    # namespace :schema do
+    #   namespace :v1 do
+    #     # **********Chatbot API**********
+    #     resources :chatbots, only: %i[index show create update destroy] do
+    #       collection do
+    #         post 'assistant/message', to: 'chatbots#assistantQA'
+    #         post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
+    #       end
+    #     end
+    #   end
+    # end
   end
 end

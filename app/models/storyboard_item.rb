@@ -20,7 +20,7 @@
 #  object_id   :uuid             not null
 #
 class StoryboardItem < ApplicationRecord
-  has_many :storyboard_item_associations
+  has_many :storyboard_item_associations, dependent: :destroy
   has_many :storyboards, through: :storyboard_item_associations
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
 
