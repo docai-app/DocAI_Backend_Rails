@@ -25,7 +25,9 @@ module Api
       def update
         @storyboard_item = StoryboardItem.find(params[:id])
         puts params[:data]
-        @storyboard_item.data = params[:data] if @storyboard_item.object_type == 'SmartExtractionSchema_Statistics'
+        if @storyboard_item.object_type == 'SmartExtractionSchema' && @storyboard_item.item_type == 'statistics'
+          @storyboard_item.data = params[:data]
+        end
         if @storyboard_item.update(storyboard_item_params)
           render json: { success: true, storyboard_item: @storyboard_item }, status: :ok
         else
