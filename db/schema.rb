@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_201_080_609) do
+ActiveRecord::Schema[7.0].define(version: 20_231_207_094_707) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -391,6 +391,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_201_080_609) do
     t.integer 'status', default: 0, null: false
     t.string 'object_type', null: false
     t.uuid 'object_id', null: false
+    t.string 'item_type'
     t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
   end
 

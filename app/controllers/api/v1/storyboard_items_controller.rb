@@ -14,6 +14,7 @@ module Api
 
       def show
         @storyboard_item = StoryboardItem.find(params[:id])
+        puts "StoryboardItem: #{@storyboard_item.inspect}"
         render json: { success: true, storyboard_item: @storyboard_item }, status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'StoryboardItem not found' }, status: :not_found

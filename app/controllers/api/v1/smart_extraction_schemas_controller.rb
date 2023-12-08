@@ -182,7 +182,7 @@ module Api
         else
           html_code = 'Please reduce the number of form data selected.'
           render json: { success: false, chart: html_code.to_s, message: chartRes['result'].to_s }, status: :ok
-          
+
         end
       end
 
