@@ -105,5 +105,4 @@ class AiService
       res['message']
     end
   end
-
 end

@@ -138,7 +138,7 @@ module Api
           @metadata = {
             document_id: @documents.map(&:id)
           }
-          
+
           document_ids = Document.where(id: @metadata[:document_id]).pluck(:id)
           # smart_extraction_schemas = SmartExtractionSchema.distinct.joins(:document_smart_extraction_datum).where(document_smart_extraction_data: { document_id: documents })
 
