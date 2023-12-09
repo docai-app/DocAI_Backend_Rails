@@ -84,7 +84,7 @@ class DocumentSmartExtractionDatum < ApplicationRecord
   # 驗證日期是否有效
   def valid_date?(date_str)
     # 嘗試解析多種不同的日期格式
-    date_formats = ["%Y年%m月%d日", "%y/%m/%d", "%y.%m.%d", "%Y.%m.%d", "%Y-%m-%d"]
+    date_formats = ["%Y年%m月%d日", "%Y/%m/%d", "%y/%m/%d", "%y.%m.%d", "%Y.%m.%d", "%Y-%m-%d"]
     date_formats.any? do |format|
       begin
         Date.strptime(date_str, format)
@@ -95,11 +95,10 @@ class DocumentSmartExtractionDatum < ApplicationRecord
     end
   end
 
-  private 
   # 將日期格式化為 "%Y/%m/%d"
   def format_date(date_str)
     # 定義可能的日期格式
-    date_formats = ["%Y年%m月%d日", "%y/%m/%d", "%y.%m.%d", "%Y.%m.%d", "%Y-%m-%d"]
+    date_formats = ["%Y年%m月%d日", "%Y/%m/%d", "%y/%m/%d", "%y.%m.%d", "%Y.%m.%d", "%Y-%m-%d"]
     
     date_formats.each do |format|
       begin

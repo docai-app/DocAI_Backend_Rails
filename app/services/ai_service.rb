@@ -90,14 +90,19 @@ class AiService
     end
   end
 
-  def self.assistantMultiagent(schema, metadata, smart_extraction_schemas)
+  def self.assistantMultiagent(query, schema, metadata, smart_extraction_schemas)
+
+    binding.pry
     res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa", {
+      query:,
       schema:,
       metadata:,
-      smart_extraction_schemas:
+      smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
     }.to_json, { content_type: :json, accept: :json })
     res = JSON.parse(res)
     puts "Response from document multiagent ask: #{res}"
+
+    # binding.pry
 
     if res['status'] == true
       res['suggestion']

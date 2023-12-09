@@ -136,17 +136,17 @@ module Api
             @documents.concat(folder.documents)
           end
           @metadata = {
-            document_id: @documents.map(&:id)
+            document_ids: @documents.map(&:id)
           }
           
-          document_ids = Document.where(id: @metadata[:document_id]).pluck(:id)
+          document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
           # smart_extraction_schemas = SmartExtractionSchema.distinct.joins(:document_smart_extraction_datum).where(document_smart_extraction_data: { document_id: documents })
 
           ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
           smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
 
           # binding.pry
-          @qaRes = AiService.assistantMultiagent(getSubdomain, @metadata, smart_extraction_schemas)
+          @qaRes = AiService.assistantMultiagent(params[:query], getSubdomain, @metadata, smart_extraction_schemas)
           render json: { success: true, suggestion: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
