@@ -51,6 +51,17 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def destroy
+        @storyboard = Storyboard.find(params[:id])
+        if @storyboard.destroy
+          render json: { success: true }, status: :ok
+        else
+          render json: { success: false }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       private
 
       def filter_valid_storyboard_items(item_ids)

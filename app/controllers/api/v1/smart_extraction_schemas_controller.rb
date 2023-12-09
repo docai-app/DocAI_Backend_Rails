@@ -177,12 +177,12 @@ module Api
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
           storyboard_item_cache = create_storyboard_item("Smart Extraction Chart #{@smart_extraction_schema.id}",
-                                                         current_user.id, query, 'SmartExtractionSchema_Chart', @smart_extraction_schema.id, html_code, chartRes['sql'] || '')
+                                                         current_user.id, query, 'chart', 'SmartExtractionSchema', @smart_extraction_schema.id, html_code, chartRes['sql'] || '')
           render json: { success: true, chart: html_code.to_s, item_id: storyboard_item_cache.id }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
           render json: { success: false, chart: html_code.to_s, message: chartRes['result'].to_s }, status: :ok
-          
+
         end
       end
 
@@ -209,7 +209,7 @@ module Api
         print(statisticsReportRes)
         if statisticsReportRes['status'] == true
           storyboard_item_cache = create_storyboard_item("Smart Extraction Statistics #{@smart_extraction_schema.id}",
-                                                         current_user.id, query, 'SmartExtractionSchema_Statistics', @smart_extraction_schema.id, statisticsReportRes['result'], statisticsReportRes['sql'] || '')
+                                                         current_user.id, query, 'statistics', 'SmartExtractionSchema', @smart_extraction_schema.id, statisticsReportRes['result'], statisticsReportRes['sql'] || '')
           render json: { success: true, report: statisticsReportRes['result'], item_id: storyboard_item_cache.id },
                  status: :ok
         else
@@ -262,8 +262,9 @@ module Api
                                                 is_ready: false, retry_count: 0)
       end
 
-      def create_storyboard_item(name, user_id, query, object_type, object_id, data, sql = nil)
-        @storyboard_item = StoryboardItem.create!(name:, user_id:, query:, object_type:, object_id:, data:, sql:)
+      def create_storyboard_item(name, user_id, query, item_type, object_type, object_id, data, sql = nil)
+        @storyboard_item = StoryboardItem.create!(name:, user_id:, query:, item_type:, object_type:, object_id:, data:,
+                                                  sql:)
         @storyboard_item
       end
 

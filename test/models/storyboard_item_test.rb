@@ -18,6 +18,7 @@
 #  status      :integer          default("cached"), not null
 #  object_type :string           not null
 #  object_id   :uuid             not null
+#  item_type   :string
 #
 require 'test_helper'
 
