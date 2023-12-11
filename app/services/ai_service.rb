@@ -91,7 +91,6 @@ class AiService
   end
 
   def self.assistantMultiagent(query, schema, metadata, smart_extraction_schemas)
-
     res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa", {
       query:,
       schema:,
