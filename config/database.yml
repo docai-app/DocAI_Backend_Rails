@@ -22,12 +22,24 @@ development:
     database_tasks: false
 
 production:
-  adapter:  postgresql
-  host:     <%= ENV["PROD_DB_HOST"] %>
-  encoding: unicode
-  database: <%= ENV["PROD_DB"] %>
-  pool:     20
-  username: <%= ENV["PROD_DB_USERNAME"] %>
-  password: <%= ENV["PROD_DB_PASSWORD"] %>
-  sslmode: require
-  template: template0
+  primary:
+    adapter:  postgresql
+    host:     <%= ENV["DEV_DB_HOST"] %>
+    encoding: unicode
+    database: <%= ENV["DEV_DB"] %>
+    pool:     20
+    username: <%= ENV["DEV_DB_USERNAME"] %>
+    password: <%= ENV["DEV_DB_PASSWORD"] %>
+    sslmode: require
+    template: template0
+  vector_db:
+    adapter:  postgresql
+    host:     <%= ENV["DEV_VECTOR_DB_HOST"] %>
+    encoding: unicode
+    database: <%= ENV["DEV_VECTOR_DB"] %>
+    pool:     20
+    username: <%= ENV["DEV_VECTOR_DB_USERNAME"] %>
+    password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
+    sslmode: require
+    template: template0
+    database_tasks: false
