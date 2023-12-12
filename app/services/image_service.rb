@@ -2,7 +2,14 @@
 
 class ImageService
   def self.html2Png(html)
-    Selenium::WebDriver::Chrome.path = '/usr/local/bin/chromedriver' if ENV['RAILS_ENV'] == 'production'
+    case ENV['RAILS_ENV']
+    when 'production'
+      Selenium::WebDriver::Chrome.path = '/usr/local/bin/chromedriver'
+    when 'development'
+      Selenium::WebDriver::Chrome.path = '/usr/local/bin/chromedriver'
+    when 'local'
+      Selenium::WebDriver::Chrome.path = '~/Downloads/chromedriver_mac_arm64/chromedriver'
+    end
 
     browser = Watir::Browser.new(:chrome, options: { args: ['--headless', '--hide-scrollbars', '--no-sandbox'] })
 

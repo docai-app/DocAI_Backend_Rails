@@ -28,6 +28,18 @@ RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g yarn@1
 
+# download and install chrome
+RUN curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
+RUN apt-get update && apt-get install -y google-chrome-stable
+
+# download and install chromedriver
+RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` && \
+  curl -sS -o /tmp/chromedriver_linux64.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip && \
+  unzip /tmp/chromedriver_linux64.zip -d /usr/local/bin && \
+  rm /tmp/chromedriver_linux64.zip && \
+  chmod +x /usr/local/bin/chromedriver
+
 # install wkhtmltopdf
 # RUN apt-get install -y fontconfig libjpeg62-turbo libxrender1
 # RUN apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base

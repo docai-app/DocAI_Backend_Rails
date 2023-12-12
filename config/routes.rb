@@ -188,6 +188,7 @@ Rails.application.routes.draw do
       # **********Tool API**********
       post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
+      post 'tools/text_to_png', to: 'tools#text_to_png'
       post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
 
       # **********Smart Extraction Schema API**********

@@ -109,3 +109,7 @@ gem 'google-api-client'
 
 gem 'open-uri'
 gem 'pdf-reader'
+
+gem 'selenium-webdriver', '~> 4.0'
+gem 'watir', '~> 7.0'
+gem 'webdrivers'
