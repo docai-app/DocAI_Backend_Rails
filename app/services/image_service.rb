@@ -7,8 +7,6 @@ class ImageService
       Selenium::WebDriver::Chrome.path = '/usr/local/bin/chromedriver'
     when 'development'
       Selenium::WebDriver::Chrome.path = '/usr/local/bin/chromedriver'
-    when 'local'
-      Selenium::WebDriver::Chrome.path = '~/Downloads/chromedriver_mac_arm64/chromedriver'
     end
 
     browser = Watir::Browser.new(:chrome, options: { args: ['--headless', '--hide-scrollbars', '--no-sandbox'] })
