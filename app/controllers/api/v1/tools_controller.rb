@@ -25,6 +25,17 @@ module Api
           render json: { success: false, error: e.message }, status: :unprocessable_entity
         end
       end
+
+      def upload_html_to_pdf
+        content = params[:content]
+        begin
+          pdfBlob = FormProjectionService.text2Pdf(content)
+          file_url = AzureService.uploadBlob(pdfBlob, 'chatting_report.pdf', 'application/pdf')
+          render json: { success: true, file_url: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
     end
   end
 end
