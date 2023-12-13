@@ -40,6 +40,8 @@ RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RE
   rm /tmp/chromedriver_linux64.zip && \
   chmod +x /usr/local/bin/chromedriver
 
+ENV DISPLAY=:99
+
 # install wkhtmltopdf
 # RUN apt-get install -y fontconfig libjpeg62-turbo libxrender1
 # RUN apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
