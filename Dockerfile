@@ -32,14 +32,28 @@ RUN npm install -g yarn@1
 # download and install chrome
 RUN curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
-RUN apt-get update && apt-get install -y google-chrome-stable
+RUN apt-get update 
+#&& apt-get install -y google-chrome-stable
+
+# 設定 CHROMEDRIVER_VERSION 變數
+ARG CHROMEDRIVER_VERSION="114.0.5735.90"
+ARG CHROME_VERSION="114.0.5735.90-1"
+
+# 使用 ENV 指令將變數設置為環境變數
+ENV CHROMEDRIVER_VERSION=$CHROMEDRIVER_VERSION
+ENV CHROME_VERSION=${CHROME_VERSION}
+
+# download chrome
+RUN wget --no-verbose -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_114.0.5735.90-1_amd64.deb \
+    && apt install -y /tmp/chrome.deb \
+    && rm /tmp/chrome.deb
 
 # download and install chromedriver
 RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` && \
-  curl -sS -o /tmp/chromedriver_linux64.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip && \
-  unzip /tmp/chromedriver_linux64.zip -d /usr/local/bin && \
-  rm /tmp/chromedriver_linux64.zip && \
-  chmod +x /usr/local/bin/chromedriver
+    curl -sS -o /tmp/chromedriver_linux64.zip http://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip && \
+    unzip /tmp/chromedriver_linux64.zip -d /usr/local/bin && \
+    rm /tmp/chromedriver_linux64.zip && \
+    chmod +x /usr/local/bin/chromedriver
 
 ENV DISPLAY=:99
 
