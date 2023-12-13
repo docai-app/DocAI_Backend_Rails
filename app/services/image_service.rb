@@ -9,7 +9,9 @@ class ImageService
       Selenium::WebDriver::Chrome.path = '/usr/local/bin/chromedriver'
     end
 
-    browser = Watir::Browser.new(:chrome, options: { args: ['--headless', '--hide-scrollbars', '--no-sandbox'] })
+    # Webdrivers::Chromedriver.required_version = "114.0.5735.90"
+
+    browser = Watir::Browser.new(:chrome, options: { args: ['--disable-dev-shm-usage', '--headless', '--hide-scrollbars', '--no-sandbox'] })
 
     browser.goto("data:text/html;base64,#{Base64.strict_encode64(html)}")
 
