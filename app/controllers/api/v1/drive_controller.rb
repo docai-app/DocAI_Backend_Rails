@@ -13,8 +13,9 @@ module Api
       def index
         @folders = current_user_accessible_folders
         @folders = Kaminari.paginate_array(@folders).page(params[:page])
-        @documents = Document.where(folder_id: nil).order(updated_at: :desc).includes(:user, :labels).as_json(
-          except: [:label_list], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
+        @documents = Document.where(folder_id: nil).select(Document.attribute_names - %w[label_list content]).order(updated_at: :desc).includes(:user, :labels).as_json(
+          except: %i[label_list
+                     content], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
         )
         @documents = Kaminari.paginate_array(@documents).page(params[:page])
         @meta = compare_pagination_meta(@folders, @documents)
@@ -92,10 +93,9 @@ module Api
 
       def current_user_folder
         @folder = Folder.find(params[:id])
-        if @folder.user.nil?
+
+        if @folder.user.nil? || current_user.has_role?(:w, @folder) || @folder.allow_user_access?(current_user)
           @current_user_folder = @folder
-        elsif current_user.has_role? :w, Folder.find(params[:id]) || @folder.user.nil?
-          @current_user_folder = Folder.find_by(id: params[:id])
         else
           render json: { success: false, error: "You don't have permission to access this folder" }, status: :ok
         end
@@ -105,10 +105,10 @@ module Api
         all_root_folders = Folder.where(parent_id: nil).order(created_at: :desc).includes(:user)
 
         folder_ids_with_rights = current_user.roles.where(name: 'w', resource_type: 'Folder').pluck(:resource_id)
-        label_folders = ActsAsTaggableOn::Tag.for_context(:labels)
+        label_folders = ActsAsTaggableOn::Tag.for_context(:labels).pluck(:folder_id)
 
         accessible_folders = all_root_folders.select do |folder|
-          folder_ids_with_rights.include?(folder.id) || folder.user == current_user || folder.user.nil? && !label_folders.pluck(:folder_id).include?(folder.id)
+          folder_ids_with_rights.include?(folder.id) || folder.user == current_user || folder.user.nil? && !label_folders.include?(folder.id)
         end
 
         accessible_folders.as_json(include: { user: { only: %i[id email nickname] } })

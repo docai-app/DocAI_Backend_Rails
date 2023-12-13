@@ -8,7 +8,7 @@
 #  user_id    :uuid             not null
 #  provider   :string
 #  uid        :string
-#  metadata   :jsonb
+#  meta       :jsonb
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #

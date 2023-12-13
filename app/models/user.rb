@@ -48,6 +48,15 @@ class User < ApplicationRecord
     where(object_type: 'UserSystemAssistant')
   }, class_name: 'Chatbot', foreign_key: 'user_id', dependent: :destroy
   has_many :identities, dependent: :destroy, class_name: 'Identity', foreign_key: 'user_id'
+  has_one :active_api_key, lambda {
+                             where(active: true).where(tenant: Apartment::Tenant.current)
+                           }, class_name: 'ApiKey', foreign_key: 'user_id', dependent: :destroy
+  has_many :storyboards, class_name: 'Storyboard', foreign_key: 'user_id', dependent: :destroy
+  has_many :storyboard_items, lambda {
+                                where(is_ready: true).where(status: :saved)
+                              }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
+
+  after_create :create_user_api_key
 
   validates_confirmation_of :password
   # after_create :assign_default_role
@@ -171,5 +180,13 @@ class User < ApplicationRecord
     # else
     #   puts 'No messages found.'
     # end
+  end
+
+  def create_user_api_key
+    tenant = Apartment::Tenant.current
+    ApiKey.create!(
+      tenant:,
+      user_id: id
+    )
   end
 end

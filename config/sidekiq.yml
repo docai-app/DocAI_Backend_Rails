@@ -14,19 +14,20 @@
   - ['pdf_pages_creation', 1]
   - ['pdf_page']
   - ['pdf_page_monitor_job', 1]
-:timeout: 7200
+  - ['update_chatbot_assistive_questions_job', 1]
+:timeout: 3600
 
 :schedule:
   DocumentClassificationMonitorJob:
-    every: '30s'
+    every: '60s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:
-    every: '30s'
+    every: '60s'
     queue: ocr_monitor_job
     enabled: true
   FormDeepUnderstandingMonitorJob:
-    every: '30s'
+    every: '60s'
     queue: form_deep_understanding_monitor_job
     enabled: true
   DocumentEmbeddingMonitorJob:
@@ -34,10 +35,10 @@
     queue: document_embedding_monitor_job
     enabled: true
   DocumentSmartExtractionMonitorJob:
-    every: '60s'
+    every: '120s'
     queue: document_smart_extraction_monitor_job
     enabled: true
   PdfPageMonitorJob:
-    every: '60s'
+    every: '120s'
     queue: pdf_page_monitor_job
     enabled: true

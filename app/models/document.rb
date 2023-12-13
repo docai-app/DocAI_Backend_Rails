@@ -50,7 +50,7 @@ class Document < ApplicationRecord
                                             foreign_key: 'document_id'
   has_many :smart_extraction_schema, through: :document_smart_extraction_data, class_name: 'SmartExtractionSchema',
                                      foreign_key: 'smart_extraction_schema_id'
-  has_many :pdf_page_details, dependent: :destroy
+  has_many :pdf_page_details, dependent: :destroy, class_name: 'PdfPageDetail', foreign_key: 'document_id'
 
   after_create :process_pdf_if_applicable
 
@@ -59,6 +59,80 @@ class Document < ApplicationRecord
   }
 
   scope :approved, -> { where('documents.approval_at is not null') }
+
+  def self.with_ancestor_folder_ids(conditions)
+    where_clause = conditions.to_sql
+
+    sql = <<-SQL
+      WITH RECURSIVE folder_ancestors AS (
+          SELECT f.id, f.parent_id, d.id as document_id
+          FROM folders f
+          JOIN documents d ON f.id = d.folder_id
+          WHERE #{where_clause}
+
+          UNION ALL
+
+          SELECT f.id, f.parent_id, fa.document_id
+          FROM folders f
+          JOIN folder_ancestors fa ON f.id = fa.parent_id
+      ),
+      all_ancestors AS (
+          SELECT
+              document_id,
+              string_agg(folder_ancestors.id::text, ',') AS parent_folder_ids
+          FROM folder_ancestors
+          GROUP BY document_id
+      )
+      SELECT d.*, a.parent_folder_ids
+      FROM documents d
+      LEFT JOIN all_ancestors a ON d.id = a.document_id;
+    SQL
+
+    find_by_sql(sql)
+
+    # 使用方法
+    # conditions = Document.where('created_at > ?', 1.week.ago)
+    # @documents = Document.with_ancestor_folder_ids(conditions)
+  end
+
+  def self.accessible_by_user(user_id, conditions)
+    where_clause = conditions.to_sql
+    sql = <<-SQL
+      WITH RECURSIVE folder_ancestors AS (
+          SELECT f.id, f.parent_id, d.id as document_id
+          FROM folders f
+          JOIN documents d ON f.id = d.folder_id
+          WHERE (d.id in (#{where_clause})) or (d.folder_id is null)
+
+          UNION ALL
+
+          SELECT f.id, f.parent_id, fa.document_id
+          FROM folders f
+          JOIN folder_ancestors fa ON f.id = fa.parent_id
+      ),
+      all_ancestors AS (
+          SELECT
+              document_id,
+              string_agg(folder_ancestors.id::text, ',') AS parent_folder_ids
+          FROM folder_ancestors
+          GROUP BY document_id
+      ),
+      user_accessible_documents AS (
+        SELECT d.*
+        FROM documents d
+        LEFT JOIN all_ancestors a ON d.id = a.document_id
+        LEFT JOIN LATERAL unnest(string_to_array(COALESCE(a.parent_folder_ids, ''), ',')) AS ancestor_folder(id) ON true
+        LEFT JOIN roles r ON r.resource_type = 'Folder' AND r.resource_id = ancestor_folder.id::uuid
+        LEFT JOIN users_roles ur ON ur.role_id = r.id
+        WHERE (ur.user_id = '#{user_id}' AND d.id in (#{where_clause})) OR (d.user_id = '#{user_id}' AND d.id in (#{where_clause}))
+        GROUP BY d.id
+      )
+      SELECT id
+      FROM user_accessible_documents;
+    SQL
+
+    find_by_sql(sql)
+  end
 
   def self.last
     order('documents.created_at desc').limit(1).first

@@ -3,11 +3,13 @@
 module Api
   module V1
     class ChatbotsController < ApiController
-      before_action :authenticate_user!, only: %i[create update destroy mark_messages_read]
+      include Authenticatable
+
+      before_action :authenticate, only: %i[show create update destroy mark_messages_read]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
-        @chatbots = Chatbot.all.order(created_at: :desc)
+        @chatbots = current_user.chatbots.all.order(created_at: :desc)
         @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
         @chatbots_with_folders = @chatbots.map do |chatbot|
           puts chatbot.inspect
@@ -49,6 +51,8 @@ module Api
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         @chatbot.meta['chain_features'] = params[:chain_features]
         if @chatbot.save
+          @metadata = chatbot_documents_metadata(@chatbot)
+          UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
@@ -61,6 +65,8 @@ module Api
         @chatbot.meta['chain_features'] = params[:chain_features]
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         if @chatbot.update(chatbot_params)
+          @metadata = chatbot_documents_metadata(@chatbot)
+          UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
@@ -68,12 +74,14 @@ module Api
       end
 
       def destroy
-        @chatbot = Chatbot.find(params[:id])
+        @chatbot = Chatbot.find(params[:id], user_id: current_user.id)
         if @chatbot.destroy
           render json: { success: true }, status: :ok
         else
-          render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false, error: @chatbot.errors }, status: :unprocessable_entity
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       def assistantQA
@@ -119,6 +127,48 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def assistantMultiagent
+        @chatbot = Chatbot.find(params[:id])
+        @documents = []
+        if @chatbot
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
+          end
+          @metadata = {
+            document_ids: @documents.map(&:id)
+          }
+
+          document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
+          # smart_extraction_schemas = SmartExtractionSchema.distinct.joins(:document_smart_extraction_datum).where(document_smart_extraction_data: { document_id: documents })
+
+          ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
+          smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
+
+          # binding.pry
+          @qaRes = AiService.assistantMultiagent(params[:query], getSubdomain, @metadata, smart_extraction_schemas)
+          render json: { success: true, suggestion: @qaRes }, status: :ok
+        else
+          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def shareChatbotWithSignature
+        @chatbot = Chatbot.find(params[:id])
+        puts current_user
+        apiKey = current_user.active_api_key.key
+        signature = Utils.encrypt(apiKey) if apiKey.present?
+        if @chatbot && apiKey
+          render json: { success: true, chatbot: @chatbot, signature: }, status: :ok
+        else
+          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       private
 
       def chatbot_params
@@ -127,6 +177,20 @@ module Api
 
       def current_user_chatbots
         @current_user_chatbots = current_user.chatbots.order(created_at: :desc)
+      end
+
+      def chatbot_documents_metadata(chatbot)
+        @documents = []
+        @folders = chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+        puts @folders.inspect
+        @folders.each do |folder|
+          puts 'Folder document: ', folder.documents
+          @documents.concat(folder.documents)
+        end
+        @metadata = {
+          document_id: @documents.map(&:id)
+        }
+        @metadata
       end
 
       def pagination_meta(object)
@@ -142,6 +206,18 @@ module Api
       def getSubdomain
         Utils.extractRequestTenantByToken(request)
       end
+
+      # def authenticate!
+      #   api_key = request.headers['X-API-KEY']
+      #   if !api_key.present?
+      #     authenticate_user!
+      #   end
+      # end
+      # def authenticate_with_api_key(key)
+      #   unless ApiKey.active.exists?(key: key)
+      #     render json: { success: false, error: 'Invalid API Key' }, status: :unauthorized
+      #   end
+      # end
     end
   end
 end

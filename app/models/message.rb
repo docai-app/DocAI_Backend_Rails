@@ -16,6 +16,8 @@
 #  updated_at  :datetime         not null
 #
 class Message < ApplicationRecord
+  has_paper_trail
+
   store_accessor :meta, :belongs_user_id
   belongs_to :chatbot, class_name: 'Chatbot', foreign_key: 'chatbot_id', optional: true, dependent: :destroy
 end

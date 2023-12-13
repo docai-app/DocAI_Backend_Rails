@@ -36,21 +36,15 @@ class AiService
     puts "DocumentSmartExtraction: #{schema}, #{content}, #{storage_url} #{data_schema}"
     if schema.first['query'].is_a?(Array)
       puts 'DocumentSmartExtraction: Array Task!'
-      # res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce", { storage_url:, schema:, data_schema: }.to_json, { content_type: :json, accept: :json, timeout: 30000 })
-      # puts "Res: #{res}"
       uri = URI("#{ENV['DOCAI_ALPHA_URL']}/smart_extraction_schema/map_reduce")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = uri.scheme == 'https' # 啟用 SSL/TLS 如果是 https URL
       request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
       request.body = { storage_url:, schema:, data_schema: }.to_json
-
-      # 設定超時
-      http.read_timeout = 30_000 # 秒為單位
-
-      # 發送請求
+      http.read_timeout = 600_000
+      # 秒為單位
       response = http.request(request)
 
-      # 解析響應
       res = JSON.parse(response.body)
       puts "Res: #{res}"
     else
@@ -88,6 +82,25 @@ class AiService
     }.to_json, { content_type: :json, accept: :json })
     res = JSON.parse(res)
     puts "Response from Document Embedding QA Suggestion: #{res}"
+
+    if res['status'] == true
+      res['suggestion']
+    else
+      res['message']
+    end
+  end
+
+  def self.assistantMultiagent(query, schema, metadata, smart_extraction_schemas)
+    res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa", {
+      query:,
+      schema:,
+      metadata:,
+      smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
+    }.to_json, { content_type: :json, accept: :json })
+    res = JSON.parse(res)
+    puts "Response from document multiagent ask: #{res}"
+
+    # binding.pry
 
     if res['status'] == true
       res['suggestion']

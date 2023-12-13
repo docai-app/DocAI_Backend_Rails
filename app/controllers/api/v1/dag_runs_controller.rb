@@ -3,9 +3,12 @@
 module Api
   module V1
     class DagRunsController < ApiController
+      include Authenticatable
+
       before_action :set_tenant
       before_action :set_dag_run, except: %i[create index]
-      before_action :authenticate_user!, except: %i[update]
+      before_action :authenticate, except: %i[update]
+      # before_action :authenticate_user!, except: %i[update]
 
       # 不限 user 可以使用
       def api_user
@@ -44,7 +47,7 @@ module Api
 
       def update
         @dag_run.find_status_stack_by_key(params[:task_name])
-        obj = { task_name: params[:task_name], content: params[:content] }
+        obj = { task_name: params[:task_name], content: params[:content], function: params[:function] }
         @dag_run.add_or_replace_status_stack(obj)
         @dag_run.dag_status_check!
 

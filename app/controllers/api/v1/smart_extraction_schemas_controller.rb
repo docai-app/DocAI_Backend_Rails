@@ -3,7 +3,10 @@
 module Api
   module V1
     class SmartExtractionSchemasController < ApiController
-      before_action :authenticate_user!
+      include Authenticatable
+
+      before_action :authenticate, only: %i[index generate_chart generate_statistics]
+      before_action :authenticate_user!, except: %i[index generate_chart generate_statistics]
 
       def index
         @smart_extraction_schemas = SmartExtractionSchema.order(created_at: :desc).page(params[:page])
@@ -154,19 +157,32 @@ module Api
         query = params[:query] || ''
         @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
-        chartRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart", {
+
+        uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/chart")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+        request.body = {
           query:,
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
-          data_schema: @smart_extraction_schema.data_schema
-        }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
-        chartRes = JSON.parse(chartRes)
+          data_schema: @smart_extraction_schema.data_schema,
+          schema: @smart_extraction_schema.schema
+        }.to_json
+        http.read_timeout = 600_000
+
+        response = http.request(request)
+        chartRes = JSON.parse(response.body)
+
         if chartRes['status'] == true
           html_code = chartRes['result'].match(%r{<html>(.|\n)*?</html>})
-          render json: { success: true, chart: html_code.to_s }, status: :ok
+          storyboard_item_cache = create_storyboard_item("Smart Extraction Chart #{@smart_extraction_schema.id}",
+                                                         current_user.id, query, 'chart', 'SmartExtractionSchema', @smart_extraction_schema.id, html_code, chartRes['sql'] || '')
+          render json: { success: true, chart: html_code.to_s, item_id: storyboard_item_cache.id }, status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
-          render json: { success: false, chart: html_code.to_s }, status: :ok
+          render json: { success: false, chart: html_code.to_s, message: chartRes['result'].to_s }, status: :ok
+
         end
       end
 
@@ -174,18 +190,32 @@ module Api
         query = params[:query] || ''
         @smart_extraction_schema = SmartExtractionSchema.find(params[:smart_extraction_schema_id])
         puts "SmartExtractionSchema: #{@smart_extraction_schema.id}"
-        statisticsReportRes = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/statistics", {
+
+        uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/smart_extraction/statistics")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+        request.body = {
           query:,
           views_name: "smart_extraction_schema_#{@smart_extraction_schema.id}",
           tenant: getSubdomain,
-          data_schema: @smart_extraction_schema.data_schema
-        }.to_json, { content_type: :json, accept: :json, timeout: 3000 })
-        statisticsReportRes = JSON.parse(statisticsReportRes)
+          data_schema: @smart_extraction_schema.data_schema,
+          schema: @smart_extraction_schema.schema
+        }.to_json
+        http.read_timeout = 600_000
+
+        response = http.request(request)
+        statisticsReportRes = JSON.parse(response.body)
+        print(statisticsReportRes)
         if statisticsReportRes['status'] == true
-          render json: { success: true, report: statisticsReportRes['result'] }, status: :ok
+          storyboard_item_cache = create_storyboard_item("Smart Extraction Statistics #{@smart_extraction_schema.id}",
+                                                         current_user.id, query, 'statistics', 'SmartExtractionSchema', @smart_extraction_schema.id, statisticsReportRes['result'], statisticsReportRes['sql'] || '')
+          render json: { success: true, report: statisticsReportRes['result'], item_id: storyboard_item_cache.id },
+                 status: :ok
         else
           html_code = 'Please reduce the number of form data selected.'
-          render json: { success: false, report: html_code.to_s }, status: :ok
+          render json: { success: false, report: html_code.to_s, message: statisticsReportRes['result'].to_s },
+                 status: :ok
         end
       end
 
@@ -230,6 +260,12 @@ module Api
         DocumentSmartExtractionDatum.where(smart_extraction_schema_id: @smart_extraction_schema.id)
                                     .update_all(data: @smart_extraction_schema.data_schema, status: :awaiting,
                                                 is_ready: false, retry_count: 0)
+      end
+
+      def create_storyboard_item(name, user_id, query, item_type, object_type, object_id, data, sql = nil)
+        @storyboard_item = StoryboardItem.create!(name:, user_id:, query:, item_type:, object_type:, object_id:, data:,
+                                                  sql:)
+        @storyboard_item
       end
 
       def pagination_meta(object)

@@ -2,15 +2,16 @@
 #
 # Table name: tags
 #
-#  id             :uuid             not null, primary key
-#  name           :string
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  taggings_count :integer          default(0)
-#  is_checked     :boolean          default(FALSE)
-#  folder_id      :uuid
-#  user_id        :uuid
-#  meta           :jsonb
+#  id                             :uuid             not null, primary key
+#  name                           :string
+#  created_at                     :datetime         not null
+#  updated_at                     :datetime         not null
+#  taggings_count                 :integer          default(0)
+#  is_checked                     :boolean          default(FALSE)
+#  folder_id                      :uuid
+#  user_id                        :uuid
+#  meta                           :jsonb
+#  smart_extraction_schemas_count :integer          default(0)
 #
 
 # This model initially had no columns defined. If you add columns to the

@@ -25,6 +25,28 @@ module Api
           render json: { success: false, error: e.message }, status: :unprocessable_entity
         end
       end
+
+      def text_to_png
+        content = params[:content]
+        begin
+          pngBlob = ImageService.html2Png(content)
+          blob2Base64 = FormProjectionService.exportImage2Base64(pngBlob)
+          render json: { success: true, png: blob2Base64 }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
+
+      def upload_html_to_pdf
+        content = params[:content]
+        begin
+          pdfBlob = FormProjectionService.text2Pdf(content)
+          file_url = AzureService.uploadBlob(pdfBlob, 'chatting_report.pdf', 'application/pdf')
+          render json: { success: true, file_url: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
     end
   end
 end

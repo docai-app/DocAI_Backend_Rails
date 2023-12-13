@@ -40,13 +40,18 @@ class ApiController < ActionController::Base
     # Get the subdomain from the auth jwt token or referrer
     puts 'API controller working............'
     if request.headers['Authorization'].present?
-      tenantName = Utils.extractRequestTenantByToken(request)
+      tenant_name = Utils.extractRequestTenantByToken(request)
+    elsif request.headers['X-API-KEY'].present?
+      key = request.headers['X-API-KEY']
+      api_key = ApiKey.active.find_by(key:)
+      tenant_name = api_key.tenant
+      Apartment::Tenant.switch!(tenant_name)
+      @current_user = api_key.user
     else
-      puts 'API controller working............'
-      tenantName = Utils.extractReferrerSubdomain(request.referrer)
+      tenant_name = Utils.extractReferrerSubdomain(request.referrer)
     end
-    puts "tenantName: #{tenantName}"
-    Apartment::Tenant.switch!(tenantName)
+    puts "tenantName: #{tenant_name}"
+    Apartment::Tenant.switch!(tenant_name)
   end
 
   rescue_from Exception, with: :render_error

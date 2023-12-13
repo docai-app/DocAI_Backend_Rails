@@ -27,6 +27,9 @@ Rails.application.routes.draw do
           get 'latest/predict', to: 'documents#show_latest_predict'
           get ':date/predict', to: 'documents#show_specify_date_latest_predict'
           post 'deep_understanding', to: 'documents#deep_understanding'
+          get 'pdf/page_details', to: 'documents#show_pdf_page_details'
+          post 'pdf/search/keyword', to: 'documents#pdf_search_keyword'
+          post ':id/qa', to: 'documents#qa'
         end
 
         member do
@@ -177,12 +180,16 @@ Rails.application.routes.draw do
         collection do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
+          post 'assistant/multiagent', to: 'chatbots#assistantMultiagent'
+          post ':id/share', to: 'chatbots#shareChatbotWithSignature'
         end
       end
 
       # **********Tool API**********
       post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
+      post 'tools/text_to_png', to: 'tools#text_to_png'
+      post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
@@ -239,18 +246,26 @@ Rails.application.routes.draw do
           get 'check_status_finish'
         end
       end
-    end
 
-    namespace :schema do
-      namespace :v1 do
-        # **********Chatbot API**********
-        resources :chatbots, only: %i[index show create update destroy] do
-          collection do
-            post 'assistant/message', to: 'chatbots#assistantQA'
-            post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
-          end
+      # ********** Storyboard and related API ***********
+      resources :storyboard_items, only: %i[index show update destroy]
+      resources :storyboards, only: %i[index show create update destroy] do
+        member do
+          get 'storyboard_items'
         end
       end
     end
+
+    # namespace :schema do
+    #   namespace :v1 do
+    #     # **********Chatbot API**********
+    #     resources :chatbots, only: %i[index show create update destroy] do
+    #       collection do
+    #         post 'assistant/message', to: 'chatbots#assistantQA'
+    #         post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
+    #       end
+    #     end
+    #   end
+    # end
   end
 end
