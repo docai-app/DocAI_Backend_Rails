@@ -64,15 +64,9 @@ module Api
           res = JSON.parse(response.body)
 
           if res['screenshot'].present?
-            File.open('chatting_report.png', 'wb') do |f|
-              f.write(Base64.strict_decode64(res['screenshot']))
-            end
-            screenshot = Magick::ImageList.new('chatting_report.png')
-            screenshot.format = 'png'
-
-            screenshot_blob = FormProjectionService.exportImage2Blob(screenshot, 'chatting_report.png')
-
-            file_url = AzureService.uploadBlob(screenshot_blob, 'chatting_report.png', 'image/png')
+            img = Base64.strict_decode64(res['screenshot'])
+            screenshot = Magick::ImageList.new.from_blob(img)
+            file_url = AzureService.uploadBlob(screenshot.to_blob, 'chatting_report.png', 'image/png')
             render json: { success: true, file_url: }, status: :ok
           else
             render json: { success: false, error: 'Something went wrong' }, status: :unprocessable_entity
