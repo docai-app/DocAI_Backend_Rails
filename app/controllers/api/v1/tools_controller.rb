@@ -47,6 +47,40 @@ module Api
           render json: { success: false, error: e.message }, status: :unprocessable_entity
         end
       end
+
+      def upload_html_to_png
+        content = params[:content]
+        begin
+          uri = URI("#{ENV['EXAMHERO_URL']}/tools/html_to_png")
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = uri.scheme == 'https'
+          request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+          request.body = {
+            html_content: content
+          }.to_json
+          http.read_timeout = 600_000
+
+          response = http.request(request)
+          res = JSON.parse(response.body)
+
+          if res['screenshot'].present?
+            File.open('chatting_report.png', 'wb') do |f|
+              f.write(Base64.strict_decode64(res['screenshot']))
+            end
+            screenshot = Magick::ImageList.new('chatting_report.png')
+            screenshot.format = 'png'
+
+            screenshot_blob = FormProjectionService.exportImage2Blob(screenshot, 'chatting_report.png')
+
+            file_url = AzureService.uploadBlob(screenshot_blob, 'chatting_report.png', 'image/png')
+            render json: { success: true, file_url: }, status: :ok
+          else
+            render json: { success: false, error: 'Something went wrong' }, status: :unprocessable_entity
+          end
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
     end
   end
 end
