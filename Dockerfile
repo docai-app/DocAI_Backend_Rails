@@ -40,8 +40,6 @@ RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RE
   rm /tmp/chromedriver_linux64.zip && \
   chmod +x /usr/local/bin/chromedriver
 
-ENV DISPLAY=:99
-
 # install wkhtmltopdf
 # RUN apt-get install -y fontconfig libjpeg62-turbo libxrender1
 # RUN apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
@@ -60,6 +58,8 @@ COPY Gemfile /docai-rails/Gemfile
 COPY Gemfile.lock /docai-rails/Gemfile.lock
 RUN bundle install
 COPY . /docai-rails
+
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -ac +extension RANDR &"]
 
 # RUN SECRET_KEY_BASE=1 RAILS_ENV=production bundle exec rake assets:precompile
 #CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
