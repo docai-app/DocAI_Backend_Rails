@@ -14,6 +14,7 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
 RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
     && apt-get install -y libmagickwand-dev imagemagick \
+    && apt-get install -y xvfb libxi6 libgconf-2-4 \
     && apt-get install -qq --no-install-recommends \
     nodejs \
     xfonts-encodings \
