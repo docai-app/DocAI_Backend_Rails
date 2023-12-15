@@ -77,7 +77,7 @@ module Api
                                                 data: schema.data_schema)
           end
 
-          create_smart_extraction_schema_view(schema)
+          schema.create_smart_extraction_schema_view
 
           render json: { success: true, smart_extraction_schema: schema }, status: :ok
         else
@@ -101,7 +101,7 @@ module Api
                                                 data: schema.data_schema)
           end
 
-          create_smart_extraction_schema_view(schema)
+          schema.create_smart_extraction_schema_view
 
           render json: { success: true, smart_extraction_schema: schema }, status: :ok
         else
@@ -232,28 +232,9 @@ module Api
         end
       end
 
-      def create_smart_extraction_schema_view(schema)
-        selectString = schema.data_schema.map { |row| "data->>'#{row[0]}' AS #{row[0]}" }.join(', ')
-        sql = "CREATE VIEW \"#{getSubdomain}\".\"smart_extraction_schema_#{schema.id}\" AS SELECT #{selectString}, meta->>'document_uploaded_at' AS uploaded_at FROM \"#{getSubdomain}\".document_smart_extraction_data WHERE smart_extraction_schema_id = '#{schema.id}';"
-        ActiveRecord::Base.connection.execute(sql)
-        true
-      rescue StandardError => e
-        puts e.message
-        false
-      end
-
-      def drop_smart_extraction_schema_view(schema)
-        sql = "DROP VIEW IF EXISTS \"#{getSubdomain}\".\"smart_extraction_schema_#{schema.id}\";"
-        ActiveRecord::Base.connection.execute(sql)
-        true
-      rescue StandardError => e
-        puts e.message
-        false
-      end
-
       def drop_and_create_smart_extraction_schema_views
-        drop_smart_extraction_schema_view(@smart_extraction_schema)
-        create_smart_extraction_schema_view(@smart_extraction_schema)
+        @smart_extraction_schema.drop_smart_extraction_schema_view
+        @smart_extraction_schema.create_smart_extraction_schema_view
       end
 
       def update_document_smart_extraction_datum

@@ -72,14 +72,24 @@ class SmartExtractionSchema < ApplicationRecord
 
   def create_smart_extraction_schema_view
     getSubdomain = Apartment::Tenant.current
-    selectString = self.data_schema.map { |row| "data->>'#{row[0]}' AS #{row[0]}" }.join(', ')
-    sql = "CREATE VIEW \"#{getSubdomain}\".\"smart_extraction_schema_#{self.id}\" AS SELECT #{selectString}, meta->>'document_uploaded_at' AS uploaded_at FROM \"#{getSubdomain}\".document_smart_extraction_data WHERE smart_extraction_schema_id = '#{self.id}';"
+    selectString = data_schema.map { |row| "data->>'#{row[0]}' AS #{row[0]}" }.join(', ')
+    sql = "CREATE VIEW \"#{getSubdomain}\".\"smart_extraction_schema_#{id}\" AS SELECT #{selectString}, meta->>'document_uploaded_at' AS uploaded_at FROM \"#{getSubdomain}\".document_smart_extraction_data WHERE smart_extraction_schema_id = '#{id}';"
     ActiveRecord::Base.connection.execute(sql)
     true
   rescue StandardError => e
     puts e.message
     false
-  end 
+  end
+
+  def drop_smart_extraction_schema_view
+    getSubdomain = Apartment::Tenant.current
+    sql = "DROP VIEW IF EXISTS \"#{getSubdomain}\".\"smart_extraction_schema_#{id}\";"
+    ActiveRecord::Base.connection.execute(sql)
+    true
+  rescue StandardError => e
+    puts e.message
+    false
+  end
 
   def as_json(options = {})
     super(options.merge(
