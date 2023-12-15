@@ -44,11 +44,11 @@ module Api
 
       def create
         @chatbot = Chatbot.new(chatbot_params)
-        puts @chatbot.inspect
-        puts params['source']['folder_id']
         @folders = Folder.find(params['source']['folder_id'])
         @chatbot.user = current_user
         @chatbot.source['folder_id'] = @folders.pluck(:id)
+        @chatbot.meta['language'] = params[:language]
+        @chatbot.meta['tone'] = params[:tone]
         @chatbot.meta['chain_features'] = params[:chain_features]
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
@@ -62,6 +62,8 @@ module Api
       def update
         @chatbot = Chatbot.find(params[:id])
         @folders = Folder.find(params['source']['folder_id'])
+        @chatbot.meta['language'] = params[:language]
+        @chatbot.meta['tone'] = params[:tone]
         @chatbot.meta['chain_features'] = params[:chain_features]
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         if @chatbot.update(chatbot_params)
@@ -93,7 +95,9 @@ module Api
             @documents.concat(folder.documents)
           end
           @metadata = {
-            document_id: @documents.map(&:id)
+            document_id: @documents.map(&:id),
+            language: @chatbot.meta['language'] || '繁體中文',
+            tone: @chatbot.meta['tone'] || '專業'
           }
           puts @documents.length
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
