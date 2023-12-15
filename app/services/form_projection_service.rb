@@ -46,10 +46,10 @@ class FormProjectionService
   # Export the projection image to blob
   # @param img: the data to be projected (Magick::Image)
   # @return the projection image (File)
-  def self.exportImage2Blob(img)
+  def self.exportImage2Blob(img, filename)
     img.format = 'png'
-    img.write('projection.png')
-    File.open('projection.png', 'rb')
+    img.write(filename)
+    File.open(filename, 'rb')
   end
 
   # convert boundingBoxes to x1, y1, x2, y2, the boundingBoxes is array with 8 elements

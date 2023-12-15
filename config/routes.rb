@@ -190,6 +190,7 @@ Rails.application.routes.draw do
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
       post 'tools/text_to_png', to: 'tools#text_to_png'
       post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
+      post 'tools/upload_html_to_png', to: 'tools#upload_html_to_png'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
