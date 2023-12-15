@@ -47,8 +47,8 @@ module Api
         @folders = Folder.find(params['source']['folder_id'])
         @chatbot.user = current_user
         @chatbot.source['folder_id'] = @folders.pluck(:id)
-        @chatbot.meta['language'] = params[:language]
-        @chatbot.meta['tone'] = params[:tone]
+        @chatbot.meta['language'] = params[:language] if params[:language].present?
+        @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
         @chatbot.meta['chain_features'] = params[:chain_features]
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
@@ -62,9 +62,9 @@ module Api
       def update
         @chatbot = Chatbot.find(params[:id])
         @folders = Folder.find(params['source']['folder_id'])
-        @chatbot.meta['language'] = params[:language]
-        @chatbot.meta['tone'] = params[:tone]
-        @chatbot.meta['chain_features'] = params[:chain_features]
+        @chatbot.meta['language'] = params[:language] if params[:language].present?
+        @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
+        @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
