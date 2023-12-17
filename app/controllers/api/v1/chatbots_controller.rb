@@ -147,7 +147,7 @@ module Api
 
           # binding.pry
           @qaRes = AiService.assistantMultiagent(params[:query], getSubdomain, @metadata, smart_extraction_schemas)
-          render json: { success: true, suggestion: @qaRes }, status: :ok
+          render json: { success: true, result: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
         end
