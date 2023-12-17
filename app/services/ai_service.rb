@@ -91,21 +91,49 @@ class AiService
   end
 
   def self.assistantMultiagent(query, schema, metadata, smart_extraction_schemas)
-    res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa", {
-      query:,
-      schema:,
-      metadata:,
+    uri = URI("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa")
+    
+    data = {
+      query: query,
+      schema: schema,
+      metadata: metadata,
       smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
-    }.to_json, { content_type: :json, accept: :json })
-    res = JSON.parse(res)
+    }
+    
+    http = Net::HTTP.new(uri.host, uri.port)
+    request = Net::HTTP::Post.new(uri.path, { 'Content-Type' => 'application/json', 'Accept' => 'application/json' })
+    request.body = data.to_json
+    http.read_timeout = 600_000
+    
+    response = http.request(request)
+    res = JSON.parse(response.body)
     puts "Response from document multiagent ask: #{res}"
 
-    # binding.pry
-
     if res['status'] == true
-      res['suggestion']
+      # res['suggestion']
+      data = res['content']
+      return data.reject { |x| x['content'].to_s.empty? || x['name'] == 'user_proxy' }.last
     else
-      res['message']
+      return res['message']
     end
   end
+
+  # def self.assistantMultiagent(query, schema, metadata, smart_extraction_schemas)
+  #   res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa", {
+  #     query:,
+  #     schema:,
+  #     metadata:,
+  #     smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
+  #   }.to_json, { content_type: :json, accept: :json })
+  #   res = JSON.parse(res)
+  #   puts "Response from document multiagent ask: #{res}"
+
+  #   # binding.pry
+
+  #   if res['status'] == true
+  #     res['suggestion']
+  #   else
+  #     res['message']
+  #   end
+  # end
 end

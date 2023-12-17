@@ -61,11 +61,11 @@ module Api
 
       def update
         @chatbot = Chatbot.find(params[:id])
-        @folders = Folder.find(params['source']['folder_id'])
+        @folders = Folder.find(params['source']['folder_id']) if params['source']['folder_id'].present?
         @chatbot.meta['language'] = params[:language] if params[:language].present?
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
         @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
-        @chatbot.source['folder_id'] = @folders.pluck(:id)
+        @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -76,7 +76,7 @@ module Api
       end
 
       def destroy
-        @chatbot = Chatbot.find(params[:id], user_id: current_user.id)
+        @chatbot = Chatbot.where(id: params[:id], user_id: current_user.id).first
         if @chatbot.destroy
           render json: { success: true }, status: :ok
         else
@@ -151,7 +151,7 @@ module Api
 
           # binding.pry
           @qaRes = AiService.assistantMultiagent(params[:query], getSubdomain, @metadata, smart_extraction_schemas)
-          render json: { success: true, suggestion: @qaRes }, status: :ok
+          render json: { success: true, result: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
         end
