@@ -4,6 +4,7 @@
 #
 
 Rails.application.routes.draw do
+  devise_for :super_admins
   require 'sidekiq/web'
   require 'sidekiq-scheduler/web'
   mount Sidekiq::Web => '/sidekiq'
