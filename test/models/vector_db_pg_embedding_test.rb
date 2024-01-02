@@ -6,7 +6,7 @@
 #
 #  uuid          :uuid             not null, primary key
 #  collection_id :uuid
-#  embedding     :vector(1536)
+#  embedding     :vector
 #  document      :string
 #  cmetadata     :json
 #  custom_id     :string

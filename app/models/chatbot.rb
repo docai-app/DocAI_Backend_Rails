@@ -8,7 +8,7 @@
 #  name                :string
 #  description         :string
 #  user_id             :uuid             not null
-#  category            :integer          default("assistant"), not null
+#  category            :integer          default("qa"), not null
 #  meta                :jsonb
 #  source              :jsonb
 #  created_at          :datetime         not null
@@ -25,7 +25,7 @@ class Chatbot < ApplicationRecord
   resourcify
   has_paper_trail
 
-  enum category: %i[assistant]
+  enum category: %i[qa chart_generation statistical_generation]
 
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy

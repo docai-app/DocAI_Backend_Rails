@@ -8,7 +8,7 @@
 #  name                :string
 #  description         :string
 #  user_id             :uuid             not null
-#  category            :integer          default("assistant"), not null
+#  category            :integer          default("qa"), not null
 #  meta                :jsonb
 #  source              :jsonb
 #  created_at          :datetime         not null
