@@ -113,3 +113,8 @@ gem 'pdf-reader'
 gem 'selenium-webdriver', '~> 4.0'
 gem 'watir', '~> 7.0'
 gem 'webdrivers'
+
+gem 'trestle'
+gem 'trestle-auth'
+gem 'trestle-search'
+gem 'trestle-jsoneditor'
