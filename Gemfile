@@ -116,5 +116,5 @@ gem 'webdrivers'
 
 gem 'trestle'
 gem 'trestle-auth'
-gem 'trestle-search'
 gem 'trestle-jsoneditor'
+gem 'trestle-search'

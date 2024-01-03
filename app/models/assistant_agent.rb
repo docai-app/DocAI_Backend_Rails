@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: public.assistant_agents
@@ -15,7 +17,6 @@
 #  version        :string
 #
 class AssistantAgent < ApplicationRecord
-
   def meta=(params)
     params = JSON.parse(params) if params.is_a?(String)
     super(params)
@@ -29,14 +30,13 @@ class AssistantAgent < ApplicationRecord
   before_save :update_previous_production
 
   def update_previous_production
-    if production?
-      previous_production = AssistantAgent.find_by(name: name, version: 'production')
-      previous_production.update(version: previous_production.updated_at.to_date.to_s) if previous_production
-    end
+    return unless production?
+
+    previous_production = AssistantAgent.find_by(name:, version: 'production')
+    previous_production&.update(version: previous_production.updated_at.to_date.to_s)
   end
 
   def production?
     version == 'production'
   end
-
 end

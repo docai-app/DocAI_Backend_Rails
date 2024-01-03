@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddRemarkVersionToAssistantAgent < ActiveRecord::Migration[7.0]
   def change
     add_column :assistant_agents, :remark, :string
