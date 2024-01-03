@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_102_090_213) do
+ActiveRecord::Schema[7.0].define(version: 20_240_103_071_220) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -254,6 +254,20 @@ ActiveRecord::Schema[7.0].define(version: 20_240_102_090_213) do
     t.string 'jti', null: false
     t.datetime 'exp', null: false
     t.index ['jti'], name: 'index_jwt_denylist_on_jti'
+  end
+
+  create_table 'log_messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'chatbot_id', null: false
+    t.uuid 'session_id', null: false
+    t.text 'content', default: '', null: false
+    t.string 'role'
+    t.uuid 'previous_message_id'
+    t.boolean 'has_chat_history', default: false
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['chatbot_id'], name: 'index_log_messages_on_chatbot_id'
+    t.index ['session_id'], name: 'index_log_messages_on_session_id'
   end
 
   create_table 'messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
