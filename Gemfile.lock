@@ -549,6 +549,7 @@ DEPENDENCIES
   google-api-client
   jbuilder
   kaminari
+  mail
   matrix
   net-scp
   net-ssh

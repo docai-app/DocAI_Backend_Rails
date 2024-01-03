@@ -70,6 +70,12 @@ module Api
         render json: { success: true, user: @user }, status: :ok
       end
 
+      def send_gmail
+        puts "send_gmail: #{params[:email]}, #{params[:subject]}, #{params[:body]}"
+        current_user.send_gmail(params[:email], params[:subject], params[:body])
+        render json: { success: true }, status: :ok
+      end
+
       private
 
       def password_params

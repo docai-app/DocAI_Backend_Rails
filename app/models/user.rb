@@ -182,11 +182,38 @@ class User < ApplicationRecord
     # end
   end
 
+  def send_gmail(to, subject, content)
+    credentials = Google::Auth::UserRefreshCredentials.new(
+      client_id: ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_ID'],
+      client_secret: ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_SECRET'],
+      refresh_token: identities.find_by(provider: 'Google').meta['google_refresh_token'],
+      scope: 'https://www.googleapis.com/auth/gmail.send'
+    )
+
+    gmail = Google::Apis::GmailV1::GmailService.new
+    gmail.authorization = credentials
+
+    message = Google::Apis::GmailV1::Message.new(raw: create_email(to, subject, content).to_s)
+
+    gmail.send_user_message('me', message)
+  end
+
   def create_user_api_key
     tenant = Apartment::Tenant.current
     ApiKey.create!(
       tenant:,
       user_id: id
     )
+  end
+
+  private
+
+  def create_email(to, subject, content)
+    message = Mail.new
+    message.date = Time.now
+    message.subject = subject
+    message.body = content
+    message.to = to
+    message.to_s
   end
 end

@@ -159,6 +159,7 @@ Rails.application.routes.draw do
       put 'users/me/password', to: 'users#update_password'
       put 'users/me/profile', to: 'users#update_profile'
       post 'users/auth/google_oauth2', to: 'users#google_oauth2'
+      post 'users/email/gmail', to: 'users#send_gmail'
 
       # **********Form Projection API**********
       post 'form/projection/preview', to: 'form_projection#preview'

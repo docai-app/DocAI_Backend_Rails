@@ -63,6 +63,7 @@ gem 'devise'
 gem 'devise-jwt'
 gem 'draper'
 gem 'filterrific'
+gem 'mail'
 gem 'rest-client'
 gem 'rolify'
 
