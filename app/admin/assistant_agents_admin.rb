@@ -23,11 +23,13 @@ Trestle.resource(:assistant_agents) do
 
   # Customize the table columns shown on the index view.
   #
-  # table do
-  #   column :name
-  #   column :created_at, align: :center
-  #   actions
-  # end
+  table do
+    column :name
+    column :description
+    column :version
+    # column :created_at, align: :center
+    actions
+  end
 
   # Customize the form fields shown on the new/edit views.
   #

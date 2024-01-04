@@ -30,7 +30,10 @@ class AssistantAgent < ApplicationRecord
 
   def update_previous_production
     if production?
-      previous_production = AssistantAgent.find_by(name: name, version: 'production')
+      previous_production = AssistantAgent.where(name: name, version: 'production')
+                                      .where.not(id: id)
+                                      .order(updated_at: :desc)
+                                      .first
       previous_production.update(version: previous_production.updated_at.to_date.to_s) if previous_production
     end
   end
