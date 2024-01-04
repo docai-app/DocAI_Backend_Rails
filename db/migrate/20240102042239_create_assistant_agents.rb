@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateAssistantAgents < ActiveRecord::Migration[7.0]
   def change
     create_table :assistant_agents do |t|

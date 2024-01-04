@@ -99,9 +99,28 @@ module Api
             language: @chatbot.meta['language'] || '繁體中文',
             tone: @chatbot.meta['tone'] || '專業'
           }
-          puts @documents.length
+          LogMessage.create!(
+            chatbot_id: @chatbot.id,
+            content: params[:query],
+            has_chat_history: params[:chat_history].present? && !params[:chat_history].empty?,
+            session_id: session.id,
+            role: 'user',
+            meta: {
+              chat_history: params[:chat_history]
+            }
+          )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
           puts @qaRes
+          LogMessage.create!(
+            chatbot_id: @chatbot.id,
+            content: @qaRes['content'],
+            has_chat_history: true,
+            session_id: session.id,
+            role: 'system',
+            meta: {
+              chat_history: params[:chat_history]
+            }
+          )
           render json: { success: true, message: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found

@@ -30,6 +30,7 @@ class Chatbot < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
   has_many :messages, -> { order('messages.created_at') }, dependent: :destroy
+  has_many :log_messages, -> { order('log_messages.created_at') }, dependent: :destroy
 
   after_create :set_permissions_to_owner
 

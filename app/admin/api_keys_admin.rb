@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 Trestle.resource(:api_keys) do
   menu do
-    item :api_keys, icon: "fa fa-star"
+    item :api_keys, icon: 'fa fa-star'
   end
 
   collection do

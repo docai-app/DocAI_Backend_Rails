@@ -1,18 +1,20 @@
+# frozen_string_literal: true
+
 Trestle.resource(:assistant_agents) do
   menu do
-    item :assistant_agents, icon: "fa fa-star"
+    item :assistant_agents, icon: 'fa fa-star'
   end
 
-  form do |aa|
+  form do |_aa|
     row do
-      col(sm: 4) {
+      col(sm: 4) do
         text_field :name
-      }
-      col(sm: 4) {
+      end
+      col(sm: 4) do
         text_field :name_en
-      }
+      end
     end
-    
+
     text_field :version
     text_field :system_message
     text_field :description

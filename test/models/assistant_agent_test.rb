@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: public.assistant_agents
@@ -14,7 +16,7 @@
 #  remark         :string
 #  version        :string
 #
-require "test_helper"
+require 'test_helper'
 
 class AssistantAgentTest < ActiveSupport::TestCase
   # test "the truth" do

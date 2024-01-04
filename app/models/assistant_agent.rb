@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: public.assistant_agents
@@ -15,7 +17,6 @@
 #  version        :string
 #
 class AssistantAgent < ApplicationRecord
-
   def meta=(params)
     params = JSON.parse(params) if params.is_a?(String)
     super(params)
@@ -41,5 +42,4 @@ class AssistantAgent < ApplicationRecord
   def production?
     version == 'production'
   end
-
 end
