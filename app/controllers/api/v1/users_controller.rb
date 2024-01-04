@@ -71,8 +71,12 @@ module Api
       end
 
       def send_gmail
-        current_user.send_gmail(params[:email], params[:subject], params[:body])
-        render json: { success: true }, status: :ok
+        if current_user.identities.where(provider: 'Google').present?
+          current_user.send_gmail(params[:email], params[:subject], params[:body])
+          render json: { success: true }, status: :ok
+        else
+          render json: { success: false, errors: 'You are not authorized to send email' }, status: :ok
+        end
       end
 
       private
