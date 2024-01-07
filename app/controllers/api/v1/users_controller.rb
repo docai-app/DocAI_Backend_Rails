@@ -3,7 +3,11 @@
 module Api
   module V1
     class UsersController < ApiController
-      before_action :authenticate_user!, except: [:create]
+      include Authenticatable
+
+      before_action :authenticate_user!, except: %i[create send_gmail]
+      # The send gmail API support API Key and JWT token authentication
+      before_action :authenticate, only: %i[send_gmail]
 
       def index
         @users = User.all.page(params[:page])
