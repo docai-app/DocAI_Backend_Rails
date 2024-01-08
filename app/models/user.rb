@@ -29,8 +29,8 @@ class User < ApplicationRecord
   devise :database_authenticatable,
          :jwt_authenticatable,
          :registerable,
-         :omniauthable,
-         jwt_revocation_strategy: JwtDenylist
+         :omniauthable, omniauth_providers: [:google_oauth2],
+                        jwt_revocation_strategy: JwtDenylist
 
   # belongs_to :department, class_name: 'Department', foreign_key: "department_id", optional: true
 
@@ -75,9 +75,14 @@ class User < ApplicationRecord
   end
 
   def self.find_for_google_oauth2(uid, access_token, refresh_token, current_user = nil)
-    user = Identity.where(provider: 'Google', uid:).first&.user
-    # user = User.where(:google_token => access_token.credentials.token, :google_uid => access_token.uid ).first
-    return user if user
+    user = Identity.where(provider: 'Google', user_id: current_user.id).first&.user
+
+    if user
+      user.identities.find_by(provider: 'Google').update!(
+        meta: { google_token: access_token, google_refresh_token: refresh_token }, uid:
+      )
+      return user
+    end
 
     existing_user = current_user
     return unless existing_user

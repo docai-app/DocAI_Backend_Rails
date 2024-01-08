@@ -259,18 +259,6 @@ module Api
       def getSubdomain
         Utils.extractRequestTenantByToken(request)
       end
-
-      # def authenticate!
-      #   api_key = request.headers['X-API-KEY']
-      #   if !api_key.present?
-      #     authenticate_user!
-      #   end
-      # end
-      # def authenticate_with_api_key(key)
-      #   unless ApiKey.active.exists?(key: key)
-      #     render json: { success: false, error: 'Invalid API Key' }, status: :unauthorized
-      #   end
-      # end
     end
   end
 end
