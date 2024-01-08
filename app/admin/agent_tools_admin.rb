@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 Trestle.resource(:agent_tools) do
   menu do
-    item :agent_tools, icon: "fa fa-star"
+    item :agent_tools, icon: 'fa fa-star'
   end
 
   # Customize the table columns shown on the index view.
@@ -13,7 +15,7 @@ Trestle.resource(:agent_tools) do
 
   # Customize the form fields shown on the new/edit views.
   #
-  form do |agent_tool|
+  form do |_agent_tool|
     text_field :name
     text_field :description
 
