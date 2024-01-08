@@ -17,7 +17,6 @@
 #  version        :string
 #
 class AssistantAgent < ApplicationRecord
-
   has_many :agent_use_tools
   has_many :agent_tools, through: :agent_use_tools
 
@@ -34,13 +33,13 @@ class AssistantAgent < ApplicationRecord
   before_save :update_previous_production
 
   def update_previous_production
-    if production?
-      previous_production = AssistantAgent.where(name: name, version: 'production')
-                                      .where.not(id: id)
-                                      .order(updated_at: :desc)
-                                      .first
-      previous_production.update(version: previous_production.updated_at.to_date.to_s) if previous_production
-    end
+    return unless production?
+
+    previous_production = AssistantAgent.where(name:, version: 'production')
+                                        .where.not(id:)
+                                        .order(updated_at: :desc)
+                                        .first
+    previous_production&.update(version: previous_production.updated_at.to_date.to_s)
   end
 
   def production?

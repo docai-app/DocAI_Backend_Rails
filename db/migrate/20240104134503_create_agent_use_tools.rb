@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateAgentUseTools < ActiveRecord::Migration[7.0]
   def change
     create_table :agent_use_tools do |t|
