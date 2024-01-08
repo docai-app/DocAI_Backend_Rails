@@ -17,6 +17,7 @@ Trestle.resource(:assistant_agents) do
 
     text_field :version
     text_area :system_message
+    text_area :prompt_header
     text_field :description
 
     json_editor :llm_config

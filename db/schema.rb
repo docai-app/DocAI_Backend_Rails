@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_01_04_134503) do
+ActiveRecord::Schema[7.0].define(version: 2024_01_08_070620) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -89,6 +89,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_01_04_134503) do
     t.string "remark"
     t.string "version"
     t.string "name_en"
+    t.string "prompt_header"
     t.index ["name"], name: "index_assistant_agents_on_name"
     t.index ["name_en"], name: "index_assistant_agents_on_name_en"
     t.index ["version"], name: "index_assistant_agents_on_version"
@@ -202,6 +203,14 @@ ActiveRecord::Schema[7.0].define(version: 2024_01_04_134503) do
     t.index ["status"], name: "index_documents_on_status"
     t.index ["upload_local_path"], name: "index_documents_on_upload_local_path"
     t.index ["user_id"], name: "index_documents_on_user_id"
+  end
+
+  create_table "entities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name", null: false
+    t.string "description", default: ""
+    t.jsonb "meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "folder_hierarchies", id: false, force: :cascade do |t|
