@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_108_061_717) do
+ActiveRecord::Schema[7.0].define(version: 20_240_108_070_819) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -91,6 +91,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_108_061_717) do
     t.string 'remark'
     t.string 'version'
     t.string 'name_en'
+    t.string 'prompt_header'
     t.index ['name'], name: 'index_assistant_agents_on_name'
     t.index ['name_en'], name: 'index_assistant_agents_on_name_en'
     t.index ['version'], name: 'index_assistant_agents_on_version'
@@ -114,6 +115,15 @@ ActiveRecord::Schema[7.0].define(version: 20_240_108_061_717) do
     t.boolean 'has_chatbot_updated', default: false, null: false
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
+  end
+
+  create_table 'cors', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.string 'description', default: ''
+    t.string 'url', null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
   end
 
   create_table 'dag_runs', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
