@@ -21,15 +21,20 @@ Trestle.resource(:assistant_agents) do
 
     json_editor :llm_config
     json_editor :meta
+
+    collection_select :agent_tool_ids, AgentTool.all, :id, :name, { label: "可使用工具(s)" }, { multiple: true }
+
   end
 
   # Customize the table columns shown on the index view.
   #
-  # table do
-  #   column :name
-  #   column :created_at, align: :center
-  #   actions
-  # end
+  table do
+    column :name
+    column :description
+    column :version
+    # column :created_at, align: :center
+    actions
+  end
 
   # Customize the form fields shown on the new/edit views.
   #
