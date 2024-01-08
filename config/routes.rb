@@ -183,6 +183,7 @@ Rails.application.routes.draw do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
           post 'assistant/multiagent', to: 'chatbots#assistantMultiagent'
+          post 'assistant/tool_metadata', to: 'chatbots#tool_metadata'
           post ':id/share', to: 'chatbots#shareChatbotWithSignature'
         end
       end

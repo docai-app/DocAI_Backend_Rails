@@ -1,0 +1,9 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  assistant_agent: one
+  agent_tool: one
+
+two:
+  assistant_agent: two
+  agent_tool: two

@@ -17,6 +17,10 @@
 #  version        :string
 #
 class AssistantAgent < ApplicationRecord
+
+  has_many :agent_use_tools
+  has_many :agent_tools, through: :agent_use_tools
+
   def meta=(params)
     params = JSON.parse(params) if params.is_a?(String)
     super(params)

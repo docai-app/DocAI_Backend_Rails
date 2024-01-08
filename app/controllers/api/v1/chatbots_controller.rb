@@ -150,6 +150,36 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def tool_metadata
+        @chatbot = Chatbot.find(params[:id])
+        @documents = []
+        if @chatbot
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
+          end
+          @metadata = {
+            document_ids: @documents.map(&:id)
+          }
+
+          document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
+          # smart_extraction_schemas = SmartExtractionSchema.distinct.joins(:document_smart_extraction_datum).where(document_smart_extraction_data: { document_id: documents })
+
+          ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
+          smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
+
+          data = {
+            schema: getSubdomain,
+            metadata: @metadata,
+            smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
+          }
+
+          render json: { success: true, result: data }, status: :ok
+        else
+          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+        end
+      end
+
       def assistantMultiagent
         @chatbot = Chatbot.find(params[:id])
         @documents = []
