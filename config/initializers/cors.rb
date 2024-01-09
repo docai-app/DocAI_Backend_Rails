@@ -24,7 +24,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://phc-dev.docai.net', 'http://phc-dev.docai.net', 'https://phc.docai.net', 'http://phc.docai.net'
 
     # origins Cors.all.pluck(:url)
-    origins *Cors.pluck(:url)
+    # origins *Cors.pluck(:url)
 
     resource '*',
              headers: :any,
