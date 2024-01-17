@@ -44,8 +44,8 @@ module DocaiApi
 
     Redis.exists_returns_integer = true
 
-    config.hosts << "docai-dev.m2mda.com"
-    config.hosts << "docai.m2mda.com"
+    config.hosts << 'docai-dev.m2mda.com'
+    config.hosts << 'docai.m2mda.com'
 
     config.action_cable.mount_path = '/cable'
   end
