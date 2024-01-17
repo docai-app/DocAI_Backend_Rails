@@ -49,7 +49,9 @@ module Api
         @chatbot.source['folder_id'] = @folders.pluck(:id)
         @chatbot.meta['language'] = params[:language] if params[:language].present?
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
-        @chatbot.meta['chain_features'] = params[:chain_features]
+        @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
+        @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
+        @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -65,6 +67,8 @@ module Api
         @chatbot.meta['language'] = params[:language] if params[:language].present?
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
         @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
+        @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
+        @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
