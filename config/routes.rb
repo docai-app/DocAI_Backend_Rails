@@ -264,6 +264,13 @@ Rails.application.routes.draw do
       end
     end
 
+    namespace :admin do
+      namespace :v1 do
+        resources :entities, only: %i[index show create update destroy]
+        resources :users, only: %i[index show create update destroy]
+      end
+    end
+
     # namespace :schema do
     #   namespace :v1 do
     #     # **********Chatbot API**********
