@@ -189,6 +189,9 @@ Rails.application.routes.draw do
         end
       end
 
+      resources :assistant_agents, only: %i[index show]
+      resources :agent_tools, only: %i[index show]
+
       # **********Tool API**********
       post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'

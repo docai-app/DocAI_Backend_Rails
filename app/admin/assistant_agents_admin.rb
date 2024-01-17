@@ -15,6 +15,8 @@ Trestle.resource(:assistant_agents) do
       end
     end
 
+    text_field :category
+
     text_field :version
     text_area :system_message
     text_area :prompt_header
@@ -32,6 +34,7 @@ Trestle.resource(:assistant_agents) do
     column :name
     column :description
     column :version
+    column :category
     # column :created_at, align: :center
     actions
   end
