@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddCategoryToAssistantAgents < ActiveRecord::Migration[7.0]
   def change
     add_column :assistant_agents, :category, :string

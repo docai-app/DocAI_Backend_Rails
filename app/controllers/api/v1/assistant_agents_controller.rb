@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Api
   module V1
     class AssistantAgentsController < ApiController
@@ -13,11 +15,9 @@ module Api
         render json: { success: true, assistant_agents: @ats, meta: pagination_meta(@ats) }, status: :ok
       end
 
-      def show
+      def show; end
 
-      end
-
-      private 
+      private
 
       def pagination_meta(object)
         {
@@ -28,8 +28,6 @@ module Api
           total_count: object.total_count
         }
       end
-
-
     end
   end
 end
