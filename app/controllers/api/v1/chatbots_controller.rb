@@ -23,7 +23,15 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @chatbot.increment_access_count!
         @folders = Folder.find(@chatbot.source['folder_id']) if @chatbot.source['folder_id'][0].present?
-        render json: { success: true, chatbot: @chatbot, folders: @folders }, status: :ok
+
+        @chatbot_config = chatbot_tools_config(@chatbot)
+        
+        @chatbot_config['assistant'] = @chatbot.assistant.try(:name)
+        @chatbot_config['experts'] = @chatbot.experts.pluck(:name)
+
+        # binding.pry
+
+        render json: { success: true, chatbot: @chatbot, folders: @folders, chatbot_config: @chatbot_config }, status: :ok
       end
 
       def messages
@@ -51,7 +59,7 @@ module Api
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
         @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
-        @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
+        @chatbot.meta['experts'] = params[:experts]
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -66,9 +74,10 @@ module Api
         @folders = Folder.find(params['source']['folder_id']) if params['source']['folder_id'].present?
         @chatbot.meta['language'] = params[:language] if params[:language].present?
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
-        @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
-        @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
-        @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
+        @chatbot.meta['chain_features'] = params[:chain_features]
+        @chatbot.meta['assistant'] = params[:assistant]
+        @chatbot.meta['experts'] = params[:experts]
+        # binding.pry
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
@@ -158,25 +167,25 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @documents = []
         if @chatbot
-          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-          @folders.each do |folder|
-            @documents.concat(folder.documents)
-          end
-          @metadata = {
-            document_ids: @documents.map(&:id)
-          }
+          # @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          # @folders.each do |folder|
+          #   @documents.concat(folder.documents)
+          # end
+          # @metadata = {
+          #   document_ids: @documents.map(&:id)
+          # }
 
-          document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
-          # smart_extraction_schemas = SmartExtractionSchema.distinct.joins(:document_smart_extraction_datum).where(document_smart_extraction_data: { document_id: documents })
+          # document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
+          # ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
+          # smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
 
-          ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
-          smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
+          # data = {
+          #   schema: getSubdomain,
+          #   metadata: @metadata,
+          #   smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
+          # }
 
-          data = {
-            schema: getSubdomain,
-            metadata: @metadata,
-            smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
-          }
+          data = chatbot_tools_config(@chatbot)
 
           render json: { success: true, result: data }, status: :ok
         else
@@ -263,6 +272,31 @@ module Api
       def getSubdomain
         Utils.extractRequestTenantByToken(request)
       end
+
+      def chatbot_tools_config(chatbot)
+        documents = []
+        folders = chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+        folders.each do |folder|
+          documents.concat(folder.documents)
+        end
+        metadata = {
+          document_ids: documents.map(&:id)
+        }
+
+        document_ids = Document.where(id: metadata[:document_ids]).pluck(:id)
+
+        ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
+        smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
+
+        data = {
+          schema: getSubdomain,
+          metadata: metadata,
+          smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
+        }
+        
+        return data
+      end
+
     end
   end
 end

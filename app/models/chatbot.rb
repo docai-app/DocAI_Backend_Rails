@@ -87,4 +87,15 @@ class Chatbot < ApplicationRecord
     end
     save
   end
+
+  def assistant
+    return if meta['assistant'].nil?
+    return AssistantAgent.find(meta['assistant'])
+  end
+
+  def experts
+    return if meta['experts'].nil?
+    return AssistantAgent.where(id: meta['experts'])
+  end
+
 end
