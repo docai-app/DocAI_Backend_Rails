@@ -24,12 +24,39 @@ module Api
         @chatbot.increment_access_count!
         @folders = Folder.find(@chatbot.source['folder_id']) if @chatbot.source['folder_id'][0].present?
 
-        @chatbot_config = chatbot_tools_config(@chatbot)
-        
-        @chatbot_config['assistant'] = @chatbot.assistant.try(:name)
-        @chatbot_config['experts'] = @chatbot.experts.pluck(:name)
+        @chatbot_config = {}
+        assistant = @chatbot.assistant
+        @chatbot_config['assistant'] = assistant.try(:name)
+        experts = @chatbot.experts.includes(:agent_tools)
+        @chatbot_config['experts'] = experts.pluck(:name)
 
-        # binding.pry
+        # 要拎用到的工具出黎
+        tool_config = chatbot_tools_config(@chatbot)
+
+        agent_tools = {}
+        experts.each do |expert|
+          expert.agent_tools.each do |at|
+            if at.meta['initialize'].present?
+              agent_tools[at.name] = {
+                'initialize': {
+                  'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
+                }
+              }
+            end
+          end
+        end
+
+        assistant.agent_tools.each do |at|
+          if at.meta['initialize'].present?
+            agent_tools[at.name] = {
+              'initialize': {
+                'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
+              }
+            }
+          end
+        end
+
+        @chatbot_config['agent_tools'] = agent_tools
 
         render json: { success: true, chatbot: @chatbot, folders: @folders, chatbot_config: @chatbot_config }, status: :ok
       end
