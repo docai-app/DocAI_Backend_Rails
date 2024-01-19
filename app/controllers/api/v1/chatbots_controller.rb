@@ -28,7 +28,8 @@ module Api
         assistant = @chatbot.assistant
         @chatbot_config['assistant'] = assistant.try(:name)
         experts = @chatbot.experts.includes(:agent_tools)
-        @chatbot_config['experts'] = experts.pluck(:name)
+        @chatbot_config['experts'] = experts.pluck(:name).uniq
+        # binding.pry
 
         # 要拎用到的工具出黎
         tool_config = chatbot_tools_config(@chatbot)
