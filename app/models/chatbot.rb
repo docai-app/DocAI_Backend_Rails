@@ -94,8 +94,8 @@ class Chatbot < ApplicationRecord
   end
 
   def experts
-    return if meta['experts'].nil?
-    return AssistantAgent.where(id: meta['experts'])
+    return [] if meta['experts'].nil?
+    return AssistantAgent.includes(:agent_tools).where(id: meta['experts'])
   end
 
 end

@@ -27,7 +27,10 @@ module Api
         @chatbot_config = {}
         assistant = @chatbot.assistant
         @chatbot_config['assistant'] = assistant.try(:name)
-        experts = @chatbot.experts.includes(:agent_tools)
+
+        # binding.pry
+
+        experts = @chatbot.experts
         @chatbot_config['experts'] = experts.pluck(:name).uniq
         # binding.pry
 
@@ -47,13 +50,15 @@ module Api
           end
         end
 
-        assistant.agent_tools.each do |at|
-          if at.meta['initialize'].present?
-            agent_tools[at.name] = {
-              'initialize': {
-                'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
+        if assistant.present?
+          assistant.agent_tools.each do |at|
+            if at.meta['initialize'].present?
+              agent_tools[at.name] = {
+                'initialize': {
+                  'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
+                }
               }
-            }
+            end
           end
         end
 
