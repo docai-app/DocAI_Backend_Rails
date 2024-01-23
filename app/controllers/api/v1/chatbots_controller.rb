@@ -40,31 +40,32 @@ module Api
         agent_tools = {}
         experts.each do |expert|
           expert.agent_tools.each do |at|
-            if at.meta['initialize'].present?
-              agent_tools[at.name] = {
-                'initialize': {
-                  'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
-                }
+            next unless at.meta['initialize'].present?
+
+            agent_tools[at.name] = {
+              'initialize': {
+                'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
               }
-            end
+            }
           end
         end
 
         if assistant.present?
           assistant.agent_tools.each do |at|
-            if at.meta['initialize'].present?
-              agent_tools[at.name] = {
-                'initialize': {
-                  'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
-                }
+            next unless at.meta['initialize'].present?
+
+            agent_tools[at.name] = {
+              'initialize': {
+                'metadata': at.meta['initialize']['metadata'].transform_keys(&:to_sym).merge(tool_config)
               }
-            end
+            }
           end
         end
 
         @chatbot_config['agent_tools'] = agent_tools
 
-        render json: { success: true, chatbot: @chatbot, folders: @folders, chatbot_config: @chatbot_config }, status: :ok
+        render json: { success: true, chatbot: @chatbot, folders: @folders, chatbot_config: @chatbot_config },
+               status: :ok
       end
 
       def messages
@@ -93,6 +94,7 @@ module Api
         @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
         @chatbot.meta['experts'] = params[:experts]
+        @chatbot.meta['length'] = params[:length] if params[:length].present?
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -110,6 +112,7 @@ module Api
         @chatbot.meta['chain_features'] = params[:chain_features]
         @chatbot.meta['assistant'] = params[:assistant]
         @chatbot.meta['experts'] = params[:experts]
+        @chatbot.meta['length'] = params[:length] if params[:length].present?
         # binding.pry
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
@@ -143,7 +146,8 @@ module Api
           @metadata = {
             document_id: @documents.map(&:id),
             language: @chatbot.meta['language'] || '繁體中文',
-            tone: @chatbot.meta['tone'] || '專業'
+            tone: @chatbot.meta['tone'] || '專業',
+            length: @chatbot.meta['length'] || 'normal'
           }
           LogMessage.create!(
             chatbot_id: @chatbot.id,
@@ -321,15 +325,12 @@ module Api
         ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
         smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
 
-        data = {
+        {
           schema: getSubdomain,
-          metadata: metadata,
+          metadata:,
           smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
         }
-        
-        return data
       end
-
     end
   end
 end

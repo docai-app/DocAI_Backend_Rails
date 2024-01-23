@@ -11,8 +11,8 @@ module Api
         @ats = AssistantAgent.includes(:agent_tools).all.order(created_at: :desc)
         @ats = @ats.where(category: params[:category]) if params[:category].present?
         @ats = Kaminari.paginate_array(@ats.as_json(include: {
-          agent_tools: {only: [:name, :meta]}
-        })).page(params[:page])
+                                                      agent_tools: { only: %i[name meta] }
+                                                    })).page(params[:page])
 
         render json: { success: true, assistant_agents: @ats, meta: pagination_meta(@ats) }, status: :ok
       end
