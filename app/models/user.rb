@@ -29,6 +29,7 @@ class User < ApplicationRecord
   devise :database_authenticatable,
          :jwt_authenticatable,
          :registerable,
+         :lockable,
          :omniauthable, omniauth_providers: [:google_oauth2],
                         jwt_revocation_strategy: JwtDenylist
 
