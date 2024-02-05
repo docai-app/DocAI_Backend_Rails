@@ -170,6 +170,9 @@ Rails.application.routes.draw do
       post 'ai/query', to: 'open_ai#query'
       post 'ai/query/documents', to: 'open_ai#query_documents'
 
+      # ********** Generates API ***********
+      post 'generates/storybook', to: 'generates#storybook'
+
       # **********Mini App API**********
       resources :mini_apps, only: %i[index show create update destroy] do
       end
