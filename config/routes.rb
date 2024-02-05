@@ -267,7 +267,12 @@ Rails.application.routes.draw do
     namespace :admin do
       namespace :v1 do
         resources :entities, only: %i[index show create update destroy]
-        resources :users, only: %i[index show create update destroy]
+        resources :users, only: %i[index show create update destroy] do
+          collection do
+            post 'lock', to: 'users#lock_user'
+            post 'unlock', to: 'users#unlock_user'
+          end
+        end
       end
     end
 
