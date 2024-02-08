@@ -270,6 +270,9 @@ Rails.application.routes.draw do
           get 'storyboard_items'
         end
       end
+
+      # ********** General User API ***********
+      resources :general_users, only: %i[show create]
     end
 
     namespace :admin do

@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_206_072_928) do
+ActiveRecord::Schema[7.0].define(version: 20_240_208_154_811) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -217,6 +217,18 @@ ActiveRecord::Schema[7.0].define(version: 20_240_206_072_928) do
     t.index ['status'], name: 'index_documents_on_status'
     t.index ['upload_local_path'], name: 'index_documents_on_upload_local_path'
     t.index ['user_id'], name: 'index_documents_on_user_id'
+  end
+
+  create_table 'energies', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.integer 'value', default: 100
+    t.uuid 'user_id', null: false
+    t.string 'user_type', null: false
+    t.string 'entity_name'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['entity_name'], name: 'index_energies_on_entity_name'
+    t.index ['user_id'], name: 'index_energies_on_user_id'
+    t.index ['user_type'], name: 'index_energies_on_user_type'
   end
 
   create_table 'entities', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
