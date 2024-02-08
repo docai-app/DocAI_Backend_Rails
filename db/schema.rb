@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_201_105_212) do
+ActiveRecord::Schema[7.0].define(version: 20_240_206_072_928) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -93,6 +93,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_201_105_212) do
     t.string 'name_en'
     t.string 'prompt_header'
     t.string 'category'
+    t.string 'helper_agent_system_message'
     t.index ['category'], name: 'index_assistant_agents_on_category'
     t.index ['name'], name: 'index_assistant_agents_on_name'
     t.index ['name_en'], name: 'index_assistant_agents_on_name_en'
@@ -278,6 +279,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_201_105_212) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.string 'title', default: '', null: false
+  end
+
+  create_table 'general_users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'email'
+    t.string 'encrypted_password'
+    t.string 'reset_password_token'
+    t.datetime 'reset_password_sent_at'
+    t.datetime 'remember_created_at'
+    t.string 'nickname'
+    t.string 'phone'
+    t.date 'date_of_birth'
+    t.integer 'sex'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['email'], name: 'index_general_users_on_email', unique: true
   end
 
   create_table 'identities', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
