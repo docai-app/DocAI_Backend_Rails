@@ -5,7 +5,7 @@ module Api
     class ChatbotsController < ApiController
       include Authenticatable
 
-      before_action :authenticate, only: %i[show create update destroy mark_messages_read]
+      before_action :authenticate, only: %i[show create update destroy mark_messages_read generalUserChatWithBot]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
@@ -160,7 +160,6 @@ module Api
             }
           )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
-          puts @qaRes
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: @qaRes['content'],
@@ -171,6 +170,59 @@ module Api
               chat_history: params[:chat_history]
             }
           )
+          render json: { success: true, message: @qaRes }, status: :ok
+        else
+          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def general_user_chat_with_bot
+        @chatbot = Chatbot.find(params[:id])
+        @general_user = current_user
+        @documents = []
+
+        if @general_user.energy.value < chatbot.energy_cost
+          render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
+          return
+        end
+
+        if @chatbot
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
+          end
+          @metadata = {
+            document_id: @documents.map(&:id),
+            language: @chatbot.meta['language'] || '繁體中文',
+            tone: @chatbot.meta['tone'] || '專業',
+            length: @chatbot.meta['length'] || 'normal'
+          }
+          @chatbot.add_message('user', 'general_user_talk', params[:query])
+          LogMessage.create!(
+            chatbot_id: @chatbot.id,
+            content: params[:query],
+            has_chat_history: params[:chat_history].present? && !params[:chat_history].empty?,
+            session_id: session.id,
+            role: 'user',
+            meta: {
+              chat_history: params[:chat_history]
+            }
+          )
+          @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
+          @chatbot.add_message('system', 'general_user_talk', @qaRes['content'])
+          LogMessage.create!(
+            chatbot_id: @chatbot.id,
+            content: @qaRes['content'],
+            has_chat_history: true,
+            session_id: session.id,
+            role: 'system',
+            meta: {
+              chat_history: params[:chat_history]
+            }
+          )
+          general_user.energy.update(value: general_user.energy.value - chatbot.energy_cost)
           render json: { success: true, message: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
@@ -196,6 +248,18 @@ module Api
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def fetch_general_user_chat_history
+        @general_user = current_user
+        @chatbot = Chatbot.find(params[:id])
+
+        @messages = @chatbot.messages.where(user_id: @general_user.id,
+                                            object_type: 'general_user_talk').order(created_at: :desc)
+        @messages = Kaminari.paginate_array(@messages).page(params[:page])
+        render json: { success: true, messages: @messages, meta: pagination_meta(@messages) }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
