@@ -183,12 +183,7 @@ module Api
         @general_user = current_user
         @documents = []
 
-        if @general_user.energy.value < chatbot.energy_cost
-          render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
-          return
-        end
-
-        if @chatbot
+        if @general_user.consume_energy(@chatbot, @chatbot.energy_cost)
           @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
           @folders.each do |folder|
             @documents.concat(folder.documents)
@@ -225,8 +220,10 @@ module Api
           general_user.energy.update(value: general_user.energy.value - chatbot.energy_cost)
           render json: { success: true, message: @qaRes }, status: :ok
         else
-          render json: { success: false, error: 'Chatbot not found' }, status: :not_found
+          render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
         end
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'Chatbot not found' }, status: :not_found
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
