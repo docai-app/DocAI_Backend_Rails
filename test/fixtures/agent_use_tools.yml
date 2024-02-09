@@ -1,3 +1,13 @@
+# == Schema Information
+#
+# Table name: public.agent_use_tools
+#
+#  id                 :bigint           not null, primary key
+#  assistant_agent_id :bigint           not null
+#  agent_tool_id      :bigint           not null
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
