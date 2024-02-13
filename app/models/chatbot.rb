@@ -106,7 +106,7 @@ class Chatbot < ApplicationRecord
 
   #  This function handles the initial publication. It checks if the item is public and publishes it to the marketplace if it is.
   def handle_initial_publication
-    return unless is_public
+    return unless is_public == true
 
     publish_to_marketplace
   end

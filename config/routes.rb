@@ -273,6 +273,9 @@ Rails.application.routes.draw do
 
       # ********** General User API ***********
       resources :general_users, only: %i[show create]
+
+      # ********** Marketplace API ***********
+      resources :marketplace_items, only: %i[index show create update destroy]
     end
 
     namespace :admin do
