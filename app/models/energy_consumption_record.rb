@@ -14,4 +14,5 @@
 #
 class EnergyConsumptionRecord < ApplicationRecord
   belongs_to :user, polymorphic: true
+  belongs_to :marketplace_item, dependent: :destroy, foreign_key: :marketplace_item_id
 end

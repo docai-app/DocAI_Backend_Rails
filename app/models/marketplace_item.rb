@@ -15,6 +15,7 @@
 #
 class MarketplaceItem < ApplicationRecord
   belongs_to :chatbot
+  belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
 
   # Add validation to ensure data is complete
   validates :chatbot_id, presence: true
