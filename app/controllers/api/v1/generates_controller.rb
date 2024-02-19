@@ -7,13 +7,15 @@ module Api
         uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/storybook")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = uri.scheme == 'https'
-        http.read_timeout = 600_000
         request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
         request.body = { query: params[:query], style: params[:style] }.to_json
+        http.read_timeout = 900_000
+
         response = http.request(request)
 
         if response.code == '200'
-          file_url = upload_pdf_to_azure(response.body) if response.body.present?
+          # file_url = upload_pdf_to_azure(response.body) if response.body.present?
+          file_url = JSON.parse(response.body)['file_url']
           render json: { success: true, file_url: }, status: :ok
         else
           render json: { success: false, error: 'Failed to generate storybook' }, status: :bad_request
