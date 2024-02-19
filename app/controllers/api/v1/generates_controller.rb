@@ -29,6 +29,9 @@ module Api
 
       def storybook
         begin
+          puts "Query: #{params[:query]}"
+          puts "Style: #{params[:style]}"
+          
           response = RestClient::Request.execute(
             method: :post,
             url: "#{ENV["DOCAI_ALPHA_URL"]}/generate/storybook",
