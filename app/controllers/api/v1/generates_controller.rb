@@ -14,7 +14,8 @@ module Api
         response = http.request(request)
 
         if response.code == '200'
-          file_url = upload_pdf_to_azure(response.body) if response.body.present?
+          # file_url = upload_pdf_to_azure(response.body) if response.body.present?
+          file_url = JSON.parse(response.body)['file_url']
           render json: { success: true, file_url: }, status: :ok
         else
           render json: { success: false, error: 'Failed to generate storybook' }, status: :bad_request
