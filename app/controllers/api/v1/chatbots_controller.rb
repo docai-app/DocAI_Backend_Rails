@@ -95,9 +95,7 @@ module Api
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
         @chatbot.meta['experts'] = params[:experts]
         @chatbot.meta['length'] = params[:length] if params[:length].present?
-        if params[:is_public].present? && params[:is_public] == 'true'
-          @chatbot.energy_cost = params[:energy_cost]
-        end
+        @chatbot.energy_cost = params[:energy_cost] if params[:is_public].present? && params[:is_public] == 'true'
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
