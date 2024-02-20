@@ -5,7 +5,9 @@ module Api
     class ChatbotsController < ApiController
       include Authenticatable
 
-      before_action :authenticate, only: %i[show create update destroy mark_messages_read generalUserChatWithBot]
+      before_action :authenticate,
+                    only: %i[show create update destroy mark_messages_read general_user_chat_with_bot
+                             fetch_general_user_chat_history]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
@@ -255,11 +257,12 @@ module Api
       end
 
       def fetch_general_user_chat_history
+        @marketplace_item = MarketplaceItem.find(params[:id])
+        Apartment::Tenant.switch!(@marketplace_item.entity_name)
+        @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
         @general_user = current_general_user
-        @chatbot = Chatbot.find(params[:id])
 
-        @messages = @chatbot.messages.where(user_id: @general_user.id,
-                                            object_type: 'general_user_talk').order(created_at: :desc)
+        @messages = @chatbot.get_chatbot_messages(current_general_user.id)
         @messages = Kaminari.paginate_array(@messages).page(params[:page])
         render json: { success: true, messages: @messages, meta: pagination_meta(@messages) }, status: :ok
       rescue StandardError => e

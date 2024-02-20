@@ -76,8 +76,9 @@ class Chatbot < ApplicationRecord
     messages << Message.new(chatbot_id: id, role:, object_type:, content:, meta:)
   end
 
-  def get_chatbot_messages
-    messages.where("meta->>'belongs_user_id' = ?", current_user.id).order(created_at: :desc)
+  def get_chatbot_messages(user_id)
+    puts "Get chatbot messages: #{user_id}"
+    messages.where("meta->>'belongs_user_id' = ?", user_id).order(created_at: :desc)
   end
 
   def update_assistive_questions(getSubdomain, metadata)
