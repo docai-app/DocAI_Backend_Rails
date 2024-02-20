@@ -183,7 +183,7 @@ module Api
         @general_user = current_user
         @documents = []
 
-        if @general_user.consume_energy(@chatbot, @chatbot.energy_cost)
+        if @general_user.check_can_consume_energy(@chatbot, @chatbot.energy_cost)
           @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
           @folders.each do |folder|
             @documents.concat(folder.documents)
@@ -217,7 +217,7 @@ module Api
               chat_history: params[:chat_history]
             }
           )
-          general_user.energy.update(value: general_user.energy.value - chatbot.energy_cost)
+          @general_user.consume_energy(@chatbot, @chatbot.energy_cost)
           render json: { success: true, message: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden

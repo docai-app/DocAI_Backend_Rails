@@ -43,4 +43,12 @@ class GeneralUser < ApplicationRecord
       false
     end
   end
+
+  def check_can_consume_energy(chatbot, energy_cost)
+    if energy.value >= energy_cost
+      true
+    else
+      false
+    end
+  end
 end
