@@ -8,7 +8,7 @@
 #  collection_id :uuid
 #  embedding     :vector(1536)
 #  document      :string
-#  cmetadata     :json
+#  cmetadata     :jsonb
 #  custom_id     :string
 #
 require 'test_helper'

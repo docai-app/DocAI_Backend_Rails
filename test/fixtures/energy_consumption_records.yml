@@ -1,6 +1,6 @@
 # == Schema Information
 #
-# Table name: energy_consumption_records
+# Table name: public.energy_consumption_records
 #
 #  id                  :uuid             not null, primary key
 #  user_type           :string           not null

@@ -28,51 +28,49 @@ module Api
       # end
 
       def storybook
-        begin
-          puts "Query: #{params[:query]}"
-          puts "Style: #{params[:style]}"
-          
-          response = RestClient::Request.execute(
-            method: :post,
-            url: "#{ENV["DOCAI_ALPHA_URL"]}/generate/storybook",
-            payload: {
-              query: params[:query],
-              style: params[:style],
-            }.to_json,
-            headers: { content_type: :json, accept: :json },
-            timeout: 600,
-            open_timeout: 10,
-          )
+        puts "Query: #{params[:query]}"
+        puts "Style: #{params[:style]}"
 
-          res = JSON.parse(response)
-          puts "Res: #{res}"
+        response = RestClient::Request.execute(
+          method: :post,
+          url: "#{ENV['DOCAI_ALPHA_URL']}/generate/storybook",
+          payload: {
+            query: params[:query],
+            style: params[:style]
+          }.to_json,
+          headers: { content_type: :json, accept: :json },
+          timeout: 600,
+          open_timeout: 10
+        )
 
-          if res["status"] == true
-            file_url = res["file_url"]
-            render json: { success: true, file_url: file_url }, status: :ok
-          else
-            render json: { success: false, error: "Failed to generate storybook" }, status: :bad_request
-          end
-        rescue RestClient::Exceptions::ReadTimeout => e
-          render json: { success: false, error: "Server read timeout" }, status: :gateway_timeout
-        rescue RestClient::Exceptions::OpenTimeout => e
-          render json: { success: false, error: "Server connection timeout" }, status: :request_timeout
-        rescue StandardError => e
-          render json: { success: false, error: e.message }, status: :internal_server_error
+        res = JSON.parse(response)
+        puts "Res: #{res}"
+
+        if res['status'] == true
+          file_url = res['file_url']
+          render json: { success: true, file_url: }, status: :ok
+        else
+          render json: { success: false, error: 'Failed to generate storybook' }, status: :bad_request
         end
+      rescue RestClient::Exceptions::ReadTimeout
+        render json: { success: false, error: 'Server read timeout' }, status: :gateway_timeout
+      rescue RestClient::Exceptions::OpenTimeout
+        render json: { success: false, error: 'Server connection timeout' }, status: :request_timeout
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       private
 
       def upload_pdf_to_azure(file_content)
-        temp_file = Tempfile.new(["storybook_#{SecureRandom.uuid}", ".pdf"], binmode: true)
+        temp_file = Tempfile.new(["storybook_#{SecureRandom.uuid}", '.pdf'], binmode: true)
         temp_file.write(file_content)
         temp_file.rewind
 
         mock_uploaded_file = Struct.new(:tempfile, :original_filename, :content_type).new
         mock_uploaded_file.tempfile = temp_file
         mock_uploaded_file.original_filename = File.basename(temp_file.path)
-        mock_uploaded_file.content_type = "application/pdf"
+        mock_uploaded_file.content_type = 'application/pdf'
 
         file_url = AzureService.upload(mock_uploaded_file)
         temp_file.close

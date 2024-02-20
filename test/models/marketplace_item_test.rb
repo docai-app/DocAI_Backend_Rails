@@ -2,7 +2,7 @@
 
 # == Schema Information
 #
-# Table name: marketplace_items
+# Table name: public.marketplace_items
 #
 #  id                  :uuid             not null, primary key
 #  chatbot_id          :uuid
