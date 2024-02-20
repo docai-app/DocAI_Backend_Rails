@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_02_05_084146) do
+ActiveRecord::Schema[7.0].define(version: 20_240_209_071_931) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -77,45 +77,46 @@ ActiveRecord::Schema[7.0].define(version: 2024_02_05_084146) do
     t.index ["user_id"], name: "index_api_keys_on_user_id"
   end
 
-  create_table "assistant_agents", force: :cascade do |t|
-    t.string "name"
-    t.string "description"
-    t.string "system_message"
-    t.string "subdomain"
-    t.jsonb "llm_config"
-    t.jsonb "meta"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "remark"
-    t.string "version"
-    t.string "name_en"
-    t.string "prompt_header"
-    t.string "category"
-    t.string "helper_agent_system_message"
-    t.index ["category"], name: "index_assistant_agents_on_category"
-    t.index ["name"], name: "index_assistant_agents_on_name"
-    t.index ["name_en"], name: "index_assistant_agents_on_name_en"
-    t.index ["version"], name: "index_assistant_agents_on_version"
+  create_table 'assistant_agents', force: :cascade do |t|
+    t.string 'name'
+    t.string 'description'
+    t.string 'system_message'
+    t.string 'subdomain'
+    t.jsonb 'llm_config'
+    t.jsonb 'meta'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.string 'remark'
+    t.string 'version'
+    t.string 'name_en'
+    t.string 'prompt_header'
+    t.string 'category'
+    t.string 'helper_agent_system_message'
+    t.index ['category'], name: 'index_assistant_agents_on_category'
+    t.index ['name'], name: 'index_assistant_agents_on_name'
+    t.index ['name_en'], name: 'index_assistant_agents_on_name_en'
+    t.index ['version'], name: 'index_assistant_agents_on_version'
   end
 
-  create_table "chatbots", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "name"
-    t.string "description"
-    t.uuid "user_id", null: false
-    t.integer "category", default: 0, null: false
-    t.jsonb "meta", default: {}
-    t.jsonb "source", default: {}
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.boolean "is_public", default: false, null: false
-    t.datetime "expired_at"
-    t.integer "access_count", default: 0
-    t.string "object_type"
-    t.uuid "object_id"
-    t.jsonb "assistive_questions", default: [], null: false
-    t.boolean "has_chatbot_updated", default: false, null: false
-    t.index ["category"], name: "index_chatbots_on_category"
-    t.index ["user_id"], name: "index_chatbots_on_user_id"
+  create_table 'chatbots', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name'
+    t.string 'description'
+    t.uuid 'user_id', null: false
+    t.integer 'category', default: 0, null: false
+    t.jsonb 'meta', default: {}
+    t.jsonb 'source', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.boolean 'is_public', default: false, null: false
+    t.datetime 'expired_at'
+    t.integer 'access_count', default: 0
+    t.string 'object_type'
+    t.uuid 'object_id'
+    t.jsonb 'assistive_questions', default: [], null: false
+    t.boolean 'has_chatbot_updated', default: false, null: false
+    t.integer 'energy_cost', default: 1
+    t.index ['category'], name: 'index_chatbots_on_category'
+    t.index ['user_id'], name: 'index_chatbots_on_user_id'
   end
 
   create_table "cors", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -217,12 +218,35 @@ ActiveRecord::Schema[7.0].define(version: 2024_02_05_084146) do
     t.index ["user_id"], name: "index_documents_on_user_id"
   end
 
-  create_table "entities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "name", null: false
-    t.string "description", default: ""
-    t.jsonb "meta", default: {}
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+  create_table 'energies', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.integer 'value', default: 100
+    t.uuid 'user_id', null: false
+    t.string 'user_type', null: false
+    t.string 'entity_name'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['entity_name'], name: 'index_energies_on_entity_name'
+    t.index ['user_id'], name: 'index_energies_on_user_id'
+    t.index ['user_type'], name: 'index_energies_on_user_type'
+  end
+
+  create_table 'energy_consumption_records', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'user_type', null: false
+    t.bigint 'user_id', null: false
+    t.uuid 'marketplace_item_id', null: false
+    t.integer 'energy_consumed'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['marketplace_item_id'], name: 'index_energy_consumption_records_on_marketplace_item_id'
+    t.index %w[user_type user_id], name: 'index_energy_consumption_records_on_user'
+  end
+
+  create_table 'entities', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.string 'description', default: ''
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
   end
 
   create_table "folder_hierarchies", id: false, force: :cascade do |t|
@@ -279,15 +303,30 @@ ActiveRecord::Schema[7.0].define(version: 2024_02_05_084146) do
     t.string "title", default: "", null: false
   end
 
-  create_table "identities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "user_id", null: false
-    t.string "provider"
-    t.string "uid"
-    t.jsonb "meta", default: {}
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["provider"], name: "index_identities_on_provider"
-    t.index ["user_id"], name: "index_identities_on_user_id"
+  create_table 'general_users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'email'
+    t.string 'encrypted_password'
+    t.string 'reset_password_token'
+    t.datetime 'reset_password_sent_at'
+    t.datetime 'remember_created_at'
+    t.string 'nickname'
+    t.string 'phone'
+    t.date 'date_of_birth'
+    t.integer 'sex'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['email'], name: 'index_general_users_on_email', unique: true
+  end
+
+  create_table 'identities', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.string 'provider'
+    t.string 'uid'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['provider'], name: 'index_identities_on_provider'
+    t.index ['user_id'], name: 'index_identities_on_user_id'
   end
 
   create_table "jwt_denylist", force: :cascade do |t|
@@ -310,19 +349,30 @@ ActiveRecord::Schema[7.0].define(version: 2024_02_05_084146) do
     t.index ["session_id"], name: "index_log_messages_on_session_id"
   end
 
-  create_table "messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "chatbot_id", null: false
-    t.text "content", null: false
-    t.string "role", default: "user", null: false
-    t.uuid "user_id"
-    t.string "object_type", null: false
-    t.boolean "is_read", default: false, null: false
-    t.jsonb "meta", default: {}
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["chatbot_id"], name: "index_messages_on_chatbot_id"
-    t.index ["object_type"], name: "index_messages_on_object_type"
-    t.index ["user_id"], name: "index_messages_on_user_id"
+  create_table 'marketplace_items', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'chatbot_id'
+    t.uuid 'user_id'
+    t.string 'entity_name', null: false
+    t.string 'chatbot_name', null: false
+    t.string 'chatbot_description'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['entity_name'], name: 'index_marketplace_items_on_entity_name'
+  end
+
+  create_table 'messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'chatbot_id', null: false
+    t.text 'content', null: false
+    t.string 'role', default: 'user', null: false
+    t.uuid 'user_id'
+    t.string 'object_type', null: false
+    t.boolean 'is_read', default: false, null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['object_type'], name: 'index_messages_on_object_type'
+    t.index ['user_id'], name: 'index_messages_on_user_id'
   end
 
   create_table "mini_apps", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

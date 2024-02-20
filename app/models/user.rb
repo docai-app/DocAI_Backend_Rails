@@ -18,6 +18,9 @@
 #  date_of_birth          :date
 #  sex                    :integer
 #  profile                :jsonb
+#  failed_attempts        :integer          default(0), not null
+#  unlock_token           :string
+#  locked_at              :datetime
 #
 class User < ApplicationRecord
   rolify
@@ -56,6 +59,7 @@ class User < ApplicationRecord
   has_many :storyboard_items, lambda {
                                 where(is_ready: true).where(status: :saved)
                               }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
+  has_one :energy, as: :user, dependent: :destroy
 
   after_create :create_user_api_key
 

@@ -18,6 +18,9 @@
 #  date_of_birth          :date
 #  sex                    :integer
 #  profile                :jsonb
+#  failed_attempts        :integer          default(0), not null
+#  unlock_token           :string
+#  locked_at              :datetime
 #
 require 'test_helper'
 

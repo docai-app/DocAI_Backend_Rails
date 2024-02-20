@@ -2,19 +2,19 @@
 
 # == Schema Information
 #
-# Table name: public.cors
+# Table name: public.energies
 #
 #  id          :uuid             not null, primary key
-#  name        :string           not null
-#  description :string           default("")
-#  url         :string           not null
-#  meta        :jsonb
+#  value       :integer          default(100)
+#  user_id     :uuid             not null
+#  user_type   :string           not null
+#  entity_name :string
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #
 require 'test_helper'
 
-class CorsTest < ActiveSupport::TestCase
+class EnergyTest < ActiveSupport::TestCase
   # test "the truth" do
   #   assert true
   # end

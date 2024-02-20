@@ -2,19 +2,22 @@
 #
 # Table name: public.assistant_agents
 #
-#  id             :bigint           not null, primary key
-#  name           :string
-#  description    :string
-#  system_message :string
-#  subdomain      :string
-#  llm_config     :jsonb
-#  meta           :jsonb
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  remark         :string
-#  version        :string
+#  id                          :bigint           not null, primary key
+#  name                        :string
+#  description                 :string
+#  system_message              :string
+#  subdomain                   :string
+#  llm_config                  :jsonb
+#  meta                        :jsonb
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  remark                      :string
+#  version                     :string
+#  name_en                     :string
+#  prompt_header               :string
+#  category                    :string
+#  helper_agent_system_message :string
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   name: MyString

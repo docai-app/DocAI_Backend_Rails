@@ -7,11 +7,18 @@ class ApplicationController < ActionController::API
 
   def switch_tenant
     puts 'ApplicationController#switch_tenant'
-    email = params[:user][:email]
-    puts "email: #{email}"
-    subdomain = email.split('@')[1].split('.')[0]
-    puts "subdomain: #{subdomain}"
-    tenantName = Utils.getTenantName(subdomain)
+    if params[:user]
+      email = params[:user][:email]
+      puts "email: #{email}"
+      subdomain = email.split('@')[1].split('.')[0]
+      puts "subdomain: #{subdomain}"
+      tenantName = Utils.getTenantName(subdomain)
+    elsif params[:general_user]
+      puts "General User! #{params[:general_user][:email]}"
+      tenantName = ENV['DEFAULT_TENANT_NAME']
+    else
+      tenantName = ENV['DEFAULT_TENANT_NAME']
+    end
     puts "tenantName: #{tenantName}"
     begin
       Apartment::Tenant.switch!(tenantName)

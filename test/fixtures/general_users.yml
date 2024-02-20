@@ -1,0 +1,40 @@
+# == Schema Information
+#
+# Table name: public.general_users
+#
+#  id                     :uuid             not null, primary key
+#  email                  :string
+#  encrypted_password     :string
+#  reset_password_token   :string
+#  reset_password_sent_at :datetime
+#  remember_created_at    :datetime
+#  nickname               :string
+#  phone                  :string
+#  date_of_birth          :date
+#  sex                    :integer
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  email: MyString
+  encrypted_password: MyString
+  reset_password_token: MyString
+  reset_password_sent_at: 2024-02-06 15:29:28
+  remember_created_at: 2024-02-06 15:29:28
+  created_at: 2024-02-06 15:29:28
+  updated_at: 2024-02-06 15:29:28
+  nickname: MyString
+  phone: MyString
+
+two:
+  email: MyString
+  encrypted_password: MyString
+  reset_password_token: MyString
+  reset_password_sent_at: 2024-02-06 15:29:28
+  remember_created_at: 2024-02-06 15:29:28
+  created_at: 2024-02-06 15:29:28
+  updated_at: 2024-02-06 15:29:28
+  nickname: MyString
+  phone: MyString
