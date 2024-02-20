@@ -95,6 +95,9 @@ module Api
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
         @chatbot.meta['experts'] = params[:experts]
         @chatbot.meta['length'] = params[:length] if params[:length].present?
+        if params[:is_public].present? && params[:is_public] == 'true'
+          @chatbot.energy_cost = params[:energy_cost]
+        end
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -113,7 +116,6 @@ module Api
         @chatbot.meta['assistant'] = params[:assistant]
         @chatbot.meta['experts'] = params[:experts]
         @chatbot.meta['length'] = params[:length] if params[:length].present?
-        # binding.pry
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
