@@ -36,14 +36,14 @@ class GeneralUser < ApplicationRecord
     }
   end
 
-  def consume_energy(chatbot, energy_cost)
+  def consume_energy(marketplace_item_id, energy_cost)
     # Run the energy consumption
     if energy.value >= energy_cost
       energy.update(value: energy.value - energy_cost)
       # Create energy consumption record
       EnergyConsumptionRecord.create!(
         user: self,
-        chatbot:,
+        marketplace_item_id:,
         energy_consumed: energy_cost
       )
       true

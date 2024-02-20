@@ -179,8 +179,10 @@ module Api
       end
 
       def general_user_chat_with_bot
-        @chatbot = Chatbot.find(params[:id])
-        @general_user = current_user
+        @marketplace_item = MarketplaceItem.find(params[:id])
+        Apartment::Tenant.switch!(@marketplace_item.entity_name)
+        @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
+        @general_user = current_general_user
         @documents = []
 
         if @general_user.check_can_consume_energy(@chatbot, @chatbot.energy_cost)
@@ -194,7 +196,8 @@ module Api
             tone: @chatbot.meta['tone'] || '專業',
             length: @chatbot.meta['length'] || 'normal'
           }
-          @chatbot.add_message('user', 'general_user_talk', params[:query])
+          @chatbot.add_message('user', 'general_user_talk', params[:query],
+                               { belongs_user_id: current_general_user.id })
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: params[:query],
@@ -206,7 +209,8 @@ module Api
             }
           )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
-          @chatbot.add_message('system', 'general_user_talk', @qaRes['content'])
+          @chatbot.add_message('system', 'general_user_talk', @qaRes['content'],
+                               { belongs_user_id: current_general_user.id })
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: @qaRes['content'],
@@ -217,7 +221,8 @@ module Api
               chat_history: params[:chat_history]
             }
           )
-          @general_user.consume_energy(@chatbot, @chatbot.energy_cost)
+          puts "General User: #{@general_user.inspect}"
+          @general_user.consume_energy(params[:id], @chatbot.energy_cost)
           render json: { success: true, message: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
@@ -250,7 +255,7 @@ module Api
       end
 
       def fetch_general_user_chat_history
-        @general_user = current_user
+        @general_user = current_general_user
         @chatbot = Chatbot.find(params[:id])
 
         @messages = @chatbot.messages.where(user_id: @general_user.id,

@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_220_081_107) do
+ActiveRecord::Schema[7.0].define(version: 20_240_220_102_711) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -94,6 +94,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_220_081_107) do
     t.string 'prompt_header'
     t.string 'category'
     t.string 'helper_agent_system_message'
+    t.string 'conclude_conversation_message'
     t.index ['category'], name: 'index_assistant_agents_on_category'
     t.index ['name'], name: 'index_assistant_agents_on_name'
     t.index ['name_en'], name: 'index_assistant_agents_on_name_en'
@@ -233,12 +234,12 @@ ActiveRecord::Schema[7.0].define(version: 20_240_220_081_107) do
   end
 
   create_table 'energy_consumption_records', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
-    t.string 'user_type', null: false
-    t.bigint 'user_id', null: false
     t.uuid 'marketplace_item_id', null: false
     t.integer 'energy_consumed'
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.string 'user_type', null: false
+    t.uuid 'user_id', null: false
     t.index ['marketplace_item_id'], name: 'index_energy_consumption_records_on_marketplace_item_id'
     t.index %w[user_type user_id], name: 'index_energy_consumption_records_on_user'
   end

@@ -72,7 +72,7 @@ class Chatbot < ApplicationRecord
     expired_at.present? && Time.current > expired_at
   end
 
-  def add_message(role, object_type, content, meta)
+  def add_message(role, object_type, content, meta = {})
     messages << Message.new(chatbot_id: id, role:, object_type:, content:, meta:)
   end
 
