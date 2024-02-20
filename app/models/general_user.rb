@@ -28,6 +28,14 @@ class GeneralUser < ApplicationRecord
 
   has_one :energy, as: :user, dependent: :destroy
 
+  def jwt_payload
+    {
+      'sub' => id,
+      'iat' => Time.now.to_i,
+      'email' => email
+    }
+  end
+
   def consume_energy(chatbot, energy_cost)
     # Run the energy consumption
     if energy.value >= energy_cost

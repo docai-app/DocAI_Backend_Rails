@@ -272,7 +272,11 @@ Rails.application.routes.draw do
       end
 
       # ********** General User API ***********
-      resources :general_users, only: %i[show create]
+      resources :general_users, only: %i[show create] do
+        collection do
+          get 'me', to: 'general_users#show_current_user'
+        end
+      end
 
       # ********** Marketplace API ***********
       resources :marketplace_items, only: %i[index show create update destroy]
