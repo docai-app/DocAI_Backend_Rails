@@ -15,6 +15,16 @@
 #  updated_at       :datetime         not null
 #  airflow_accepted :boolean          default(FALSE), not null
 #
+# Indexes
+#
+#  index_dag_runs_on_airflow_accepted  (airflow_accepted)
+#  index_dag_runs_on_dag_status        (dag_status)
+#  index_dag_runs_on_user_id           (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 class DagRun < ApplicationRecord
   store_accessor :meta, :status_stack, :params, :project_workflow_step_id, :chatbot_id
   store_accessor :statistic, :current_progress, :blocking_by_user, :notification_sent

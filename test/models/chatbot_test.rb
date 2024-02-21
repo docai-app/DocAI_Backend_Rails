@@ -8,7 +8,7 @@
 #  name                :string
 #  description         :string
 #  user_id             :uuid             not null
-#  category            :integer          default("assistant"), not null
+#  category            :integer          default("qa"), not null
 #  meta                :jsonb
 #  source              :jsonb
 #  created_at          :datetime         not null
@@ -20,6 +20,12 @@
 #  object_id           :uuid
 #  assistive_questions :jsonb            not null
 #  has_chatbot_updated :boolean          default(FALSE), not null
+#  energy_cost         :integer          default(0)
+#
+# Indexes
+#
+#  index_chatbots_on_category  (category)
+#  index_chatbots_on_user_id   (user_id)
 #
 require 'test_helper'
 

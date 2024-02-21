@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
+ActiveRecord::Schema[7.0].define(version: 20_231_207_094_707) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -76,6 +76,42 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.index %w[blob_id variation_digest], name: 'index_active_storage_variant_records_uniqueness', unique: true
   end
 
+  create_table 'api_keys', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.string 'key', null: false
+    t.datetime 'expires_at'
+    t.boolean 'active', default: true
+    t.string 'tenant', null: false
+    t.string 'name'
+    t.string 'description'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['key'], name: 'index_api_keys_on_key', unique: true
+    t.index ['key'], name: 'index_api_keys_on_key', unique: true
+    t.index ['tenant'], name: 'index_api_keys_on_tenant'
+    t.index ['tenant'], name: 'index_api_keys_on_tenant'
+    t.index ['user_id'], name: 'index_api_keys_on_user_id'
+    t.index ['user_id'], name: 'index_api_keys_on_user_id'
+  end
+
+  create_table 'api_keys', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.string 'key', null: false
+    t.datetime 'expires_at'
+    t.boolean 'active', default: true
+    t.string 'tenant', null: false
+    t.string 'name'
+    t.string 'description'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['key'], name: 'index_api_keys_on_key', unique: true
+    t.index ['key'], name: 'index_api_keys_on_key', unique: true
+    t.index ['tenant'], name: 'index_api_keys_on_tenant'
+    t.index ['tenant'], name: 'index_api_keys_on_tenant'
+    t.index ['user_id'], name: 'index_api_keys_on_user_id'
+    t.index ['user_id'], name: 'index_api_keys_on_user_id'
+  end
+
   create_table 'chatbots', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name'
     t.string 'description'
@@ -88,6 +124,10 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.boolean 'is_public', default: false, null: false
     t.datetime 'expired_at'
     t.integer 'access_count', default: 0
+    t.string 'object_type'
+    t.uuid 'object_id'
+    t.jsonb 'assistive_questions', default: [], null: false
+    t.boolean 'has_chatbot_updated', default: false, null: false
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
@@ -106,10 +146,70 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.boolean 'is_public', default: false, null: false
     t.datetime 'expired_at'
     t.integer 'access_count', default: 0
+    t.string 'object_type'
+    t.uuid 'object_id'
+    t.jsonb 'assistive_questions', default: [], null: false
+    t.boolean 'has_chatbot_updated', default: false, null: false
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['category'], name: 'index_chatbots_on_category'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
     t.index ['user_id'], name: 'index_chatbots_on_user_id'
+  end
+
+  create_table 'dag_runs', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id'
+    t.string 'dag_name'
+    t.integer 'dag_status', default: 0, null: false
+    t.jsonb 'meta', default: {}
+    t.jsonb 'statistic', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.boolean 'airflow_accepted', default: false, null: false
+    t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
+    t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
+    t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
+    t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
+    t.index ['user_id'], name: 'index_dag_runs_on_user_id'
+    t.index ['user_id'], name: 'index_dag_runs_on_user_id'
+  end
+
+  create_table 'dag_runs', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id'
+    t.string 'dag_name'
+    t.integer 'dag_status', default: 0, null: false
+    t.jsonb 'meta', default: {}
+    t.jsonb 'statistic', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.boolean 'airflow_accepted', default: false, null: false
+    t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
+    t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
+    t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
+    t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
+    t.index ['user_id'], name: 'index_dag_runs_on_user_id'
+    t.index ['user_id'], name: 'index_dag_runs_on_user_id'
+  end
+
+  create_table 'dags', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id'
+    t.string 'name'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['user_id'], name: 'index_dags_on_user_id'
+    t.index ['user_id'], name: 'index_dags_on_user_id'
+  end
+
+  create_table 'dags', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id'
+    t.string 'name'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['user_id'], name: 'index_dags_on_user_id'
+    t.index ['user_id'], name: 'index_dags_on_user_id'
   end
 
   create_table 'departments', force: :cascade do |t|
@@ -350,6 +450,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.jsonb 'form_projection', default: []
     t.boolean 'can_project', default: false, null: false
     t.string 'projection_image_url', default: ''
+    t.uuid 'label_id'
     t.index ['name'], name: 'index_form_schemas_on_name'
     t.index ['name'], name: 'index_form_schemas_on_name'
   end
@@ -368,6 +469,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.jsonb 'form_projection', default: []
     t.boolean 'can_project', default: false, null: false
     t.string 'projection_image_url', default: ''
+    t.uuid 'label_id'
     t.index ['name'], name: 'index_form_schemas_on_name'
     t.index ['name'], name: 'index_form_schemas_on_name'
   end
@@ -388,6 +490,32 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.string 'title', default: '', null: false
   end
 
+  create_table 'identities', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.string 'provider'
+    t.string 'uid'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['provider'], name: 'index_identities_on_provider'
+    t.index ['provider'], name: 'index_identities_on_provider'
+    t.index ['user_id'], name: 'index_identities_on_user_id'
+    t.index ['user_id'], name: 'index_identities_on_user_id'
+  end
+
+  create_table 'identities', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.string 'provider'
+    t.string 'uid'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['provider'], name: 'index_identities_on_provider'
+    t.index ['provider'], name: 'index_identities_on_provider'
+    t.index ['user_id'], name: 'index_identities_on_user_id'
+    t.index ['user_id'], name: 'index_identities_on_user_id'
+  end
+
   create_table 'jwt_denylist', force: :cascade do |t|
     t.string 'jti', null: false
     t.datetime 'exp', null: false
@@ -400,6 +528,42 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.datetime 'exp', null: false
     t.index ['jti'], name: 'index_jwt_denylist_on_jti'
     t.index ['jti'], name: 'index_jwt_denylist_on_jti'
+  end
+
+  create_table 'messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'chatbot_id', null: false
+    t.text 'content', null: false
+    t.string 'role', default: 'user', null: false
+    t.uuid 'user_id'
+    t.string 'object_type', null: false
+    t.boolean 'is_read', default: false, null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['object_type'], name: 'index_messages_on_object_type'
+    t.index ['object_type'], name: 'index_messages_on_object_type'
+    t.index ['user_id'], name: 'index_messages_on_user_id'
+    t.index ['user_id'], name: 'index_messages_on_user_id'
+  end
+
+  create_table 'messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'chatbot_id', null: false
+    t.text 'content', null: false
+    t.string 'role', default: 'user', null: false
+    t.uuid 'user_id'
+    t.string 'object_type', null: false
+    t.boolean 'is_read', default: false, null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['object_type'], name: 'index_messages_on_object_type'
+    t.index ['object_type'], name: 'index_messages_on_object_type'
+    t.index ['user_id'], name: 'index_messages_on_user_id'
+    t.index ['user_id'], name: 'index_messages_on_user_id'
   end
 
   create_table 'mini_apps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -428,6 +592,34 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.index ['folder_id'], name: 'index_mini_apps_on_folder_id'
     t.index ['user_id'], name: 'index_mini_apps_on_user_id'
     t.index ['user_id'], name: 'index_mini_apps_on_user_id'
+  end
+
+  create_table 'pdf_page_details', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'document_id', null: false
+    t.integer 'page_number'
+    t.text 'summary'
+    t.string 'keywords'
+    t.integer 'status', default: 0, null: false
+    t.integer 'retry_count', default: 0, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.text 'error_message'
+    t.index ['document_id'], name: 'index_pdf_page_details_on_document_id'
+    t.index ['document_id'], name: 'index_pdf_page_details_on_document_id'
+  end
+
+  create_table 'pdf_page_details', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'document_id', null: false
+    t.integer 'page_number'
+    t.text 'summary'
+    t.string 'keywords'
+    t.integer 'status', default: 0, null: false
+    t.integer 'retry_count', default: 0, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.text 'error_message'
+    t.index ['document_id'], name: 'index_pdf_page_details_on_document_id'
+    t.index ['document_id'], name: 'index_pdf_page_details_on_document_id'
   end
 
   create_table 'project_tasks', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -460,6 +652,96 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.index ['project_id'], name: 'index_project_tasks_on_project_id'
     t.index ['user_id'], name: 'index_project_tasks_on_user_id'
     t.index ['user_id'], name: 'index_project_tasks_on_user_id'
+  end
+
+  create_table 'project_workflow_steps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.integer 'position'
+    t.string 'name', null: false
+    t.string 'description'
+    t.uuid 'user_id'
+    t.uuid 'project_workflow_id'
+    t.integer 'status', default: 0
+    t.boolean 'is_human', default: true
+    t.jsonb 'meta', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'deadline'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.uuid 'assignee_id'
+    t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
+    t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
+    t.index ['status'], name: 'index_project_workflow_steps_on_status'
+    t.index ['status'], name: 'index_project_workflow_steps_on_status'
+    t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
+    t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
+  end
+
+  create_table 'project_workflow_steps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.integer 'position'
+    t.string 'name', null: false
+    t.string 'description'
+    t.uuid 'user_id'
+    t.uuid 'project_workflow_id'
+    t.integer 'status', default: 0
+    t.boolean 'is_human', default: true
+    t.jsonb 'meta', default: {}
+    t.jsonb 'dag_meta', default: {}
+    t.datetime 'deadline'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.uuid 'assignee_id'
+    t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
+    t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
+    t.index ['status'], name: 'index_project_workflow_steps_on_status'
+    t.index ['status'], name: 'index_project_workflow_steps_on_status'
+    t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
+    t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
+  end
+
+  create_table 'project_workflows', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.integer 'status', default: 0, null: false
+    t.string 'description'
+    t.uuid 'user_id'
+    t.boolean 'is_process_workflow', default: false
+    t.datetime 'deadline'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.uuid 'folder_id'
+    t.boolean 'is_template', default: false, null: false
+    t.uuid 'source_workflow_id'
+    t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
+    t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
+    t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
+    t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
+    t.index ['source_workflow_id'], name: 'index_project_workflows_on_source_workflow_id'
+    t.index ['source_workflow_id'], name: 'index_project_workflows_on_source_workflow_id'
+    t.index ['status'], name: 'index_project_workflows_on_status'
+    t.index ['status'], name: 'index_project_workflows_on_status'
+  end
+
+  create_table 'project_workflows', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.integer 'status', default: 0, null: false
+    t.string 'description'
+    t.uuid 'user_id'
+    t.boolean 'is_process_workflow', default: false
+    t.datetime 'deadline'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.uuid 'folder_id'
+    t.boolean 'is_template', default: false, null: false
+    t.uuid 'source_workflow_id'
+    t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
+    t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
+    t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
+    t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
+    t.index ['source_workflow_id'], name: 'index_project_workflows_on_source_workflow_id'
+    t.index ['source_workflow_id'], name: 'index_project_workflows_on_source_workflow_id'
+    t.index ['status'], name: 'index_project_workflows_on_status'
+    t.index ['status'], name: 'index_project_workflows_on_status'
   end
 
   create_table 'projects', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -542,6 +824,88 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.index ['label_id'], name: 'index_smart_extraction_schemas_on_label_id'
     t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
     t.index ['user_id'], name: 'index_smart_extraction_schemas_on_user_id'
+  end
+
+  create_table 'storyboard_item_associations', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'storyboard_id', null: false
+    t.uuid 'storyboard_item_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['storyboard_id'], name: 'index_storyboard_item_associations_on_storyboard_id'
+    t.index ['storyboard_id'], name: 'index_storyboard_item_associations_on_storyboard_id'
+    t.index ['storyboard_item_id'], name: 'index_storyboard_item_associations_on_storyboard_item_id'
+    t.index ['storyboard_item_id'], name: 'index_storyboard_item_associations_on_storyboard_item_id'
+  end
+
+  create_table 'storyboard_item_associations', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'storyboard_id', null: false
+    t.uuid 'storyboard_item_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['storyboard_id'], name: 'index_storyboard_item_associations_on_storyboard_id'
+    t.index ['storyboard_id'], name: 'index_storyboard_item_associations_on_storyboard_id'
+    t.index ['storyboard_item_id'], name: 'index_storyboard_item_associations_on_storyboard_item_id'
+    t.index ['storyboard_item_id'], name: 'index_storyboard_item_associations_on_storyboard_item_id'
+  end
+
+  create_table 'storyboard_items', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.text 'description'
+    t.uuid 'user_id', null: false
+    t.string 'query', null: false
+    t.text 'data', default: ''
+    t.text 'sql', default: ''
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.boolean 'is_ready', default: false, null: false
+    t.integer 'status', default: 0, null: false
+    t.string 'object_type', null: false
+    t.uuid 'object_id', null: false
+    t.string 'item_type'
+    t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
+    t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
+  end
+
+  create_table 'storyboard_items', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.text 'description'
+    t.uuid 'user_id', null: false
+    t.string 'query', null: false
+    t.text 'data', default: ''
+    t.text 'sql', default: ''
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.boolean 'is_ready', default: false, null: false
+    t.integer 'status', default: 0, null: false
+    t.string 'object_type', null: false
+    t.uuid 'object_id', null: false
+    t.string 'item_type'
+    t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
+    t.index ['user_id'], name: 'index_storyboard_items_on_user_id'
+  end
+
+  create_table 'storyboards', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'title', null: false
+    t.text 'description'
+    t.uuid 'user_id', null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['user_id'], name: 'index_storyboards_on_user_id'
+    t.index ['user_id'], name: 'index_storyboards_on_user_id'
+  end
+
+  create_table 'storyboards', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'title', null: false
+    t.text 'description'
+    t.uuid 'user_id', null: false
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['user_id'], name: 'index_storyboards_on_user_id'
+    t.index ['user_id'], name: 'index_storyboards_on_user_id'
   end
 
   create_table 'tag_functions', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -649,6 +1013,7 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.uuid 'folder_id'
     t.uuid 'user_id'
     t.jsonb 'meta', default: {}
+    t.integer 'smart_extraction_schemas_count', default: 0
     t.index ['name'], name: 'index_tags_on_name', unique: true
     t.index ['name'], name: 'index_tags_on_name', unique: true
   end
@@ -662,8 +1027,49 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
     t.uuid 'folder_id'
     t.uuid 'user_id'
     t.jsonb 'meta', default: {}
+    t.integer 'smart_extraction_schemas_count', default: 0
     t.index ['name'], name: 'index_tags_on_name', unique: true
     t.index ['name'], name: 'index_tags_on_name', unique: true
+  end
+
+  create_table 'user_mailboxes', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.uuid 'document_id', null: false
+    t.string 'message_id'
+    t.string 'subject'
+    t.string 'sender'
+    t.string 'recipient'
+    t.datetime 'sent_at'
+    t.datetime 'received_at'
+    t.jsonb 'attachment'
+    t.text 'content'
+    t.boolean 'read', default: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['document_id'], name: 'index_user_mailboxes_on_document_id'
+    t.index ['document_id'], name: 'index_user_mailboxes_on_document_id'
+    t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
+    t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
+  end
+
+  create_table 'user_mailboxes', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'user_id', null: false
+    t.uuid 'document_id', null: false
+    t.string 'message_id'
+    t.string 'subject'
+    t.string 'sender'
+    t.string 'recipient'
+    t.datetime 'sent_at'
+    t.datetime 'received_at'
+    t.jsonb 'attachment'
+    t.text 'content'
+    t.boolean 'read', default: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['document_id'], name: 'index_user_mailboxes_on_document_id'
+    t.index ['document_id'], name: 'index_user_mailboxes_on_document_id'
+    t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
+    t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
   end
 
   create_table 'users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -758,6 +1164,14 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
   add_foreign_key 'active_storage_variant_records', 'public.active_storage_blobs', column: 'blob_id'
   add_foreign_key 'active_storage_variant_records', 'active_storage_blobs', column: 'blob_id'
   add_foreign_key 'active_storage_variant_records', 'public.active_storage_blobs', column: 'blob_id'
+  add_foreign_key 'dag_runs', 'public.users', column: 'user_id'
+  add_foreign_key 'dag_runs', 'users'
+  add_foreign_key 'dag_runs', 'public.users', column: 'user_id'
+  add_foreign_key 'dag_runs', 'users'
+  add_foreign_key 'dags', 'public.users', column: 'user_id'
+  add_foreign_key 'dags', 'users'
+  add_foreign_key 'dags', 'public.users', column: 'user_id'
+  add_foreign_key 'dags', 'users'
   add_foreign_key 'documents', 'folders'
   add_foreign_key 'documents', 'public.folders', column: 'folder_id'
   add_foreign_key 'documents', 'folders'
@@ -766,6 +1180,18 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
   add_foreign_key 'folders', 'users'
   add_foreign_key 'folders', 'public.users', column: 'user_id'
   add_foreign_key 'folders', 'users'
+  add_foreign_key 'identities', 'public.users', column: 'user_id'
+  add_foreign_key 'identities', 'users'
+  add_foreign_key 'identities', 'public.users', column: 'user_id'
+  add_foreign_key 'identities', 'users'
+  add_foreign_key 'messages', 'chatbots'
+  add_foreign_key 'messages', 'public.chatbots', column: 'chatbot_id'
+  add_foreign_key 'messages', 'public.users', column: 'user_id'
+  add_foreign_key 'messages', 'users'
+  add_foreign_key 'messages', 'chatbots'
+  add_foreign_key 'messages', 'public.chatbots', column: 'chatbot_id'
+  add_foreign_key 'messages', 'public.users', column: 'user_id'
+  add_foreign_key 'messages', 'users'
   add_foreign_key 'mini_apps', 'folders'
   add_foreign_key 'mini_apps', 'public.folders', column: 'folder_id'
   add_foreign_key 'mini_apps', 'public.users', column: 'user_id'
@@ -774,6 +1200,22 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
   add_foreign_key 'mini_apps', 'public.folders', column: 'folder_id'
   add_foreign_key 'mini_apps', 'public.users', column: 'user_id'
   add_foreign_key 'mini_apps', 'users'
+  add_foreign_key 'pdf_page_details', 'documents'
+  add_foreign_key 'pdf_page_details', 'public.documents', column: 'document_id'
+  add_foreign_key 'pdf_page_details', 'documents'
+  add_foreign_key 'pdf_page_details', 'public.documents', column: 'document_id'
+  add_foreign_key 'project_workflow_steps', 'project_workflows'
+  add_foreign_key 'project_workflow_steps', 'public.project_workflows', column: 'project_workflow_id'
+  add_foreign_key 'project_workflow_steps', 'public.users', column: 'user_id'
+  add_foreign_key 'project_workflow_steps', 'users'
+  add_foreign_key 'project_workflow_steps', 'project_workflows'
+  add_foreign_key 'project_workflow_steps', 'public.project_workflows', column: 'project_workflow_id'
+  add_foreign_key 'project_workflow_steps', 'public.users', column: 'user_id'
+  add_foreign_key 'project_workflow_steps', 'users'
+  add_foreign_key 'project_workflows', 'folders'
+  add_foreign_key 'project_workflows', 'public.folders', column: 'folder_id'
+  add_foreign_key 'project_workflows', 'folders'
+  add_foreign_key 'project_workflows', 'public.folders', column: 'folder_id'
   add_foreign_key 'projects', 'folders'
   add_foreign_key 'projects', 'public.folders', column: 'folder_id'
   add_foreign_key 'projects', 'public.users', column: 'user_id'
@@ -782,8 +1224,32 @@ ActiveRecord::Schema[7.0].define(version: 20_231_001_183_107) do
   add_foreign_key 'projects', 'public.folders', column: 'folder_id'
   add_foreign_key 'projects', 'public.users', column: 'user_id'
   add_foreign_key 'projects', 'users'
+  add_foreign_key 'storyboard_item_associations', 'public.storyboard_items', column: 'storyboard_item_id'
+  add_foreign_key 'storyboard_item_associations', 'public.storyboards', column: 'storyboard_id'
+  add_foreign_key 'storyboard_item_associations', 'storyboard_items'
+  add_foreign_key 'storyboard_item_associations', 'storyboards'
+  add_foreign_key 'storyboard_item_associations', 'public.storyboard_items', column: 'storyboard_item_id'
+  add_foreign_key 'storyboard_item_associations', 'public.storyboards', column: 'storyboard_id'
+  add_foreign_key 'storyboard_item_associations', 'storyboard_items'
+  add_foreign_key 'storyboard_item_associations', 'storyboards'
+  add_foreign_key 'storyboard_items', 'public.users', column: 'user_id'
+  add_foreign_key 'storyboard_items', 'users'
+  add_foreign_key 'storyboard_items', 'public.users', column: 'user_id'
+  add_foreign_key 'storyboard_items', 'users'
+  add_foreign_key 'storyboards', 'public.users', column: 'user_id'
+  add_foreign_key 'storyboards', 'users'
+  add_foreign_key 'storyboards', 'public.users', column: 'user_id'
+  add_foreign_key 'storyboards', 'users'
   add_foreign_key 'taggings', 'public.tags', column: 'tag_id'
   add_foreign_key 'taggings', 'tags'
   add_foreign_key 'taggings', 'public.tags', column: 'tag_id'
   add_foreign_key 'taggings', 'tags'
+  add_foreign_key 'user_mailboxes', 'documents'
+  add_foreign_key 'user_mailboxes', 'public.documents', column: 'document_id'
+  add_foreign_key 'user_mailboxes', 'public.users', column: 'user_id'
+  add_foreign_key 'user_mailboxes', 'users'
+  add_foreign_key 'user_mailboxes', 'documents'
+  add_foreign_key 'user_mailboxes', 'public.documents', column: 'document_id'
+  add_foreign_key 'user_mailboxes', 'public.users', column: 'user_id'
+  add_foreign_key 'user_mailboxes', 'users'
 end

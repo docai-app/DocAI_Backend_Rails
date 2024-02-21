@@ -20,6 +20,10 @@
 #  projection_image_url :string           default("")
 #  label_id             :uuid
 #
+# Indexes
+#
+#  index_form_schemas_on_name  (name)
+#
 require 'test_helper'
 
 class FormSchemaTest < ActiveSupport::TestCase

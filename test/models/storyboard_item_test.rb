@@ -20,6 +20,14 @@
 #  object_id   :uuid             not null
 #  item_type   :string
 #
+# Indexes
+#
+#  index_storyboard_items_on_user_id  (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 require 'test_helper'
 
 class StoryboardItemTest < ActiveSupport::TestCase

@@ -4,6 +4,7 @@
 #
 
 Rails.application.routes.draw do
+  devise_for :super_admins
   require 'sidekiq/web'
   require 'sidekiq-scheduler/web'
   mount Sidekiq::Web => '/sidekiq'
@@ -11,7 +12,8 @@ Rails.application.routes.draw do
   devise_for :users,
              controllers: {
                sessions: 'users/sessions',
-               registrations: 'users/registrations'
+               registrations: 'users/registrations',
+               omniauth_callbacks: 'omniauth_callbacks'
              }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -20,6 +22,11 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+
+      # **********做評估 API**********
+      resources :assessment_records, only: %i[create index show update destroy] do
+      end
+
       # **********Documents API**********
       resources :documents, only: %i[index show update destroy] do
         collection do
@@ -158,6 +165,7 @@ Rails.application.routes.draw do
       put 'users/me/password', to: 'users#update_password'
       put 'users/me/profile', to: 'users#update_profile'
       post 'users/auth/google_oauth2', to: 'users#google_oauth2'
+      post 'users/email/gmail', to: 'users#send_gmail'
 
       # **********Form Projection API**********
       post 'form/projection/preview', to: 'form_projection#preview'
@@ -166,6 +174,9 @@ Rails.application.routes.draw do
       # **********OpenAI API**********
       post 'ai/query', to: 'open_ai#query'
       post 'ai/query/documents', to: 'open_ai#query_documents'
+
+      # ********** Generates API ***********
+      post 'generates/storybook', to: 'generates#storybook'
 
       # **********Mini App API**********
       resources :mini_apps, only: %i[index show create update destroy] do
@@ -181,15 +192,20 @@ Rails.application.routes.draw do
           post 'assistant/message', to: 'chatbots#assistantQA'
           post 'assistant/suggestion', to: 'chatbots#assistantQASuggestion'
           post 'assistant/multiagent', to: 'chatbots#assistantMultiagent'
+          post 'assistant/tool_metadata', to: 'chatbots#tool_metadata'
           post ':id/share', to: 'chatbots#shareChatbotWithSignature'
         end
       end
+
+      resources :assistant_agents, only: %i[index show]
+      resources :agent_tools, only: %i[index show]
 
       # **********Tool API**********
       post 'tools/upload_directly_ocr', to: 'tools#upload_directly_ocr'
       post 'tools/text_to_pdf', to: 'tools#text_to_pdf'
       post 'tools/text_to_png', to: 'tools#text_to_png'
       post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
+      post 'tools/upload_html_to_png', to: 'tools#upload_html_to_png'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
@@ -252,6 +268,18 @@ Rails.application.routes.draw do
       resources :storyboards, only: %i[index show create update destroy] do
         member do
           get 'storyboard_items'
+        end
+      end
+    end
+
+    namespace :admin do
+      namespace :v1 do
+        resources :entities, only: %i[index show create update destroy]
+        resources :users, only: %i[index show create update destroy] do
+          collection do
+            post 'lock', to: 'users#lock_user'
+            post 'unlock', to: 'users#unlock_user'
+          end
         end
       end
     end

@@ -8,7 +8,7 @@
 #  name                :string
 #  description         :string
 #  user_id             :uuid             not null
-#  category            :integer          default("assistant"), not null
+#  category            :integer          default("qa"), not null
 #  meta                :jsonb
 #  source              :jsonb
 #  created_at          :datetime         not null
@@ -20,16 +20,23 @@
 #  object_id           :uuid
 #  assistive_questions :jsonb            not null
 #  has_chatbot_updated :boolean          default(FALSE), not null
+#  energy_cost         :integer          default(0)
+#
+# Indexes
+#
+#  index_chatbots_on_category  (category)
+#  index_chatbots_on_user_id   (user_id)
 #
 class Chatbot < ApplicationRecord
   resourcify
   has_paper_trail
 
-  enum category: %i[assistant]
+  enum category: %i[qa chart_generation statistical_generation]
 
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
   has_many :messages, -> { order('messages.created_at') }, dependent: :destroy
+  has_many :log_messages, -> { order('log_messages.created_at') }, dependent: :destroy
 
   after_create :set_permissions_to_owner
 
@@ -85,5 +92,17 @@ class Chatbot < ApplicationRecord
       self.assistive_questions = []
     end
     save
+  end
+
+  def assistant
+    return if meta['assistant'].nil?
+
+    AssistantAgent.find(meta['assistant'])
+  end
+
+  def experts
+    return [] if meta['experts'].nil?
+
+    AssistantAgent.includes(:agent_tools).where(id: meta['experts'])
   end
 end

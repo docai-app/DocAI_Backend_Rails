@@ -1,0 +1,26 @@
+# frozen_string_literal: true
+
+# == Schema Information
+#
+# Table name: public.agent_use_tools
+#
+#  id                 :bigint(8)        not null, primary key
+#  assistant_agent_id :bigint(8)        not null
+#  agent_tool_id      :bigint(8)        not null
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#
+# Indexes
+#
+#  index_agent_use_tools_on_agent_tool_id       (agent_tool_id)
+#  index_agent_use_tools_on_assistant_agent_id  (assistant_agent_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (agent_tool_id => agent_tools.id)
+#  fk_rails_...  (assistant_agent_id => assistant_agents.id)
+#
+class AgentUseTool < ApplicationRecord
+  belongs_to :assistant_agent
+  belongs_to :agent_tool
+end

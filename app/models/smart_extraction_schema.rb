@@ -16,6 +16,11 @@
 #  updated_at  :datetime         not null
 #  has_label   :boolean          default(FALSE), not null
 #
+# Indexes
+#
+#  index_smart_extraction_schemas_on_label_id  (label_id)
+#  index_smart_extraction_schemas_on_user_id   (user_id)
+#
 class SmartExtractionSchema < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User'
   belongs_to :tag, optional: true, class_name: 'Tag', foreign_key: 'label_id', counter_cache: true
@@ -68,6 +73,27 @@ class SmartExtractionSchema < ApplicationRecord
     end
 
     errors.add(:data_schema, 'is not in the required format')
+  end
+
+  def create_smart_extraction_schema_view
+    getSubdomain = Apartment::Tenant.current
+    selectString = data_schema.map { |row| "data->>'#{row[0]}' AS #{row[0]}" }.join(', ')
+    sql = "CREATE VIEW \"#{getSubdomain}\".\"smart_extraction_schema_#{id}\" AS SELECT #{selectString}, meta->>'document_uploaded_at' AS uploaded_at FROM \"#{getSubdomain}\".document_smart_extraction_data WHERE smart_extraction_schema_id = '#{id}';"
+    ActiveRecord::Base.connection.execute(sql)
+    true
+  rescue StandardError => e
+    puts e.message
+    false
+  end
+
+  def drop_smart_extraction_schema_view
+    getSubdomain = Apartment::Tenant.current
+    sql = "DROP VIEW IF EXISTS \"#{getSubdomain}\".\"smart_extraction_schema_#{id}\";"
+    ActiveRecord::Base.connection.execute(sql)
+    true
+  rescue StandardError => e
+    puts e.message
+    false
   end
 
   def as_json(options = {})

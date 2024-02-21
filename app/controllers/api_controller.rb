@@ -4,6 +4,7 @@ class ApiController < ActionController::Base
   before_action :switch_tenant
   before_action :set_paper_trail_whodunnit
   skip_before_action :verify_authenticity_token
+  respond_to :json
 
   # 我平時係呢句
   # protect_from_forgery with: :null_session

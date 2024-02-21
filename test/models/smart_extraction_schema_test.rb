@@ -16,6 +16,11 @@
 #  updated_at  :datetime         not null
 #  has_label   :boolean          default(FALSE), not null
 #
+# Indexes
+#
+#  index_smart_extraction_schemas_on_label_id  (label_id)
+#  index_smart_extraction_schemas_on_user_id   (user_id)
+#
 require 'test_helper'
 
 class SmartExtractionSchemaTest < ActiveSupport::TestCase

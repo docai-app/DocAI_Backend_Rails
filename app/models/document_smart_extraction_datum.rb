@@ -15,6 +15,10 @@
 #  retry_count                :integer          default(0)
 #  meta                       :jsonb
 #
+# Indexes
+#
+#  index_smart_extraction_data_on_smart_extraction_schema_id  (smart_extraction_schema_id)
+#
 class DocumentSmartExtractionDatum < ApplicationRecord
   belongs_to :document, class_name: 'Document', foreign_key: 'document_id'
   belongs_to :smart_extraction_schema

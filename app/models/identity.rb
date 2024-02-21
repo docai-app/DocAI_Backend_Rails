@@ -12,6 +12,15 @@
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #
+# Indexes
+#
+#  index_identities_on_provider  (provider)
+#  index_identities_on_user_id   (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 class Identity < ApplicationRecord
   filterrific(
     default_filter_params: { sorted_by: 'created_at_desc' },
@@ -20,7 +29,7 @@ class Identity < ApplicationRecord
       search_query
     ]
   )
-  belongs_to :user
+  belongs_to :user, optional: true
 
   validates_presence_of :uid, :provider
   validates_uniqueness_of :uid, scope: :provider

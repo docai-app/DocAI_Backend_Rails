@@ -18,6 +18,15 @@
 #  date_of_birth          :date
 #  sex                    :integer
 #  profile                :jsonb
+#  failed_attempts        :integer          default(0), not null
+#  unlock_token           :string
+#  locked_at              :datetime
+#
+# Indexes
+#
+#  index_users_on_email                 (email) UNIQUE
+#  index_users_on_reset_password_token  (reset_password_token) UNIQUE
+#  index_users_on_unlock_token          (unlock_token) UNIQUE
 #
 class User < ApplicationRecord
   rolify
@@ -29,8 +38,9 @@ class User < ApplicationRecord
   devise :database_authenticatable,
          :jwt_authenticatable,
          :registerable,
-         :omniauthable,
-         jwt_revocation_strategy: JwtDenylist
+         :lockable,
+         :omniauthable, omniauth_providers: [:google_oauth2],
+                        jwt_revocation_strategy: JwtDenylist
 
   # belongs_to :department, class_name: 'Department', foreign_key: "department_id", optional: true
 
@@ -56,6 +66,8 @@ class User < ApplicationRecord
                                 where(is_ready: true).where(status: :saved)
                               }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
 
+  has_many :assessment_records, as: :recordable
+
   after_create :create_user_api_key
 
   validates_confirmation_of :password
@@ -75,9 +87,14 @@ class User < ApplicationRecord
   end
 
   def self.find_for_google_oauth2(uid, access_token, refresh_token, current_user = nil)
-    user = Identity.where(provider: 'Google', uid:).first&.user
-    # user = User.where(:google_token => access_token.credentials.token, :google_uid => access_token.uid ).first
-    return user if user
+    user = Identity.where(provider: 'Google', user_id: current_user.id).first&.user
+
+    if user
+      user.identities.find_by(provider: 'Google').update!(
+        meta: { google_token: access_token, google_refresh_token: refresh_token }, uid:
+      )
+      return user
+    end
 
     existing_user = current_user
     return unless existing_user
@@ -182,11 +199,38 @@ class User < ApplicationRecord
     # end
   end
 
+  def send_gmail(to, subject, content)
+    credentials = Google::Auth::UserRefreshCredentials.new(
+      client_id: ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_ID'],
+      client_secret: ENV['GOOGLE_GMAIL_READ_INCOMING_CLIENT_SECRET'],
+      refresh_token: identities.find_by(provider: 'Google').meta['google_refresh_token'],
+      scope: 'https://www.googleapis.com/auth/gmail.send'
+    )
+
+    gmail = Google::Apis::GmailV1::GmailService.new
+    gmail.authorization = credentials
+
+    message = Google::Apis::GmailV1::Message.new(raw: create_email(to, subject, content).to_s)
+
+    gmail.send_user_message('me', message)
+  end
+
   def create_user_api_key
     tenant = Apartment::Tenant.current
     ApiKey.create!(
       tenant:,
       user_id: id
     )
+  end
+
+  private
+
+  def create_email(to, subject, content)
+    message = Mail.new
+    message.date = Time.now
+    message.subject = subject
+    message.body = content
+    message.to = to
+    message.to_s
   end
 end

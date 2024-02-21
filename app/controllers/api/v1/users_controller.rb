@@ -3,7 +3,11 @@
 module Api
   module V1
     class UsersController < ApiController
-      before_action :authenticate_user!, except: [:create]
+      include Authenticatable
+
+      before_action :authenticate_user!, except: %i[create send_gmail]
+      # The send gmail API support API Key and JWT token authentication
+      before_action :authenticate, only: %i[send_gmail]
 
       def index
         @users = User.all.page(params[:page])
@@ -68,6 +72,15 @@ module Api
         puts current_user.inspect
         @user = User.find_for_google_oauth2(params[:uid], params[:access_token], params[:refresh_token], current_user)
         render json: { success: true, user: @user }, status: :ok
+      end
+
+      def send_gmail
+        if current_user.identities.where(provider: 'Google').present?
+          current_user.send_gmail(params[:email], params[:subject], params[:body])
+          render json: { success: true }, status: :ok
+        else
+          render json: { success: false, errors: 'You are not authorized to send email' }, status: :ok
+        end
       end
 
       private

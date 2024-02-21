@@ -17,7 +17,7 @@ Apartment.configure do |config|
   # Add any models that you do not want to be multi-tenanted, but remain in the global (public) namespace.
   # A typical example would be a Customer or Tenant model that stores each Tenant's information.
   #
-  config.excluded_models = ['ApiKey']
+  config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors]
 
   # In order to migrate all of your Tenants you need to provide a list of Tenant names to Apartment.
   # You can make this dynamic by providing a Proc object to be called on migrations.
@@ -27,9 +27,9 @@ Apartment.configure do |config|
   # (must contain all key/values required in database.yml)
   #
   # config.tenant_names = lambda{ Customer.pluck(:tenant_name) }
-  # config.tenant_names = %w[public chyb-dev chyb wishcoffee-dev wishcoffee docai-dev docai]
   # Get the tenant names from the env
-  config.tenant_names = ENV.fetch('TENANT_NAMES', '').split(',')
+  # config.tenant_names = ENV.fetch('TENANT_NAMES', '').split(',')
+  config.tenant_names = -> { Entity.pluck(:name) }
   # config.tenant_names = {
   #   'tenant1' => {
   #     adapter: 'postgresql',
