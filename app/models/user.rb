@@ -57,6 +57,8 @@ class User < ApplicationRecord
                                 where(is_ready: true).where(status: :saved)
                               }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
 
+  has_many :assessment_records, as: :recordable
+
   after_create :create_user_api_key
 
   validates_confirmation_of :password

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_02_20_090810) do
+ActiveRecord::Schema[7.0].define(version: 2024_02_21_061216) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -75,6 +75,17 @@ ActiveRecord::Schema[7.0].define(version: 2024_02_20_090810) do
     t.index ["key"], name: "index_api_keys_on_key", unique: true
     t.index ["tenant"], name: "index_api_keys_on_tenant"
     t.index ["user_id"], name: "index_api_keys_on_user_id"
+  end
+
+  create_table "assessment_records", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "title"
+    t.jsonb "record"
+    t.jsonb "meta"
+    t.string "recordable_type"
+    t.uuid "recordable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["recordable_type", "recordable_id"], name: "index_assessment_records_on_recordable"
   end
 
   create_table "assistant_agents", force: :cascade do |t|
@@ -232,12 +243,12 @@ ActiveRecord::Schema[7.0].define(version: 2024_02_20_090810) do
   end
 
   create_table "energy_consumption_records", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "user_type", null: false
-    t.bigint "user_id", null: false
     t.uuid "marketplace_item_id", null: false
     t.integer "energy_consumed"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "user_type", null: false
+    t.uuid "user_id", null: false
     t.index ["marketplace_item_id"], name: "index_energy_consumption_records_on_marketplace_item_id"
     t.index ["user_type", "user_id"], name: "index_energy_consumption_records_on_user"
   end
