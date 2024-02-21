@@ -15,8 +15,9 @@ module Api
 
       def create
         @ar = AssessmentRecord.new(assessment_record_params)
-        @ar.user = current_user
-        binding.pry
+        @ar.recordable = current_user
+        @ar.meta = params["assessment_record"]["meta"]
+        @ar.record = params["assessment_record"]["record"]
         if @ar.save
           render json: { success: true, assessment_record: @ar }, status: :ok
         else
@@ -28,7 +29,7 @@ module Api
       end
 
       def assessment_record_params
-        params.require(:assessment_record).permit(:id, :meta, :title, :record, :recordable)
+        params.require(:assessment_record).permit(:id, :title, :recordable)
       end
       
     end
