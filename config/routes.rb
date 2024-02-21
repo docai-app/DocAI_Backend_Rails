@@ -22,6 +22,11 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+
+      # **********做評估 API**********
+      resources :assessment_records, only: %i[index show update destroy] do
+      end
+
       # **********Documents API**********
       resources :documents, only: %i[index show update destroy] do
         collection do
