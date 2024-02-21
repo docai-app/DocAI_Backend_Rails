@@ -15,6 +15,12 @@
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #
+# Indexes
+#
+#  index_api_keys_on_key      (key) UNIQUE
+#  index_api_keys_on_tenant   (tenant)
+#  index_api_keys_on_user_id  (user_id)
+#
 class ApiKey < ApplicationRecord
   belongs_to :user, optional: true
 

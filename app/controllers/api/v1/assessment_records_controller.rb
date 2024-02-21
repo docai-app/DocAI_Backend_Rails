@@ -14,8 +14,9 @@ module Api
       end
 
       def create
-        @ar = AssessmentRecord.new(ar_params)
+        @ar = AssessmentRecord.new(assessment_record_params)
         @ar.user = current_user
+        binding.pry
         if @ar.save
           render json: { success: true, assessment_record: @ar }, status: :ok
         else

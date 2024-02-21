@@ -13,6 +13,10 @@
 #  meta                           :jsonb
 #  smart_extraction_schemas_count :integer          default(0)
 #
+# Indexes
+#
+#  index_tags_on_name  (name) UNIQUE
+#
 
 # This model initially had no columns defined. If you add columns to the
 # model remove the "{}" from the fixture names and add the columns immediately

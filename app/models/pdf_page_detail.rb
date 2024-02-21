@@ -15,6 +15,14 @@
 #  updated_at    :datetime         not null
 #  error_message :text
 #
+# Indexes
+#
+#  index_pdf_page_details_on_document_id  (document_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (document_id => documents.id)
+#
 class PdfPageDetail < ApplicationRecord
   belongs_to :document
 

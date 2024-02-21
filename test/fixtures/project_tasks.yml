@@ -13,6 +13,11 @@
 #  updated_at   :datetime         not null
 #  deadline_at  :datetime
 #
+# Indexes
+#
+#  index_project_tasks_on_project_id  (project_id)
+#  index_project_tasks_on_user_id     (user_id)
+#
 
 # This model initially had no columns defined. If you add columns to the
 # model remove the "{}" from the fixture names and add the columns immediately

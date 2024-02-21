@@ -15,6 +15,17 @@
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #
+# Indexes
+#
+#  index_messages_on_chatbot_id   (chatbot_id)
+#  index_messages_on_object_type  (object_type)
+#  index_messages_on_user_id      (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (chatbot_id => chatbots.id)
+#  fk_rails_...  (user_id => users.id)
+#
 class Message < ApplicationRecord
   has_paper_trail
 

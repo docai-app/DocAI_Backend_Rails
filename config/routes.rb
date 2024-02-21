@@ -24,7 +24,7 @@ Rails.application.routes.draw do
     namespace :v1 do
 
       # **********做評估 API**********
-      resources :assessment_records, only: %i[index show update destroy] do
+      resources :assessment_records, only: %i[create index show update destroy] do
       end
 
       # **********Documents API**********

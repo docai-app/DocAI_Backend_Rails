@@ -19,6 +19,17 @@
 #  updated_at          :datetime         not null
 #  assignee_id         :uuid
 #
+# Indexes
+#
+#  index_project_workflow_steps_on_project_workflow_id  (project_workflow_id)
+#  index_project_workflow_steps_on_status               (status)
+#  index_project_workflow_steps_on_user_id              (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (project_workflow_id => project_workflows.id)
+#  fk_rails_...  (user_id => users.id)
+#
 class ProjectWorkflowStep < ApplicationRecord
   include AASM
   acts_as_list scope: :project_workflow

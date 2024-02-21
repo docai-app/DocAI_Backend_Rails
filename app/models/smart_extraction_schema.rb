@@ -16,6 +16,11 @@
 #  updated_at  :datetime         not null
 #  has_label   :boolean          default(FALSE), not null
 #
+# Indexes
+#
+#  index_smart_extraction_schemas_on_label_id  (label_id)
+#  index_smart_extraction_schemas_on_user_id   (user_id)
+#
 class SmartExtractionSchema < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User'
   belongs_to :tag, optional: true, class_name: 'Tag', foreign_key: 'label_id', counter_cache: true

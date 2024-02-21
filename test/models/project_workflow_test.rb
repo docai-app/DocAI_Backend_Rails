@@ -18,6 +18,17 @@
 #  is_template         :boolean          default(FALSE), not null
 #  source_workflow_id  :uuid
 #
+# Indexes
+#
+#  index_project_workflows_on_folder_id            (folder_id)
+#  index_project_workflows_on_is_process_workflow  (is_process_workflow)
+#  index_project_workflows_on_source_workflow_id   (source_workflow_id)
+#  index_project_workflows_on_status               (status)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (folder_id => folders.id)
+#
 require 'test_helper'
 
 class ProjectWorkflowTest < ActiveSupport::TestCase

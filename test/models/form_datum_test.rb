@@ -11,6 +11,11 @@
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #
+# Indexes
+#
+#  index_form_datum_on_document_id     (document_id)
+#  index_form_datum_on_form_schema_id  (form_schema_id)
+#
 require 'test_helper'
 
 class FormDatumTest < ActiveSupport::TestCase
