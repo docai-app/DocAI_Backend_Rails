@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateClassificationModelVersions < ActiveRecord::Migration[7.0]
   def change
     create_table :classification_model_versions, id: :uuid do |t|
