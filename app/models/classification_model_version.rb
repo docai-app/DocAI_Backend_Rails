@@ -1,0 +1,2 @@
+class ClassificationModelVersion < ApplicationRecord
+end
