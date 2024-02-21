@@ -24,7 +24,7 @@ one:
   description: MyString
   invoke_description: MyString
   category: MyString
-  meta: 
+  meta:
 
 two:
   name: MyString
@@ -32,4 +32,4 @@ two:
   description: MyString
   invoke_description: MyString
   category: MyString
-  meta: 
+  meta:

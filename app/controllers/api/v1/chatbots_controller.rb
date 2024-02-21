@@ -5,7 +5,9 @@ module Api
     class ChatbotsController < ApiController
       include Authenticatable
 
-      before_action :authenticate, only: %i[show create update destroy mark_messages_read]
+      before_action :authenticate,
+                    only: %i[show create update destroy mark_messages_read general_user_chat_with_bot
+                             fetch_general_user_chat_history]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
@@ -95,6 +97,7 @@ module Api
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
         @chatbot.meta['experts'] = params[:experts]
         @chatbot.meta['length'] = params[:length] if params[:length].present?
+        @chatbot.energy_cost = params[:energy_cost] if params[:is_public].present? && params[:is_public] == 'true'
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -113,7 +116,6 @@ module Api
         @chatbot.meta['assistant'] = params[:assistant]
         @chatbot.meta['experts'] = params[:experts]
         @chatbot.meta['length'] = params[:length] if params[:length].present?
-        # binding.pry
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
@@ -160,7 +162,6 @@ module Api
             }
           )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
-          puts @qaRes
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: @qaRes['content'],
@@ -175,6 +176,61 @@ module Api
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def general_user_chat_with_bot
+        @marketplace_item = MarketplaceItem.find(params[:id])
+        Apartment::Tenant.switch!(@marketplace_item.entity_name)
+        @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
+        @general_user = current_general_user
+        @documents = []
+
+        if @general_user.check_can_consume_energy(@chatbot, @chatbot.energy_cost)
+          @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
+          @folders.each do |folder|
+            @documents.concat(folder.documents)
+          end
+          @metadata = {
+            document_id: @documents.map(&:id),
+            language: @chatbot.meta['language'] || '繁體中文',
+            tone: @chatbot.meta['tone'] || '專業',
+            length: @chatbot.meta['length'] || 'normal'
+          }
+          @chatbot.add_message('user', 'general_user_talk', params[:query],
+                               { belongs_user_id: current_general_user.id })
+          LogMessage.create!(
+            chatbot_id: @chatbot.id,
+            content: params[:query],
+            has_chat_history: params[:chat_history].present? && !params[:chat_history].empty?,
+            session_id: session.id,
+            role: 'user',
+            meta: {
+              chat_history: params[:chat_history]
+            }
+          )
+          @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
+          @chatbot.add_message('system', 'general_user_talk', @qaRes['content'],
+                               { belongs_user_id: current_general_user.id })
+          LogMessage.create!(
+            chatbot_id: @chatbot.id,
+            content: @qaRes['content'],
+            has_chat_history: true,
+            session_id: session.id,
+            role: 'system',
+            meta: {
+              chat_history: params[:chat_history]
+            }
+          )
+          puts "General User: #{@general_user.inspect}"
+          @general_user.consume_energy(params[:id], @chatbot.energy_cost)
+          render json: { success: true, message: @qaRes }, status: :ok
+        else
+          render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
+        end
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'Chatbot not found' }, status: :not_found
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
@@ -196,6 +252,19 @@ module Api
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def fetch_general_user_chat_history
+        @marketplace_item = MarketplaceItem.find(params[:id])
+        Apartment::Tenant.switch!(@marketplace_item.entity_name)
+        @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
+        @general_user = current_general_user
+
+        @messages = @chatbot.get_chatbot_messages(current_general_user.id)
+        @messages = Kaminari.paginate_array(@messages).page(params[:page])
+        render json: { success: true, messages: @messages, meta: pagination_meta(@messages) }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end

@@ -3,21 +3,59 @@
 module Api
   module V1
     class GeneratesController < ApiController
-      def storybook
-        uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/storybook")
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = uri.scheme == 'https'
-        http.read_timeout = 600_000
-        request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
-        request.body = { query: params[:query], style: params[:style] }.to_json
-        response = http.request(request)
+      # def storybook
+      #   uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/storybook")
+      #   http = Net::HTTP.new(uri.host, uri.port)
+      #   http.use_ssl = uri.scheme == 'https'
+      #   request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+      #   request.body = { query: params[:query], style: params[:style] }.to_json
+      #   http.read_timeout = 900_000
 
-        if response.code == '200'
-          file_url = upload_pdf_to_azure(response.body) if response.body.present?
+      #   puts "Query: #{params[:query]}"
+      #   puts "Style: #{params[:style]}"
+
+      #   response = http.request(request)
+
+      #   if res['status'] == true
+      #     # file_url = upload_pdf_to_azure(response.body) if response.body.present?
+      #     file_url = res['file_url']
+      #     render json: { success: true, file_url: }, status: :ok
+      #   else
+      #     render json: { success: false, error: 'Failed to generate storybook' }, status: :bad_request
+      #   end
+      # rescue StandardError => e
+      #   render json: { success: false, error: e.message }, status: :internal_server_error
+      # end
+
+      def storybook
+        puts "Query: #{params[:query]}"
+        puts "Style: #{params[:style]}"
+
+        response = RestClient::Request.execute(
+          method: :post,
+          url: "#{ENV['DOCAI_ALPHA_URL']}/generate/storybook",
+          payload: {
+            query: params[:query],
+            style: params[:style]
+          }.to_json,
+          headers: { content_type: :json, accept: :json },
+          timeout: 600,
+          open_timeout: 10
+        )
+
+        res = JSON.parse(response)
+        puts "Res: #{res}"
+
+        if res['status'] == true
+          file_url = res['file_url']
           render json: { success: true, file_url: }, status: :ok
         else
           render json: { success: false, error: 'Failed to generate storybook' }, status: :bad_request
         end
+      rescue RestClient::Exceptions::ReadTimeout
+        render json: { success: false, error: 'Server read timeout' }, status: :gateway_timeout
+      rescue RestClient::Exceptions::OpenTimeout
+        render json: { success: false, error: 'Server connection timeout' }, status: :request_timeout
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end

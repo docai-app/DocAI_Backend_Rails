@@ -1,0 +1,22 @@
+# == Schema Information
+#
+# Table name: public.energies
+#
+#  id          :uuid             not null, primary key
+#  value       :integer          default(100)
+#  user_id     :uuid             not null
+#  user_type   :string           not null
+#  entity_name :string
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#
+
+one:
+  value: 1
+  user: one
+  user_type: User
+
+two:
+  value: 1
+  user: two
+  user_type: User

@@ -37,8 +37,11 @@ class Chatbot < ApplicationRecord
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
   has_many :messages, -> { order('messages.created_at') }, dependent: :destroy
   has_many :log_messages, -> { order('log_messages.created_at') }, dependent: :destroy
+  has_one :marketplace_item, dependent: :destroy
 
   after_create :set_permissions_to_owner
+  after_create :handle_initial_publication
+  before_save :check_public_status_change
 
   def set_permissions_to_owner
     return if self['user_id'].nil?
@@ -74,12 +77,13 @@ class Chatbot < ApplicationRecord
     expired_at.present? && Time.current > expired_at
   end
 
-  def add_message(role, object_type, content, meta)
+  def add_message(role, object_type, content, meta = {})
     messages << Message.new(chatbot_id: id, role:, object_type:, content:, meta:)
   end
 
-  def get_chatbot_messages
-    messages.where("meta->>'belongs_user_id' = ?", current_user.id).order(created_at: :desc)
+  def get_chatbot_messages(user_id)
+    puts "Get chatbot messages: #{user_id}"
+    messages.where("meta->>'belongs_user_id' = ?", user_id).order(created_at: :desc)
   end
 
   def update_assistive_questions(getSubdomain, metadata)
@@ -104,5 +108,42 @@ class Chatbot < ApplicationRecord
     return [] if meta['experts'].nil?
 
     AssistantAgent.includes(:agent_tools).where(id: meta['experts'])
+  end
+
+  #  This function handles the initial publication. It checks if the item is public and publishes it to the marketplace if it is.
+  def handle_initial_publication
+    return unless is_public == true
+
+    publish_to_marketplace
+  end
+
+  # Check public status change logic
+  def check_public_status_change
+    return unless is_public_changed?
+
+    if is_public
+      # if is_public changed from false to true, publish to marketplace
+      publish_to_marketplace
+    else
+      # if is_public changed from true to false, unpublish from marketplace
+      unpublish_from_marketplace
+    end
+  end
+
+  # publish to marketplace
+  def publish_to_marketplace
+    marketplace_item = self.marketplace_item || build_marketplace_item
+    marketplace_item.update(
+      chatbot_id: id,
+      user_id:,
+      entity_name: Apartment::Tenant.current,
+      chatbot_name: name,
+      chatbot_description: description
+    )
+  end
+
+  # unpublish from marketplace
+  def unpublish_from_marketplace
+    marketplace_item&.destroy
   end
 end

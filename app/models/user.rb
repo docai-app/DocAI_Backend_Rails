@@ -65,6 +65,7 @@ class User < ApplicationRecord
   has_many :storyboard_items, lambda {
                                 where(is_ready: true).where(status: :saved)
                               }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
+  has_one :energy, as: :user, dependent: :destroy
 
   has_many :assessment_records, as: :recordable
 
