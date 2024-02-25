@@ -20,7 +20,7 @@
 #  object_id           :uuid
 #  assistive_questions :jsonb            not null
 #  has_chatbot_updated :boolean          default(FALSE), not null
-#  energy_cost         :integer          default(1)
+#  energy_cost         :integer          default(0)
 #
 require 'test_helper'
 
