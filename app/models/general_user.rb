@@ -17,6 +17,10 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #
+# Indexes
+#
+#  index_general_users_on_email  (email) UNIQUE
+#
 class GeneralUser < ApplicationRecord
   devise :database_authenticatable,
          :jwt_authenticatable,
@@ -27,6 +31,8 @@ class GeneralUser < ApplicationRecord
          jwt_revocation_strategy: JwtDenylist
 
   has_one :energy, as: :user, dependent: :destroy
+  has_many :purchases, as: :user, dependent: :destroy
+  has_many :purchased_marketplace_items, through: :purchases, source: :marketplace_item
 
   def jwt_payload
     {

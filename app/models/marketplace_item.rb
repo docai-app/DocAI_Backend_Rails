@@ -13,8 +13,15 @@
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #
+# Indexes
+#
+#  index_marketplace_items_on_entity_name  (entity_name)
+#
 class MarketplaceItem < ApplicationRecord
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
+
+  has_many :purchases, dependent: :destroy
+  has_many :purchasers, through: :purchases, source: :user
 
   # Add validation to ensure data is complete
   validates :chatbot_id, presence: true

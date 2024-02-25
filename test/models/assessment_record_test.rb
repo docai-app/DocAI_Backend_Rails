@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: assessment_records
@@ -15,7 +17,7 @@
 #
 #  index_assessment_records_on_recordable  (recordable_type,recordable_id)
 #
-require "test_helper"
+require 'test_helper'
 
 class AssessmentRecordTest < ActiveSupport::TestCase
   # test "the truth" do

@@ -66,6 +66,8 @@ class User < ApplicationRecord
                                 where(is_ready: true).where(status: :saved)
                               }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
   has_one :energy, as: :user, dependent: :destroy
+  has_many :purchases, as: :user, dependent: :destroy
+  has_many :purchased_marketplace_items, through: :purchases, source: :marketplace_item
 
   has_many :assessment_records, as: :recordable
 

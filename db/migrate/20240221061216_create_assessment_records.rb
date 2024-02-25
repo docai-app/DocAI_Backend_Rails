@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateAssessmentRecords < ActiveRecord::Migration[7.0]
   def change
     create_table :assessment_records, id: :uuid do |t|

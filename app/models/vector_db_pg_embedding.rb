@@ -11,6 +11,10 @@
 #  cmetadata     :jsonb
 #  custom_id     :string
 #
+# Foreign Keys
+#
+#  langchain_pg_embedding_collection_id_fkey  (collection_id => langchain_pg_collection.uuid) ON DELETE => cascade
+#
 class VectorDbPgEmbedding < ApplicationRecord
   establish_connection :vector_db
   self.table_name = 'langchain_pg_embedding'

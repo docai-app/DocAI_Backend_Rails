@@ -27,7 +27,6 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
-
       # **********做評估 API**********
       resources :assessment_records, only: %i[create index show update destroy] do
       end

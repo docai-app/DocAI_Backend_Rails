@@ -13,6 +13,10 @@
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #
+# Indexes
+#
+#  index_marketplace_items_on_entity_name  (entity_name)
+#
 require 'test_helper'
 
 class MarketplaceItemTest < ActiveSupport::TestCase
