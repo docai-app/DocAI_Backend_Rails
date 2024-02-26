@@ -3,7 +3,10 @@
 module Api
   module V1
     class ClassificationsController < ApiController
-      before_action :authenticate_user!
+      # before_action :authenticate_user!
+
+      include Authenticatable
+      before_action :authenticate
 
       # Predict the Document
       def predict
