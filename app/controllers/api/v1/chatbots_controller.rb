@@ -229,7 +229,7 @@ module Api
             }
           )
           puts "General User: #{@general_user.inspect}"
-          @general_user.consume_energy(params[:id], @chatbot.energy_cost)
+          @general_user.consume_energy(@marketplace_item.id, @chatbot.energy_cost)
           render json: { success: true, message: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
