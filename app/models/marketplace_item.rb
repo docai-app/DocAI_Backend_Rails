@@ -26,4 +26,10 @@ class MarketplaceItem < ApplicationRecord
   # Add validation to ensure data is complete
   validates :chatbot_id, presence: true
   validates :entity_name, presence: true
+
+  def purchase_by(user, custom_name = nil, custom_description = nil)
+    # Implement purchase logic, such as creating a Purchase record
+    Purchase.create(user:, marketplace_item: self, purchased_at: Time.current, custom_name:,
+                    custom_description:)
+  end
 end

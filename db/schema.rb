@@ -490,11 +490,14 @@ ActiveRecord::Schema[7.0].define(version: 20_240_225_110_202) do
     t.datetime 'deadline_at', precision: nil
   end
 
-  create_table 'purchases', force: :cascade do |t|
+  create_table 'purchases', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'user_type', null: false
     t.uuid 'user_id', null: false
     t.uuid 'marketplace_item_id', null: false
+    t.string 'custom_name'
+    t.string 'custom_description'
     t.datetime 'purchased_at'
+    t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['marketplace_item_id'], name: 'index_purchases_on_marketplace_item_id'

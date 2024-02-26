@@ -20,6 +20,29 @@ module Api
                status: :ok
       end
 
+      def general_users_purchase
+        marketplace_item = MarketplaceItem.find(params[:id])
+        custom_name = if params[:custom_name].present? && params[:custom_name] != ''
+                        params[:custom_name]
+                      else
+                        marketplace_item.chatbot_name
+                      end
+        custom_description = if params[:custom_description].present? && params[:custom_description] != ''
+                               params[:custom_description]
+                             else
+                               marketplace_item.chatbot_description
+                             end
+        user = current_general_user # get current general user
+
+        if marketplace_item.purchase_by(user, custom_name, custom_description)
+          render json: { success: true, chatbot: marketplace_item }, status: :ok
+        else
+          render json: { success: false, error: 'Purchase failed' }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       private
 
       def pagination_meta(object)

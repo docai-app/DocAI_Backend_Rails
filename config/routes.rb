@@ -285,7 +285,11 @@ Rails.application.routes.draw do
       end
 
       # ********** Marketplace API ***********
-      resources :marketplace_items, only: %i[index show create update destroy]
+      resources :marketplace_items, only: %i[index show create update destroy] do
+        collection do
+          post 'general_users/purchase', to: 'marketplace_items#general_users_purchase'
+        end
+      end
     end
 
     namespace :admin do
