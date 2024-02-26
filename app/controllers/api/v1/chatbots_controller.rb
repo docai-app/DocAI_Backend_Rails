@@ -262,12 +262,12 @@ module Api
       end
 
       def fetch_general_user_chat_history
-        @marketplace_item = MarketplaceItem.find(params[:id])
+        @user_marketplace_item = UserMarketplaceItem.find(params[:id])
+        @marketplace_item = @user_marketplace_item.marketplace_item
         Apartment::Tenant.switch!(@marketplace_item.entity_name)
-        @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
         @general_user = current_general_user
 
-        @messages = @chatbot.get_chatbot_messages(current_general_user.id)
+        @messages = @user_marketplace_item.get_chatbot_messages(current_general_user.id)
         @messages = Kaminari.paginate_array(@messages).page(params[:page])
         render json: { success: true, messages: @messages, meta: pagination_meta(@messages) }, status: :ok
       rescue StandardError => e

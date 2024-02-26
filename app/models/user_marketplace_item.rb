@@ -41,4 +41,9 @@ class UserMarketplaceItem < ApplicationRecord
       meta:
     )
   end
+
+  def get_chatbot_messages(user_id)
+    puts "Get chatbot messages: #{user_id}"
+    messages.where("meta->>'belongs_user_id' = ?", user_id).order(created_at: :desc)
+  end
 end
