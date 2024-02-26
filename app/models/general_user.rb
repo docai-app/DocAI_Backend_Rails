@@ -33,7 +33,7 @@ class GeneralUser < ApplicationRecord
   has_one :energy, as: :user, dependent: :destroy
   has_many :purchases, as: :user, dependent: :destroy
   has_many :purchased_marketplace_items, through: :purchases, source: :marketplace_item
-  has_many :user_marketplace_items, dependent: :destroy
+  has_many :user_marketplace_items, dependent: :destroy, as: :user, class_name: 'UserMarketplaceItem'
   has_many :marketplace_items, through: :user_marketplace_items
 
   def jwt_payload

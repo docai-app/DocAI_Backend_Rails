@@ -181,7 +181,10 @@ module Api
       end
 
       def general_user_chat_with_bot
-        @marketplace_item = MarketplaceItem.find(params[:id])
+        @user_marketplace_item = UserMarketplaceItem.find(params[:id])
+        @marketplace_item = @user_marketplace_item.marketplace_item
+        puts "UserMarketplaceItem: #{@user_marketplace_item.inspect}"
+        puts "MarketplaceItem: #{@marketplace_item.inspect}"
         Apartment::Tenant.switch!(@marketplace_item.entity_name)
         @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
         @general_user = current_general_user
@@ -198,8 +201,9 @@ module Api
             tone: @chatbot.meta['tone'] || '專業',
             length: @chatbot.meta['length'] || 'normal'
           }
-          @chatbot.add_message('user', 'general_user_talk', params[:query],
-                               { belongs_user_id: current_general_user.id })
+          @user_marketplace_item.save_message('user', 'general_user_talk', params[:query], {
+                                                belongs_user_id: current_general_user.id
+                                              })
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: params[:query],
@@ -211,8 +215,9 @@ module Api
             }
           )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
-          @chatbot.add_message('system', 'general_user_talk', @qaRes['content'],
-                               { belongs_user_id: current_general_user.id })
+          @user_marketplace_item.save_message('system', 'general_user_talk', @qaRes['content'], {
+                                                belongs_user_id: current_general_user.id
+                                              })
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: @qaRes['content'],

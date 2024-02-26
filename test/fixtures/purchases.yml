@@ -1,12 +1,13 @@
 # == Schema Information
 #
-# Table name: purchases
+# Table name: public.purchases
 #
-#  id                  :bigint(8)        not null, primary key
+#  id                  :uuid             not null, primary key
 #  user_type           :string           not null
 #  user_id             :uuid             not null
 #  marketplace_item_id :uuid             not null
 #  purchased_at        :datetime
+#  meta                :jsonb
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #

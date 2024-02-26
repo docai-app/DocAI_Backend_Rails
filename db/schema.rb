@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_226_080_354) do
+ActiveRecord::Schema[7.0].define(version: 20_240_226_101_034) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -396,9 +396,11 @@ ActiveRecord::Schema[7.0].define(version: 20_240_226_080_354) do
     t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.uuid 'user_marketplace_item_id'
     t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
     t.index ['object_type'], name: 'index_messages_on_object_type'
     t.index ['user_id'], name: 'index_messages_on_user_id'
+    t.index ['user_marketplace_item_id'], name: 'index_messages_on_user_marketplace_item_id'
   end
 
   create_table 'mini_apps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
