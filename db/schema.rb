@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_225_110_202) do
+ActiveRecord::Schema[7.0].define(version: 20_240_226_075_343) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -494,8 +494,6 @@ ActiveRecord::Schema[7.0].define(version: 20_240_225_110_202) do
     t.string 'user_type', null: false
     t.uuid 'user_id', null: false
     t.uuid 'marketplace_item_id', null: false
-    t.string 'custom_name'
-    t.string 'custom_description'
     t.datetime 'purchased_at'
     t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
