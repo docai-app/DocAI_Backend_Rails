@@ -25,7 +25,6 @@
 #
 #  fk_rails_...  (chatbot_id => chatbots.id)
 #  fk_rails_...  (user_id => users.id)
-#  fk_rails_...  (user_marketplace_item_id => user_marketplace_items.id)
 #
 
 # This model initially had no columns defined. If you add columns to the

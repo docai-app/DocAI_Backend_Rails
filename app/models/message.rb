@@ -27,7 +27,6 @@
 #
 #  fk_rails_...  (chatbot_id => chatbots.id)
 #  fk_rails_...  (user_id => users.id)
-#  fk_rails_...  (user_marketplace_item_id => user_marketplace_items.id)
 #
 class Message < ApplicationRecord
   has_paper_trail

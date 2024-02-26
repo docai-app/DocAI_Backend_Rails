@@ -24,7 +24,6 @@
 #  fk_rails_...  (marketplace_item_id => marketplace_items.id)
 #  fk_rails_...  (purchase_id => purchases.id)
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   user: one
