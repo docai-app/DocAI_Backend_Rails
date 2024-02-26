@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_226_075_343) do
+ActiveRecord::Schema[7.0].define(version: 20_240_226_080_354) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -640,6 +640,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_226_075_343) do
     t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
   end
 
+  create_table 'user_marketplace_items', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'user_type', null: false
+    t.uuid 'user_id', null: false
+    t.uuid 'marketplace_item_id', null: false
+    t.string 'custom_name'
+    t.text 'custom_description'
+    t.uuid 'purchase_id', null: false
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['marketplace_item_id'], name: 'index_user_marketplace_items_on_marketplace_item_id'
+    t.index ['purchase_id'], name: 'index_user_marketplace_items_on_purchase_id'
+    t.index %w[user_type user_id], name: 'index_user_marketplace_items_on_user'
+  end
+
   create_table 'users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'email', default: '', null: false
     t.string 'encrypted_password', default: '', null: false
@@ -707,4 +722,6 @@ ActiveRecord::Schema[7.0].define(version: 20_240_226_075_343) do
   add_foreign_key 'taggings', 'tags'
   add_foreign_key 'user_mailboxes', 'documents'
   add_foreign_key 'user_mailboxes', 'users'
+  add_foreign_key 'user_marketplace_items', 'marketplace_items'
+  add_foreign_key 'user_marketplace_items', 'purchases'
 end
