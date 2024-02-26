@@ -61,4 +61,8 @@ class GeneralUser < ApplicationRecord
   def check_can_consume_energy(_chatbot, energy_cost)
     energy.value >= energy_cost
   end
+
+  def purchased_items
+    purchases.includes(:marketplace_item).as_json(include: :marketplace_item)
+  end
 end

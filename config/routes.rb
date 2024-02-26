@@ -281,6 +281,7 @@ Rails.application.routes.draw do
       resources :general_users, only: %i[show create] do
         collection do
           get 'me', to: 'general_users#show_current_user'
+          get 'me/purchase_history', to: 'general_users#show_purchase_history'
         end
       end
 

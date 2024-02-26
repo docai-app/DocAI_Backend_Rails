@@ -15,6 +15,12 @@ module Api
         render json: { success: true, user: @user.as_json(include: :energy) }, status: :ok
       end
 
+      def show_purchase_history
+        @user = current_general_user
+        @purchases = @user.purchased_items
+        render json: { success: true, purchases: @purchases }, status: :ok
+      end
+
       def create
         @user = GeneralUser.new(user_params)
         if @user.save
