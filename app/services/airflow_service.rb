@@ -8,7 +8,11 @@ class AirflowService
   @use_ssl = true
 
   def self.run_dag(dr)
+    # 因為呢個系統入邊係有 tanent 的，所以要搵返個 user 出黎，switch tanent
+    Apartment::Tanent.switch!(dr.tanent)
+
     dag_run = DagRun.find(dr.id) # 強制 reload 一次
+
     escape_name = CGI.escape(dag_run.dag_name)
     url = URI("#{@domain}/api/v1/dags/#{escape_name}/dagRuns")
     payload = {
