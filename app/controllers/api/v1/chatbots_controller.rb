@@ -180,6 +180,33 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      # 韮菜用戶 chat with bot (autogen)
+      # 同 general_user_chat_with_bot 的不同之處係，只需要記錄聊天結果同扣除能量值
+      def general_user_chat_with_bot_via_autogen
+        
+        # 先驗證用戶
+        authenticate
+
+        @general_user = current_general_user || current_user
+        @chatbot = Chatbot.find(params[:chatbot_id])
+        
+        # 呢道仲要判斷類型
+        # general_user_talk ?
+        # quiz ?
+
+        @chatbot.messages.create!(
+          user: @general_user, 
+          chatbot_id: @chatbot.id, 
+          object_type: 'general_user_talk', 
+          content: params[:message]['content'],
+          role: params[:sender]
+        )
+
+        render json: { success: true }, status: :ok
+
+      end
+
+      # 韮菜用戶 chat with bot (no autogen)
       def general_user_chat_with_bot
         @user_marketplace_item = UserMarketplaceItem.find(params[:id])
         @marketplace_item = @user_marketplace_item.marketplace_item
@@ -201,7 +228,7 @@ module Api
             tone: @chatbot.meta['tone'] || '專業',
             length: @chatbot.meta['length'] || 'normal'
           }
-          @user_marketplace_item.save_message('user', 'general_user_talk', params[:query], {
+          @user_marketplace_item.save_message(@general_user, 'user', 'general_user_talk', params[:query], {
                                                 belongs_user_id: current_general_user.id
                                               })
           LogMessage.create!(
@@ -215,7 +242,7 @@ module Api
             }
           )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
-          @user_marketplace_item.save_message('system', 'general_user_talk', @qaRes['content'], {
+          @user_marketplace_item.save_message(@general_user, 'system', 'general_user_talk', @qaRes['content'], {
                                                 belongs_user_id: current_general_user.id
                                               })
           LogMessage.create!(
@@ -278,24 +305,6 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @documents = []
         if @chatbot
-          # @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-          # @folders.each do |folder|
-          #   @documents.concat(folder.documents)
-          # end
-          # @metadata = {
-          #   document_ids: @documents.map(&:id)
-          # }
-
-          # document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
-          # ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
-          # smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
-
-          # data = {
-          #   schema: getSubdomain,
-          #   metadata: @metadata,
-          #   smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
-          # }
-
           data = chatbot_tools_config(@chatbot)
 
           render json: { success: true, result: data }, status: :ok
@@ -359,7 +368,6 @@ module Api
       def chatbot_documents_metadata(chatbot)
         @documents = []
         @folders = chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-        puts @folders.inspect
         @folders.each do |folder|
           puts 'Folder document: ', folder.documents
           @documents.concat(folder.documents)

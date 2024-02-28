@@ -199,7 +199,8 @@ Rails.application.routes.draw do
           post 'assistant/tool_metadata', to: 'chatbots#tool_metadata'
           post ':id/share', to: 'chatbots#shareChatbotWithSignature'
           post 'general_users/assistant/message', to: 'chatbots#general_user_chat_with_bot'
-          post 'general_users/assistant/history', to: 'chatbots#fetch_general_user_chat_history'
+          post 'general_users/assistant/autogen/message', to: 'chatbots#general_user_chat_with_bot_via_autogen'
+          get 'general_users/assistant/history', to: 'chatbots#fetch_general_user_chat_history'
         end
       end
 

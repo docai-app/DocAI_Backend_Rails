@@ -99,7 +99,7 @@ class Chatbot < ApplicationRecord
   end
 
   def assistant
-    return if meta['assistant'].nil?
+    return AssistantAgent.where(name_en: 'default_agent', version: 'production').first if meta['assistant'].nil?
 
     AssistantAgent.find(meta['assistant'])
   end

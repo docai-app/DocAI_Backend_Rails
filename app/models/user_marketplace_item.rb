@@ -32,13 +32,14 @@ class UserMarketplaceItem < ApplicationRecord
   belongs_to :purchase
   has_many :messages, dependent: :destroy
 
-  def save_message(role, object_type, content, meta = {})
+  def save_message(user, role, object_type, content, meta = {})
     messages.create!(
+      user:,
       chatbot_id: marketplace_item.chatbot_id,
       role:,
       object_type:,
       content:,
-      meta:
+      meta:,
     )
   end
 
