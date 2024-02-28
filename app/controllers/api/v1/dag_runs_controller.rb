@@ -29,9 +29,11 @@ module Api
       end
 
       def create
-        dr = DagRun.new(user: api_user, dag_name: Dag.normalize_name(params[:dag_name]))
+        tanent = Utils.extractRequestTenantByToken(request)
+        dr = DagRun.new(user: api_user, dag_name: Dag.normalize_name(params[:dag_name]), tanent: tanent)
         dr['meta']['params'] = params.permit!.to_h['params']
         dr.chatbot_id = params[:chatbot_id]
+        # binding.pry
         if dr.save
           dr.reset_workflow!
           dr.reload
