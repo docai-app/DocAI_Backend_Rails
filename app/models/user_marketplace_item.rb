@@ -39,7 +39,7 @@ class UserMarketplaceItem < ApplicationRecord
       role:,
       object_type:,
       content:,
-      meta:,
+      meta:
     )
   end
 

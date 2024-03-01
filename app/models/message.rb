@@ -29,7 +29,6 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class Message < ApplicationRecord
-
   # object_type enum: general_user_talk, quiz
 
   has_paper_trail

@@ -195,27 +195,25 @@ module Api
       # 韮菜用戶 chat with bot (autogen)
       # 同 general_user_chat_with_bot 的不同之處係，只需要記錄聊天結果同扣除能量值
       def general_user_chat_with_bot_via_autogen
-        
         # 先驗證用戶
         authenticate
 
         @general_user = current_general_user || current_user
         @chatbot = Chatbot.find(params[:chatbot_id])
-        
+
         # 呢道仲要判斷類型
         # general_user_talk ?
         # quiz ?
 
         @chatbot.messages.create!(
-          user: @general_user, 
-          chatbot_id: @chatbot.id, 
-          object_type: 'general_user_talk', 
+          user: @general_user,
+          chatbot_id: @chatbot.id,
+          object_type: 'general_user_talk',
           content: params[:message]['content'],
           role: params[:sender]
         )
 
         render json: { success: true }, status: :ok
-
       end
 
       # 韮菜用戶 chat with bot (no autogen)
