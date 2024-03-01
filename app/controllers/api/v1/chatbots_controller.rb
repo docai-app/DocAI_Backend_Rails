@@ -128,13 +128,14 @@ module Api
 
       def update_assistive_questions
         @chatbot = Chatbot.find(params[:id])
-        puts @chatbot.inspect
         @chatbot.assistive_questions = params[:assistive_questions]
         if @chatbot.save
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
           render json: { success: false }, status: :unprocessable_entity
         end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       def destroy
