@@ -30,7 +30,7 @@ module Api
 
       def create
         tanent = Utils.extractRequestTenantByToken(request)
-        dr = DagRun.new(user: api_user, dag_name: Dag.normalize_name(params[:dag_name]), tanent: tanent)
+        dr = DagRun.new(user: api_user, dag_name: Dag.normalize_name(params[:dag_name]), tanent:)
         dr['meta']['params'] = params.permit!.to_h['params']
         dr.chatbot_id = params[:chatbot_id]
         # binding.pry

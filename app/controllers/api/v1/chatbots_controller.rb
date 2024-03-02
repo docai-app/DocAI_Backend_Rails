@@ -126,6 +126,18 @@ module Api
         end
       end
 
+      def update_assistive_questions
+        @chatbot = Chatbot.find(params[:id])
+        @chatbot.assistive_questions = params[:assistive_questions]
+        if @chatbot.save
+          render json: { success: true, chatbot: @chatbot }, status: :ok
+        else
+          render json: { success: false }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       def destroy
         @chatbot = Chatbot.where(id: params[:id], user_id: current_user.id).first
         if @chatbot.destroy
@@ -188,7 +200,7 @@ module Api
 
         @general_user = current_general_user || current_user
         @chatbot = Chatbot.find(params[:chatbot_id])
-        
+
         # 呢道仲要判斷類型
         # general_user_talk ?
         # quiz ?
