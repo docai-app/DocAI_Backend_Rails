@@ -210,6 +210,7 @@ module Api
           chatbot_id: @chatbot.id, 
           object_type: 'general_user_talk', 
           content: params[:message]['content'],
+          is_read: true,
           role: params[:sender]
         )
 
