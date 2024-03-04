@@ -48,13 +48,13 @@ module Api
       end
 
       def show_files
-        type = params[:type] || 'image'
+        type = params[:type] || "image"
         @user = current_general_user
-        if type == 'image'
+        if type == "image"
           @files = @user.general_user_files.where(file_type: %w[png jpg]).order(id: :desc).page(params[:page])
           render json: { success: true, files: @files, meta: pagination_meta(@files) }, status: :ok
-        elsif type == 'document'
-          @files = @user.general_user_files.where(file_type: 'pdf').order(id: :desc).page(params[:page])
+        elsif type == "document"
+          @files = @user.general_user_files.where(file_type: "pdf").order(id: :desc).page(params[:page])
           render json: { success: true, files: @files, meta: pagination_meta(@files) }, status: :ok
         end
       rescue StandardError => e
@@ -71,6 +71,14 @@ module Api
         end
       end
 
+      def destroy_file
+        @user = current_general_user
+        @user.general_user_files.find_by(id: params[:id]).destroy
+        render json: { success: true }, status: :ok
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       private
 
       def user_params
@@ -83,7 +91,7 @@ module Api
           next_page: object.next_page,
           prev_page: object.prev_page,
           total_pages: object.total_pages,
-          total_count: object.total_count
+          total_count: object.total_count,
         }
       end
     end

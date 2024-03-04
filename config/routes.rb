@@ -288,6 +288,7 @@ Rails.application.routes.draw do
           get 'me/marketplace_items', to: 'general_users#show_marketplace_items'
           get 'me/marketplace_items/:id', to: 'general_users#show_marketplace_item'
           get 'me/files', to: 'general_users#show_files'
+          delete 'me/files/:id', to: 'general_users#destroy_file'
         end
       end
 
