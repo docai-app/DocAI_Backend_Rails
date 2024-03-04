@@ -5,6 +5,7 @@ module Api
     class GeneralUsersController < ApiController
       before_action :authenticate_user!,
                     only: %i[show show_current_user show_purchase_history show_marketplace_items create update delete]
+
       def show
         @user = current_general_user
         render json: { success: true, user: @user }, status: :ok
@@ -33,6 +34,20 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def show_files
+        type = params[:type] || 'image'
+        @user = current_general_user
+        if type == 'image'
+          @files = @user.general_user_files.where(file_type: %w[png jpg]).order(id: :desc).page(params[:page])
+          render json: { success: true, files: @files, meta: pagination_meta(@files) }, status: :ok
+        elsif type == 'document'
+          @files = @user.general_user_files.where(file_type: 'pdf').order(id: :desc).page(params[:page])
+          render json: { success: true, files: @files, meta: pagination_meta(@files) }, status: :ok
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       def create
         @user = GeneralUser.new(user_params)
         if @user.save
@@ -47,6 +62,16 @@ module Api
 
       def user_params
         params.permit(:email, :password, :nickname, :phone, :date_of_birth, :sex)
+      end
+
+      def pagination_meta(object)
+        {
+          current_page: object.current_page,
+          next_page: object.next_page,
+          prev_page: object.prev_page,
+          total_pages: object.total_pages,
+          total_count: object.total_count
+        }
       end
     end
   end

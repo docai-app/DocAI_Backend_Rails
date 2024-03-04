@@ -88,6 +88,7 @@ Rails.application.routes.draw do
       post 'storage/upload/directly', to: 'storage#upload_directly'
       post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
       post 'storage/upload/chatbot', to: 'storage#chatbot_upload'
+      post 'storage/upload/general_user_file', to: 'storage#upload_general_user_file'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
@@ -285,6 +286,7 @@ Rails.application.routes.draw do
           get 'me', to: 'general_users#show_current_user'
           get 'me/purchase_history', to: 'general_users#show_purchase_history'
           get 'me/marketplace_items', to: 'general_users#show_marketplace_items'
+          get 'me/files', to: 'general_users#show_files'
         end
       end
 
