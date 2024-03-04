@@ -90,4 +90,12 @@ class Utils
   def self.encrypt(value)
     Base64.encode64(value.to_s)
   end
+
+  def self.determine_file_type(file_url)
+    File.extname(URI.parse(file_url).path).delete('.') # Delete the dot, only leave the extension
+  end
+
+  def self.calculate_file_size(file)
+    File.size(file.path)
+  end
 end

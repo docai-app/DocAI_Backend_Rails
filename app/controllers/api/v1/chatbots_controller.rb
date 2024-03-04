@@ -206,15 +206,15 @@ module Api
         # quiz ?
 
         message = @chatbot.messages.create!(
-          user: @general_user, 
-          chatbot_id: @chatbot.id, 
-          object_type: 'general_user_talk', 
+          user: @general_user,
+          chatbot_id: @chatbot.id,
+          object_type: 'general_user_talk',
           content: params[:message]['content'],
           is_read: true,
           role: params[:sender]
         )
 
-        render json: { success: true, message: message }, status: :ok
+        render json: { success: true, message: }, status: :ok
       end
 
       # 韮菜用戶 chat with bot (no autogen)

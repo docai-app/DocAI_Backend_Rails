@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_301_104_104) do
+ActiveRecord::Schema[7.0].define(version: 20_240_304_060_539) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -329,6 +329,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_301_104_104) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.string 'title', default: '', null: false
+  end
+
+  create_table 'general_user_files', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'general_user_id', null: false
+    t.string 'file_type', null: false
+    t.string 'file_url'
+    t.integer 'file_size', default: 0, null: false
+    t.string 'title', default: ''
+    t.uuid 'user_marketplace_item_id'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['file_type'], name: 'index_general_user_files_on_file_type'
+    t.index ['general_user_id'], name: 'index_general_user_files_on_general_user_id'
+    t.index ['user_marketplace_item_id'], name: 'index_general_user_files_on_user_marketplace_item_id'
   end
 
   create_table 'general_users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -708,6 +723,8 @@ ActiveRecord::Schema[7.0].define(version: 20_240_301_104_104) do
   add_foreign_key 'dags', 'users'
   add_foreign_key 'documents', 'folders'
   add_foreign_key 'folders', 'users'
+  add_foreign_key 'general_user_files', 'general_users'
+  add_foreign_key 'general_user_files', 'user_marketplace_items'
   add_foreign_key 'identities', 'users'
   add_foreign_key 'messages', 'chatbots'
   add_foreign_key 'mini_apps', 'folders'
