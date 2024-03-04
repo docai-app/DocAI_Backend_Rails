@@ -29,7 +29,20 @@ module Api
       def show_marketplace_items
         @user = current_general_user
         @user_marketplace_items = @user.user_marketplace_items
-        render json: { success: true, user_marketplace_items: @user_marketplace_items }, status: :ok
+        @user_marketplace_items = Kaminari.paginate_array(@user_marketplace_items).page(params[:page])
+        render json: { success: true, user_marketplace_items: @user_marketplace_items, meta: pagination_meta(@user_marketplace_items) },
+               status: :ok
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def show_marketplace_item
+        @user = current_general_user
+        @user_marketplace_item = @user.user_marketplace_items.find_by(id: params[:id])
+        Apartment::Tenant.switch!(@user_marketplace_item.marketplace_item.entity_name)
+        @chatbot_detail = Chatbot.find_by(id: @user_marketplace_item.marketplace_item.chatbot_id)
+        render json: { success: true, user_marketplace_item: @user_marketplace_item, chatbot_detail: @chatbot_detail },
+               status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end

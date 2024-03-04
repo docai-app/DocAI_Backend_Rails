@@ -286,6 +286,7 @@ Rails.application.routes.draw do
           get 'me', to: 'general_users#show_current_user'
           get 'me/purchase_history', to: 'general_users#show_purchase_history'
           get 'me/marketplace_items', to: 'general_users#show_marketplace_items'
+          get 'me/marketplace_items/:id', to: 'general_users#show_marketplace_item'
           get 'me/files', to: 'general_users#show_files'
         end
       end
