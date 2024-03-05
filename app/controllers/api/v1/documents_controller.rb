@@ -101,7 +101,8 @@ module Api
         @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
         if @document.present?
           res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
-          @tag = Tag.find(JSON.parse(res)['label']['id']).as_json(include: :functions)
+          puts "res: #{res}"
+          @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, meta: pagination_meta(@document) },
                  status: :ok
         else
