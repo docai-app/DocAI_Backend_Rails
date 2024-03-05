@@ -15,6 +15,11 @@
 #  updated_at  :datetime         not null
 #  deadline_at :datetime
 #
+# Foreign Keys
+#
+#  fk_rails_...  (folder_id => folders.id)
+#  fk_rails_...  (user_id => users.id)
+#
 class Project < ApplicationRecord
   resourcify
 

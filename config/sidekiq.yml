@@ -19,7 +19,7 @@
 
 :schedule:
   DocumentClassificationMonitorJob:
-    every: '60s'
+    every: '600s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:

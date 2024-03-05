@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
+ActiveRecord::Schema[7.0].define(version: 20_240_304_060_539) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -164,8 +164,10 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.boolean 'airflow_accepted', default: false, null: false
+    t.string 'tanent'
     t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
     t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
+    t.index ['tanent'], name: 'index_dag_runs_on_tanent'
     t.index ['user_id'], name: 'index_dag_runs_on_user_id'
   end
 
@@ -329,6 +331,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
     t.string 'title', default: '', null: false
   end
 
+  create_table 'general_user_files', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'general_user_id', null: false
+    t.string 'file_type', null: false
+    t.string 'file_url'
+    t.integer 'file_size', default: 0, null: false
+    t.string 'title', default: ''
+    t.uuid 'user_marketplace_item_id'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['file_type'], name: 'index_general_user_files_on_file_type'
+    t.index ['general_user_id'], name: 'index_general_user_files_on_general_user_id'
+    t.index ['user_marketplace_item_id'], name: 'index_general_user_files_on_user_marketplace_item_id'
+  end
+
   create_table 'general_users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'email'
     t.string 'encrypted_password'
@@ -390,15 +407,18 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
     t.uuid 'chatbot_id', null: false
     t.text 'content', null: false
     t.string 'role', default: 'user', null: false
-    t.uuid 'user_id'
     t.string 'object_type', null: false
     t.boolean 'is_read', default: false, null: false
     t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.uuid 'user_marketplace_item_id'
+    t.string 'user_type'
+    t.uuid 'user_id'
     t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
     t.index ['object_type'], name: 'index_messages_on_object_type'
-    t.index ['user_id'], name: 'index_messages_on_user_id'
+    t.index ['user_marketplace_item_id'], name: 'index_messages_on_user_marketplace_item_id'
+    t.index %w[user_type user_id], name: 'index_messages_on_user'
   end
 
   create_table 'mini_apps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -488,6 +508,18 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.datetime 'deadline_at', precision: nil
+  end
+
+  create_table 'purchases', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'user_type', null: false
+    t.uuid 'user_id', null: false
+    t.uuid 'marketplace_item_id', null: false
+    t.datetime 'purchased_at'
+    t.jsonb 'meta', default: {}
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['marketplace_item_id'], name: 'index_purchases_on_marketplace_item_id'
+    t.index %w[user_type user_id], name: 'index_purchases_on_user'
   end
 
   create_table 'roles', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -628,6 +660,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
     t.index ['user_id'], name: 'index_user_mailboxes_on_user_id'
   end
 
+  create_table 'user_marketplace_items', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'user_type', null: false
+    t.uuid 'user_id', null: false
+    t.uuid 'marketplace_item_id', null: false
+    t.string 'custom_name'
+    t.text 'custom_description'
+    t.uuid 'purchase_id', null: false
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['marketplace_item_id'], name: 'index_user_marketplace_items_on_marketplace_item_id'
+    t.index ['purchase_id'], name: 'index_user_marketplace_items_on_purchase_id'
+    t.index %w[user_type user_id], name: 'index_user_marketplace_items_on_user'
+  end
+
   create_table 'users', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'email', default: '', null: false
     t.string 'encrypted_password', default: '', null: false
@@ -676,9 +723,10 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
   add_foreign_key 'dags', 'users'
   add_foreign_key 'documents', 'folders'
   add_foreign_key 'folders', 'users'
+  add_foreign_key 'general_user_files', 'general_users'
+  add_foreign_key 'general_user_files', 'user_marketplace_items'
   add_foreign_key 'identities', 'users'
   add_foreign_key 'messages', 'chatbots'
-  add_foreign_key 'messages', 'users'
   add_foreign_key 'mini_apps', 'folders'
   add_foreign_key 'mini_apps', 'users'
   add_foreign_key 'pdf_page_details', 'documents'
@@ -687,6 +735,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
   add_foreign_key 'project_workflows', 'folders'
   add_foreign_key 'projects', 'folders'
   add_foreign_key 'projects', 'users'
+  add_foreign_key 'purchases', 'marketplace_items'
   add_foreign_key 'storyboard_item_associations', 'storyboard_items'
   add_foreign_key 'storyboard_item_associations', 'storyboards'
   add_foreign_key 'storyboard_items', 'users'
@@ -694,4 +743,6 @@ ActiveRecord::Schema[7.0].define(version: 20_240_223_033_001) do
   add_foreign_key 'taggings', 'tags'
   add_foreign_key 'user_mailboxes', 'documents'
   add_foreign_key 'user_mailboxes', 'users'
+  add_foreign_key 'user_marketplace_items', 'marketplace_items'
+  add_foreign_key 'user_marketplace_items', 'purchases'
 end

@@ -90,4 +90,21 @@ class Utils
   def self.encrypt(value)
     Base64.encode64(value.to_s)
   end
+
+  def self.determine_file_type(file_url)
+    File.extname(URI.parse(file_url).path).delete('.') # Delete the dot, only leave the extension
+  end
+
+  def self.calculate_file_size(file)
+    File.size(file.path)
+  end
+
+  def self.calculate_file_size_by_url(url)
+    uri = URI(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    request = Net::HTTP::Get.new(uri)
+    http.request(request).body.bytesize
+  end
 end

@@ -126,6 +126,18 @@ module Api
         end
       end
 
+      def update_assistive_questions
+        @chatbot = Chatbot.find(params[:id])
+        @chatbot.assistive_questions = params[:assistive_questions]
+        if @chatbot.save
+          render json: { success: true, chatbot: @chatbot }, status: :ok
+        else
+          render json: { success: false }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       def destroy
         @chatbot = Chatbot.where(id: params[:id], user_id: current_user.id).first
         if @chatbot.destroy
@@ -180,8 +192,37 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      # 韮菜用戶 chat with bot (autogen)
+      # 同 general_user_chat_with_bot 的不同之處係，只需要記錄聊天結果同扣除能量值
+      def general_user_chat_with_bot_via_autogen
+        # 先驗證用戶
+        authenticate
+
+        @general_user = current_general_user || current_user
+        @chatbot = Chatbot.find(params[:chatbot_id])
+
+        # 呢道仲要判斷類型
+        # general_user_talk ?
+        # quiz ?
+
+        message = @chatbot.messages.create!(
+          user: @general_user,
+          chatbot_id: @chatbot.id,
+          object_type: 'general_user_talk',
+          content: params[:message]['content'],
+          is_read: true,
+          role: params[:sender]
+        )
+
+        render json: { success: true, message: }, status: :ok
+      end
+
+      # 韮菜用戶 chat with bot (no autogen)
       def general_user_chat_with_bot
-        @marketplace_item = MarketplaceItem.find(params[:id])
+        @user_marketplace_item = UserMarketplaceItem.find(params[:id])
+        @marketplace_item = @user_marketplace_item.marketplace_item
+        puts "UserMarketplaceItem: #{@user_marketplace_item.inspect}"
+        puts "MarketplaceItem: #{@marketplace_item.inspect}"
         Apartment::Tenant.switch!(@marketplace_item.entity_name)
         @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
         @general_user = current_general_user
@@ -198,8 +239,9 @@ module Api
             tone: @chatbot.meta['tone'] || '專業',
             length: @chatbot.meta['length'] || 'normal'
           }
-          @chatbot.add_message('user', 'general_user_talk', params[:query],
-                               { belongs_user_id: current_general_user.id })
+          @user_marketplace_item.save_message(@general_user, 'user', 'general_user_talk', params[:query], {
+                                                belongs_user_id: current_general_user.id
+                                              })
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: params[:query],
@@ -211,8 +253,9 @@ module Api
             }
           )
           @qaRes = AiService.assistantQA(params[:query], params[:chat_history], getSubdomain, @metadata)
-          @chatbot.add_message('system', 'general_user_talk', @qaRes['content'],
-                               { belongs_user_id: current_general_user.id })
+          @user_marketplace_item.save_message(@general_user, 'system', 'general_user_talk', @qaRes['content'], {
+                                                belongs_user_id: current_general_user.id
+                                              })
           LogMessage.create!(
             chatbot_id: @chatbot.id,
             content: @qaRes['content'],
@@ -224,7 +267,7 @@ module Api
             }
           )
           puts "General User: #{@general_user.inspect}"
-          @general_user.consume_energy(params[:id], @chatbot.energy_cost)
+          @general_user.consume_energy(@marketplace_item.id, @chatbot.energy_cost)
           render json: { success: true, message: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Energy not sufficient for this operation.' }, status: :forbidden
@@ -257,12 +300,12 @@ module Api
       end
 
       def fetch_general_user_chat_history
-        @marketplace_item = MarketplaceItem.find(params[:id])
+        @user_marketplace_item = UserMarketplaceItem.find(params[:id])
+        @marketplace_item = @user_marketplace_item.marketplace_item
         Apartment::Tenant.switch!(@marketplace_item.entity_name)
-        @chatbot = Chatbot.find(@marketplace_item.chatbot_id)
         @general_user = current_general_user
 
-        @messages = @chatbot.get_chatbot_messages(current_general_user.id)
+        @messages = @user_marketplace_item.get_chatbot_messages(current_general_user.id)
         @messages = Kaminari.paginate_array(@messages).page(params[:page])
         render json: { success: true, messages: @messages, meta: pagination_meta(@messages) }, status: :ok
       rescue StandardError => e
@@ -273,24 +316,6 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @documents = []
         if @chatbot
-          # @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-          # @folders.each do |folder|
-          #   @documents.concat(folder.documents)
-          # end
-          # @metadata = {
-          #   document_ids: @documents.map(&:id)
-          # }
-
-          # document_ids = Document.where(id: @metadata[:document_ids]).pluck(:id)
-          # ses_ids = DocumentSmartExtractionDatum.where(document_id: document_ids).pluck(:smart_extraction_schema_id)
-          # smart_extraction_schemas = SmartExtractionSchema.where(id: ses_ids)
-
-          # data = {
-          #   schema: getSubdomain,
-          #   metadata: @metadata,
-          #   smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
-          # }
-
           data = chatbot_tools_config(@chatbot)
 
           render json: { success: true, result: data }, status: :ok
@@ -354,7 +379,6 @@ module Api
       def chatbot_documents_metadata(chatbot)
         @documents = []
         @folders = chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
-        puts @folders.inspect
         @folders.each do |folder|
           puts 'Folder document: ', folder.documents
           @documents.concat(folder.documents)

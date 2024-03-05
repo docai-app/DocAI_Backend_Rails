@@ -110,6 +110,49 @@ module Api
         end
       end
 
+      def upload_general_user_file
+        content_type = params[:content_type] || 'image'
+        content = params[:content] || nil
+        user_marketplace_item_id = params[:user_marketplace_item_id] || nil
+        title = params[:title] || nil
+        begin
+          @user_marketplace_item = UserMarketplaceItem.find(user_marketplace_item_id)
+          if content_type == 'pdf'
+            pdfBlob = FormProjectionService.text2Pdf(content)
+            file_url = AzureService.uploadBlob(pdfBlob, 'chatting_report.pdf', 'application/pdf')
+            file_size = Utils.calculate_file_size_by_url(file_url)
+            GeneralUserFile.create!(general_user_id: current_general_user.id,
+                                    file_type: Utils.determine_file_type(file_url), file_url:, file_size:, user_marketplace_item_id: @user_marketplace_item.id, title:)
+          elsif content_type == 'image'
+            uri = URI("#{ENV['EXAMHERO_URL']}/tools/html_to_png")
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = uri.scheme == 'https'
+            request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+            request.body = {
+              html_content: content
+            }.to_json
+            http.read_timeout = 600_000
+
+            response = http.request(request)
+            res = JSON.parse(response.body)
+
+            if res['screenshot'].present?
+              img = Base64.strict_decode64(res['screenshot'])
+              screenshot = Magick::ImageList.new.from_blob(img)
+              file_url = AzureService.uploadBlob(screenshot.to_blob, 'chatting_report.png', 'image/png')
+              file_size = Utils.calculate_file_size_by_url(file_url)
+              GeneralUserFile.create!(general_user_id: current_general_user.id,
+                                      file_type: Utils.determine_file_type(file_url), file_url:, file_size:, user_marketplace_item_id: @user_marketplace_item.id, title:)
+            else
+              render json: { success: false, error: 'Something went wrong' }, status: :unprocessable_entity
+            end
+          end
+          render json: { success: true, file_url: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       def documentProcessors(file, async = true)

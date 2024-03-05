@@ -25,6 +25,20 @@
 #  error_message         :text
 #  retry_count           :integer          default(0)
 #
+# Indexes
+#
+#  index_documents_on_approval_status    (approval_status)
+#  index_documents_on_approval_user_id   (approval_user_id)
+#  index_documents_on_folder_id          (folder_id)
+#  index_documents_on_name               (name)
+#  index_documents_on_status             (status)
+#  index_documents_on_upload_local_path  (upload_local_path)
+#  index_documents_on_user_id            (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (folder_id => folders.id)
+#
 class Document < ApplicationRecord
   resourcify
   acts_as_taggable_on :labels

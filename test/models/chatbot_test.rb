@@ -22,6 +22,11 @@
 #  has_chatbot_updated :boolean          default(FALSE), not null
 #  energy_cost         :integer          default(0)
 #
+# Indexes
+#
+#  index_chatbots_on_category  (category)
+#  index_chatbots_on_user_id   (user_id)
+#
 require 'test_helper'
 
 class ChatbotTest < ActiveSupport::TestCase

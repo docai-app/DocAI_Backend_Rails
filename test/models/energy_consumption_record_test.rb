@@ -1,3 +1,4 @@
+
 # frozen_string_literal: true
 
 # == Schema Information
@@ -11,6 +12,11 @@
 #  updated_at          :datetime         not null
 #  user_type           :string           not null
 #  user_id             :uuid             not null
+#
+# Indexes
+#
+#  index_energy_consumption_records_on_marketplace_item_id  (marketplace_item_id)
+#  index_energy_consumption_records_on_user                 (user_type,user_id)
 #
 require 'test_helper'
 

@@ -17,6 +17,10 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #
+# Indexes
+#
+#  index_general_users_on_email  (email) UNIQUE
+#
 require 'test_helper'
 
 class GeneralUserTest < ActiveSupport::TestCase

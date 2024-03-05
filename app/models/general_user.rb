@@ -17,6 +17,10 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #
+# Indexes
+#
+#  index_general_users_on_email  (email) UNIQUE
+#
 class GeneralUser < ApplicationRecord
   devise :database_authenticatable,
          :jwt_authenticatable,
@@ -27,6 +31,11 @@ class GeneralUser < ApplicationRecord
          jwt_revocation_strategy: JwtDenylist
 
   has_one :energy, as: :user, dependent: :destroy
+  has_many :purchases, as: :user, dependent: :destroy
+  has_many :purchased_marketplace_items, through: :purchases, source: :marketplace_item
+  has_many :user_marketplace_items, dependent: :destroy, as: :user, class_name: 'UserMarketplaceItem'
+  has_many :marketplace_items, through: :user_marketplace_items
+  has_many :general_user_files, dependent: :destroy
 
   def jwt_payload
     {
@@ -54,5 +63,9 @@ class GeneralUser < ApplicationRecord
 
   def check_can_consume_energy(_chatbot, energy_cost)
     energy.value >= energy_cost
+  end
+
+  def purchased_items
+    purchases.includes(:marketplace_item).as_json(include: :marketplace_item)
   end
 end

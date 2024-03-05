@@ -22,6 +22,12 @@
 #  unlock_token           :string
 #  locked_at              :datetime
 #
+# Indexes
+#
+#  index_users_on_email                 (email) UNIQUE
+#  index_users_on_reset_password_token  (reset_password_token) UNIQUE
+#  index_users_on_unlock_token          (unlock_token) UNIQUE
+#
 class User < ApplicationRecord
   rolify
   # include Devise::JWT::RevocationStrategies::JTIMatcher
@@ -60,6 +66,10 @@ class User < ApplicationRecord
                                 where(is_ready: true).where(status: :saved)
                               }, class_name: 'StoryboardItem', foreign_key: 'user_id', dependent: :destroy
   has_one :energy, as: :user, dependent: :destroy
+  has_many :purchases, as: :user, dependent: :destroy
+  has_many :purchased_marketplace_items, through: :purchases, source: :marketplace_item
+
+  has_many :assessment_records, as: :recordable
 
   after_create :create_user_api_key
 

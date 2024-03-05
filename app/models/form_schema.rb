@@ -20,6 +20,10 @@
 #  projection_image_url :string           default("")
 #  label_id             :uuid
 #
+# Indexes
+#
+#  index_form_schemas_on_name  (name)
+#
 class FormSchema < ApplicationRecord
   has_many :form_datum, class_name: 'FormDatum'
   belongs_to :label, optional: true, class_name: 'Tag', foreign_key: 'label_id'

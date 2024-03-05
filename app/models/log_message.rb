@@ -15,6 +15,11 @@
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
 #
+# Indexes
+#
+#  index_log_messages_on_chatbot_id  (chatbot_id)
+#  index_log_messages_on_session_id  (session_id)
+#
 class LogMessage < ApplicationRecord
   belongs_to :chatbot, class_name: 'Chatbot', foreign_key: 'chatbot_id', optional: true, dependent: :destroy
 

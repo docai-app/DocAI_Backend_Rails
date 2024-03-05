@@ -15,6 +15,11 @@
 #  updated_at   :datetime         not null
 #  deadline_at  :datetime
 #
+# Indexes
+#
+#  index_project_tasks_on_project_id  (project_id)
+#  index_project_tasks_on_user_id     (user_id)
+#
 class ProjectTask < ApplicationRecord
   resourcify
 

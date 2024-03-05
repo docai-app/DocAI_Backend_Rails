@@ -3,12 +3,15 @@
 module Api
   module V1
     class ClassificationsController < ApiController
-      before_action :authenticate_user!
+      # before_action :authenticate_user!
+
+      include Authenticatable
+      before_action :authenticate
 
       # Predict the Document
       def predict
         @document = Document.find(params[:id])
-        res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
+        res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.content.to_s)}&model=#{getSubdomain}"
         render json: { success: true, prediction: { tag: JSON.parse(res)['label'], document: @document } }, status: :ok
       end
 

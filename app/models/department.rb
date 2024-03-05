@@ -4,7 +4,7 @@
 #
 # Table name: departments
 #
-#  id          :bigint           not null, primary key
+#  id          :bigint(8)        not null, primary key
 #  name        :string
 #  description :string
 #  meta        :jsonb

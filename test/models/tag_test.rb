@@ -15,6 +15,10 @@
 #  meta                           :jsonb
 #  smart_extraction_schemas_count :integer          default(0)
 #
+# Indexes
+#
+#  index_tags_on_name  (name) UNIQUE
+#
 require 'test_helper'
 
 class TagTest < ActiveSupport::TestCase

@@ -2,7 +2,7 @@
 #
 # Table name: public.agent_tools
 #
-#  id                 :bigint           not null, primary key
+#  id                 :bigint(8)        not null, primary key
 #  name               :string
 #  invoke_name        :string
 #  description        :string
@@ -12,6 +12,10 @@
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #
+# Indexes
+#
+#  index_agent_tools_on_category  (category)
+#
 
 one:
   name: MyString
@@ -19,7 +23,7 @@ one:
   description: MyString
   invoke_description: MyString
   category: MyString
-  meta: 
+  meta:
 
 two:
   name: MyString
@@ -27,4 +31,4 @@ two:
   description: MyString
   invoke_description: MyString
   category: MyString
-  meta: 
+  meta:

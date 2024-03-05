@@ -27,6 +27,10 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      # **********做評估 API**********
+      resources :assessment_records, only: %i[create index show update destroy] do
+      end
+
       # **********Documents API**********
       resources :documents, only: %i[index show update destroy] do
         collection do
@@ -84,6 +88,7 @@ Rails.application.routes.draw do
       post 'storage/upload/directly', to: 'storage#upload_directly'
       post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
       post 'storage/upload/chatbot', to: 'storage#chatbot_upload'
+      post 'storage/upload/general_user_file', to: 'storage#upload_general_user_file'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
@@ -195,7 +200,9 @@ Rails.application.routes.draw do
           post 'assistant/tool_metadata', to: 'chatbots#tool_metadata'
           post ':id/share', to: 'chatbots#shareChatbotWithSignature'
           post 'general_users/assistant/message', to: 'chatbots#general_user_chat_with_bot'
-          post 'general_users/assistant/history', to: 'chatbots#fetch_general_user_chat_history'
+          post 'general_users/assistant/autogen/message', to: 'chatbots#general_user_chat_with_bot_via_autogen'
+          get 'general_users/assistant/history', to: 'chatbots#fetch_general_user_chat_history'
+          put ':id/assistive_questions', to: 'chatbots#update_assistive_questions'
         end
       end
 
@@ -277,11 +284,20 @@ Rails.application.routes.draw do
       resources :general_users, only: %i[show create] do
         collection do
           get 'me', to: 'general_users#show_current_user'
+          get 'me/purchase_history', to: 'general_users#show_purchase_history'
+          get 'me/marketplace_items', to: 'general_users#show_marketplace_items'
+          get 'me/marketplace_items/:id', to: 'general_users#show_marketplace_item'
+          get 'me/files', to: 'general_users#show_files'
+          delete 'me/files/:id', to: 'general_users#destroy_file'
         end
       end
 
       # ********** Marketplace API ***********
-      resources :marketplace_items, only: %i[index show create update destroy]
+      resources :marketplace_items, only: %i[index show create update destroy] do
+        collection do
+          post 'general_users/purchase', to: 'marketplace_items#general_users_purchase'
+        end
+      end
     end
 
     namespace :admin do

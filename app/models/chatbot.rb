@@ -22,6 +22,11 @@
 #  has_chatbot_updated :boolean          default(FALSE), not null
 #  energy_cost         :integer          default(0)
 #
+# Indexes
+#
+#  index_chatbots_on_category  (category)
+#  index_chatbots_on_user_id   (user_id)
+#
 class Chatbot < ApplicationRecord
   resourcify
   has_paper_trail
@@ -94,7 +99,7 @@ class Chatbot < ApplicationRecord
   end
 
   def assistant
-    return if meta['assistant'].nil?
+    return AssistantAgent.where(name_en: 'default_agent', version: 'production').first if meta['assistant'].nil?
 
     AssistantAgent.find(meta['assistant'])
   end

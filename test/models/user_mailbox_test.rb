@@ -19,6 +19,16 @@
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #
+# Indexes
+#
+#  index_user_mailboxes_on_document_id  (document_id)
+#  index_user_mailboxes_on_user_id      (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (document_id => documents.id)
+#  fk_rails_...  (user_id => users.id)
+#
 require 'test_helper'
 
 class UserMailboxTest < ActiveSupport::TestCase

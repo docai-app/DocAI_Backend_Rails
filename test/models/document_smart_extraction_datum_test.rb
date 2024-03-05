@@ -15,6 +15,10 @@
 #  retry_count                :integer          default(0)
 #  meta                       :jsonb
 #
+# Indexes
+#
+#  index_smart_extraction_data_on_smart_extraction_schema_id  (smart_extraction_schema_id)
+#
 require 'test_helper'
 
 class DocumentSmartExtractionDatumTest < ActiveSupport::TestCase

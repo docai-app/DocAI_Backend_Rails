@@ -13,6 +13,16 @@
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #
+# Indexes
+#
+#  index_mini_apps_on_folder_id  (folder_id)
+#  index_mini_apps_on_user_id    (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (folder_id => folders.id)
+#  fk_rails_...  (user_id => users.id)
+#
 class MiniApp < ApplicationRecord
   resourcify
 
