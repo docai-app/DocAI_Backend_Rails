@@ -112,9 +112,9 @@ module Api
         @folders = Folder.find(params['source']['folder_id']) if params['source']['folder_id'].present?
         @chatbot.meta['language'] = params[:language] if params[:language].present?
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
-        @chatbot.meta['chain_features'] = params[:chain_features]
-        @chatbot.meta['assistant'] = params[:assistant]
-        @chatbot.meta['experts'] = params[:experts]
+        @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
+        @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
+        @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
         @chatbot.meta['length'] = params[:length] if params[:length].present?
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         if @chatbot.update(chatbot_params)
