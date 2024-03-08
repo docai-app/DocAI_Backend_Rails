@@ -41,7 +41,11 @@ class Chatbot < ApplicationRecord
 
   after_create :set_permissions_to_owner
   after_create :handle_initial_publication
-  before_save :check_public_status_change
+  before_save :check_public_status_change, :check_default_values
+
+  def check_default_values
+    self['meta']['language'] = '繁體中文' if self['meta']['language'].nil?
+  end
 
   def set_permissions_to_owner
     return if self['user_id'].nil?
