@@ -287,10 +287,11 @@ module Api
             @documents.concat(folder.documents)
           end
           @metadata = {
-            document_id: @documents.map(&:id)
+            document_id: @documents.map(&:id),
+            language: @chatbot.meta['language'] || '繁體中文'
           }
           @qaRes = AiService.assistantQASuggestion(getSubdomain, @metadata)
-          puts @qaRes
+          puts "QASuggestion: #{@qaRes}"
           render json: { success: true, suggestion: @qaRes }, status: :ok
         else
           render json: { success: false, error: 'Chatbot not found' }, status: :not_found
