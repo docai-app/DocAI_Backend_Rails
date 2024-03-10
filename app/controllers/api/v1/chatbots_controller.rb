@@ -97,32 +97,34 @@ module Api
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
         @chatbot.meta['experts'] = params[:experts]
         @chatbot.meta['length'] = params[:length] if params[:length].present?
+        @chatbot.meta['selected_features'] = params[:selected_features] if params[:selected_features].present?
         @chatbot.energy_cost = params[:energy_cost] if params[:is_public].present? && params[:is_public] == 'true'
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
-          render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false, error: @chatbot.errors }, status: :unprocessable_entity
         end
       end
 
       def update
         @chatbot = Chatbot.find(params[:id])
         @folders = Folder.find(params['source']['folder_id']) if params['source']['folder_id'].present?
+        @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
         @chatbot.meta['language'] = params[:language] if params[:language].present?
         @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
         @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
         @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
         @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
         @chatbot.meta['length'] = params[:length] if params[:length].present?
-        @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
+        @chatbot.meta['selected_features'] = params[:selected_features] if params[:selected_features].present?
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
-          render json: { success: false }, status: :unprocessable_entity
+          render json: { success: false, error: @chatbot.errors }, status: :unprocessable_entity
         end
       end
 
