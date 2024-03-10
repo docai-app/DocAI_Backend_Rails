@@ -28,4 +28,30 @@ namespace :chatbot do
       end
     end
   end
+
+  task add_selected_features: :environment do
+    Apartment::Tenant.each do |tenant|
+      Apartment::Tenant.switch!(tenant)
+      puts "====== tenant: #{tenant} ======"
+      length = Chatbot.all.length
+      puts "====== Total: #{Chatbot.all.length} chatbots ======"
+      Chatbot.all.each do |chatbot|
+        puts "====== chatbot: #{chatbot.inspect} ======"
+
+        # Set the default features if none are set
+        chatbot.meta['selected_features'] ||= []
+        chatbot.meta['selected_features'] << 'chatting' unless chatbot.meta['selected_features'].include?('chatting')
+        unless chatbot.meta['selected_features'].include?('intelligent_mission')
+          chatbot.meta['selected_features'] << 'intelligent_mission'
+        end
+
+        # Save the chatbot if there were any changes
+        chatbot.save if chatbot.changed?
+
+        length -= 1
+        puts "====== There are #{length} records left ======"
+      end
+    end
+    puts 'All chatbots have been updated with default selected features.'
+  end
 end
