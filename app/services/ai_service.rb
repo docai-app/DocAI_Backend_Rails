@@ -81,7 +81,7 @@ class AiService
       metadata:
     }.to_json, { content_type: :json, accept: :json })
     res = JSON.parse(res)
-    puts "Response from Document Embedding QA Suggestion: #{res}"
+    puts "Response from Document Embedding QA Suggestion: #{res.inspect}"
 
     if res['status'] == true
       res['suggestion']

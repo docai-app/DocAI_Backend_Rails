@@ -19,7 +19,8 @@ namespace :chatbot do
           @documents.concat(folder.documents)
         end
         @metadata = {
-          document_id: @documents.map(&:id)
+          document_id: @documents.map(&:id),
+          language: chatbot.meta['language'] || '繁體中文'
         }
         chatbot.update_assistive_questions(tenant, @metadata)
         length -= 1
