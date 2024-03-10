@@ -6,8 +6,8 @@ module Api
       include Authenticatable
 
       before_action :authenticate,
-                    only: %i[show create update destroy mark_messages_read general_user_chat_with_bot
-                             fetch_general_user_chat_history]
+                    only: %i[show create update destroy mark_messages_read general_user_chat_with_bot]
+      before_action :authenticate_general_user!, only: %i[fetch_general_user_chat_history]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
