@@ -35,6 +35,13 @@ class Chatbot < ApplicationRecord
 
   ALLOWED_SELECTED_FEATURES = %w[chatting intelligent_mission smart_extract_schema chatting_plus].freeze
 
+  DEFAULT_SELECTED_FEATURES_TITLES = {
+    'chatting' => '基本問題',
+    'intelligent_mission' => '推薦功能',
+    'smart_extract_schema' => '數據生成',
+    'chatting_plus' => '專業對話'
+  }.freeze
+
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
   has_many :messages, -> { order('messages.created_at') }, dependent: :destroy

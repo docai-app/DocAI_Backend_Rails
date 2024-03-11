@@ -91,13 +91,21 @@ module Api
         @folders = Folder.find(params['source']['folder_id'])
         @chatbot.user = current_user
         @chatbot.source['folder_id'] = @folders.pluck(:id)
-        @chatbot.meta['language'] = params[:language] if params[:language].present?
-        @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
-        @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
-        @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
-        @chatbot.meta['experts'] = params[:experts]
-        @chatbot.meta['length'] = params[:length] if params[:length].present?
-        @chatbot.meta['selected_features'] = params[:selected_features] if params[:selected_features].present?
+        # @chatbot.meta['language'] = params[:language] if params[:language].present?
+        # @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
+        # @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
+        # @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
+        # @chatbot.meta['experts'] = params[:experts]
+        # @chatbot.meta['length'] = params[:length] if params[:length].present?
+        # @chatbot.meta['selected_features'] = params[:selected_features] if params[:selected_features].present?
+        # if params[:selected_features_titles].present?
+        #   @chatbot.meta['selected_features_titles'] = params[:selected_features_titles]
+        # else
+        #   @chatbot.meta['selected_features_titles'] = Chatbot::DEFAULT_SELECTED_FEATURES_TITLES
+        # end
+        set_meta_fields
+        set_default_titles_if_absent
+
         @chatbot.energy_cost = params[:energy_cost] if params[:is_public].present? && params[:is_public] == 'true'
         if @chatbot.save
           @metadata = chatbot_documents_metadata(@chatbot)
@@ -112,13 +120,17 @@ module Api
         @chatbot = Chatbot.find(params[:id])
         @folders = Folder.find(params['source']['folder_id']) if params['source']['folder_id'].present?
         @chatbot.source['folder_id'] = @folders.pluck(:id) if @folders.present?
-        @chatbot.meta['language'] = params[:language] if params[:language].present?
-        @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
-        @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
-        @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
-        @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
-        @chatbot.meta['length'] = params[:length] if params[:length].present?
-        @chatbot.meta['selected_features'] = params[:selected_features] if params[:selected_features].present?
+        # @chatbot.meta['language'] = params[:language] if params[:language].present?
+        # @chatbot.meta['tone'] = params[:tone] if params[:tone].present?
+        # @chatbot.meta['chain_features'] = params[:chain_features] if params[:chain_features].present?
+        # @chatbot.meta['assistant'] = params[:assistant] if params[:assistant].present?
+        # @chatbot.meta['experts'] = params[:experts] if params[:experts].present?
+        # @chatbot.meta['length'] = params[:length] if params[:length].present?
+        # @chatbot.meta['selected_features'] = params[:selected_features] if params[:selected_features].present?
+        # @chatbot.meta['selected_features_titles'] = params[:selected_features_titles] if params[:selected_features_titles].present?
+        set_meta_fields
+        set_default_titles_if_absent
+
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
@@ -426,6 +438,30 @@ module Api
           metadata:,
           smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
         }
+      end
+
+      def set_meta_fields
+        meta_fields = %w[language tone chain_features assistant experts length selected_features]
+        meta_fields.each do |field|
+          @chatbot.meta[field] = params[field] if params[field].present?
+        end
+      end
+
+      def set_default_titles_if_absent
+        if params[:selected_features_titles].present?
+          # Confirm the titles of selected features
+          selected_titles = params[:selected_features_titles].permit!.to_h
+          @chatbot.meta['selected_features_titles'] ||= {}
+          selected_titles.each do |feature, title|
+            if @chatbot.meta['selected_features'].include?(feature)
+              @chatbot.meta['selected_features_titles'][feature] =
+                title
+            end
+          end
+        elsif @chatbot.meta['selected_features_titles'].blank?
+          # If no titles are provided and no default titles are set, set default titles
+          @chatbot.meta['selected_features_titles'] = Chatbot::DEFAULT_SELECTED_FEATURES_TITLES
+        end
       end
     end
   end

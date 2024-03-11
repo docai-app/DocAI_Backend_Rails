@@ -30,28 +30,53 @@ namespace :chatbot do
   end
 
   task add_selected_features: :environment do
+    default_titles = {
+      'chatting' => '基本問題',
+      'intelligent_mission' => '推薦功能',
+      'smart_extract_schema' => '數據生成',
+      'chatting_plus' => '專業對話'
+    }
+
     Apartment::Tenant.each do |tenant|
       Apartment::Tenant.switch!(tenant)
       puts "====== tenant: #{tenant} ======"
-      length = Chatbot.all.length
       puts "====== Total: #{Chatbot.all.length} chatbots ======"
+
       Chatbot.all.each do |chatbot|
         puts "====== chatbot: #{chatbot.inspect} ======"
 
-        # Set the default features if none are set
         chatbot.meta['selected_features'] ||= []
-        chatbot.meta['selected_features'] << 'chatting' unless chatbot.meta['selected_features'].include?('chatting')
-        unless chatbot.meta['selected_features'].include?('intelligent_mission')
-          chatbot.meta['selected_features'] << 'intelligent_mission'
+        updated = false
+
+        # Add default features if none are set
+        %w[chatting intelligent_mission].each do |feature|
+          unless chatbot.meta['selected_features'].include?(feature)
+            chatbot.meta['selected_features'] << feature
+            updated = true
+          end
         end
 
-        # Save the chatbot if there were any changes
-        chatbot.save if chatbot.changed?
+        # Initialize selected_features_titles if it does not exist
+        chatbot.meta['selected_features_titles'] ||= {}
 
-        length -= 1
-        puts "====== There are #{length} records left ======"
+        # Update titles for existing selected features
+        chatbot.meta['selected_features'].each do |feature|
+          unless chatbot.meta['selected_features_titles'].key?(feature)
+            chatbot.meta['selected_features_titles'][feature] = default_titles[feature]
+            updated = true
+          end
+        end
+
+        # Remove any titles for features that are not selected
+        chatbot.meta['selected_features_titles'].slice!(*chatbot.meta['selected_features'])
+
+        # Save the chatbot if there were any changes
+        chatbot.save if updated
+
+        puts "====== There are #{Chatbot.all.length - 1} records left ======"
       end
     end
-    puts 'All chatbots have been updated with default selected features.'
+
+    puts 'All chatbots have been updated with default selected features and titles.'
   end
 end
