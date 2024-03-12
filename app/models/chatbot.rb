@@ -33,6 +33,15 @@ class Chatbot < ApplicationRecord
 
   enum category: %i[qa chart_generation statistical_generation]
 
+  ALLOWED_SELECTED_FEATURES = %w[chatting intelligent_mission smart_extract_schema chatting_plus].freeze
+
+  DEFAULT_SELECTED_FEATURES_TITLES = {
+    'chatting' => '基本問題',
+    'intelligent_mission' => '推薦功能',
+    'smart_extract_schema' => '數據生成',
+    'chatting_plus' => '專業對話'
+  }.freeze
+
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
   belongs_to :object, polymorphic: true, optional: true, dependent: :destroy
   has_many :messages, -> { order('messages.created_at') }, dependent: :destroy
@@ -41,7 +50,13 @@ class Chatbot < ApplicationRecord
 
   after_create :set_permissions_to_owner
   after_create :handle_initial_publication
-  before_save :check_public_status_change
+  before_save :check_public_status_change, :check_default_values
+
+  validate :validate_selected_features
+
+  def check_default_values
+    self['meta']['language'] = '繁體中文' if self['meta']['language'].nil?
+  end
 
   def set_permissions_to_owner
     return if self['user_id'].nil?
@@ -145,5 +160,13 @@ class Chatbot < ApplicationRecord
   # unpublish from marketplace
   def unpublish_from_marketplace
     marketplace_item&.destroy
+  end
+
+  def validate_selected_features
+    return if meta['selected_features'].nil?
+
+    return if meta['selected_features'].all? { |feature| ALLOWED_SELECTED_FEATURES.include?(feature) }
+
+    errors.add(:meta, "selected_features can only include allowed features: #{ALLOWED_SELECTED_FEATURES.join(', ')}")
   end
 end
