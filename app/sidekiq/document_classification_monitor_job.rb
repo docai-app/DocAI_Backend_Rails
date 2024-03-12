@@ -27,12 +27,12 @@ class DocumentClassificationMonitorJob
       ).order('created_at': :desc)
       puts "====== Documents found: #{@documents.length} ======"
       if @documents.present? && @documents.count > 5
-        # DocumentClassificationJob.perform_async(@document.id, @document.label_ids.first, tenant)
         if ENV['IS_LOCAL'].present? && ENV['IS_LOCAL'] == 'true'
           puts '====== perform ====== local mode does not need classification training ======'
           next
         else
-          DocumentClassificationJob.perform_async(tenant)
+          puts '====== perform ====== classification training ======'
+          DocumentClassificationRetrainJob.perform_async(tenant)
         end
       else
         puts '====== no document needs classification ======'

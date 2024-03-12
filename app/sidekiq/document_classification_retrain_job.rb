@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
-class DocumentClassificationJob
+class DocumentClassificationRetrainJob
   include Sidekiq::Worker
 
-  sidekiq_options retry: 3, dead: true, queue: 'document_classification', throttle: { threshold: 1, period: 10.seconds }
+  sidekiq_options retry: 3, dead: true, queue: 'document_classification_retrain',
+                  throttle: { threshold: 1, period: 10.seconds }
 
   sidekiq_retry_in { |count| 1.hour * count }
 
