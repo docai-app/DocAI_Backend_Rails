@@ -66,7 +66,7 @@ class DocumentClassificationRetrainJob
       url: "#{ENV["DOCAI_ALPHA_URL"]}/classification/retrain",
       payload: { model: tenant, viewName: view_name }.to_json,
       headers: { content_type: :json, accept: :json },
-      timeout: 3000,
+      timeout: 6000,
     )
     JSON.parse(res)["status"] == "success"
   end
