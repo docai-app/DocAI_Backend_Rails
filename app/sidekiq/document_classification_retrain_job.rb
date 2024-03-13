@@ -63,7 +63,7 @@ class DocumentClassificationRetrainJob
   def train_model(tenant, view_name)
     res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/classification/retrain",
                           { model: tenant, viewName: view_name }.to_json,
-                          { content_type: :json, accept: :json })
+                          { content_type: :json, accept: :json }, timeout: 3000)
     JSON.parse(res)['status'] == 'success'
   end
 
