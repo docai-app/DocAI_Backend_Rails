@@ -18,7 +18,7 @@ class DocumentClassificationRetrainJob
     Apartment::Tenant.switch!(tenant)
     puts "====== Switch to Tenant: #{tenant} ======"
     documents_to_classify = fetch_documents_to_classify
-    if documents_to_classify.count > 5
+    if documents_to_classify.count > 20
       view_name = create_classification_view(tenant, Time.now.to_i)
       if train_model(tenant, view_name) && predict_first_document(tenant, view_name, documents_to_classify)
         update_documents_as_trained(documents_to_classify, tenant, view_name)

@@ -26,7 +26,7 @@ class DocumentClassificationMonitorJob
         'retry_count < ?', 3
       ).order('created_at': :desc)
       puts "====== Documents found: #{@documents.length} ======"
-      if @documents.present? && @documents.count > 5
+      if @documents.present? && @documents.count > 20
         if ENV['IS_LOCAL'].present? && ENV['IS_LOCAL'] == 'true'
           puts '====== perform ====== local mode does not need classification training ======'
           next
