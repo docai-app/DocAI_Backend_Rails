@@ -30,13 +30,9 @@ module Api
         assistant = @chatbot.assistant
         @chatbot_config['assistant'] = assistant.try(:name)
 
-        # binding.pry
-
         experts = @chatbot.experts
         @chatbot_config['experts'] = experts.pluck(:name).uniq
-        # binding.pry
 
-        # 要拎用到的工具出黎
         tool_config = chatbot_tools_config(@chatbot)
 
         agent_tools = {}
@@ -115,6 +111,7 @@ module Api
 
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
+          puts "Current metadata:: #{@metadata}"
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
