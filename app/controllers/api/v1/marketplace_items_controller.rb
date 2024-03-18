@@ -4,8 +4,11 @@ module Api
   module V1
     class MarketplaceItemsController < ApiController
       def index
-        @marketplace_items = MarketplaceItem.all.order(created_at: :desc)
-        @marketplace_items = Kaminari.paginate_array(@marketplace_items).page(params[:page])
+        ransack_params = {}
+        ransack_params[:chatbot_name_cont] = params[:chatbot_name] if params[:chatbot_name].present?
+
+        @marketplace_items = MarketplaceItem.ransack(ransack_params).result(distinct: true).page(params[:page])
+
         render json: { success: true, marketplace_items: @marketplace_items, meta: pagination_meta(@marketplace_items) },
                status: :ok
       rescue StandardError => e

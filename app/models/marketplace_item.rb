@@ -29,6 +29,10 @@ class MarketplaceItem < ApplicationRecord
   validates :chatbot_id, presence: true
   validates :entity_name, presence: true
 
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[chatbot_name]
+  end
+
   def purchase_by(user, custom_name = '', custom_description = '')
     ActiveRecord::Base.transaction do
       purchase = Purchase.create!(user:, marketplace_item: self, purchased_at: Time.current)
