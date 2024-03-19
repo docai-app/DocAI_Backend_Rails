@@ -29,7 +29,7 @@ namespace :chatbot do
     end
   end
 
-  task add_selected_features: :environment do
+  task add_selected_features_and_title: :environment do
     default_titles = {
       'chatting' => '基本問題',
       'intelligent_mission' => '推薦功能',
@@ -37,10 +37,16 @@ namespace :chatbot do
       'chatting_plus' => '專業對話'
     }
 
+    new_titles = {
+      'reading_comprehension' => '閱讀理解'
+      # If you need to add a new items, you can add it here as well.
+    }
+
     Apartment::Tenant.each do |tenant|
       Apartment::Tenant.switch!(tenant)
       puts "====== tenant: #{tenant} ======"
-      puts "====== Total: #{Chatbot.all.length} chatbots ======"
+      length = Chatbot.all.length
+      puts "====== Total: #{length} chatbots ======"
 
       Chatbot.all.each do |chatbot|
         puts "====== chatbot: #{chatbot.inspect} ======"
@@ -67,13 +73,23 @@ namespace :chatbot do
           end
         end
 
+        new_titles.each do |key, value|
+          # When the new key does not exist, only add it if it doesn't exist already, and keep the existing custom content.
+          if chatbot.meta['selected_features_titles'][key].nil?
+            chatbot.meta['selected_features_titles'][key] = value
+            updated = true
+          end
+        end
+
         # Remove any titles for features that are not selected
         chatbot.meta['selected_features_titles'].slice!(*chatbot.meta['selected_features'])
 
         # Save the chatbot if there were any changes
         chatbot.save if updated
 
-        puts "====== There are #{Chatbot.all.length - 1} records left ======"
+        length -= 1
+
+        puts "====== There are #{length} records left ======"
       end
     end
 
