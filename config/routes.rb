@@ -298,6 +298,9 @@ Rails.application.routes.draw do
           post 'general_users/purchase', to: 'marketplace_items#general_users_purchase'
         end
       end
+
+      # ********** General User Feed API ***********
+      resources :general_user_feeds, only: %i[index show create update destroy]
     end
 
     namespace :admin do
