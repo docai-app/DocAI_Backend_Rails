@@ -2,12 +2,12 @@
 
 module Api
   module V1
-    class GeneralUserFeedsController < ApplicationController
+    class GeneralUserFeedsController < ApiController
       before_action :authenticate_general_user!, only: %i[index show create update destroy]
 
       def index
         @general_user = current_general_user
-        @general_user_feeds = @general_user.general_user_feeds.order(created_at: :desc)
+        @general_user_feeds = @general_user.general_user_feeds.order(created_at: :desc).includes(:user_marketplace_item).as_json(include: :user_marketplace_item)
         @general_user_feeds = Kaminari.paginate_array(@general_user_feeds).page(params[:page])
 
         render json: { success: true, general_user_feeds: @general_user_feeds, meta: pagination_meta(@general_user_feeds) },
