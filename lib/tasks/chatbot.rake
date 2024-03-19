@@ -38,7 +38,11 @@ namespace :chatbot do
     }
 
     new_titles = {
-      'reading_comprehension' => '閱讀理解'
+      'chatting' => '基本問題',
+      'intelligent_mission' => '推薦功能',
+      'reading_comprehension' => '閱讀理解',
+      'smart_extract_schema' => '數據生成',
+      'chatting_plus' => '專業對話'
       # If you need to add a new items, you can add it here as well.
     }
 
