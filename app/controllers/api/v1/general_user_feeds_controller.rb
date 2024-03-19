@@ -7,7 +7,7 @@ module Api
 
       def index
         @general_user = current_general_user
-        @general_user_feeds = @general_user.general_user_feeds.order(created_at: :desc).includes(:user_marketplace_item).as_json(include: :user_marketplace_item)
+        @general_user_feeds = @general_user.general_user_feeds.order(created_at: :desc).as_json(include: :user_marketplace_item)
         @general_user_feeds = Kaminari.paginate_array(@general_user_feeds).page(params[:page])
 
         render json: { success: true, general_user_feeds: @general_user_feeds, meta: pagination_meta(@general_user_feeds) },
@@ -18,7 +18,7 @@ module Api
 
       def show
         @general_user = current_general_user
-        @general_user_feed = @general_user.general_user_feeds.find_by(id: params[:id])
+        @general_user_feed = @general_user.general_user_feeds.find_by(id: params[:id]).as_json(include: :user_marketplace_item)
         render json: { success: true, general_user_feed: @general_user_feed }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
