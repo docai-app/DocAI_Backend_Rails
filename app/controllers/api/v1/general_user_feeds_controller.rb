@@ -53,7 +53,8 @@ module Api
       private
 
       def general_user_feed_params
-        params.permit(:title, :description, :cover_image, :file_type, :file_url, :file_size, :user_marketplace_item_id)
+        params.permit(:title, :description, :cover_image, :file_type, :file_url, :file_size, :file_content,
+                      :user_marketplace_item_id)
       end
 
       def pagination_meta(object)
