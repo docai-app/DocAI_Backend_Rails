@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_319_050_143) do
+ActiveRecord::Schema[7.0].define(version: 20_240_320_055_509) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -343,6 +343,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_319_050_143) do
     t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.text 'file_content'
     t.index ['file_type'], name: 'index_general_user_feeds_on_file_type'
     t.index ['general_user_id'], name: 'index_general_user_feeds_on_general_user_id'
     t.index ['user_marketplace_item_id'], name: 'index_general_user_feeds_on_user_marketplace_item_id'
