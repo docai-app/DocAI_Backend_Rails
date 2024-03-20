@@ -28,10 +28,6 @@ module Api
 
       def show_marketplace_items
         @user = current_general_user
-        # @user_marketplace_items = @user.user_marketplace_items
-        # @user_marketplace_items = Kaminari.paginate_array(@user_marketplace_items).page(params[:page])
-        # render json: { success: true, user_marketplace_items: @user_marketplace_items, meta: pagination_meta(@user_marketplace_items) },
-        #        status: :ok
         search_query = @user.user_marketplace_items.ransack(custom_name_cont: params[:custom_name])
         @user_marketplace_items = search_query.result(distinct: true).page(params[:page])
         render json: { success: true, user_marketplace_items: @user_marketplace_items, meta: pagination_meta(@user_marketplace_items) },

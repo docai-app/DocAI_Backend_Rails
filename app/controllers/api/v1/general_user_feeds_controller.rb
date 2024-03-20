@@ -7,7 +7,8 @@ module Api
 
       def index
         @general_user = current_general_user
-        @general_user_feeds = @general_user.general_user_feeds.order(created_at: :desc).as_json(include: :user_marketplace_item)
+        search_query = @general_user.general_user_feeds.ransack(file_type_eq: params[:file_type])
+        @general_user_feeds = search_query.result(distinct: true).order(created_at: :desc).as_json(include: :user_marketplace_item)
         @general_user_feeds = Kaminari.paginate_array(@general_user_feeds).page(params[:page])
 
         render json: { success: true, general_user_feeds: @general_user_feeds, meta: pagination_meta(@general_user_feeds) },
