@@ -20,7 +20,5 @@ namespace :general_user do
     end
 
     puts 'Users import completed.'
-
-
   end
 end
