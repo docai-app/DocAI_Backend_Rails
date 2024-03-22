@@ -38,28 +38,25 @@ Trestle.resource(:assistant_agents) do
     column :version
     column :category
     # column :created_at, align: :center
+    column :duplicate, header: "複製", align: :center do |obj|
+      button_to "複製", duplicate_assistant_agents_admin_path(obj), class: "btn btn-primary btn-block"
+    end
     actions
   end
 
-  # Customize the form fields shown on the new/edit views.
-  #
-  # form do |assistant_agent|
-  #   text_field :name
-  #
-  #   row do
-  #     col { datetime_field :updated_at }
-  #     col { datetime_field :created_at }
-  #   end
-  # end
+  controller do
+    def duplicate
+      aa = AssistantAgent.find(params[:id])
+      dup_aa = aa.dup
+      dup_aa['name'] = "#{dup_aa['name']}#{複製}"
+      dup_aa.version = DateTime.current.to_date
+      dup_aa.save
+      redirect_back(fallback_location: assistant_agents_admin_path)
+    end
+  end
 
-  # By default, all parameters passed to the update and create actions will be
-  # permitted. If you do not have full trust in your users, you should explicitly
-  # define the list of permitted parameters.
-  #
-  # For further information, see the Rails documentation on Strong Parameters:
-  #   http://guides.rubyonrails.org/action_controller_overview.html#strong-parameters
-  #
-  # params do |params|
-  #   params.require(:assistant_agent).permit(:name, ...)
-  # end
+  routes do
+    post :duplicate, on: :member
+  end
+
 end

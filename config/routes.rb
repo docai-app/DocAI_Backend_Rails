@@ -89,6 +89,7 @@ Rails.application.routes.draw do
       post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
       post 'storage/upload/chatbot', to: 'storage#chatbot_upload'
       post 'storage/upload/general_user_file', to: 'storage#upload_general_user_file'
+      post 'storage/upload/general_user_file_by_url', to: 'storage#upload_general_user_file_by_url'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
