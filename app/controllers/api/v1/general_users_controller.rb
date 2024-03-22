@@ -4,7 +4,7 @@ module Api
   module V1
     class GeneralUsersController < ApiController
       before_action :authenticate_general_user!,
-                    only: %i[show show_current_user show_purchase_history create update delete]
+                    only: %i[show show_current_user show_purchase_history update delete]
 
       def show
         @user = current_general_user
