@@ -86,6 +86,7 @@ module Api
       def chatbot_upload
         file = params[:file]
         @chatbot = Chatbot.find(params[:chatbot_id])
+        classification_model_name = ClassificationModelVersion.where(entity_name: getSubdomain).order(created_at: :desc).first&.classification_model_name
         unless @chatbot.is_public == false
           return render json: { success: false, error: 'Cannot Upload File' },
                         status: :not_found
@@ -98,7 +99,7 @@ module Api
           documentProcessors(file, false)
           puts @document.inspect
           if @document.content.present?
-            res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.content.to_s)}&model=#{getSubdomain}"
+            res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.content.to_s)}&model=#{classification_model_name}"
             @label = Tag.find(JSON.parse(res)['label_id'])
             render json: { success: true, prediction: { label: @label, document: @document } },
                    status: :ok

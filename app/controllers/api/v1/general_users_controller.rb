@@ -28,8 +28,8 @@ module Api
 
       def show_marketplace_items
         @user = current_general_user
-        @user_marketplace_items = @user.user_marketplace_items
-        @user_marketplace_items = Kaminari.paginate_array(@user_marketplace_items).page(params[:page])
+        search_query = @user.user_marketplace_items.ransack(custom_name_cont: params[:custom_name])
+        @user_marketplace_items = search_query.result(distinct: true).page(params[:page])
         render json: { success: true, user_marketplace_items: @user_marketplace_items, meta: pagination_meta(@user_marketplace_items) },
                status: :ok
       rescue StandardError => e
@@ -71,6 +71,42 @@ module Api
         end
       end
 
+      def update
+        @user = current_general_user
+        if @user.update(user_params)
+          render json: { success: true, user: @user }, status: :ok
+        else
+          render json: { success: false, errors: @user.errors }, status: :ok
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      # Write a method to update user his own profile
+      def update_profile
+        @user = current_general_user
+        if @user.update(general_user_profile_params)
+          render json: { success: true, user: @user }, status: :ok
+        else
+          render json: { success: false, errors: @user.errors }, status: :ok
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      # Write a method to update user his own password
+      def update_password
+        @user = current_general_user
+        if @user.update_with_password({ current_password: params[:current_password], password: params[:password],
+                                        password_confirmation: params[:password_confirmation] })
+          render json: { success: true, user: @user }, status: :ok
+        else
+          render json: { success: false, errors: @user.errors }, status: :ok
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       def destroy_file
         @user = current_general_user
         @user.general_user_files.find_by(id: params[:id]).destroy
@@ -83,6 +119,10 @@ module Api
 
       def user_params
         params.permit(:email, :password, :nickname, :phone, :date_of_birth, :sex)
+      end
+
+      def general_user_profile_params
+        params.permit(:nickname, :phone, :date_of_birth, :sex)
       end
 
       def pagination_meta(object)

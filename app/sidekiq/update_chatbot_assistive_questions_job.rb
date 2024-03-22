@@ -16,6 +16,7 @@ class UpdateChatbotAssistiveQuestionsJob
     puts "====== perform ====== chatbot_id: #{chatbot_id} metadata: #{metadata} subdomain: #{subdomain}"
     Apartment::Tenant.switch!(subdomain)
     @chatbot = Chatbot.find(chatbot_id)
+    metadata['language'] = @chatbot.meta['language'] || '繁體中文'
     @chatbot.update_assistive_questions(subdomain, metadata)
   end
 end

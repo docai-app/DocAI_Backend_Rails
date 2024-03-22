@@ -33,13 +33,15 @@ class Chatbot < ApplicationRecord
 
   enum category: %i[qa chart_generation statistical_generation]
 
-  ALLOWED_SELECTED_FEATURES = %w[chatting intelligent_mission smart_extract_schema chatting_plus].freeze
+  ALLOWED_SELECTED_FEATURES = %w[chatting intelligent_mission smart_extract_schema chatting_plus
+                                 reading_comprehension].freeze
 
   DEFAULT_SELECTED_FEATURES_TITLES = {
     'chatting' => '基本問題',
     'intelligent_mission' => '推薦功能',
     'smart_extract_schema' => '數據生成',
-    'chatting_plus' => '專業對話'
+    'chatting_plus' => '專業對話',
+    'reading_comprehension' => '閱讀理解'
   }.freeze
 
   belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'

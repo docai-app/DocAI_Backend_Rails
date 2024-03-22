@@ -32,6 +32,10 @@ class UserMarketplaceItem < ApplicationRecord
   belongs_to :purchase
   has_many :messages, dependent: :destroy
 
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[custom_name]
+  end
+
   def save_message(user, role, object_type, content, meta = {})
     messages.create!(
       user:,

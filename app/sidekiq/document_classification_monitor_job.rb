@@ -24,13 +24,16 @@ class DocumentClassificationMonitorJob
       puts "====== tenant: #{tenant} ======"
       @documents = Document.where(is_classified: true).where.not(content: nil).where.not(content: '').where('LENGTH(content) > ?', 10).where(is_document: true).where(is_classifier_trained: false).where(
         'retry_count < ?', 3
-      ).order('created_at': :desc).first(20)
+      ).order('created_at': :desc)
       puts "====== Documents found: #{@documents.length} ======"
-      if @documents.present?
-        @document = @documents.first
-        puts "====== document id: #{@document.id} needs classification ======"
-        puts "====== document label: #{@document.label_ids.first} ======"
-        DocumentClassificationJob.perform_async(@document.id, @document.label_ids.first, tenant)
+      if @documents.present? && @documents.count > 20
+        if ENV['IS_LOCAL'].present? && ENV['IS_LOCAL'] == 'true'
+          puts '====== perform ====== local mode does not need classification training ======'
+          next
+        else
+          puts '====== perform ====== classification training ======'
+          DocumentClassificationRetrainJob.perform_async(tenant)
+        end
       else
         puts '====== no document needs classification ======'
       end

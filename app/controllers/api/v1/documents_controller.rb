@@ -99,8 +99,9 @@ module Api
       # Show and Predict the Latest Uploaded Document
       def show_latest_predict
         @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
+        classification_model_name = ClassificationModelVersion.where(entity_name: getSubdomain).order(created_at: :desc).first&.classification_model_name
         if @document.present?
-          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{classification_model_name}"
           puts "res: #{res}"
           @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, meta: pagination_meta(@document) },
@@ -121,8 +122,9 @@ module Api
         @confirmed_count = @current_user_documents.where(status: :confirmed).where('created_at >= ?', params[:date].to_date).where(
           'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).count
+        classification_model_name = ClassificationModelVersion.where(entity_name: getSubdomain).order(created_at: :desc).first&.classification_model_name
         if @document.present?
-          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{classification_model_name}"
           @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count, meta: pagination_meta(@document) },
                  status: :ok

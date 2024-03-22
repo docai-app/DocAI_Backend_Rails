@@ -290,6 +290,8 @@ Rails.application.routes.draw do
           get 'me/marketplace_items/:id', to: 'general_users#show_marketplace_item'
           get 'me/files', to: 'general_users#show_files'
           delete 'me/files/:id', to: 'general_users#destroy_file'
+          put 'me/profile', to: 'general_users#update_profile'
+          put 'me/password', to: 'general_users#update_password'
         end
       end
 
@@ -299,6 +301,9 @@ Rails.application.routes.draw do
           post 'general_users/purchase', to: 'marketplace_items#general_users_purchase'
         end
       end
+
+      # ********** General User Feed API ***********
+      resources :general_user_feeds, only: %i[index show create update destroy]
     end
 
     namespace :admin do

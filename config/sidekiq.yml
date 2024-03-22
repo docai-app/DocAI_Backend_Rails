@@ -2,6 +2,7 @@
 :queues:
   - ['default', 1]
   - ['document_classification', 1]
+  - ['document_classification_retrain', 1]
   - ['document_classification_monitor_job', 1]
   - ['ocr', 1]
   - ['ocr_monitor_job', 1]
@@ -19,7 +20,7 @@
 
 :schedule:
   DocumentClassificationMonitorJob:
-    every: '600s'
+    every: '1800s'
     queue: document_classification_monitor_job
     enabled: true
   OcrMonitorJob:

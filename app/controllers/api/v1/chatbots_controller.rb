@@ -6,8 +6,8 @@ module Api
       include Authenticatable
 
       before_action :authenticate,
-                    only: %i[show create update destroy mark_messages_read general_user_chat_with_bot]
-      before_action :authenticate_general_user!, only: %i[fetch_general_user_chat_history]
+                    only: %i[show create update destroy mark_messages_read]
+      before_action :authenticate_general_user!, only: %i[fetch_general_user_chat_history general_user_chat_with_bot]
       before_action :current_user_chatbots, only: %i[index]
 
       def index
@@ -30,13 +30,9 @@ module Api
         assistant = @chatbot.assistant
         @chatbot_config['assistant'] = assistant.try(:name)
 
-        # binding.pry
-
         experts = @chatbot.experts
         @chatbot_config['experts'] = experts.pluck(:name).uniq
-        # binding.pry
 
-        # 要拎用到的工具出黎
         tool_config = chatbot_tools_config(@chatbot)
 
         agent_tools = {}
@@ -115,6 +111,7 @@ module Api
 
         if @chatbot.update(chatbot_params)
           @metadata = chatbot_documents_metadata(@chatbot)
+          puts "Current metadata:: #{@metadata}"
           UpdateChatbotAssistiveQuestionsJob.perform_async(@chatbot.id, @metadata, getSubdomain)
           render json: { success: true, chatbot: @chatbot }, status: :ok
         else
