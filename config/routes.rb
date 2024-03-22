@@ -89,6 +89,7 @@ Rails.application.routes.draw do
       post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
       post 'storage/upload/chatbot', to: 'storage#chatbot_upload'
       post 'storage/upload/general_user_file', to: 'storage#upload_general_user_file'
+      post 'storage/upload/general_user_file_by_url', to: 'storage#upload_general_user_file_by_url'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
@@ -289,6 +290,8 @@ Rails.application.routes.draw do
           get 'me/marketplace_items/:id', to: 'general_users#show_marketplace_item'
           get 'me/files', to: 'general_users#show_files'
           delete 'me/files/:id', to: 'general_users#destroy_file'
+          put 'me/profile', to: 'general_users#update_profile'
+          put 'me/password', to: 'general_users#update_password'
         end
       end
 
