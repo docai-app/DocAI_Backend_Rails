@@ -38,8 +38,8 @@ Trestle.resource(:assistant_agents) do
     column :version
     column :category
     # column :created_at, align: :center
-    column :duplicate, header: "複製", align: :center do |obj|
-      button_to "複製", duplicate_assistant_agents_admin_path(obj), class: "btn btn-primary btn-block"
+    column :duplicate, header: '複製', align: :center do |obj|
+      button_to '複製', duplicate_assistant_agents_admin_path(obj), class: 'btn btn-primary btn-block'
     end
     actions
   end
@@ -58,5 +58,4 @@ Trestle.resource(:assistant_agents) do
   routes do
     post :duplicate, on: :member
   end
-
 end
