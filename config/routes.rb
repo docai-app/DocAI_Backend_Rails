@@ -27,6 +27,24 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      # ********** TAXO API *********
+      resources :conceptmaps do
+        # member do
+        #   get 'concept_options'
+        #   get 'markdown'
+        #   get 'qa_documents'
+        #   get 'search_documents'
+        #   get 'recommand_epaper'
+        #   get 'nodes' # 比 taxo loader 用
+        # end
+  
+        collection do
+          # get 'dropdown_options'
+          # get 'select_options'
+          post 'taxo_creator'
+        end
+      end
+
       # **********做評估 API**********
       resources :assessment_records, only: %i[create index show update destroy] do
       end
