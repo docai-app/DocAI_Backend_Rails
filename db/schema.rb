@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_325_092_037) do
+ActiveRecord::Schema[7.0].define(version: 20_240_327_053_744) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -143,6 +143,28 @@ ActiveRecord::Schema[7.0].define(version: 20_240_325_092_037) do
     t.datetime 'updated_at', null: false
     t.index ['entity_name'], name: 'index_classification_model_versions_on_entity_name'
     t.index ['pervious_version_id'], name: 'index_classification_model_versions_on_pervious_version_id'
+  end
+
+  create_table 'conceptmaps', force: :cascade do |t|
+    t.string 'name'
+    t.uuid 'root_node'
+    t.integer 'status'
+    t.string 'introduction'
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['root_node'], name: 'index_conceptmaps_on_root_node'
+  end
+
+  create_table 'concepts', force: :cascade do |t|
+    t.string 'source'
+    t.string 'name'
+    t.uuid 'root_node'
+    t.jsonb 'meta', default: {}, null: false
+    t.integer 'sort'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['root_node'], name: 'index_concepts_on_root_node'
   end
 
   create_table 'cors', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -396,6 +418,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_325_092_037) do
     t.index ['jti'], name: 'index_jwt_denylist_on_jti'
   end
 
+  create_table 'kg_linkers', force: :cascade do |t|
+    t.string 'map_from_type', null: false
+    t.bigint 'map_from_id', null: false
+    t.string 'map_to_type', null: false
+    t.bigint 'map_to_id', null: false
+    t.jsonb 'meta', default: {}, null: false
+    t.string 'relation'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index %w[map_from_id map_from_type], name: 'fk_map_from'
+    t.index %w[map_from_type map_from_id], name: 'index_kg_linkers_on_map_from'
+    t.index %w[map_to_id map_to_type], name: 'fk_map_to'
+    t.index %w[map_to_type map_to_id], name: 'index_kg_linkers_on_map_to'
+  end
+
   create_table 'log_messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.uuid 'chatbot_id', null: false
     t.uuid 'session_id', null: false
@@ -561,7 +598,9 @@ ActiveRecord::Schema[7.0].define(version: 20_240_325_092_037) do
     t.jsonb 'meta', default: {}
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.uuid 'entity_id'
     t.index ['dag_id'], name: 'index_scheduled_tasks_on_dag_id'
+    t.index ['entity_id'], name: 'index_scheduled_tasks_on_entity_id'
     t.index %w[user_type user_id], name: 'index_scheduled_tasks_on_user'
   end
 
