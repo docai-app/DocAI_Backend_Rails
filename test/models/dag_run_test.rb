@@ -15,6 +15,7 @@
 #  updated_at       :datetime         not null
 #  airflow_accepted :boolean          default(FALSE), not null
 #  tanent           :string
+#  user_type        :string           default("User"), not null
 #
 # Indexes
 #

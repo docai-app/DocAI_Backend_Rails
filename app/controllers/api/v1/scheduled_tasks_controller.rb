@@ -2,7 +2,7 @@
 
 module Api
   module V1
-    class ScheduledTasksController < ApiControlle
+    class ScheduledTasksController < ApiController
       def create
         workflow_id = params[:workflow_id]
         cron = params[:cron]
