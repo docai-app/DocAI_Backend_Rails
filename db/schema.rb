@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_327_053_744) do
+ActiveRecord::Schema[7.0].define(version: 20_240_327_063_545) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -187,6 +187,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_327_053_744) do
     t.datetime 'updated_at', null: false
     t.boolean 'airflow_accepted', default: false, null: false
     t.string 'tanent'
+    t.string 'user_type'
     t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
     t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
     t.index ['tanent'], name: 'index_dag_runs_on_tanent'

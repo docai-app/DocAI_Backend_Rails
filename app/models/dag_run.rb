@@ -39,7 +39,7 @@ class DagRun < ApplicationRecord
   #   {"name"=>"task3", "content"=>"xxxxxx"}
   # ]
 
-  belongs_to :user, optional: true
+  belongs_to :user, optional: true, polymorphic: true
 
   after_update :handle_finish_status, if: :status_changed_to_finish?
 

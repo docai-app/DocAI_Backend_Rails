@@ -13,7 +13,7 @@ class DagScheduleJob
     _message = "error: #{msg['error_message']}"
   end
 
-  def perform(_dag_id, _cron, _user_id, _entity_name)
+  def perform(_dag_name, _cron, _user_id, _entity_name)
     Apartment::Tenant.switch!(subdomain)
 
     tanent = Utils.extractRequestTenantByToken(request)
