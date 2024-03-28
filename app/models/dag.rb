@@ -25,7 +25,7 @@ require 'tempfile'
 class Dag < ApplicationRecord
   store_accessor :meta # , :original_name
 
-  belongs_to :user
+  belongs_to :user, optional: true, polymorphic: true
 
   before_save :name_no_space
   after_save :sync_to_airflow
