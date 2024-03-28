@@ -89,6 +89,9 @@ class DagRun < ApplicationRecord
         chatbot_id: chatbot.id
       }
     )
+
+    # if self['meta']['user_type'] == 'GeneralUser'
+    #   GeneralUserFeed.create('file_type' =>
   end
 
   def reset_init!
