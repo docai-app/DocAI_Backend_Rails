@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_327_063_545) do
+ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -187,7 +187,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_327_063_545) do
     t.datetime 'updated_at', null: false
     t.boolean 'airflow_accepted', default: false, null: false
     t.string 'tanent'
-    t.string 'user_type'
+    t.string 'user_type', default: 'User', null: false
     t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
     t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
     t.index ['tanent'], name: 'index_dag_runs_on_tanent'
@@ -530,6 +530,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_327_063_545) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.uuid 'assignee_id'
+    t.string 'user_type', default: 'User', null: false
     t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
     t.index ['status'], name: 'index_project_workflow_steps_on_status'
     t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
@@ -548,6 +549,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_327_063_545) do
     t.uuid 'folder_id'
     t.boolean 'is_template', default: false, null: false
     t.uuid 'source_workflow_id'
+    t.string 'user_type', default: 'User', null: false
     t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
     t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
     t.index ['source_workflow_id'], name: 'index_project_workflows_on_source_workflow_id'
