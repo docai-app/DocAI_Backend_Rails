@@ -16,5 +16,10 @@ class KgLinker < ApplicationRecord
     linker.destroy
   end
 
+  def self.add_student_relation(teacher: , student:)
+    linker = KgLinker.new(map_from: teacher, map_to: student)
+    linker.relation = "has_student"
+    linker.save
+  end
 
 end
