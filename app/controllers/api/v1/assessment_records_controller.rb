@@ -5,7 +5,7 @@ module Api
     class AssessmentRecordsController < ApiController
       include Authenticatable
 
-      before_action :authenticate, only: %i[show create update destroy]
+      before_action :authenticate_general_user!, only: %i[show create update destroy]
 
       def show
         @ar = AssessmentRecord.find(params[:id])
@@ -15,10 +15,11 @@ module Api
       def index; end
 
       def create
-        @ar = AssessmentRecord.new(assessment_record_params)
-        @ar.recordable = current_user
+        @ar = AssessmentRecord.new
+        @ar.recordable = current_general_user
         @ar.meta = params['assessment_record']['meta']
         @ar.record = params['assessment_record']['record']
+        @ar.title = @ar.meta['topic']
         if @ar.save
           render json: { success: true, assessment_record: @ar }, status: :ok
         else
