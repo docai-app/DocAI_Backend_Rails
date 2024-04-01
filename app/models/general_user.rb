@@ -80,9 +80,10 @@ class GeneralUser < ApplicationRecord
   def method_missing(method_name, *arguments, &block)
     if method_name.to_s.start_with?('linked_')
       relation_name = method_name.to_s.sub('linked_', '')
+      singular_relation_name = relation_name.to_s.singularize
       
       # 调用动态处理关系的私有方法
-      return linkable_relation(relation_name) if respond_to_relation?(relation_name)
+      return linkable_relation(singular_relation_name) if respond_to_relation?(relation_name)
     end
 
     super
@@ -99,25 +100,12 @@ class GeneralUser < ApplicationRecord
 
   def linkable_relation(relation_name)
     # 查询符合条件的KgLinker记录
-    # linkers = KgLinker.where(map_from: self, relation: "linked_#{relation_name}")
     linkers = KgLinker.where(map_from: self, relation: "has_#{relation_name}")
-
-    # arr = []
-    # # 根据KgLinker记录动态查找map_to对象的实例
-    # objects = linkers.each_with_object([]) do |linker, arr|
-    #   # 使用constantize将map_to_type转换为对应的类，然后使用find查询实例
-    #   map_to_class = linker.map_to_type.constantize
-    #   arr << map_to_class.find_by(id: linker.map_to_id)
-    # end
-
-    # arr
-    # objects.compact # 移除nil元素，以防map_to_id没有找到对应的记录
 
     # 假設左 link 出來的 object 是同一個 type
     return [] if linkers.empty?
     
     map_to_class = linkers.first.map_to_type.constantize
-
     map_to_class.where(id: linkers.pluck(:map_to_id))
   end
 

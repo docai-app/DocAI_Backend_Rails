@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_03_26_051317) do
+ActiveRecord::Schema[7.0].define(version: 2024_04_01_072956) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -185,6 +185,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_26_051317) do
     t.datetime "updated_at", null: false
     t.boolean "airflow_accepted", default: false, null: false
     t.string "tanent"
+    t.string "user_type", default: "User", null: false
     t.index ["airflow_accepted"], name: "index_dag_runs_on_airflow_accepted"
     t.index ["dag_status"], name: "index_dag_runs_on_dag_status"
     t.index ["tanent"], name: "index_dag_runs_on_tanent"
@@ -418,17 +419,15 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_26_051317) do
 
   create_table "kg_linkers", force: :cascade do |t|
     t.string "map_from_type", null: false
-    t.bigint "map_from_id", null: false
     t.string "map_to_type", null: false
-    t.bigint "map_to_id", null: false
     t.jsonb "meta", default: {}, null: false
     t.string "relation"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["map_from_id", "map_from_type"], name: "fk_map_from"
-    t.index ["map_from_type", "map_from_id"], name: "index_kg_linkers_on_map_from"
-    t.index ["map_to_id", "map_to_type"], name: "fk_map_to"
-    t.index ["map_to_type", "map_to_id"], name: "index_kg_linkers_on_map_to"
+    t.uuid "map_from_id"
+    t.uuid "map_to_id"
+    t.index ["map_from_id"], name: "index_kg_linkers_on_map_from_id"
+    t.index ["map_to_id"], name: "index_kg_linkers_on_map_to_id"
   end
 
   create_table "log_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -527,6 +526,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_26_051317) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.uuid "assignee_id"
+    t.string "user_type", default: "User", null: false
     t.index ["project_workflow_id"], name: "index_project_workflow_steps_on_project_workflow_id"
     t.index ["status"], name: "index_project_workflow_steps_on_status"
     t.index ["user_id"], name: "index_project_workflow_steps_on_user_id"
@@ -545,6 +545,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_26_051317) do
     t.uuid "folder_id"
     t.boolean "is_template", default: false, null: false
     t.uuid "source_workflow_id"
+    t.string "user_type", default: "User", null: false
     t.index ["folder_id"], name: "index_project_workflows_on_folder_id"
     t.index ["is_process_workflow"], name: "index_project_workflows_on_is_process_workflow"
     t.index ["source_workflow_id"], name: "index_project_workflows_on_source_workflow_id"
@@ -596,7 +597,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_26_051317) do
     t.jsonb "meta", default: {}
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.uuid "entity_id"
     t.index ["dag_id"], name: "index_scheduled_tasks_on_dag_id"
+    t.index ["entity_id"], name: "index_scheduled_tasks_on_entity_id"
     t.index ["user_type", "user_id"], name: "index_scheduled_tasks_on_user"
   end
 
