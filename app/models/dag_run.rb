@@ -92,7 +92,8 @@ class DagRun < ApplicationRecord
     )
 
     # if self['meta']['user_type'] == 'GeneralUser'
-    #   GeneralUserFeed.create('file_type' =>
+    #   GeneralUserFeed.create('file_type' => Utils.determine_file_type(self.meta['status_stack'].last['content']), 'file_content' => self.meta['status_stack'].last['content'], 'user_id' => self['meta']['user_id'], 'user_marketplace_item_id' => self['meta']['user_marketplace_item_id'])
+    # end
   end
 
   def reset_init!
