@@ -9,16 +9,33 @@ namespace :general_user do
     file_path = '/Users/chonwai/Downloads/general_users.csv'
 
     CSV.foreach(file_path, headers: true) do |row|
-      GeneralUser.create!(
+      @user = GeneralUser.create!(
         email: row['email'],
         password: row['password'],
         nickname: "#{row['class']} #{row['name']}"
       )
+      @user.create_energy(value: 100)
       puts "Imported #{row['email']} successfully."
     rescue StandardError => e
       puts "Failed to import #{row['email']}: #{e.message}"
     end
 
     puts 'Users import completed.'
+  end
+
+  desc 'Purchase a marketplace item for all general users'
+  task :purchase_a_marketplace_item_for_all_general_users, [:marketplace_item_id] => :environment do |_t, args|
+    marketplace_item = MarketplaceItem.find(args[:marketplace_item_id])
+
+    GeneralUser.find_each do |user|
+      custom_name = marketplace_item.chatbot_name
+      custom_description = marketplace_item.chatbot_description
+
+      if marketplace_item.purchase_by(user, custom_name, custom_description)
+        puts "User #{user.email} purchased item #{marketplace_item.id} successfully."
+      else
+        puts "Purchase failed for user #{user.email}."
+      end
+    end
   end
 end

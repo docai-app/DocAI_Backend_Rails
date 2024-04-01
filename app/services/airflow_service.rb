@@ -9,7 +9,7 @@ class AirflowService
 
   def self.run_dag(dr)
     # 因為呢個系統入邊係有 tanent 的，所以要搵返個 user 出黎，switch tanent
-    Apartment::Tanent.switch!(dr.tanent)
+    Apartment::Tenant.switch!(dr.tanent)
 
     dag_run = DagRun.find(dr.id) # 強制 reload 一次
 
