@@ -102,14 +102,23 @@ class GeneralUser < ApplicationRecord
     # linkers = KgLinker.where(map_from: self, relation: "linked_#{relation_name}")
     linkers = KgLinker.where(map_from: self, relation: "has_#{relation_name}")
 
-    # 根据KgLinker记录动态查找map_to对象的实例
-    objects = linkers.each_with_object([]) do |linker, arr|
-      # 使用constantize将map_to_type转换为对应的类，然后使用find查询实例
-      map_to_class = linker.map_to_type.constantize
-      arr << map_to_class.find_by(id: linker.map_to_id)
-    end
+    # arr = []
+    # # 根据KgLinker记录动态查找map_to对象的实例
+    # objects = linkers.each_with_object([]) do |linker, arr|
+    #   # 使用constantize将map_to_type转换为对应的类，然后使用find查询实例
+    #   map_to_class = linker.map_to_type.constantize
+    #   arr << map_to_class.find_by(id: linker.map_to_id)
+    # end
 
-    objects.compact # 移除nil元素，以防map_to_id没有找到对应的记录
+    # arr
+    # objects.compact # 移除nil元素，以防map_to_id没有找到对应的记录
+
+    # 假設左 link 出來的 object 是同一個 type
+    return [] if linkers.empty?
+    
+    map_to_class = linkers.first.map_to_type.constantize
+
+    map_to_class.where(id: linkers.pluck(:map_to_id))
   end
 
   def respond_to_relation?(relation_name)
