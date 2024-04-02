@@ -19,7 +19,7 @@ module Api
         @ar.recordable = current_general_user
         @ar.meta = params['assessment_record']['meta']
         @ar.record = params['assessment_record']['record']
-        @ar.title = @ar.meta["topic"]
+        @ar.title = @ar.meta['topic']
         if @ar.save
           render json: { success: true, assessment_record: @ar }, status: :ok
         else

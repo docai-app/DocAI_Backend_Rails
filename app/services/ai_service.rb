@@ -116,22 +116,36 @@ class AiService
     data.reject { |x| x['content'].to_s.empty? || x['name'] == 'user_proxy' }.last
   end
 
-  # def self.assistantMultiagent(query, schema, metadata, smart_extraction_schemas)
-  #   res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/documents/multiagent/qa", {
-  #     query:,
-  #     schema:,
-  #     metadata:,
-  #     smart_extraction_schemas: smart_extraction_schemas.pluck(:name, :id).to_h
-  #   }.to_json, { content_type: :json, accept: :json })
-  #   res = JSON.parse(res)
-  #   puts "Response from document multiagent ask: #{res}"
+  def self.generateTreeBySearchingDocuments(documents)
+    puts "GenerateTreeBySearchingDocuments: #{documents}"
+    # response = RestClient::Request.execute(
+    #   method: :post,
+    #   url: "#{ENV['PORMHUB_URL']}/prompts/docai_documents_search_tree/run.json",
+    #   payload: {
+    #     params: {
+    #       documents: documents
+    #     }
+    #   }.to_json,
+    #   headers: { content_type: :json, accept: :json },
+    #   timeout: 6000,
+    #   open_timeout: 10
+    # )
+    # res = JSON.parse(response)
 
-  #   # binding.pry
+    # uri = URI("#{ENV['PORMHUB_URL']}/prompts/docai_documents_search_tree/run.json")
+    uri = URI("#{ENV['DOCAI_ALPHA_URL']}/generate/search_documents/tree")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == 'https'
+    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json', 'Accept' => 'application/json')
+    # request.body = { params: {
+    #   documents:
+    # } }.to_json
+    request.body = { documents: }.to_json
+    http.read_timeout = 900_000
+    response = http.request(request)
+    res = JSON.parse(response.body)
+    puts "Response from OpenAI: #{res['result']}"
 
-  #   if res['status'] == true
-  #     res['suggestion']
-  #   else
-  #     res['message']
-  #   end
-  # end
+    res['result']['tree']
+  end
 end

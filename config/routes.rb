@@ -37,7 +37,7 @@ Rails.application.routes.draw do
         #   get 'recommand_epaper'
         #   get 'nodes' # 比 taxo loader 用
         # end
-  
+
         collection do
           # get 'dropdown_options'
           # get 'select_options'
