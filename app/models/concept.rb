@@ -1,5 +1,6 @@
-class Concept < ApplicationRecord
+# frozen_string_literal: true
 
+class Concept < ApplicationRecord
   store_accessor :meta, :conceptmap_name, :conceptmap_id, :introduction
   acts_as_tree order: :sort
 
@@ -28,7 +29,8 @@ class Concept < ApplicationRecord
 
   def conceptmap
     return Conceptmap.find(conceptmap_id) if conceptmap_id.present?
-    Conceptmap.where(root_node: root_node).first
+
+    Conceptmap.where(root_node:).first
   end
 
   def all_parents
@@ -44,33 +46,33 @@ class Concept < ApplicationRecord
   def descendants
     res = []
     children.each do |child|
-      if child.children.empty?
-        res << child
-      else
-        res << child.descendants
-      end
+      res << if child.children.empty?
+               child
+             else
+               child.descendants
+             end
     end
     res
   end
 
   def add_child(child_name)
-    rnid = root_node || self.id
-    child = children.create(name: child_name, school_id: school_id, source: source, major: major, root_node: rnid)
-    child
+    rnid = root_node || id
+    children.create(name: child_name, school_id:, source:, major:, root_node: rnid)
   end
-  
+
   def node_children_json
-    if children.count == 0
-      { 'meta': {'concept_id': id, 'key_point': key_point}, 'content': name, 'children': [] }
+    if children.count.zero?
+      { 'meta': { 'concept_id': id, 'key_point': key_point }, 'content': name, 'children': [] }
     else
-      { 'meta': {'concept_id': id, 'key_point': key_point} , 'content': name, 'children': children.map(&:node_children_json)}
+      { 'meta': { 'concept_id': id, 'key_point': key_point }, 'content': name,
+        'children': children.map(&:node_children_json) }
     end
   end
 
   # root node should call only
   def reset_children_root_node(root_id = nil)
-    root_id = self.id if root_id.nil?
-    self.children.each do |child|
+    root_id = id if root_id.nil?
+    children.each do |child|
       child.update(root_node: root_id)
       child.reset_children_root_node(root_id)
     end
@@ -80,9 +82,7 @@ class Concept < ApplicationRecord
   # 如果冇 set 過 key_point, 就真係 leaves
   def leaves
     concepts = Concept.where(root_node: id).where(key_point: true)
-    if concepts.empty?
-      concepts = Concept.leaves.where(root_node: id)
-    end
+    concepts = Concept.leaves.where(root_node: id) if concepts.empty?
     concepts
   end
 
@@ -102,5 +102,4 @@ class Concept < ApplicationRecord
     # binding.pry
     KgLinker.where(map_from_type: 'Concept', map_from_id: can_delete_ids).destroy_all
   end
-
 end

@@ -112,15 +112,16 @@ module Api
       end
 
       def upload_general_user_file_by_url
-        content_type = params[:content_type] || 'image'
+        params[:content_type] || 'image'
         user_marketplace_item_id = params[:user_marketplace_item_id] || nil
         title = params[:title] || nil
         file_url = params[:url] || params[:file_url]
         file_size = Utils.calculate_file_size_by_url(file_url)
         GeneralUserFile.create!(
           general_user_id: current_general_user.id,
-          file_type: Utils.determine_file_type(file_url), 
-          file_url:, file_size:, user_marketplace_item_id: user_marketplace_item_id, title:)
+          file_type: Utils.determine_file_type(file_url),
+          file_url:, file_size:, user_marketplace_item_id:, title:
+        )
         render json: { success: true, file_url: }, status: :ok
       end
 

@@ -37,7 +37,7 @@ Rails.application.routes.draw do
         #   get 'recommand_epaper'
         #   get 'nodes' # 比 taxo loader 用
         # end
-  
+
         collection do
           # get 'dropdown_options'
           # get 'select_options'
@@ -47,6 +47,10 @@ Rails.application.routes.draw do
 
       # **********做評估 API**********
       resources :assessment_records, only: %i[create index show update destroy] do
+        collection do
+          post 'students'
+          post 'students/:uuid', to: 'assessment_records#show_student_assessments'
+        end
       end
 
       # **********Documents API**********

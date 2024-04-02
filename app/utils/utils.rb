@@ -21,6 +21,24 @@ class Utils
     {}
   end
 
+  def self.cleansingContentFromLLM(content)
+    json_regex = /{[\s\S]*?}/m
+    json_match = content.match(json_regex)
+
+    if json_match
+      json_str = json_match.to_s
+      puts "json_str: #{json_str}"
+      json_obj = JSON.parse(json_str)
+      puts "json_obj: #{json_obj}"
+      return json_obj
+    else
+      puts 'No JSON found in the paragraph'
+      return {}
+    end
+
+    {}
+  end
+
   def self.matchingKeys?(base_structure, comparison_structure)
     # Extract keys from both base_structure and comparison_structure
     base_keys = base_structure.keys

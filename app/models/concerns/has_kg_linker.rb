@@ -1,20 +1,19 @@
+# frozen_string_literal: true
+
 # app/models/concerns/linkable.rb
 module HasKgLinker
   extend ActiveSupport::Concern
 
   included do
-    
   end
 
   class_methods do
     def method_missing(method_name, *arguments, &block)
       puts method_name
-      if method_name.to_s == 'linked_students'
-        binding.pry
-      end
+      binding.pry if method_name.to_s == 'linked_students'
       if method_name.to_s.start_with?('linked_')
         relation_name = method_name.to_s.sub('linked_', '')
-        
+
         # 调用动态处理关系的私有方法
         return linkable_relation(relation_name) if respond_to_relation?(relation_name)
       end
@@ -24,9 +23,7 @@ module HasKgLinker
 
     def respond_to_missing?(method_name, include_private = false)
       puts method_name
-      if method_name.to_s == 'linked_students'
-        binding.pry
-      end
+      binding.pry if method_name.to_s == 'linked_students'
       if method_name.to_s.start_with?('linked_')
         relation_name = method_name.to_s.sub('linked_', '')
         # if relation_name == 'students'
@@ -53,7 +50,7 @@ module HasKgLinker
       objects.compact # 移除nil元素，以防map_to_id没有找到对应的记录
     end
 
-    def respond_to_relation?(relation_name)
+    def respond_to_relation?(_relation_name)
       # 假设总是返回true，或者你需要一些逻辑来验证这个关系是否有效
       true
     end

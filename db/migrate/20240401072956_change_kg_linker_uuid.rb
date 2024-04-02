@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ChangeKgLinkerUuid < ActiveRecord::Migration[7.0]
   def up
     # 为map_from_id和map_to_id添加新的UUID列

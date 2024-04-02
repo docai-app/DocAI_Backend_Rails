@@ -82,18 +82,13 @@ module Api
         conditions = conditions.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
         conditions = conditions.select('id')
 
-        @documents = filter_documents_by_conditions(conditions)
+        @documents = filter_documents_by_conditions(conditions,
+                                                    'label_list folder_id user labels meta updated_at approval_status approval_user_id approval_at upload_local_path is_classified status is_classifier_trained is_embedded error_message retry_count')
+        tree = AiService.generateTreeBySearchingDocuments(@documents)
+        # tree = []
 
-        # @documents = Document.tagged_with(tag)
-        #                     .where('content LIKE ?', "%#{content}%")
-        #                     .where('documents.created_at >= ?', from.to_date)
-        #                     .where('documents.created_at <= ?', to.to_date)
-        #                     .select(Document.attribute_names - %w[label_list content])
-        #                     .page(params[:page])
-
-        # @documents = documents.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
-
-        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
+        render json: { success: true, documents: @documents, tree:, meta: pagination_meta(@documents) },
+               status: :ok
       end
 
       # Show and Predict the Latest Uploaded Document
@@ -277,17 +272,34 @@ module Api
         Utils.extractRequestTenantByToken(request)
       end
 
-      def filter_documents_by_conditions(conditions)
+      def filter_documents_by_conditions(conditions, except_fields = 'label_list')
+        except_fields_array = except_fields.split(' ')
         documents = Document.where(id: Document.accessible_by_user(current_user.id, conditions).pluck(:id))
 
-        documents = documents.select(Document.attribute_names - %w[label_list content])
-                             .order(created_at: :desc)
-                             .includes(:user, :labels)
-                             .as_json(
-                               except: %i[label_list
-                                          content], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
-                             )
-        Kaminari.paginate_array(documents).page(params[:page])
+        # documents = documents.select(Document.attribute_names - except_fields_array)
+        #                      .order(created_at: :desc)
+        #                      .includes(:user, :labels)
+        #                      .as_json(
+        #                        except: except_fields_array, include: { user: { only: %i[id email nickname] },
+        #                                                                labels: { only: %i[id name] } }
+        #                      )
+
+        selected_attributes = Document.attribute_names - except_fields_array
+
+        documents = documents.select(selected_attributes).order(created_at: :desc).includes(:user, :labels)
+
+        documents_json = documents.map do |document|
+          document_as_json = document.as_json(
+            except: except_fields_array, include: { user: { only: %i[id email nickname] },
+                                                    labels: { only: %i[id name] } }
+          )
+
+          document_as_json['content'] = document.content.truncate(500) if document_as_json['content']
+          document_as_json
+        end
+
+        # Kaminari.paginate_array(documents).page(params[:page])
+        Kaminari.paginate_array(documents_json).page(params[:page])
       end
 
       def checkDocumentItemsIsDocument
