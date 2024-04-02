@@ -85,6 +85,7 @@ module Api
         @documents = filter_documents_by_conditions(conditions,
                                                     'label_list folder_id user labels meta updated_at approval_status approval_user_id approval_at upload_local_path is_classified status is_classifier_trained is_embedded error_message retry_count')
         tree = AiService.generateTreeBySearchingDocuments(@documents)
+        # tree = []
 
         render json: { success: true, documents: @documents, tree:, meta: pagination_meta(@documents) },
                status: :ok
@@ -275,14 +276,30 @@ module Api
         except_fields_array = except_fields.split(' ')
         documents = Document.where(id: Document.accessible_by_user(current_user.id, conditions).pluck(:id))
 
-        documents = documents.select(Document.attribute_names - except_fields_array)
-                             .order(created_at: :desc)
-                             .includes(:user, :labels)
-                             .as_json(
-                               except: except_fields_array, include: { user: { only: %i[id email nickname] },
-                                                                       labels: { only: %i[id name] } }
-                             )
-        Kaminari.paginate_array(documents).page(params[:page])
+        # documents = documents.select(Document.attribute_names - except_fields_array)
+        #                      .order(created_at: :desc)
+        #                      .includes(:user, :labels)
+        #                      .as_json(
+        #                        except: except_fields_array, include: { user: { only: %i[id email nickname] },
+        #                                                                labels: { only: %i[id name] } }
+        #                      )
+
+        selected_attributes = Document.attribute_names - except_fields_array
+
+        documents = documents.select(selected_attributes).order(created_at: :desc).includes(:user, :labels)
+
+        documents_json = documents.map do |document|
+          document_as_json = document.as_json(
+            except: except_fields_array, include: { user: { only: %i[id email nickname] },
+                                                    labels: { only: %i[id name] } }
+          )
+
+          document_as_json['content'] = document.content.truncate(500) if document_as_json['content']
+          document_as_json
+        end
+
+        # Kaminari.paginate_array(documents).page(params[:page])
+        Kaminari.paginate_array(documents_json).page(params[:page])
       end
 
       def checkDocumentItemsIsDocument
