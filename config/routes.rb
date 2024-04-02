@@ -47,6 +47,10 @@ Rails.application.routes.draw do
 
       # **********做評估 API**********
       resources :assessment_records, only: %i[create index show update destroy] do
+        collection do
+          post 'students'
+          post 'students/:uuid', to: 'assessment_records#show_student_assessments'
+        end
       end
 
       # **********Documents API**********
