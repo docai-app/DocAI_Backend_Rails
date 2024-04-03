@@ -51,10 +51,10 @@ module Api
         type = params[:type] || 'image'
         @user = current_general_user
         if type == 'image'
-          @files = @user.general_user_files.where(file_type: %w[png jpg]).order(id: :desc).page(params[:page])
+          @files = @user.general_user_files.where(file_type: %w[png jpg]).order(created_at: :desc).page(params[:page])
           render json: { success: true, files: @files, meta: pagination_meta(@files) }, status: :ok
         elsif type == 'document'
-          @files = @user.general_user_files.where(file_type: 'pdf').order(id: :desc).page(params[:page])
+          @files = @user.general_user_files.where(file_type: %w[pdf]).order(created_at: :desc).page(params[:page])
           render json: { success: true, files: @files, meta: pagination_meta(@files) }, status: :ok
         end
       rescue StandardError => e
