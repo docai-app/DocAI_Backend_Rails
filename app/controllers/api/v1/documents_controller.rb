@@ -84,10 +84,8 @@ module Api
 
         @documents = filter_documents_by_conditions(conditions,
                                                     'label_list folder_id user labels meta updated_at approval_status approval_user_id approval_at upload_local_path is_classified status is_classifier_trained is_embedded error_message retry_count')
-        tree = AiService.generateTreeBySearchingDocuments(@documents)
-        # tree = []
 
-        render json: { success: true, documents: @documents, tree:, meta: pagination_meta(@documents) },
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) },
                status: :ok
       end
 
