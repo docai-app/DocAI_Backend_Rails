@@ -35,7 +35,7 @@ module Api
         end 
         
         results = ActiveRecord::Base.connection.execute(ActiveRecord::Base.send(:sanitize_sql_array, [sql, student_ids: student_ids]))
-        binding.pry
+        # binding.pry
         render json: {success: true, student_overview: results}
         # AssessmentRecord.where(recordable_type: 'GeneralUser', recordable_id: teacher.linked_students.pluck(:id))
       end
