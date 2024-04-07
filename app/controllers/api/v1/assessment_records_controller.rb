@@ -14,18 +14,29 @@ module Api
       def students
         # 顯示所有管理的學生的總列表
         teacher = current_general_user
-        # binding.pry
         
-        users = GeneralUser.joins(:assessment_records)
-                   .where(assessment_records: { recordable_type: 'GeneralUser' })
-                   .where(assessment_records: { recordable_id: teacher.linked_students.pluck(:id) })
-                   .select('general_users.id, general_users.nickname, 
-                            COUNT(assessment_records.id) AS assessment_count,
-                            COALESCE(AVG(assessment_records.score), 0) AS average_score')
-                   .group('general_users.id, general_users.nickname')
-                   .order('assessment_count DESC')
+        sql = <<-SQL
+          SELECT 
+            gu.id,
+            gu.nickname,
+            COUNT(ar.id) AS assessment_count,
+            COALESCE(AVG(ar.score), 0) AS average_score
+          FROM 
+            general_users gu
+            LEFT JOIN assessment_records ar ON ar.recordable_type = 'GeneralUser' AND ar.recordable_id IN (:student_ids)
+          GROUP BY 
+            gu.id, gu.nickname
+          order by assessment_count desc;
+        SQL
 
-        render json: {success: true, student_overview: users}
+        student_ids = teacher.linked_students.pluck(:id)
+        if student_ids.blank?
+          return render json: {success: true, student_overview: []}
+        end 
+        
+        results = ActiveRecord::Base.connection.execute(ActiveRecord::Base.send(:sanitize_sql_array, [sql, student_ids: student_ids]))
+        # binding.pry
+        render json: {success: true, student_overview: results}
         # AssessmentRecord.where(recordable_type: 'GeneralUser', recordable_id: teacher.linked_students.pluck(:id))
       end
 
