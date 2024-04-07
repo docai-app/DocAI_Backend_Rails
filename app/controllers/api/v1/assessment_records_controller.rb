@@ -14,7 +14,7 @@ module Api
       def students
         # 顯示所有管理的學生的總列表
         teacher = current_general_user
-        binding.pry
+        # binding.pry
         # AssessmentRecord.where
       end
 
