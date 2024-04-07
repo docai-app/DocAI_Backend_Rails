@@ -15,7 +15,18 @@ module Api
         # 顯示所有管理的學生的總列表
         teacher = current_general_user
         # binding.pry
-        # AssessmentRecord.where
+        
+        users = GeneralUser.joins(:assessment_records)
+                   .where(assessment_records: { recordable_type: 'GeneralUser' })
+                   .where(assessment_records: { recordable_id: teacher.linked_students.pluck(:id) })
+                   .select('general_users.id, general_users.nickname, 
+                            COUNT(assessment_records.id) AS assessment_count,
+                            COALESCE(AVG(assessment_records.score), 0) AS average_score')
+                   .group('general_users.id, general_users.nickname')
+                   .order('assessment_count DESC')
+
+        render json: {success: true, student_overview: users}
+        # AssessmentRecord.where(recordable_type: 'GeneralUser', recordable_id: teacher.linked_students.pluck(:id))
       end
 
       def show
