@@ -14,7 +14,7 @@ module Api
       def students
         # 顯示所有管理的學生的總列表
         teacher = current_general_user
-        
+
         sql = <<-SQL
           SELECT 
             gu.id,
@@ -23,7 +23,7 @@ module Api
             COALESCE(AVG(ar.score), 0) AS average_score
           FROM 
             general_users gu
-            LEFT JOIN assessment_records ar ON ar.recordable_type = 'GeneralUser' AND ar.recordable_id IN (:student_ids)
+            LEFT JOIN assessment_records ar ON ar.recordable_type = 'GeneralUser' AND ar.recordable_id = gu.id AND ar.recordable_id IN (:student_ids)
           GROUP BY 
             gu.id, gu.nickname
           order by assessment_count desc;
@@ -35,7 +35,7 @@ module Api
         end 
         
         results = ActiveRecord::Base.connection.execute(ActiveRecord::Base.send(:sanitize_sql_array, [sql, student_ids: student_ids]))
-        # binding.pry
+        binding.pry
         render json: {success: true, student_overview: results}
         # AssessmentRecord.where(recordable_type: 'GeneralUser', recordable_id: teacher.linked_students.pluck(:id))
       end
