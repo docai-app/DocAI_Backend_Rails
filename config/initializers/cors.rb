@@ -22,7 +22,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://xinhua-dev.docai.net', 'http://xinhua-dev.docai.net', 'https://xinhua.docai.net', 'http://xinhua.docai.net',
             'https://mjsse-dev.docai.net', 'http://mjsse-dev.docai.net', 'https://mjsse.docai.net', 'http://mjsse.docai.net',
             'https://phc-dev.docai.net', 'http://phc-dev.docai.net', 'https://phc.docai.net', 'http://phc.docai.net',
-            'https://test-docai-chatbot-plus.vercel.app', 'https://docai-client.docai.net'
+            'https://test-docai-chatbot-plus.vercel.app', 'https://docai-client.docai.net', 'https://docai-teacher.docai.net'
 
     # origins Cors.all.pluck(:url)
     # origins *Cors.pluck(:url)

@@ -40,6 +40,8 @@ class GeneralUser < ApplicationRecord
   has_many :general_user_files, dependent: :destroy
   has_many :general_user_feeds, dependent: :destroy
 
+  has_many :assessment_records, as: :recordable
+
   # include HasKgLinker
 
   def jwt_payload
