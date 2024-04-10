@@ -57,7 +57,7 @@ module Api
         results = results.to_a.filter! { |x| student_ids.include?(x['id']) }
         
         
-        render json: {success: true, student_overview: results}
+        render json: {success: true, student_overview: results, teacher: teacher}
       end
 
       def show
