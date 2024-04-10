@@ -62,7 +62,7 @@ module Api
         results = results.to_a.filter! { |x| student_ids.include?(x['id']) }
 
         
-        render json: {success: true, student_overview: results, Apartment::Tenant.current, teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
+        render json: {success: true, student_overview: results, tenant: Apartment::Tenant.current, teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
       end
 
       def show
