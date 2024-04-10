@@ -5,7 +5,12 @@ module Api
     class AssessmentRecordsController < ApiController
       include Authenticatable
 
+      before_action :switch_tenant_to_public
       before_action :authenticate_general_user!, only: %i[show create update destroy]
+
+      def switch_tenant_to_public
+        Apartment::Tenant.switch!("public")
+      end
 
       def show_student_assessments
         teacher = current_general_user
@@ -47,7 +52,7 @@ module Api
         student_ids = students.pluck(:id)
 
         if student_ids.blank?
-          return render json: {success: true, student_overview: [], teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
+          return render json: {success: true, student_overview: [], tenant: Apartment::Tenant.current, teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
         end 
         
         results = ActiveRecord::Base.connection.execute(ActiveRecord::Base.send(:sanitize_sql_array, [sql, student_ids: student_ids]))
@@ -57,7 +62,7 @@ module Api
         results = results.to_a.filter! { |x| student_ids.include?(x['id']) }
 
         
-        render json: {success: true, student_overview: results, teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
+        render json: {success: true, student_overview: results, Apartment::Tenant.current, teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
       end
 
       def show
