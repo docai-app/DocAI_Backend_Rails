@@ -42,7 +42,8 @@ module Api
           order by assessment_count desc;
         SQL
         
-        students = teacher.linked_students.search_query(params[:query])
+        students = teacher.linked_students
+        students = students.search_query(params[:query]) if params[:query].present?
         student_ids = students.pluck(:id)
 
         if student_ids.blank?
