@@ -19,7 +19,7 @@ module Api
         res = Kaminari.paginate_array(res).page(params[:page])
         
         
-        render json: { success: true, assessment_records: res, meta: pagination_meta(res) }, status: :ok
+        render json: { success: true, teacher: teacher, assessment_records: res, meta: pagination_meta(res) }, status: :ok
 
       end
 
