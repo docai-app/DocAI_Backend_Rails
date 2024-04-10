@@ -47,7 +47,7 @@ module Api
         student_ids = students.pluck(:id)
 
         if student_ids.blank?
-          return render json: {success: true, student_overview: [], teacher: teacher}
+          return render json: {success: true, student_overview: [], teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
         end 
         
         results = ActiveRecord::Base.connection.execute(ActiveRecord::Base.send(:sanitize_sql_array, [sql, student_ids: student_ids]))
@@ -57,7 +57,7 @@ module Api
         results = results.to_a.filter! { |x| student_ids.include?(x['id']) }
 
         
-        render json: {success: true, student_overview: results, teacher: teacher}
+        render json: {success: true, student_overview: results, teacher: teacher, student_ids: teacher.linked_students.pluck(:id)}
       end
 
       def show
