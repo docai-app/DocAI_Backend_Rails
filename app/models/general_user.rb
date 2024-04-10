@@ -42,6 +42,24 @@ class GeneralUser < ApplicationRecord
 
   has_many :assessment_records, as: :recordable
 
+  scope :search_query, lambda { |query|
+    return nil if query.blank?
+    terms = query.to_s.downcase.split(/\s+/)
+    terms = terms.map { |e|
+      '%' + (e.gsub('*', '%') + '%').gsub(/%+/, '%')
+    }
+    num_or_conditions = 1
+    where(
+      terms.map {
+        or_clauses = [
+          "LOWER(nickname) LIKE ?"
+        ].join(' OR ')
+        "(#{ or_clauses })"
+      }.join(' AND '),
+      *terms.map { |e| [e] * num_or_conditions }.flatten
+    )
+  }
+
   # include HasKgLinker
 
   def jwt_payload

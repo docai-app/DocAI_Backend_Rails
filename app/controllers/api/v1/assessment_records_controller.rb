@@ -27,6 +27,7 @@ module Api
         # 顯示所有管理的學生的總列表
         teacher = current_general_user
 
+        # 以下呢兩段的分別是，有冇 left join，如果有 filter，就唔要 left join 了
         sql = <<-SQL
           SELECT 
             gu.id,
@@ -40,16 +41,22 @@ module Api
             gu.id, gu.nickname
           order by assessment_count desc;
         SQL
+        
+        students = teacher.linked_students.search_query(params[:query])
+        student_ids = students.pluck(:id)
 
-        student_ids = teacher.linked_students.pluck(:id)
         if student_ids.blank?
           return render json: {success: true, student_overview: []}
         end 
         
         results = ActiveRecord::Base.connection.execute(ActiveRecord::Base.send(:sanitize_sql_array, [sql, student_ids: student_ids]))
+
+        # 因為係 left join 的關係，如果係要 filter 的話，最後 filter
         # binding.pry
+        results = results.to_a.filter! { |x| student_ids.include?(x['id']) }
+        
+        
         render json: {success: true, student_overview: results}
-        # AssessmentRecord.where(recordable_type: 'GeneralUser', recordable_id: teacher.linked_students.pluck(:id))
       end
 
       def show
