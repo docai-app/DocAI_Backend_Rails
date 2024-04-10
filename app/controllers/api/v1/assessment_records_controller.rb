@@ -6,7 +6,7 @@ module Api
       include Authenticatable
 
       before_action :switch_tenant_to_public
-      before_action :authenticate_general_user!, only: %i[show create update destroy]
+      before_action :authenticate_general_user!, only: %i[show create update destroy students show_student_assessments]
 
       def switch_tenant_to_public
         Apartment::Tenant.switch!("public")
@@ -30,6 +30,7 @@ module Api
 
       def students
         # 顯示所有管理的學生的總列表
+        # binding.pry
         teacher = current_general_user
 
         # 以下呢兩段的分別是，有冇 left join，如果有 filter，就唔要 left join 了
