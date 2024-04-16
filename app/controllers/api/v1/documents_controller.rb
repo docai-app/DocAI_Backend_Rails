@@ -30,21 +30,21 @@ module Api
       def show_by_ids
         conditions = Document.where(id: params[:ids]).select('id')
         @documents = filter_documents_by_conditions(conditions)
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        render json: { success: true, documents: @document, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by name like name param
       def show_by_name
         conditions = Document.where('name like ?', "%#{params[:name]}%").order(created_at: :desc).select('id')
         @documents = filter_documents_by_conditions(conditions)
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        render json: { success: true, documents: @document, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by content like content param
       def show_by_content
         conditions = Document.includes([:taggings]).where('content like ?', "%#{params[:content]}%").select('id')
         @documents = filter_documents_by_conditions(conditions)
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        render json: { success: true, documents: @document, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by ActsAsTaggableOn tag id
