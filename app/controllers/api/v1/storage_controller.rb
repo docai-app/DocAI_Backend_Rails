@@ -26,6 +26,22 @@ module Api
         end
       end
 
+      def upload_only
+        files = params[:document]
+        begin
+          files.each do |file|
+            # @document = Document.new(name: file.original_filename, created_at: Time.zone.now, updated_at: Time.zone.now,
+            #                          folder_id: target_folder_id)
+            # @document.storage_url = AzureService.upload(file) if file.present?
+            # @document.user = current_user
+            storage_url = AzureService.upload(file) if file.present?
+          end
+          render json: { success: true,  content: storage_url }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :unprocessable_entity
+        end
+      end
+
       def upload_batch_tag
         files = params[:document]
         target_folder_id = params[:target_folder_id] || nil
