@@ -44,18 +44,19 @@ class GeneralUser < ApplicationRecord
 
   scope :search_query, lambda { |query|
     return nil if query.blank?
+
     terms = query.to_s.downcase.split(/\s+/)
-    terms = terms.map { |e|
-      '%' + (e.gsub('*', '%') + '%').gsub(/%+/, '%')
-    }
+    terms = terms.map do |e|
+      "%#{"#{e.gsub('*', '%')}%".gsub(/%+/, '%')}"
+    end
     num_or_conditions = 1
     where(
-      terms.map {
+      terms.map do
         or_clauses = [
-          "LOWER(nickname) LIKE ?"
+          'LOWER(nickname) LIKE ?'
         ].join(' OR ')
-        "(#{ or_clauses })"
-      }.join(' AND '),
+        "(#{or_clauses})"
+      end.join(' AND '),
       *terms.map { |e| [e] * num_or_conditions }.flatten
     )
   }

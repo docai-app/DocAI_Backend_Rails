@@ -9,7 +9,7 @@
 #  description :string
 #  user_type   :string           not null
 #  user_id     :uuid             not null
-#  dag_id      :uuid             not null
+#  dag_id      :uuid
 #  cron        :string
 #  status      :integer          default("pending")
 #  meta        :jsonb
@@ -26,7 +26,6 @@
 class ScheduledTask < ApplicationRecord
   belongs_to :user, polymorphic: true
   belongs_to :entity
-  has_one :dag
 
   enum status: { pending: 0, in_progress: 1, finish: 2 }
 end

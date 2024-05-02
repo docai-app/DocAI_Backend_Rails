@@ -34,7 +34,7 @@ module Api
             #                          folder_id: target_folder_id)
             # @document.storage_url = AzureService.upload(file) if file.present?
             # @document.user = current_user
-            storage_url = AzureService.upload(file) if file.present?
+            AzureService.upload(file) if file.present?
           end
           render json: { success: true,  content: storage_url }, status: :ok
         rescue StandardError => e

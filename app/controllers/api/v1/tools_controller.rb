@@ -17,7 +17,7 @@ module Api
             content = JSON.parse(ocr_res)['result']
             render json: { success: true, file_url: @file_url, content: }, status: :ok
           else
-            render json: { success: true, file_url: @file_url, content: @file_url}, status: :ok
+            render json: { success: true, file_url: @file_url, content: @file_url }, status: :ok
           end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :unprocessable_entity
