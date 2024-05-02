@@ -75,6 +75,7 @@ gem 'azure-storage-blob', require: false
 
 gem 'sidekiq'
 gem 'sidekiq-scheduler'
+gem 'noticed'
 
 gem 'paper_trail'
 gem 'rmagick'
