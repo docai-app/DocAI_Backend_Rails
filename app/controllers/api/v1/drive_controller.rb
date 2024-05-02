@@ -15,7 +15,7 @@ module Api
         @folders = Kaminari.paginate_array(@folders).page(params[:page])
         @documents = Document.where(folder_id: nil).select(Document.attribute_names - %w[label_list content]).order(updated_at: :desc).includes(:user, :labels).as_json(
           except: %i[label_list
-                     content], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
+                     content], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name meta] } }
         )
         @documents = Kaminari.paginate_array(@documents).page(params[:page])
         @meta = compare_pagination_meta(@folders, @documents)

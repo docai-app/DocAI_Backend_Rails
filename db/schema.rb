@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
+ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -79,15 +79,18 @@ ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
     t.index ['user_id'], name: 'index_api_keys_on_user_id'
   end
 
-  create_table 'assessment_records', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
-    t.string 'title'
-    t.jsonb 'record'
-    t.jsonb 'meta'
-    t.string 'recordable_type'
-    t.uuid 'recordable_id'
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.index %w[recordable_type recordable_id], name: 'index_assessment_records_on_recordable'
+  create_table "assessment_records", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "title"
+    t.jsonb "record"
+    t.jsonb "meta"
+    t.string "recordable_type"
+    t.uuid "recordable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.decimal "score", default: "0.0", null: false
+    t.integer "questions_count", default: 0, null: false
+    t.decimal "full_score", default: "0.0", null: false
+    t.index ["recordable_type", "recordable_id"], name: "index_assessment_records_on_recordable"
   end
 
   create_table 'assistant_agents', force: :cascade do |t|
@@ -176,21 +179,22 @@ ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
     t.datetime 'updated_at', null: false
   end
 
-  create_table 'dag_runs', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
-    t.uuid 'user_id'
-    t.string 'dag_name'
-    t.integer 'dag_status', default: 0, null: false
-    t.jsonb 'meta', default: {}
-    t.jsonb 'statistic', default: {}
-    t.jsonb 'dag_meta', default: {}
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.boolean 'airflow_accepted', default: false, null: false
-    t.string 'tanent'
-    t.index ['airflow_accepted'], name: 'index_dag_runs_on_airflow_accepted'
-    t.index ['dag_status'], name: 'index_dag_runs_on_dag_status'
-    t.index ['tanent'], name: 'index_dag_runs_on_tanent'
-    t.index ['user_id'], name: 'index_dag_runs_on_user_id'
+  create_table "dag_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id"
+    t.string "dag_name"
+    t.integer "dag_status", default: 0, null: false
+    t.jsonb "meta", default: {}
+    t.jsonb "statistic", default: {}
+    t.jsonb "dag_meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "airflow_accepted", default: false, null: false
+    t.string "tanent"
+    t.string "user_type", default: "User", null: false
+    t.index ["airflow_accepted"], name: "index_dag_runs_on_airflow_accepted"
+    t.index ["dag_status"], name: "index_dag_runs_on_dag_status"
+    t.index ["tanent"], name: "index_dag_runs_on_tanent"
+    t.index ["user_id"], name: "index_dag_runs_on_user_id"
   end
 
   create_table 'dags', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -418,19 +422,17 @@ ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
     t.index ['jti'], name: 'index_jwt_denylist_on_jti'
   end
 
-  create_table 'kg_linkers', force: :cascade do |t|
-    t.string 'map_from_type', null: false
-    t.bigint 'map_from_id', null: false
-    t.string 'map_to_type', null: false
-    t.bigint 'map_to_id', null: false
-    t.jsonb 'meta', default: {}, null: false
-    t.string 'relation'
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.index %w[map_from_id map_from_type], name: 'fk_map_from'
-    t.index %w[map_from_type map_from_id], name: 'index_kg_linkers_on_map_from'
-    t.index %w[map_to_id map_to_type], name: 'fk_map_to'
-    t.index %w[map_to_type map_to_id], name: 'index_kg_linkers_on_map_to'
+  create_table "kg_linkers", force: :cascade do |t|
+    t.string "map_from_type", null: false
+    t.string "map_to_type", null: false
+    t.jsonb "meta", default: {}, null: false
+    t.string "relation"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "map_from_id"
+    t.uuid "map_to_id"
+    t.index ["map_from_id"], name: "index_kg_linkers_on_map_from_id"
+    t.index ["map_to_id"], name: "index_kg_linkers_on_map_to_id"
   end
 
   create_table 'log_messages', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -515,42 +517,44 @@ ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
     t.index ['user_id'], name: 'index_project_tasks_on_user_id'
   end
 
-  create_table 'project_workflow_steps', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
-    t.integer 'position'
-    t.string 'name', null: false
-    t.string 'description'
-    t.uuid 'user_id'
-    t.uuid 'project_workflow_id'
-    t.integer 'status', default: 0
-    t.boolean 'is_human', default: true
-    t.jsonb 'meta', default: {}
-    t.jsonb 'dag_meta', default: {}
-    t.datetime 'deadline'
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.uuid 'assignee_id'
-    t.index ['project_workflow_id'], name: 'index_project_workflow_steps_on_project_workflow_id'
-    t.index ['status'], name: 'index_project_workflow_steps_on_status'
-    t.index ['user_id'], name: 'index_project_workflow_steps_on_user_id'
+  create_table "project_workflow_steps", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.integer "position"
+    t.string "name", null: false
+    t.string "description"
+    t.uuid "user_id"
+    t.uuid "project_workflow_id"
+    t.integer "status", default: 0
+    t.boolean "is_human", default: true
+    t.jsonb "meta", default: {}
+    t.jsonb "dag_meta", default: {}
+    t.datetime "deadline"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "assignee_id"
+    t.string "user_type", default: "User", null: false
+    t.index ["project_workflow_id"], name: "index_project_workflow_steps_on_project_workflow_id"
+    t.index ["status"], name: "index_project_workflow_steps_on_status"
+    t.index ["user_id"], name: "index_project_workflow_steps_on_user_id"
   end
 
-  create_table 'project_workflows', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
-    t.string 'name', null: false
-    t.integer 'status', default: 0, null: false
-    t.string 'description'
-    t.uuid 'user_id'
-    t.boolean 'is_process_workflow', default: false
-    t.datetime 'deadline'
-    t.jsonb 'meta', default: {}
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.uuid 'folder_id'
-    t.boolean 'is_template', default: false, null: false
-    t.uuid 'source_workflow_id'
-    t.index ['folder_id'], name: 'index_project_workflows_on_folder_id'
-    t.index ['is_process_workflow'], name: 'index_project_workflows_on_is_process_workflow'
-    t.index ['source_workflow_id'], name: 'index_project_workflows_on_source_workflow_id'
-    t.index ['status'], name: 'index_project_workflows_on_status'
+  create_table "project_workflows", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "status", default: 0, null: false
+    t.string "description"
+    t.uuid "user_id"
+    t.boolean "is_process_workflow", default: false
+    t.datetime "deadline"
+    t.jsonb "meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "folder_id"
+    t.boolean "is_template", default: false, null: false
+    t.uuid "source_workflow_id"
+    t.string "user_type", default: "User", null: false
+    t.index ["folder_id"], name: "index_project_workflows_on_folder_id"
+    t.index ["is_process_workflow"], name: "index_project_workflows_on_is_process_workflow"
+    t.index ["source_workflow_id"], name: "index_project_workflows_on_source_workflow_id"
+    t.index ["status"], name: "index_project_workflows_on_status"
   end
 
   create_table 'projects', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -587,19 +591,21 @@ ActiveRecord::Schema[7.0].define(version: 20_240_328_064_151) do
     t.index %w[resource_type resource_id], name: 'index_roles_on_resource'
   end
 
-  create_table 'scheduled_tasks', force: :cascade do |t|
-    t.string 'name'
-    t.string 'description'
-    t.string 'user_type', null: false
-    t.uuid 'user_id', null: false
-    t.uuid 'dag_id', null: false
-    t.string 'cron'
-    t.integer 'status', default: 0
-    t.jsonb 'meta', default: {}
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.index ['dag_id'], name: 'index_scheduled_tasks_on_dag_id'
-    t.index %w[user_type user_id], name: 'index_scheduled_tasks_on_user'
+  create_table "scheduled_tasks", force: :cascade do |t|
+    t.string "name"
+    t.string "description"
+    t.string "user_type", null: false
+    t.uuid "user_id", null: false
+    t.uuid "dag_id", null: false
+    t.string "cron"
+    t.integer "status", default: 0
+    t.jsonb "meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "entity_id"
+    t.index ["dag_id"], name: "index_scheduled_tasks_on_dag_id"
+    t.index ["entity_id"], name: "index_scheduled_tasks_on_entity_id"
+    t.index ["user_type", "user_id"], name: "index_scheduled_tasks_on_user"
   end
 
   create_table 'smart_extraction_schemas', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|

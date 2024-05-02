@@ -5,14 +5,32 @@ module Api
     class ToolsController < ApiNoauthController
       def upload_directly_ocr
         file = params[:file]
+
+        # 呢道先判斷一下文件的類型先，如果係可以做 ocr 的野，先會去做 ocr
         begin
+          file_extension = File.extname(file.original_filename).downcase if file.present?
+          allowed_extensions = ['.doc', '.docx', '.pdf', '.jpg', '.jpeg', '.png', '.gif']
           @file_url = AzureService.upload(file) if file.present?
-          ocr_res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/alpha/ocr", document_url: @file_url)
-          content = JSON.parse(ocr_res)['result']
-          render json: { success: true, file_url: @file_url, content: }, status: :ok
+
+          if allowed_extensions.include?(file_extension)
+            ocr_res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/alpha/ocr", document_url: @file_url)
+            content = JSON.parse(ocr_res)['result']
+            render json: { success: true, file_url: @file_url, content: }, status: :ok
+          else
+            render json: { success: true, file_url: @file_url, content: @file_url}, status: :ok
+          end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :unprocessable_entity
         end
+
+        # begin
+        #   @file_url = AzureService.upload(file) if file.present?
+        #   ocr_res = RestClient.post("#{ENV['DOCAI_ALPHA_URL']}/alpha/ocr", document_url: @file_url)
+        #   content = JSON.parse(ocr_res)['result']
+        #   render json: { success: true, file_url: @file_url, content: }, status: :ok
+        # rescue StandardError => e
+        #   render json: { success: false, error: e.message }, status: :unprocessable_entity
+        # end
       end
 
       def text_to_pdf

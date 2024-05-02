@@ -39,7 +39,10 @@ class AssessmentRecord < ApplicationRecord
     end
 
     # 返回最终分数
-    self['meta']['final_score'] = score
+    # self['meta']['final_score'] = score
+    self['score'] = score
+    self['questions_count'] = questions.count
+    self['full_score'] = questions.count
     save
   end
 end

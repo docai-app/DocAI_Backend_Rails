@@ -23,6 +23,26 @@ namespace :general_user do
     puts 'Users import completed.'
   end
 
+  desc 'Purchase a marketplace item for some general users (From a CSV file)'
+  task :purchase_a_marketplace_item_for_some_general_users, [:marketplace_item_id] => :environment do |_t, args|
+    marketplace_item = MarketplaceItem.find(args[:marketplace_item_id])
+
+    file_path = '/Users/chonwai/Downloads/general_users.csv'
+
+    CSV.foreach(file_path, headers: true) do |row|
+      user = GeneralUser.find_by(email: row['email'])
+
+      custom_name = marketplace_item.chatbot_name
+      custom_description = marketplace_item.chatbot_description
+
+      if marketplace_item.purchase_by(user, custom_name, custom_description)
+        puts "User #{user.email} purchased item #{marketplace_item.id} successfully."
+      else
+        puts "Purchase failed for user #{user.email}."
+      end
+    end
+  end
+
   desc 'Purchase a marketplace item for all general users'
   task :purchase_a_marketplace_item_for_all_general_users, [:marketplace_item_id] => :environment do |_t, args|
     marketplace_item = MarketplaceItem.find(args[:marketplace_item_id])
