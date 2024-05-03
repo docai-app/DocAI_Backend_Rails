@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_502_110_101) do
+ActiveRecord::Schema[7.0].define(version: 20_240_502_115_113) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -606,6 +606,8 @@ ActiveRecord::Schema[7.0].define(version: 20_240_502_110_101) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.uuid 'entity_id'
+    t.boolean 'one_time', default: true
+    t.datetime 'will_run_at'
     t.index ['dag_id'], name: 'index_scheduled_tasks_on_dag_id'
     t.index ['entity_id'], name: 'index_scheduled_tasks_on_entity_id'
     t.index %w[user_type user_id], name: 'index_scheduled_tasks_on_user'

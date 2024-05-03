@@ -28,4 +28,37 @@ class ScheduledTask < ApplicationRecord
   belongs_to :entity
 
   enum status: { pending: 0, in_progress: 1, finish: 2 }
+
+  after_create :schedule_task
+
+  private
+
+  # def schedule_task
+  #   # 判斷是否為一次性任務
+  #   if one_time
+  #     scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(will_run_at) } # 假設 description 或其他字段存儲具體時間
+  #     GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
+  #   else
+  #     scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(cron) }
+  #     GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
+  #   end
+  # end
+  def schedule_task
+    # 判斷是否為一次性任務
+    if one_time
+      # 確保 will_run_at 是存在的且格式正確
+      puts "====== will_run_at ====== will_run_at: #{will_run_at}"
+      raise ArgumentError, 'will_run_at is required for one-time tasks' unless will_run_at.present?
+
+      puts user.inspect
+      scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(will_run_at.to_s) }
+      puts "====== scheduled_time ====== scheduled_time: #{scheduled_time}"
+    else
+      # 確保 cron 是存在的且格式正確
+      raise ArgumentError, 'cron is required for recurring tasks' unless cron.present?
+
+      scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(cron) }
+    end
+    GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
+  end
 end

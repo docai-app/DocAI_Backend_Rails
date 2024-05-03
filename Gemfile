@@ -73,9 +73,9 @@ gem 'kaminari'
 
 gem 'azure-storage-blob', require: false
 
+gem 'noticed'
 gem 'sidekiq'
 gem 'sidekiq-scheduler'
-gem 'noticed'
 
 gem 'paper_trail'
 gem 'rmagick'
