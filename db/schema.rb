@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
+ActiveRecord::Schema[7.0].define(version: 2024_05_02_151857) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -130,7 +130,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
     t.jsonb "assistive_questions", default: [], null: false
     t.boolean "has_chatbot_updated", default: false, null: false
     t.integer "energy_cost", default: 0
+    t.string "dify_token"
     t.index ["category"], name: "index_chatbots_on_category"
+    t.index ["dify_token"], name: "index_chatbots_on_dify_token"
     t.index ["user_id"], name: "index_chatbots_on_user_id"
   end
 
@@ -400,6 +402,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
     t.integer "sex"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "timezone", default: "Asia/Hong_Kong", null: false
     t.index ["email"], name: "index_general_users_on_email", unique: true
   end
 
@@ -443,7 +446,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
     t.jsonb "meta", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "dify_conversation_id"
     t.index ["chatbot_id"], name: "index_log_messages_on_chatbot_id"
+    t.index ["dify_conversation_id"], name: "index_log_messages_on_dify_conversation_id"
     t.index ["session_id"], name: "index_log_messages_on_session_id"
   end
 
@@ -470,7 +475,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
     t.uuid "user_marketplace_item_id"
     t.string "user_type"
     t.uuid "user_id"
+    t.string "dify_conversation_id"
     t.index ["chatbot_id"], name: "index_messages_on_chatbot_id"
+    t.index ["dify_conversation_id"], name: "index_messages_on_dify_conversation_id"
     t.index ["object_type"], name: "index_messages_on_object_type"
     t.index ["user_marketplace_item_id"], name: "index_messages_on_user_marketplace_item_id"
     t.index ["user_type", "user_id"], name: "index_messages_on_user"
@@ -594,13 +601,15 @@ ActiveRecord::Schema[7.0].define(version: 2024_04_04_113658) do
     t.string "description"
     t.string "user_type", null: false
     t.uuid "user_id", null: false
-    t.uuid "dag_id", null: false
+    t.uuid "dag_id"
     t.string "cron"
     t.integer "status", default: 0
     t.jsonb "meta", default: {}
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.uuid "entity_id"
+    t.boolean "one_time", default: true
+    t.datetime "will_run_at"
     t.index ["dag_id"], name: "index_scheduled_tasks_on_dag_id"
     t.index ["entity_id"], name: "index_scheduled_tasks_on_entity_id"
     t.index ["user_type", "user_id"], name: "index_scheduled_tasks_on_user"
