@@ -149,7 +149,6 @@ module Api
 
       def send_dify_request
 
-        # user_id = current_user.try(:id) || general_user.try(:id)
         @general_user = current_general_user || current_user
         chatbot_id = @chatbot.id #params[:chatbot_id]
         query = params[:query]

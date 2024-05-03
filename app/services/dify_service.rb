@@ -10,9 +10,16 @@ class DifyService
 
   def initialize(user, query, conversation_id, dify_token)
     @user_id = user.id
+    @user = user
     @query = query
     @conversation_id = conversation_id
     @bearer_token = dify_token
+  end
+
+  def prompt_header
+    # 讀取 user 的必要資訊，附加過去
+
+    chatbot_list = @user
   end
 
   def self.test
