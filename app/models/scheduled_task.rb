@@ -35,16 +35,6 @@ class ScheduledTask < ApplicationRecord
 
   private
 
-  # def schedule_task
-  #   # 判斷是否為一次性任務
-  #   if one_time
-  #     scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(will_run_at) } # 假設 description 或其他字段存儲具體時間
-  #     GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
-  #   else
-  #     scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(cron) }
-  #     GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
-  #   end
-  # end
   def schedule_task
     # 判斷是否為一次性任務
     if one_time
