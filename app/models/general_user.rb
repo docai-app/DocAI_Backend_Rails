@@ -88,6 +88,25 @@ class GeneralUser < ApplicationRecord
     end
   end
 
+  def chatbots
+    # 创建一个空数组来保存提取的信息
+    chatbot_details = []
+
+    # 遍历原始数组，提取每个 market_item 下的 chatbot 信息
+    purchased_items.each do |item|
+      next unless item['marketplace_item']
+
+      chatbot_info = item['marketplace_item']
+      chatbot_details << {
+        chatbot_id: chatbot_info['chatbot_id'],
+        chatbot_name: chatbot_info['chatbot_name'],
+        chatbot_description: chatbot_info['chatbot_description']
+      }
+    end
+
+    chatbot_details.uniq
+  end
+
   def check_can_consume_energy(_chatbot, energy_cost)
     energy.value >= energy_cost
   end
