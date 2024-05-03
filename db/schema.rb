@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_240_502_115_113) do
+ActiveRecord::Schema[7.0].define(version: 20_240_503_085_133) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
 
@@ -448,7 +448,9 @@ ActiveRecord::Schema[7.0].define(version: 20_240_502_115_113) do
     t.jsonb 'meta', default: {}, null: false
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
+    t.string 'dify_conversation_id'
     t.index ['chatbot_id'], name: 'index_log_messages_on_chatbot_id'
+    t.index ['dify_conversation_id'], name: 'index_log_messages_on_dify_conversation_id'
     t.index ['session_id'], name: 'index_log_messages_on_session_id'
   end
 
@@ -475,7 +477,9 @@ ActiveRecord::Schema[7.0].define(version: 20_240_502_115_113) do
     t.uuid 'user_marketplace_item_id'
     t.string 'user_type'
     t.uuid 'user_id'
+    t.string 'dify_conversation_id'
     t.index ['chatbot_id'], name: 'index_messages_on_chatbot_id'
+    t.index ['dify_conversation_id'], name: 'index_messages_on_dify_conversation_id'
     t.index ['object_type'], name: 'index_messages_on_object_type'
     t.index ['user_marketplace_item_id'], name: 'index_messages_on_user_marketplace_item_id'
     t.index %w[user_type user_id], name: 'index_messages_on_user'
@@ -594,7 +598,7 @@ ActiveRecord::Schema[7.0].define(version: 20_240_502_115_113) do
     t.index %w[resource_type resource_id], name: 'index_roles_on_resource'
   end
 
-  create_table 'scheduled_tasks', force: :cascade do |t|
+  create_table 'scheduled_tasks', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name'
     t.string 'description'
     t.string 'user_type', null: false

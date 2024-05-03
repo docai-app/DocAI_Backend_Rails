@@ -16,6 +16,7 @@
 #  sex                    :integer
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
+#  timezone               :string           default("Asia/Hong_Kong"), not null
 #
 # Indexes
 #

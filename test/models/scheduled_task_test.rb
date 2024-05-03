@@ -2,20 +2,22 @@
 
 # == Schema Information
 #
-# Table name: public.scheduled_tasks
+# Table name: scheduled_tasks
 #
-#  id          :bigint(8)        not null, primary key
 #  name        :string
 #  description :string
 #  user_type   :string           not null
 #  user_id     :uuid             not null
-#  dag_id      :uuid             not null
+#  dag_id      :uuid
 #  cron        :string
 #  status      :integer          default("pending")
 #  meta        :jsonb
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #  entity_id   :uuid
+#  one_time    :boolean          default(TRUE)
+#  will_run_at :datetime
+#  id          :uuid             not null, primary key
 #
 # Indexes
 #

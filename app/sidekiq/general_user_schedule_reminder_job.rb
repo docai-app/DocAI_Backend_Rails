@@ -5,12 +5,13 @@ class GeneralUserScheduleReminderJob
 
   queue_as :general_user_schedule_reminder_job
 
-  sidekiq_options retry: 3, dead: true, queue: "general_user_schedule_reminder_job", throttle: { threshold: 1, period: 10.second }
+  sidekiq_options retry: 3, dead: true, queue: 'general_user_schedule_reminder_job',
+                  throttle: { threshold: 1, period: 10.second }
 
   sidekiq_retry_in { |count| 60 * 60 * 1 * count }
 
   sidekiq_retries_exhausted do |msg, _ex|
-    _message = "error: #{msg["error_message"]}"
+    _message = "error: #{msg['error_message']}"
   end
 
   def perform(id)
