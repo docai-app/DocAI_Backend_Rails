@@ -17,6 +17,7 @@
 #  folder_id           :uuid
 #  is_template         :boolean          default(FALSE), not null
 #  source_workflow_id  :uuid
+#  user_type           :string           default("User"), not null
 #
 # Indexes
 #
