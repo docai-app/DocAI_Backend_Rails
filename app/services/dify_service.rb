@@ -16,21 +16,34 @@ class DifyService
     @bearer_token = dify_token
   end
 
-  def prompt_header
+  def prompt_wrapper
     # 讀取 user 的必要資訊，附加過去
+    chatbot_list = @user.chatbots
+    return """
+    可以使用的 chatbots
+    ===
+    #{chatbot_list}
+    ===
+    用戶的 id: #{@user.id}
 
-    chatbot_list = @user
+    query
+    ====
+    #{@query}
+    ====
+    """
   end
 
   def self.test
 
     Apartment::Tenant.switch!("chyb-dev")
-    @general_user = User.find("1665947b-a056-4bff-bdcf-34ecfa2667b9")
-    query = "你好"
+    @general_user = GeneralUser.where(email: "edison@docai.net").first
+    @query = "你好"
     dify_token = "app-CaqRv7KGzfkEu9s3Ti4kjKJx"
     
-    result = DifyService.new(@general_user, query, nil,  dify_token).send_request
-    puts result
+    # result = DifyService.new(@general_user, query, nil,  dify_token).send_request
+    # puts result
+    dy = DifyService.new(@general_user, prompt_wrapper, nil,  dify_token)
+    dy.prompt_header
   end
 
   def send_request
