@@ -18,10 +18,12 @@ class GeneralUserScheduleReminderJob
     @ScheduledTask = ScheduledTask.find(id)
     puts "====== task_name ====== task_name: #{@ScheduledTask.name}"
     puts "====== task_description ====== task_description: #{@ScheduledTask.description}"
+    puts "====== TWILIO_PHONE_NUMBER ====== TWILIO_PHONE_NUMBER: #{ENV['TWILIO_PHONE_NUMBER']}"
+    puts "====== To ===== To: #{@ScheduledTask.user.phone}"
     # NewGeneralUserScheduledTaskNotifier.with(target_phone_number: @ScheduledTask.user.phone, message: @ScheduledTask.description).deliver_later(@ScheduledTask.user)
     begin
       NewGeneralUserScheduledTaskNotifier.with(target_phone_number: @ScheduledTask.user.phone,
-                                               message: @ScheduledTask.description).deliver_later(@ScheduledTask.user)
+                                               message: @ScheduledTask.description).deliver(@ScheduledTask.user)
     rescue StandardError => e
       puts "====== GG! Error ====== error: #{e.message}"
       raise e # Re-raise the exception to ensure it gets logged or handled properly

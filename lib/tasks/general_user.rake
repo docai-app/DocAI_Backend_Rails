@@ -23,6 +23,7 @@ namespace :general_user do
     puts 'Users import completed.'
   end
 
+  # The production env marketplace_item_id "d1d15a50-b6d0-44d5-82d7-243c3f888c23" is AI English Learning Assistant (Reading Comprehension)
   desc 'Purchase a marketplace item for some general users (From a CSV file)'
   task :purchase_a_marketplace_item_for_some_general_users, [:marketplace_item_id] => :environment do |_t, args|
     marketplace_item = MarketplaceItem.find(args[:marketplace_item_id])
