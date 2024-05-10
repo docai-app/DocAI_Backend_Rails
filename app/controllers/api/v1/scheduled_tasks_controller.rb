@@ -2,13 +2,11 @@
 
 module Api
   module V1
-    class ScheduledTasksController < BotUseApiController
+    class ScheduledTasksController < ApiController
       # before_action :authenticate_general_user!, only: %i[index show create update destroy]
       before_action :find_general_user_by_param, only: %i[index show create update destroy]
-      before_action :check_user_info, only: [:create]
 
       def find_general_user_by_param
-        # binding.pry
         GeneralUser.find_by(id: params[:user_id])
       end
 
@@ -24,7 +22,7 @@ module Api
 
       def create
         user = find_general_user_by_param
-        puts "====== user ====== user: #{user.inspect}"
+        check_user_info(user)
 
         scheduled_task = ScheduledTask.new(schedule_task_params)
         scheduled_task.entity_id = '4f938027-899a-48c4-a95f-6b3c4d30aa07'
@@ -43,8 +41,7 @@ module Api
         params.require(:scheduled_task).permit(:name, :description, :cron, :entity_id, :one_time, :will_run_at)
       end
 
-      def check_user_info
-        user = current_general_user
+      def check_user_info(user)
         return if user.phone.present? && user.timezone.present?
 
         render json: { error: 'You must set your phone number and timezone before scheduling tasks.' },
