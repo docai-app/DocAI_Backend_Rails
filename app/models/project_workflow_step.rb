@@ -39,7 +39,7 @@ class ProjectWorkflowStep < ApplicationRecord
                  :notification_last_sent_at, :log_data, :notification_method
   store_accessor :dag_meta, :dag_id, :dag_run_id, :dag_name
 
-  belongs_to :user, class_name: 'User', foreign_key: 'user_id', optional: true
+  belongs_to :user, class_name: 'User', polymorphic: true, optional: true
   belongs_to :assignee, class_name: 'User', foreign_key: 'assignee_id', optional: true
   belongs_to :project_workflow, optional: true, class_name: 'ProjectWorkflow', foreign_key: 'project_workflow_id'
 

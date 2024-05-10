@@ -28,7 +28,9 @@ module Api
 
       def create
         @project_workflow = ProjectWorkflow.new(project_workflow_params)
-        @project_workflow.user_id = current_user.id if current_user.present?
+        # @project_workflow.user_id = current_user.id if current_user.present?
+        # @project_workflow.user_type = current_user.class.name if current_user.present?
+        @project_workflow.user = current_user || current_general_user
         @project_workflow.description = params[:description]
         @project_workflow.is_process_workflow = params[:is_process_workflow]
 

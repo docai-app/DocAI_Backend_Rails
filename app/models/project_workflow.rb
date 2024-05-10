@@ -38,7 +38,7 @@ class ProjectWorkflow < ApplicationRecord
                      order(position: :asc)
                    }, dependent: :destroy, class_name: 'ProjectWorkflowStep', foreign_key: 'project_workflow_id'
   belongs_to :folder, optional: true, class_name: 'Folder'
-  belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
+  belongs_to :user, optional: true, polymorphic: true
 
   has_many :derives, class_name: 'ProjectWorkflow', foreign_key: 'source_workflow_id'
   belongs_to :source_workflow, class_name: 'ProjectWorkflow', optional: true

@@ -73,6 +73,7 @@ gem 'kaminari'
 
 gem 'azure-storage-blob', require: false
 
+gem 'noticed'
 gem 'sidekiq'
 gem 'sidekiq-scheduler'
 

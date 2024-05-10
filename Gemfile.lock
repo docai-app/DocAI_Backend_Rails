@@ -291,6 +291,8 @@ GEM
       racc (~> 1.4)
     nokogiri (1.13.6-x86_64-linux)
       racc (~> 1.4)
+    noticed (2.2.2)
+      rails (>= 6.1.0)
     oauth2 (2.0.9)
       faraday (>= 0.17.3, < 3.0)
       jwt (>= 1.0, < 3.0)
@@ -560,6 +562,7 @@ DEPENDENCIES
   matrix
   net-scp
   net-ssh
+  noticed
   omniauth
   omniauth-google-oauth2
   omniauth-rails_csrf_protection

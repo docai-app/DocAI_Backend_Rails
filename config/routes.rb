@@ -326,6 +326,9 @@ Rails.application.routes.draw do
 
       # ********** General User Feed API ***********
       resources :general_user_feeds, only: %i[index show create update destroy]
+
+      # ********** Scheduled Task API ***********
+      resources :scheduled_tasks, only: %i[index show create update destroy]
     end
 
     namespace :admin do

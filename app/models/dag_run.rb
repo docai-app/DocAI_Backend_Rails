@@ -40,7 +40,7 @@ class DagRun < ApplicationRecord
   #   {"name"=>"task3", "content"=>"xxxxxx"}
   # ]
 
-  belongs_to :user, optional: true
+  belongs_to :user, optional: true, polymorphic: true
 
   after_update :handle_finish_status, if: :status_changed_to_finish?
 
@@ -90,6 +90,10 @@ class DagRun < ApplicationRecord
         chatbot_id: chatbot.id
       }
     )
+
+    # if self['meta']['user_type'] == 'GeneralUser'
+    #   GeneralUserFeed.create('file_type' => Utils.determine_file_type(self.meta['status_stack'].last['content']), 'file_content' => self.meta['status_stack'].last['content'], 'user_id' => self['meta']['user_id'], 'user_marketplace_item_id' => self['meta']['user_marketplace_item_id'])
+    # end
   end
 
   def reset_init!

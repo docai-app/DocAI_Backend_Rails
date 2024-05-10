@@ -45,18 +45,19 @@ class GeneralUser < ApplicationRecord
 
   scope :search_query, lambda { |query|
     return nil if query.blank?
+
     terms = query.to_s.downcase.split(/\s+/)
-    terms = terms.map { |e|
-      '%' + (e.gsub('*', '%') + '%').gsub(/%+/, '%')
-    }
+    terms = terms.map do |e|
+      "%#{"#{e.gsub('*', '%')}%".gsub(/%+/, '%')}"
+    end
     num_or_conditions = 1
     where(
-      terms.map {
+      terms.map do
         or_clauses = [
-          "LOWER(nickname) LIKE ?"
+          'LOWER(nickname) LIKE ?'
         ].join(' OR ')
-        "(#{ or_clauses })"
-      }.join(' AND '),
+        "(#{or_clauses})"
+      end.join(' AND '),
       *terms.map { |e| [e] * num_or_conditions }.flatten
     )
   }
@@ -93,17 +94,17 @@ class GeneralUser < ApplicationRecord
 
     # 遍历原始数组，提取每个 market_item 下的 chatbot 信息
     purchased_items.each do |item|
-      if item["marketplace_item"]
-        chatbot_info = item["marketplace_item"]
-        chatbot_details << {
-          chatbot_id: chatbot_info["chatbot_id"],
-          chatbot_name: chatbot_info["chatbot_name"],
-          chatbot_description: chatbot_info["chatbot_description"]
-        }
-      end
+      next unless item['marketplace_item']
+
+      chatbot_info = item['marketplace_item']
+      chatbot_details << {
+        chatbot_id: chatbot_info['chatbot_id'],
+        chatbot_name: chatbot_info['chatbot_name'],
+        chatbot_description: chatbot_info['chatbot_description']
+      }
     end
 
-    return chatbot_details.uniq
+    chatbot_details.uniq
   end
 
   def check_can_consume_energy(_chatbot, energy_cost)

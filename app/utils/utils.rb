@@ -110,7 +110,8 @@ class Utils
   end
 
   def self.determine_file_type(file_url)
-    File.extname(URI.parse(file_url).path).delete('.') # Delete the dot, only leave the extension
+    file_type = File.extname(URI.parse(file_url).path).delete('.') # Delete the dot, only leave the extension
+    file_type || 'unknown'
   end
 
   def self.calculate_file_size(file)
