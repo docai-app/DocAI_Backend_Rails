@@ -4,7 +4,7 @@
 #
 # NewGeneralUserScheduledTaskNotifier.with(record: @post, message: "New post").deliver(User.all)
 
-class NewGeneralUserScheduledTaskNotifier < Noticed::Base
+class NewGeneralUserScheduledTaskNotifier < Noticed::Event
   required_params :target_phone_number, :message
 
   params :target_phone_number, :message

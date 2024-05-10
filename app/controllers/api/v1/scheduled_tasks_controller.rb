@@ -8,7 +8,8 @@ module Api
       before_action :check_user_info, only: [:create]
 
       def find_general_user_by_param
-        binding.pry
+        # binding.pry
+        GeneralUser.find_by(id: params[:user_id])
       end
 
       def index
@@ -22,7 +23,8 @@ module Api
       end
 
       def create
-        user = current_general_user
+        user = find_general_user_by_param
+        puts "====== user ====== user: #{user.inspect}"
 
         scheduled_task = ScheduledTask.new(schedule_task_params)
         scheduled_task.entity_id = '4f938027-899a-48c4-a95f-6b3c4d30aa07'

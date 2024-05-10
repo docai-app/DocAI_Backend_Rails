@@ -21,7 +21,7 @@ class DifyService
   def prompt_wrapper
     # 讀取 user 的必要資訊，附加過去
     chatbot_list = @user.chatbots
-    return """
+    ''"
     可以使用的 chatbots
     ===
     #{chatbot_list}
@@ -32,20 +32,19 @@ class DifyService
     ====
     #{@query}
     ====
-    """
+    "''
   end
 
   def self.test
     Apartment::Tenant.switch!('public')
     # @general_user = User.find('1665947b-a056-4bff-bdcf-34ecfa2667b9')
-    @general_user = GeneralUser.find('6819cfe6-2cbd-4456-9a07-97cc1b6332df') #edison
+    @general_user = GeneralUser.find('6819cfe6-2cbd-4456-9a07-97cc1b6332df') # edison
     query = '你好'
     dify_token = 'app-CaqRv7KGzfkEu9s3Ti4kjKJx'
-    
-   
+
     # result = DifyService.new(@general_user, query, nil,  dify_token).send_request
     # puts result
-    dy = DifyService.new(@general_user, query, nil,  dify_token)
+    dy = DifyService.new(@general_user, query, nil, dify_token)
     binding.pry
     # dy.prompt_header
     dy
