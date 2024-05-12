@@ -11,13 +11,21 @@ module Api
       end
 
       def index
-        @scheduled_tasks = current_general_user.scheduled_tasks
-        render json: { success: true, scheduled_tasks: @scheduled_tasks }, status: :ok
+        status = params[:status] || 'pending'
+        user = find_general_user_by_param
+        @scheduled_tasks = user.scheduled_tasks.where(status:)
+        @scheduled_tasks = Kaminari.paginate_array(@scheduled_tasks).page(params[:page])
+        render json: { success: true, scheduled_tasks: @scheduled_tasks, meta: pagination_meta(@scheduled_tasks) },
+               status: :ok
+      rescue StandardError => e
+        render json: { success: false, error: e }, status: :unprocessable_entity
       end
 
       def show
         @scheduled_task = ScheduledTask.find(params[:id])
         render json: { success: true, scheduled_task: @scheduled_task }, status: :ok
+      rescue StandardError
+        render json: { success: false, error: 'Scheduled task not found' }, status: :not_found
       end
 
       def create
@@ -35,6 +43,24 @@ module Api
         end
       end
 
+      def update
+        @scheduled_task = ScheduledTask.find(params[:id])
+        if @scheduled_task.update(schedule_task_params)
+          render json: { success: true, scheduled_task: @scheduled_task }, status: :ok
+        else
+          render json: { success: false, errors: @scheduled_task.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
+      def destroy
+        @scheduled_task = ScheduledTask.find(params[:id])
+        if @scheduled_task.destroy
+          render json: { success: true, message: 'Scheduled task was successfully deleted.' }, status: :ok
+        else
+          render json: { success: false, errors: @scheduled_task.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       def schedule_task_params
@@ -46,6 +72,16 @@ module Api
 
         render json: { error: 'You must set your phone number and timezone before scheduling tasks.' },
                status: :unprocessable_entity
+      end
+
+      def pagination_meta(object)
+        {
+          current_page: object.current_page,
+          next_page: object.next_page,
+          prev_page: object.prev_page,
+          total_pages: object.total_pages,
+          total_count: object.total_count
+        }
       end
     end
   end
