@@ -32,9 +32,11 @@ module Api
         user = find_general_user_by_param
         check_user_info(user)
 
+        schedule_task_params[:will_run_at] = params[:will_run_at].sub('Z', '+08:00')
         scheduled_task = ScheduledTask.new(schedule_task_params)
         scheduled_task.entity_id = '4f938027-899a-48c4-a95f-6b3c4d30aa07'
         scheduled_task.user = user
+        scheduled_task.will_run_at = schedule_task_params[:will_run_at].sub('Z', '+08:00')
 
         if scheduled_task.save
           render json: { success: true, scheduled_task: }, status: :created
