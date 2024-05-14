@@ -106,6 +106,7 @@ gem 'acts_as_list'
 gem 'acts_as_tree'
 gem 'net-scp'
 gem 'net-ssh'
+gem 'net-ssh-gateway'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 
 gem 'aasm'

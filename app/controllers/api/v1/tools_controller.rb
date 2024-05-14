@@ -3,6 +3,7 @@
 module Api
   module V1
     class ToolsController < ApiNoauthController
+
       def upload_directly_ocr
         file = params[:file]
 
@@ -64,6 +65,65 @@ module Api
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :unprocessable_entity
         end
+      end
+
+      def dify_chatbot_report
+        gateway = nil
+        local_port = nil
+
+        begin
+          gateway, local_port = SshTunnelService.open(
+            params[:domain],
+            'akali',
+            'akl123123'
+          )
+          
+          if gateway.nil? || local_port.nil?
+            render json: { error: "SSH tunnel setup failed" }, status: 500
+            return
+          end
+          
+          # 使用 PG 库直接连接到 PostgreSQL 数据库
+          conn = PG.connect(
+            dbname: 'dify',
+            user: 'postgres',
+            password: 'difyai123456',
+            host: 'localhost',
+            port: local_port
+          )
+
+          # 执行 SQL 查询
+          result = conn.exec("SELECT * FROM messages WHERE conversation_id = '#{params[:conversation_id]}'")
+
+          # 转换结果为 JSON
+          @items = []
+          @items = result.map do |record|
+            {"subtitle": record['query'], paragraph: record['answer']}
+          end
+
+          @title = params[:title] || "ConversationReport"
+
+          # Render HTML as a string
+          # binding.pry
+          # puts "Current view paths: #{lookup_context.view_paths.paths.map(&:to_s)}"
+          html_string = render_to_string(template: "api/v1/tools/report", formats: [:html], layout: false)
+          
+          pdfBlob = FormProjectionService.text2Pdf(html_string)
+          file_url = AzureService.uploadBlob(pdfBlob, "#{@title}.pdf", 'application/pdf')
+          render json: { success: true, file_url: }, status: :ok
+
+          # render "report.html.erb"
+          # 渲染结果
+          # render json: messages
+        ensure
+          # 关闭数据库连接
+          conn.close if conn
+
+          # 关闭 SSH 隧道
+          SshTunnelService.close(gateway) if gateway
+        end
+
+        
       end
 
       def upload_html_to_png
