@@ -42,6 +42,7 @@ class GeneralUser < ApplicationRecord
   has_many :general_user_feeds, dependent: :destroy
 
   has_many :assessment_records, as: :recordable
+  has_many :scheduled_tasks, as: :user, dependent: :destroy
 
   scope :search_query, lambda { |query|
     return nil if query.blank?

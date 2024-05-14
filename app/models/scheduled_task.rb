@@ -31,11 +31,13 @@ class ScheduledTask < ApplicationRecord
 
   enum status: { pending: 0, in_progress: 1, finish: 2 }
 
-  after_create :schedule_task
+  after_create :create_schedule_task
+  after_update :update_scheduled_task
+  before_destroy :cancel_scheduled_job
 
   private
 
-  def schedule_task
+  def create_schedule_task
     # 判斷是否為一次性任務
     if one_time
       # 確保 will_run_at 是存在的且格式正確
@@ -52,5 +54,35 @@ class ScheduledTask < ApplicationRecord
       scheduled_time = Time.use_zone(user.timezone) { Time.zone.parse(cron) }
     end
     GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
+  end
+
+  def update_scheduled_task
+    return unless saved_change_to_will_run_at? || saved_change_to_cron?
+
+    # Cancel the old scheduled task
+    Sidekiq::ScheduledSet.new.find { |job| job.args.first == id }.try(:delete)
+
+    # Confirm the new scheduled time
+    scheduled_time = determine_scheduled_time
+
+    # Re-schedule the task
+    GeneralUserScheduleReminderJob.perform_at(scheduled_time, id)
+  end
+
+  def determine_scheduled_time
+    if one_time
+      raise ArgumentError, 'will_run_at is required for one-time tasks' unless will_run_at.present?
+
+      Time.use_zone(user.timezone) { Time.zone.parse(will_run_at.to_s) }
+    else
+      raise ArgumentError, 'cron is required for recurring tasks' unless cron.present?
+
+      Time.use_zone(user.timezone) { Time.zone.parse(cron) }
+    end
+  end
+
+  def cancel_scheduled_job
+    # Find and cancel all Sidekiq jobs related to this task
+    Sidekiq::ScheduledSet.new.find { |job| job.args.first == id }.try(:delete)
   end
 end
