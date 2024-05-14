@@ -93,7 +93,8 @@ module Api
           )
 
           # 执行 SQL 查询
-          result = conn.exec("SELECT * FROM messages WHERE conversation_id = '#{params[:conversation_id]}'")
+          sql = "SELECT * FROM messages WHERE conversation_id = $1 AND created_at >= NOW() - INTERVAL '15 minutes' ORDER BY created_at ASC"
+          result = conn.exec_params(sql, [params[:conversation_id]])
 
           # 转换结果为 JSON
           @items = []
@@ -108,6 +109,7 @@ module Api
           # puts "Current view paths: #{lookup_context.view_paths.paths.map(&:to_s)}"
           html_string = render_to_string(template: "api/v1/tools/report", formats: [:html], layout: false)
           
+          # binding.pry
           pdfBlob = FormProjectionService.text2Pdf(html_string)
           file_url = AzureService.uploadBlob(pdfBlob, "#{@title}.pdf", 'application/pdf')
           render json: { success: true, file_url: }, status: :ok
