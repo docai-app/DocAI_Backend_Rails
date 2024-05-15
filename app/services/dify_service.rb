@@ -22,15 +22,18 @@ class DifyService
     # 讀取 user 的必要資訊，附加過去
     chatbot_list = @user.chatbots
     ''"
-    可以使用的 chatbots
-    ===
+    可以使用的 chatbots:
+    ====
     #{chatbot_list}
-    ===
+    ====
+
     我的資料如下:
+    ====
     user_id: #{@user.id}
     timezone: 'Asia/Hong_Kong'
+    ====
 
-    query
+    query:
     ====
     #{@query}
     ====
