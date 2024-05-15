@@ -118,7 +118,7 @@ module Api
             {"subtitle": record['query'], paragraph: record['answer']}
           end
 
-          @title = params[:title] || "ConversationReport"
+          @title = params[:title] || "Conversation Report"
 
           # Render HTML as a string
           # binding.pry
