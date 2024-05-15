@@ -67,6 +67,22 @@ module Api
         end
       end
 
+      def dify_prompt_wrapper
+
+        # find user by whatsapp 
+        user = GeneralUser.where(phone: params[:whatsapp]).first
+
+        if user.nil?
+          return json_fail("no this user")
+        end
+
+        query = params[:query]
+
+        pw = DifyService.prompt_wrapper(user, query)
+
+        render json: { success: true, prompt: pw }
+      end
+
       def dify_chatbot_report
         gateway = nil
         local_port = nil

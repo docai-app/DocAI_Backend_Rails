@@ -239,6 +239,7 @@ Rails.application.routes.draw do
       post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
       post 'tools/upload_html_to_png', to: 'tools#upload_html_to_png'
       post 'tools/dify_chatbot_report', to: 'tools#dify_chatbot_report'
+      post 'tools/dify_prompt_wrapper', to: 'tools#dify_prompt_wrapper'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do

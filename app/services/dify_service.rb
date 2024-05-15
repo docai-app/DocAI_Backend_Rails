@@ -19,8 +19,12 @@ class DifyService
   end
 
   def prompt_wrapper
+    DifyService.prompt_wrapper(@user, @query)
+  end
+
+  def self.prompt_wrapper(user, query)
     # 讀取 user 的必要資訊，附加過去
-    chatbot_list = @user.chatbots
+    chatbot_list = user.chatbots
     ''"
     可以使用的 chatbots:
     ====
@@ -29,13 +33,13 @@ class DifyService
 
     我的資料如下:
     ====
-    user_id: #{@user.id}
+    user_id: #{user.id}
     timezone: 'Asia/Hong_Kong'
     ====
 
     query:
     ====
-    #{@query}
+    #{query}
     ====
     "''
   end
