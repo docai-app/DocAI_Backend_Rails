@@ -26,7 +26,9 @@ class DifyService
     ===
     #{chatbot_list}
     ===
-    用戶的 id: #{@user.id}
+    我的資料如下:
+    user_id: #{@user.id}
+    timezone: 'Asia/Hong_Kong'
 
     query
     ====
