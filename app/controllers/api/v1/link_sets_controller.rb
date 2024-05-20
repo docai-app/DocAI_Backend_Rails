@@ -1,7 +1,7 @@
 # app/controllers/link_sets_controller.rb
 module Api
   module V1
-    class LinkSetsController < ApiController
+    class LinkSetsController < ApiNoauthController
       before_action :set_link_set, only: [:show, :edit, :update, :destroy]
 
       def index
@@ -11,6 +11,8 @@ module Api
       end
 
       def show
+        # binding.pry
+        render json: { success: true, link_set: @link_set.as_json(include: :links)}, status: :ok
       end
 
       def new
@@ -47,7 +49,7 @@ module Api
       private
 
       def set_link_set
-        @link_set = LinkSet.find(params[:id])
+        @link_set = LinkSet.includes(:links).find(params[:id])
       end
 
       def link_set_params

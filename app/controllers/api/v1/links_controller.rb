@@ -1,7 +1,7 @@
 # app/controllers/links_controller.rb
 module Api
   module V1
-    class LinksController < ApiController
+    class LinksController < ApiNoauthController
       before_action :set_link, only: [:show, :edit, :update, :destroy]
       before_action :set_link_set
 
