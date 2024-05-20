@@ -27,6 +27,12 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+
+      # ********** LINKTREE API *********
+      resources :link_sets do
+        resources :links
+      end
+
       # ********** TAXO API *********
       resources :conceptmaps do
         # member do
