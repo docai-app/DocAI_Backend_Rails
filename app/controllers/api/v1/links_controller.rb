@@ -2,8 +2,8 @@
 module Api
   module V1
     class LinksController < ApiNoauthController
-      before_action :set_link, only: [:show, :edit, :update, :destroy]
       before_action :set_link_set
+      before_action :set_link, only: [:show, :edit, :update, :destroy]
 
       def index
         @links = @link_set.links
@@ -51,7 +51,8 @@ module Api
       end
 
       def set_link
-        @link = @link_set.links.find(params[:id])
+        # @link = @link_set.links.where(id: params[:id]).first
+        @link = Link.find(params[:id])
       end
 
       def link_params
