@@ -8,9 +8,8 @@ class NotionService
   NOTION_API_URL = 'https://api.notion.com/v1'
   NOTION_API_VERSION = '2022-06-28'
 
-  def initialize(token: ENV['NOTION_API_TOKEN'], database_id: ENV['NOTION_DATABASE_ID'])
+  def initialize(token: ENV['NOTION_API_TOKEN'])
     @token = token
-    @database_id = database_id
   end
 
   def self.connect_db(domain)
@@ -35,21 +34,37 @@ class NotionService
     [conn, gateway, local_port]
   end
 
-  def self.fetch_token_from_db(domain)
+  def self.fetch_token_from_db(domain, workspace)
     begin
+      # 建立與數據庫的連接
       conn, gateway, local_port = NotionService.connect_db(domain)
-      sql = "select * from data_source_bindings where provider = 'notion' and disabled = false;"
-      result = conn.exec_params(sql)
-      result[0]['access_token']
-    rescue => e
+  
+      # 定義 SQL 查詢並參數化
+      sql = <<-SQL
+        SELECT data_source_bindings.access_token
+        FROM data_source_bindings 
+        INNER JOIN tenants ON tenants.id = data_source_bindings.tenant_id
+        WHERE provider = $1 AND disabled = false AND tenants.name = $2
+      SQL
+  
+      # 執行查詢並傳遞參數
+      result = conn.exec_params(sql, ['notion', workspace])
+  
+      # 返回訪問令牌
+      result.ntuples > 0 ? result[0]['access_token'] : nil
+  
+    rescue PG::Error => e
+      # 返回錯誤信息
       { error: e.message }
+  
     ensure
+      # 確保連接和 SSH 隧道被關閉
       conn.close if conn
       SshTunnelService.close(gateway) if gateway
     end
   end
 
-  def list_all_pages(query = nil)
+  def list_all_pages(query: nil, page_size: 25, direction: 'descending')
     uri = URI.parse("#{NOTION_API_URL}/search")
     request = Net::HTTP::Post.new(uri)
     request['Authorization'] = "Bearer #{@token}"
@@ -57,17 +72,35 @@ class NotionService
     request['Notion-Version'] = NOTION_API_VERSION
 
     request.body = {
-      query: query,
       filter: { value: 'page', property: 'object' },
-      sort: { direction: 'descending', timestamp: 'last_edited_time' }
-    }.to_json
+      sort: { direction: direction, timestamp: 'last_edited_time' },
+      page_size: page_size
+    }
+    request.body[:query] = query if query.present?
+    request.body = request.body.to_json
 
     response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
       http.request(request)
     end
 
     if response.code.to_i == 200
-      JSON.parse(response.body)
+      result = JSON.parse(response.body)
+      if result && (pages = result['results'])
+        puts "Pages found: #{pages.size}"
+
+        pages.each do |page|
+          title_elements = page.dig('properties', 'title', 'title')
+          title = if title_elements
+                    title_elements.map { |t| t.dig('text', 'content') }.join
+                  else
+                    "Untitled"
+                  end
+          
+          puts " - #{title} (ID: #{page['id']})"
+        end
+      else
+        puts "No results found or an error occurred."
+      end
     else
       puts "Error: #{response.message}"
       nil
@@ -77,12 +110,20 @@ class NotionService
     nil
   end
 
-  def create_page(parent_page_id, title, content)
+  def create_page(title, content, parent_page_id = nil)
     uri = URI.parse("#{NOTION_API_URL}/pages")
     request = Net::HTTP::Post.new(uri)
     request['Authorization'] = "Bearer #{@token}"
     request['Content-Type'] = 'application/json'
     request['Notion-Version'] = NOTION_API_VERSION
+
+    if parent_page_id.nil?
+      begin
+        parent_page_id = get_default_parent_page_id
+      rescue NoMethodError
+        return { success: false, message: 'no notion page is found' }, status: :unprocessable_entity
+      end
+    end
 
     request.body = {
       parent: { page_id: parent_page_id },
@@ -123,27 +164,30 @@ class NotionService
     JSON.parse(response.body)
   end
 
-  def self.test_list_all_pages
-    service = NotionService.new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm")
-    result = service.list_all_pages("pcm")
+  # def self.test_list_all_pages
+  #   service = NotionService.new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm")
+  #   result = service.list_all_pages("pcm")
   
-    if result && result['results']
-      puts "Pages found: #{result['results'].size}"
-      result['results'].each do |page|
-        title = if page['properties'] && page['properties']['Name'] && page['properties']['Name']['title']
-                  page['properties']['Name']['title'].map { |t| t['text']['content'] }.join
-                else
-                  "Untitled"
-                end
-        puts " - #{title} (ID: #{page['id']})"
-      end
-    else
-      puts "No results found or an error occurred."
-    end
-  end
+  #   if result && (pages = result['results'])
+  #     puts "Pages found: #{pages.size}"
+      
+  #     pages.each do |page|
+  #       title_elements = page.dig('properties', 'title', 'title')
+  #       title = if title_elements
+  #                 title_elements.map { |t| t.dig('text', 'content') }.join
+  #               else
+  #                 "Untitled"
+  #               end
+        
+  #       puts " - #{title} (ID: #{page['id']})"
+  #     end
+  #   else
+  #     puts "No results found or an error occurred."
+  #   end
+  # end
 
   def self.test
-    service = new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm", database_id: "c25ce0da11e14be18fdac0409bb5900d")
+    service = new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm")
     title = "Test Page #{Time.now}"
     content = "This is a test page created at #{Time.now}."
     all_pages = NotionService.test_list_all_pages
@@ -157,4 +201,22 @@ class NotionService
       puts "Error creating page: #{response['message']}"
     end
   end
+
+  def get_default_parent_page_id
+    all_pages = list_all_pages(page_size: 1, direction: 'ascending')
+    parent_page_id = extract_parent_id(all_pages[0])
+  end
+
+  def extract_parent_id(page)
+    parent = page['parent']
+    case parent['type']
+    when 'workspace'
+      page['id']
+    when 'page_id'
+      parent['page_id']
+    else
+      nil
+    end
+  end
+
 end

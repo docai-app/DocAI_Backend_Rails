@@ -4,6 +4,13 @@ module Api
   module V1
     class ToolsController < ApiNoauthController
 
+      before_action :find_dify_api_key, only: [:export_to_notion]
+
+      def find_dify_api_key
+        api_key = request.headers['X-API-KEY']
+        @dify_api_key = DifyApiKey.find_by(api_key: api_key)
+      end 
+
       def upload_directly_ocr
         file = params[:file]
 
@@ -87,8 +94,8 @@ module Api
 
         title = params[:title]
         content = params[:content]
-    
-        notion_service = NotionService.new
+        notion_token = NotionService.fetch_token_from_db(@dify_api_key.domain, @dify_api_key.workspace)
+        notion_service = NotionService.new(token: notion_token)
         response = notion_service.create_page(title, content)
     
         if response['object'] == 'page'
