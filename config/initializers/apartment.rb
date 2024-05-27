@@ -106,7 +106,7 @@ Apartment.configure do |config|
   #
   # config.active_record_log = true
 
-  Apartment::Elevators::Subdomain.excluded_subdomains = %w[www public ab7b-27-109-208-108]
+  Apartment::Elevators::Subdomain.excluded_subdomains = %w[www public ab7b-27-109-208-108 2396-27-109-208-108]
 end
 
 # Setup a custom Tenant switching middleware. The Proc should return the name of the Tenant that

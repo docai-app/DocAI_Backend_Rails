@@ -83,6 +83,21 @@ module Api
         render json: { success: true, prompt: pw }
       end
 
+      def export_to_notion
+
+        title = params[:title]
+        content = params[:content]
+    
+        notion_service = NotionService.new
+        response = notion_service.create_page(title, content)
+    
+        if response['object'] == 'page'
+          render json: { status: 'success', page_id: response['id'] }, status: :created
+        else
+          render json: { status: 'error', message: response['message'] }, status: :unprocessable_entity
+        end
+      end
+
       def dify_chatbot_report
         gateway = nil
         local_port = nil
