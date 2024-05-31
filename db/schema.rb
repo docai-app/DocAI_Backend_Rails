@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_05_27_070955) do
+ActiveRecord::Schema[7.0].define(version: 2024_05_31_100202) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -413,6 +413,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_27_070955) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "timezone", default: "Asia/Hong_Kong", null: false
+    t.string "whats_app_number"
     t.index ["email"], name: "index_general_users_on_email", unique: true
   end
 
@@ -450,6 +451,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_27_070955) do
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "description"
   end
 
   create_table "links", force: :cascade do |t|

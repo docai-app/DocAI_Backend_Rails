@@ -53,7 +53,7 @@ module Api
       end
 
       def link_set_params
-        params.require(:link_set).permit(:name)
+        params.require(:link_set).permit(:name, :description)
       end
     end
   end
