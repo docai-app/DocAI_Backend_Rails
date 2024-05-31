@@ -56,7 +56,9 @@ module Api
       end
 
       def link_params
-        params.require(:link).permit(:title, :url, :link_set_id)
+        permitted_params = params.require(:link).permit(:title, :url, :link_set_id, meta: {}).to_h
+        permitted_params[:meta] = params[:link][:meta].permit! if params[:link][:meta].is_a?(ActionController::Parameters)
+        permitted_params
       end
     end
   end
