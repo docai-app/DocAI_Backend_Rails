@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_05_31_100202) do
+ActiveRecord::Schema[7.0].define(version: 2024_06_03_054450) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pgcrypto"
   enable_extension "plpgsql"
 
   create_table "active_storage_attachments", force: :cascade do |t|
@@ -452,6 +453,13 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_31_100202) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "description"
+    t.uuid "user_id"
+    t.string "slug"
+    t.string "request_origin"
+    t.string "workspace"
+    t.index ["slug"], name: "index_link_sets_on_slug", unique: true
+    t.index ["user_id"], name: "index_link_sets_on_user_id"
+    t.index ["workspace"], name: "index_link_sets_on_workspace"
   end
 
   create_table "links", force: :cascade do |t|
@@ -461,7 +469,9 @@ ActiveRecord::Schema[7.0].define(version: 2024_05_31_100202) do
     t.jsonb "meta", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug"
     t.index ["link_set_id"], name: "index_links_on_link_set_id"
+    t.index ["slug"], name: "index_links_on_slug", unique: true
   end
 
   create_table "log_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

@@ -3,10 +3,14 @@ module Api
   module V1
     class LinkSetsController < ApiNoauthController
       before_action :set_link_set, only: [:show, :edit, :update, :destroy]
+      before_action :set_user_id_and_domain_from_header, only: [:create]
+
+      before_action :get_user_id_and_domain_from_header, except: [:create, :update]
 
       def index
         @link_sets = LinkSet.all
-        # json_success(link_sets: @link_sets)
+        @link_sets = @link_sets.where(user_id: @user_id) if @user_id.present?
+
         render json: { success: true, link_sets: @link_sets }, status: :ok
       end
 
@@ -21,6 +25,8 @@ module Api
 
       def create
         @link_set = LinkSet.new(link_set_params)
+        @link_set.user_id = @user_id
+        @link_set.request_origin = @request_origin
         if @link_set.save
           json_success(@link_set)
         else
@@ -49,11 +55,29 @@ module Api
       private
 
       def set_link_set
-        @link_set = LinkSet.includes(:links).find(params[:id])
+        @link_set = LinkSet.includes(:links).find_by!(slug: params[:id])
       end
 
       def link_set_params
         params.require(:link_set).permit(:name, :description)
+      end
+
+      def get_user_id_and_domain_from_header
+        @user_id = request.headers['User-Id']
+        @request_origin = request.headers['HTTP_ORIGIN'] || request.headers['HTTP_REFERER']
+      end
+
+      def set_user_id_and_domain_from_header
+        @user_id = request.headers['User-Id']
+        @request_origin = request.headers['HTTP_ORIGIN'] || request.headers['HTTP_REFERER']
+        
+        unless @user_id.present?
+          render json: { error: 'User-Id header is missing' }, status: :bad_request
+        end
+    
+        unless @request_origin.present?
+          render json: { error: 'Request origin is missing' }, status: :bad_request
+        end
       end
     end
   end

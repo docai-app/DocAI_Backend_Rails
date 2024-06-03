@@ -17,7 +17,6 @@
 #  index_kg_linkers_on_map_from_id  (map_from_id)
 #  index_kg_linkers_on_map_to_id    (map_to_id)
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 # This model initially had no columns defined. If you add columns to the
 # model remove the "{}" from the fixture names and add the columns immediately

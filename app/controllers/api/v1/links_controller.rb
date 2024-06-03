@@ -47,7 +47,7 @@ module Api
       private
 
       def set_link_set
-        @link_set = LinkSet.find(params[:link_set_id])
+        @link_set = LinkSet.find_by!(slug: params[:link_set_id])
       end
 
       def set_link

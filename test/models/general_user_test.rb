@@ -17,6 +17,7 @@
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
 #  timezone               :string           default("Asia/Hong_Kong"), not null
+#  whats_app_number       :string
 #
 # Indexes
 #
