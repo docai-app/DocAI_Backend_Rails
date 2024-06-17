@@ -9,16 +9,17 @@
 #  meta        :jsonb            not null
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
+#  slug        :string
 #
 # Indexes
 #
 #  index_links_on_link_set_id  (link_set_id)
+#  index_links_on_slug         (slug) UNIQUE
 #
 # Foreign Keys
 #
 #  fk_rails_...  (link_set_id => link_sets.id)
 #
-# app/models/link.rb
 class Link < ApplicationRecord
 
   store_accessor :meta, :is_required_time_limit, :time_limit

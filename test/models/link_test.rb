@@ -9,10 +9,12 @@
 #  meta        :jsonb            not null
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
+#  slug        :string
 #
 # Indexes
 #
 #  index_links_on_link_set_id  (link_set_id)
+#  index_links_on_slug         (slug) UNIQUE
 #
 # Foreign Keys
 #

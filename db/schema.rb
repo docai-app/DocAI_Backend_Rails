@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_06_03_054450) do
+ActiveRecord::Schema[7.0].define(version: 2024_06_17_074219) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
+  enable_extension "uuid-ossp"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -418,6 +419,20 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_03_054450) do
     t.index ["email"], name: "index_general_users_on_email", unique: true
   end
 
+  create_table "general_users_roles", id: false, force: :cascade do |t|
+    t.uuid "general_user_id", null: false
+    t.uuid "role_id", null: false
+    t.index ["general_user_id"], name: "index_general_users_roles_on_general_user_id"
+    t.index ["role_id"], name: "index_general_users_roles_on_role_id"
+  end
+
+  create_table "groups", id: :uuid, default: -> { "uuid_generate_v4()" }, force: :cascade do |t|
+    t.string "name", null: false
+    t.uuid "owner_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "identities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "provider"
@@ -499,6 +514,13 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_03_054450) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["entity_name"], name: "index_marketplace_items_on_entity_name"
+  end
+
+  create_table "memberships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "general_user_id", null: false
+    t.uuid "group_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -871,8 +893,11 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_03_054450) do
   add_foreign_key "general_user_feeds", "user_marketplace_items"
   add_foreign_key "general_user_files", "general_users"
   add_foreign_key "general_user_files", "user_marketplace_items"
+  add_foreign_key "groups", "general_users", column: "owner_id"
   add_foreign_key "identities", "users"
   add_foreign_key "links", "link_sets"
+  add_foreign_key "memberships", "general_users"
+  add_foreign_key "memberships", "groups"
   add_foreign_key "messages", "chatbots"
   add_foreign_key "mini_apps", "folders"
   add_foreign_key "mini_apps", "users"

@@ -14,7 +14,6 @@
 #
 #  index_dify_api_keys_on_domain_and_workspace  (domain,workspace) UNIQUE
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   domain: MyString

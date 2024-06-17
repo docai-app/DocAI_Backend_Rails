@@ -26,6 +26,10 @@
 require_dependency 'has_kg_linker'
 
 class GeneralUser < ApplicationRecord
+  self.primary_key = 'id'
+  rolify
+  # has_and_belongs_to_many :roles, join_table: :users_roles
+
   devise :database_authenticatable,
          :jwt_authenticatable,
          :registerable,
@@ -44,6 +48,9 @@ class GeneralUser < ApplicationRecord
 
   has_many :assessment_records, as: :recordable
   has_many :scheduled_tasks, as: :user, dependent: :destroy
+
+  has_many :memberships, dependent: :destroy
+  has_many :groups, through: :memberships
 
   scope :search_query, lambda { |query|
     return nil if query.blank?
