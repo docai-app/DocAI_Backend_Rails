@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_06_17_074219) do
+ActiveRecord::Schema[7.0].define(version: 2024_06_26_102348) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -311,6 +311,16 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_17_074219) do
     t.string "name", null: false
     t.string "description", default: ""
     t.jsonb "meta", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "essay_gradings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.text "essay"
+    t.string "topic"
+    t.integer "status", default: 0, null: false
+    t.jsonb "grading", default: {}, null: false
+    t.uuid "general_user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -888,6 +898,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_17_074219) do
   add_foreign_key "dag_runs", "users"
   add_foreign_key "dags", "users"
   add_foreign_key "documents", "folders"
+  add_foreign_key "essay_gradings", "general_users"
   add_foreign_key "folders", "users"
   add_foreign_key "general_user_feeds", "general_users"
   add_foreign_key "general_user_feeds", "user_marketplace_items"

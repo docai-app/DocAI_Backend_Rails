@@ -1,0 +1,74 @@
+# frozen_string_literal: true
+
+module Api
+  module V1
+    class EssayGradingsController < ApiController
+      before_action :authenticate_general_user!
+
+      def index
+        @essay_gradings = current_general_user.essay_gradings.select("id, topic, created_at, updated_at, status")
+        @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page])
+        render json: { success: true, essay_gradings: @essay_gradings, meta: pagination_meta(@essay_gradings) }, status: :ok
+      end
+    
+      # 顯示特定的 EssayGrading
+      def show
+        render json: @essay_grading
+      end    
+
+      # def show
+      #   @user = current_general_user
+      #   render json: { success: true, user: @user }, status: :ok
+      # rescue StandardError => e
+      #   render json: { success: false, error: e.message }, status: :internal_server_error
+      # end
+
+      def create
+        @essay_grading = EssayGrading.new(essay_grading_params)
+        @essay_grading.general_user = current_general_user
+        @essay_grading['grading'] = {}
+        @essay_grading['grading']['app_key'] = params[:app_key]
+        if @essay_grading.save
+          # 創建後調用服務
+          EssayGradingService.new(current_general_user.id, @essay_grading).run_workflow
+          render json: @essay_grading, status: :created
+        else
+          render json: { errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
+      def update
+        @user = current_general_user
+        if @user.update(user_params)
+          render json: { success: true, user: @user }, status: :ok
+        else
+          render json: { success: false, errors: @user.errors }, status: :ok
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+
+      private
+
+      # 設置特定的 EssayGrading
+      def set_essay_grading
+        @essay_grading = current_general_user.essay_gradings.find(params[:id])
+      end
+
+      def essay_grading_params
+        params.require(:essay_grading).permit(:essay, :topic, grading: [:app_key])
+      end
+
+      def pagination_meta(object)
+        {
+          current_page: object.current_page,
+          next_page: object.next_page,
+          prev_page: object.prev_page,
+          total_pages: object.total_pages,
+          total_count: object.total_count
+        }
+      end
+    end
+  end
+end
