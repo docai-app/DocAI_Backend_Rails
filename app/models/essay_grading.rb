@@ -12,8 +12,8 @@ class EssayGrading < ApplicationRecord
   after_create :run_workflow
 
   def run_workflow
-    # EssayGradingService.new(general_user_id, self).run_workflow
-    EssayGradingJob.perform_async(id)
+    EssayGradingService.new(general_user_id, self).run_workflow
+    # EssayGradingJob.perform_async(id)
   end
 
   # 定義遞歸方法來計算所有 errors 的數量

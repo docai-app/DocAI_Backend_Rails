@@ -30,7 +30,6 @@ module Api
         # raise
 
         if @essay_grading.save
-          EssayGradingService.new(current_general_user.id, @essay_grading).run_workflow
           render json: @essay_grading, status: :created
         else
           render json: { errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity

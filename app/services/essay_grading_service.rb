@@ -57,7 +57,7 @@ class EssayGradingService
   end
 
   def get_number_of_suggestion(result)
-    json = JSON.parse(result["data"]["text"])
+    json = JSON.parse(result["text"])
     count_errors(json)
   end
 
