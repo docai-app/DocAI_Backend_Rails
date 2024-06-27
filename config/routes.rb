@@ -29,8 +29,10 @@ Rails.application.routes.draw do
     namespace :v1 do
 
       # ********** Essay grading ********
-      resources :essay_gradings do
+      resources :essay_assignments, only: [:index, :show, :create, :update, :destroy] do
+        resources :essay_gradings, only: [:create]
       end
+      resources :essay_gradings, only: [:index, :show, :update, :destroy]
 
       # ********** Group API *********
       resources :groups do

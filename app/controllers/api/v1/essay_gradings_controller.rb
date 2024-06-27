@@ -13,29 +13,43 @@ module Api
     
       # 顯示特定的 EssayGrading
       def show
-        render json: @essay_grading
-      end    
-
-      # def show
-      #   @user = current_general_user
-      #   render json: { success: true, user: @user }, status: :ok
-      # rescue StandardError => e
-      #   render json: { success: false, error: e.message }, status: :internal_server_error
-      # end
+        set_essay_grading
+        render json: { success: true, essay_grading: @essay_grading }
+      end
 
       def create
-        @essay_grading = EssayGrading.new(essay_grading_params)
+        set_essay_assignment_by_code
+
+        @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
-        @essay_grading['grading'] = {}
-        @essay_grading['grading']['app_key'] = params[:app_key]
+
+        @essay_grading.topic = @essay_assignment.topic
+        @essay_grading.app_key = @essay_assignment.app_key
+
+        # binding.pry
+        # raise
+
         if @essay_grading.save
-          # 創建後調用服務
           EssayGradingService.new(current_general_user.id, @essay_grading).run_workflow
           render json: @essay_grading, status: :created
         else
           render json: { errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
       end
+
+      # def create
+      #   @essay_grading = EssayGrading.new(essay_grading_params)
+      #   @essay_grading.general_user = current_general_user
+      #   @essay_grading['grading'] = {}
+      #   @essay_grading['grading']['app_key'] = params[:app_key]
+      #   if @essay_grading.save
+      #     # 創建後調用服務
+      #     EssayGradingService.new(current_general_user.id, @essay_grading).run_workflow
+      #     render json: @essay_grading, status: :created
+      #   else
+      #     render json: { errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+      #   end
+      # end
 
       def update
         @user = current_general_user
@@ -53,7 +67,14 @@ module Api
 
       # 設置特定的 EssayGrading
       def set_essay_grading
+        # binding.pry
         @essay_grading = current_general_user.essay_gradings.find(params[:id])
+      end
+
+      def set_essay_assignment_by_code
+        @essay_assignment = EssayAssignment.find_by!(code: params[:essay_assignment_id])
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
       end
 
       def essay_grading_params

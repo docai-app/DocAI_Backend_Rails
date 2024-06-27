@@ -15,7 +15,8 @@ class EssayGradingService
 
     if response.code == 200
       result = JSON.parse(response.body)
-      update_essay_grading(result['data']['outputs'])
+      num_of_suggestions = get_number_of_suggestion(result['data']['outputs'])
+      update_essay_grading(result['data']['outputs'], num_of_suggestions)
     else
       Rails.logger.error("Failed to run workflow: #{response.code}, #{response.body}")
     end
@@ -43,7 +44,24 @@ class EssayGradingService
     }
   end
 
-  def update_essay_grading(result)
-    @essay_grading.update(grading: @essay_grading.grading.merge('data' => result), status: 'graded')
+  def count_errors(hash)
+    count = 0
+    hash.each do |key, value|
+      if key == 'errors' && value.is_a?(Hash)
+        count += value.size
+      elsif value.is_a?(Hash)
+        count += count_errors(value)
+      end
+    end
+    count
+  end
+
+  def get_number_of_suggestion(result)
+    json = JSON.parse(result["data"]["text"])
+    count_errors(json)
+  end
+
+  def update_essay_grading(result, num_of_suggestions)
+    @essay_grading.update(grading: @essay_grading.grading.merge('data' => result, 'number_of_suggestion' => num_of_suggestions), status: 'graded')
   end
 end

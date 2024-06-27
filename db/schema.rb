@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_06_26_102348) do
+ActiveRecord::Schema[7.0].define(version: 2024_06_27_110918) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -315,6 +315,16 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_26_102348) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "essay_assignments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "topic"
+    t.jsonb "rubic", default: {}, null: false
+    t.string "code", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "assignment"
+    t.index ["code"], name: "index_essay_assignments_on_code", unique: true
+  end
+
   create_table "essay_gradings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.text "essay"
     t.string "topic"
@@ -323,6 +333,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_26_102348) do
     t.uuid "general_user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.uuid "essay_assignment_id"
+    t.index ["essay_assignment_id"], name: "index_essay_gradings_on_essay_assignment_id"
   end
 
   create_table "folder_hierarchies", id: false, force: :cascade do |t|
@@ -898,6 +910,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_26_102348) do
   add_foreign_key "dag_runs", "users"
   add_foreign_key "dags", "users"
   add_foreign_key "documents", "folders"
+  add_foreign_key "essay_gradings", "essay_assignments"
   add_foreign_key "essay_gradings", "general_users"
   add_foreign_key "folders", "users"
   add_foreign_key "general_user_feeds", "general_users"
