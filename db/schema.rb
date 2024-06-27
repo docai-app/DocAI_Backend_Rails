@@ -317,7 +317,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_27_110918) do
 
   create_table "essay_assignments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "topic"
-    t.jsonb "rubic", default: {}, null: false
+    t.jsonb "rubric", default: {}, null: false
     t.string "code", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
