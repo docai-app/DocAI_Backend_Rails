@@ -7,7 +7,7 @@ module Api
       before_action :set_essay_assignment, only: [:update, :destroy]
 
       def index
-        @essay_assignments = EssayAssignment.select(:id, :rubric, :topic, :created_at, :updated_at, :code, :assignment)
+        @essay_assignments = EssayAssignment.select(:id, :number_of_submission, :rubric, :topic, :created_at, :updated_at, :code, :assignment)
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
         render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) }, status: :ok
       end

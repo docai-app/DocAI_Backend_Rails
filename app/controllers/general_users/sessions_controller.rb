@@ -34,7 +34,13 @@ module GeneralUsers
     end
 
     def login_success
-      render json: { success: true, message: 'Logged.' }, status: :ok
+      user = current_user || current_general_user
+      if user.has_role? :teacher
+        role = "teacher"
+      else
+        role = "student"
+      end
+      render json: { success: true, message: 'Logged.', role: role }, status: :ok
     end
 
     def login_failed

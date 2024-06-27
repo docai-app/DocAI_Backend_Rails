@@ -3,7 +3,8 @@ class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion
   # 關聯
   belongs_to :general_user
-  belongs_to :essay_assignment, optional: true
+  # belongs_to :essay_assignment, optional: true
+  belongs_to :essay_assignment, counter_cache: :number_of_submission, optional: true
 
   # 狀態枚舉
   enum status: { pending: 0, graded: 1, reviewed: 2 }
