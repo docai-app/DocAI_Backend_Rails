@@ -12,6 +12,11 @@ module Api
         render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) }, status: :ok
       end
 
+      def show_only
+        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
+        render json: { success: true, essay_assignment: @essay_assignment }
+      end
+
       def show
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
         

@@ -31,6 +31,9 @@ Rails.application.routes.draw do
       # ********** Essay grading ********
       resources :essay_assignments, only: [:index, :show, :create, :update, :destroy] do
         resources :essay_gradings, only: [:create]
+        member do 
+          get 'show_only'
+        end
       end
       resources :essay_gradings, only: [:index, :show, :update, :destroy]
 
