@@ -3,6 +3,28 @@
 require 'csv'
 
 namespace :general_user do
+
+  task saint6: :environment do
+    require 'csv'
+
+    file_path = '/Users/sin/Downloads/Saint6_Account_Password_EssayGrading_20240628.xlsx - 初二甲.csv'
+    # Saint6_Account_Password_EssayGrading_20240628.xlsx - F2A
+
+    CSV.foreach(file_path, headers: true) do |row|
+      user = GeneralUser.new
+      user.name = row['name']
+      user['class'] = row['class']
+      user.no = row['no']
+      user.email = row['email']
+      user.password = row['password']
+      if user.save
+        puts "GeneralUser #{user.name} has been created."
+      else
+        puts "Failed to create general_user #{row['name']}: #{user.errors.full_messages.join(', ')}"
+      end
+    end
+  end
+
   desc 'Import general users from a CSV file'
   task import_general_users_from_csv: :environment do
     puts 'Importing users from CSV file...'
