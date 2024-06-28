@@ -439,8 +439,8 @@ ActiveRecord::Schema[7.0].define(version: 2024_06_28_065259) do
     t.datetime "updated_at", null: false
     t.string "timezone", default: "Asia/Hong_Kong", null: false
     t.string "whats_app_number"
-    t.string "class"
-    t.string "no"
+    t.string "banbie"
+    t.string "class_no"
     t.index ["email"], name: "index_general_users_on_email", unique: true
   end
 

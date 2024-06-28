@@ -7,14 +7,14 @@ namespace :general_user do
   task saint6: :environment do
     require 'csv'
 
-    file_path = '/Users/sin/Downloads/Saint6_Account_Password_EssayGrading_20240628.xlsx - 初二甲.csv'
+    file_path = '/Users/sin/Downloads/Saint6_Account_Password_EssayGrading_20240628_f2aa.csv'
     # Saint6_Account_Password_EssayGrading_20240628.xlsx - F2A
 
     CSV.foreach(file_path, headers: true) do |row|
       user = GeneralUser.new
       user.name = row['name']
-      user['class'] = row['class']
-      user.no = row['no']
+      user.banbie = row['class']
+      user.class_no = row['no']
       user.email = row['email']
       user.password = row['password']
       if user.save
