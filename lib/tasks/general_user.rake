@@ -7,18 +7,19 @@ namespace :general_user do
   task saint6: :environment do
     require 'csv'
 
-    file_path = '/Users/sin/Downloads/Saint6_Account_Password_EssayGrading_20240628_f2aa.csv'
-    # Saint6_Account_Password_EssayGrading_20240628.xlsx - F2A
+    # file_path = '/docai-rails/files/Saint6_Account_Password_EssayGrading_20240628_f2aa.csv'
+    file_path = '/docai-rails/files/Saint6_Account_Password_EssayGrading_20240628_F2A.csv'
 
     CSV.foreach(file_path, headers: true) do |row|
       user = GeneralUser.new
-      user.name = row['name']
+      user.nickname = row['name']
       user.banbie = row['class']
       user.class_no = row['no']
       user.email = row['email']
       user.password = row['password']
+      user.password_confirmation = row['password']
       if user.save
-        puts "GeneralUser #{user.name} has been created."
+        puts "GeneralUser #{user.nickname} has been created."
       else
         puts "Failed to create general_user #{row['name']}: #{user.errors.full_messages.join(', ')}"
       end
