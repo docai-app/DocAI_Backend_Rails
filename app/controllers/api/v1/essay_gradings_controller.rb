@@ -81,8 +81,8 @@ module Api
 
       # 設置特定的 EssayGrading
       def set_essay_grading
-        # binding.pry
-        @essay_grading = current_general_user.essay_gradings.find(params[:id])
+        # @essay_grading = current_general_user.essay_gradings.find(params[:id])
+        @essay_grading = EssayGrading.find(params[:id])
       end
 
       def set_essay_assignment_by_code
