@@ -18,7 +18,7 @@ module Api
       end
 
       def show
-        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
+        @essay_assignment = EssayAssignment.find(params[:id])
         
         @essay_gradings = @essay_assignment.essay_gradings
                           .joins(:general_user)

@@ -16,6 +16,10 @@ class EssayGrading < ApplicationRecord
     EssayGradingJob.perform_async(id)
   end
 
+  def run_workflow_sync
+    EssayGradingService.new(general_user_id, self).run_workflow
+  end
+
   # 定義遞歸方法來計算所有 errors 的數量
   def count_errors(hash)
     count = 0

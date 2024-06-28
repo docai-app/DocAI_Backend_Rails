@@ -30,7 +30,7 @@ module Api
         # raise
 
         if @essay_grading.save
-          render json: @essay_grading, status: :created
+          render json: {success: true, essay_grading: @essay_grading}, status: :created
         else
           render json: { errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
