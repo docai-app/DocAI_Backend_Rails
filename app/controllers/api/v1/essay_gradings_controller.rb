@@ -7,7 +7,7 @@ module Api
 
       def index
         # @essay_gradings = current_general_user.essay_gradings.select("id, topic, created_at, updated_at, status")
-        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select("essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.topic AS assignment_topic")
+        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select("essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.assignment AS assignment_name")
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page])
         render json: {
           success: true,
@@ -18,7 +18,7 @@ module Api
               created_at: eg.created_at,
               updated_at: eg.updated_at,
               status: eg.status,
-              assignment_topic: eg.assignment_topic
+              assignment_name: eg.assignment_name
             }
           },
           meta: pagination_meta(@essay_gradings)
