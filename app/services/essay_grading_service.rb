@@ -18,10 +18,14 @@ class EssayGradingService
       num_of_suggestions = get_number_of_suggestion(result['data']['outputs'])
       update_essay_grading(result['data']['outputs'], num_of_suggestions)
     else
-      Rails.logger.error("Failed to run workflow: #{response.code}, #{response.body}")
+      # Rails.logger.error("Failed to run workflow: #{response.code}, #{response.body}")
+      update_stop_essay_grading
     end
   rescue RestClient::ExceptionWithResponse => e
     Rails.logger.error("Exception when calling workflow: #{e.response}")
+    update_stop_essay_grading
+  rescue
+    update_stop_essay_grading
   end
 
   private
@@ -64,4 +68,9 @@ class EssayGradingService
   def update_essay_grading(result, num_of_suggestions)
     @essay_grading.update(grading: @essay_grading.grading.merge('data' => result, 'number_of_suggestion' => num_of_suggestions), status: 'graded')
   end
+
+  def update_stop_essay_grading
+    @essay_grading.update(status: 'stopped')
+  end
+
 end

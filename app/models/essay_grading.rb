@@ -7,7 +7,7 @@ class EssayGrading < ApplicationRecord
   belongs_to :essay_assignment, counter_cache: :number_of_submission, optional: true
 
   # 狀態枚舉
-  enum status: { pending: 0, graded: 1, reviewed: 2 }
+  enum status: { pending: 0, graded: 1, stopped: 2 }
 
   after_create :run_workflow
 
