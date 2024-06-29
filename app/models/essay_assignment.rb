@@ -5,6 +5,7 @@ class EssayAssignment < ApplicationRecord
   before_create :generate_unique_code
 
   has_many :essay_gradings, dependent: :destroy
+  belongs_to :general_user
 
   private
 

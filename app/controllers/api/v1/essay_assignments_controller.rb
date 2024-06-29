@@ -7,7 +7,7 @@ module Api
       before_action :set_essay_assignment, only: [:update, :destroy]
 
       def index
-        @essay_assignments = EssayAssignment.select(:id, :number_of_submission, :rubric, :topic, :created_at, :updated_at, :code, :assignment)
+        @essay_assignments = current_general_user.essay_assignments.select(:id, :number_of_submission, :rubric, :topic, :created_at, :updated_at, :code, :assignment)
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
         render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) }, status: :ok
       end
@@ -48,6 +48,7 @@ module Api
 
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
+        @essay_assignment.general_user_id = current_general_user.id
         if @essay_assignment.save
           render json: { success: true, essay_assignment: @essay_assignment }, status: :created
         else

@@ -53,6 +53,7 @@ class GeneralUser < ApplicationRecord
   has_many :groups, through: :memberships
 
   has_many :essay_gradings
+  has_many :essay_assignments
 
   scope :search_query, lambda { |query|
     return nil if query.blank?
