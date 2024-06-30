@@ -22,7 +22,7 @@ module Api
         
         @essay_gradings = @essay_assignment.essay_gradings
                           .joins(:general_user)
-                          .select('essay_gradings.id, essay_gradings.general_user_id, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion, general_users.nickname')
+                          .select('essay_gradings.id, essay_gradings.general_user_id, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion, general_users.nickname, general_users.banbie, general_users.class_no')
                           .includes(:general_user)
 
         render json: {
@@ -34,6 +34,8 @@ module Api
               general_user: {
                 id: eg.general_user_id,
                 nickname: eg.nickname,
+                class_name: eg.banbie,
+                class_no: eg.class_no
               },
               created_at: eg.created_at,
               updated_at: eg.updated_at,
