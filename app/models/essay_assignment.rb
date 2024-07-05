@@ -1,5 +1,4 @@
 class EssayAssignment < ApplicationRecord
-
   store_accessor :rubric, :app_key, :name
 
   before_create :generate_unique_code

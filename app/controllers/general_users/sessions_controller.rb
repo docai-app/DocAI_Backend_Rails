@@ -34,7 +34,7 @@ module GeneralUsers
     end
 
     def login_success
-      render json: { success: true, message: 'Logged.'}, status: :ok
+      render json: { success: true, message: 'Logged.' }, status: :ok
     end
 
     def login_failed

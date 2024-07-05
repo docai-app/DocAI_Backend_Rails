@@ -12,7 +12,7 @@
 #
 #  fk_rails_...  (owner_id => general_users.id)
 #
-require "test_helper"
+require 'test_helper'
 
 class GroupTest < ActiveSupport::TestCase
   # test "the truth" do

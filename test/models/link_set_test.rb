@@ -18,7 +18,7 @@
 #  index_link_sets_on_user_id    (user_id)
 #  index_link_sets_on_workspace  (workspace)
 #
-require "test_helper"
+require 'test_helper'
 
 class LinkSetTest < ActiveSupport::TestCase
   # test "the truth" do

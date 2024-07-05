@@ -17,7 +17,7 @@ module Api
         @user = current_general_user
 
         user_data = @user.as_json(include: :energy)
-        user_data['role'] = @user.has_role?(:teacher) ? "teacher" : "student"
+        user_data['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
 
         render json: { success: true, user: user_data }, status: :ok
       end

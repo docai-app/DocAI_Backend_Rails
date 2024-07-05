@@ -27,15 +27,14 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
-
       # ********** Essay grading ********
-      resources :essay_assignments, only: [:index, :show, :create, :update, :destroy] do
+      resources :essay_assignments, only: %i[index show create update destroy] do
         resources :essay_gradings, only: [:create]
-        member do 
+        member do
           get 'show_only'
         end
       end
-      resources :essay_gradings, only: [:index, :show, :update, :destroy]
+      resources :essay_gradings, only: %i[index show update destroy]
 
       # ********** Group API *********
       resources :groups do
@@ -264,6 +263,9 @@ Rails.application.routes.draw do
       post 'tools/dify_chatbot_report', to: 'tools#dify_chatbot_report'
       post 'tools/dify_prompt_wrapper', to: 'tools#dify_prompt_wrapper'
       post 'tools/export_to_notion', to: 'tools#export_to_notion'
+      post 'tools/google_drive/auth', to: 'tools#auth_dify_user_google_drive'
+      post 'tools/google_drive/list', to: 'tools#list_google_drive_files'
+      post 'tools/google_drive/upload/document', to: 'tools#export_docx_to_google_drive'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do

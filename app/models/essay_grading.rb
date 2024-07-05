@@ -1,5 +1,4 @@
 class EssayGrading < ApplicationRecord
-
   store_accessor :grading, :app_key, :data, :number_of_suggestion
   # 關聯
   belongs_to :general_user
@@ -34,8 +33,7 @@ class EssayGrading < ApplicationRecord
   end
 
   def get_number_of_suggestion
-    json = JSON.parse(grading["data"]["text"])
+    json = JSON.parse(grading['data']['text'])
     count_errors(json)
   end
-
 end

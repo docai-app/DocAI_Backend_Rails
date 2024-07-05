@@ -4,7 +4,7 @@ require 'net/http'
 require 'uri'
 require 'json'
 
-class NotionService
+class DifyGoogleDriveService
   NOTION_API_URL = 'https://api.notion.com/v1'
   NOTION_API_VERSION = '2022-06-28'
 
@@ -32,20 +32,55 @@ class NotionService
     [conn, gateway, local_port]
   end
 
-  def self.fetch_token_from_db(domain, workspace)
+  def self.insert_token_to_db(domain, workspace, token, dify_user_id)
     # 建立與數據庫的連接
-    conn, gateway, local_port = NotionService.connect_db(domain)
+    conn, gateway, local_port = DifyGoogleDriveService.connect_db(domain)
+
+    # 定義 SQL 查詢並參數化
+    sql = <<-SQL
+        INSERT INTO data_source_bindings (tenant_id, provider, access_token, source_info)
+        VALUES (
+          (SELECT id FROM tenants WHERE id = $1),#{' '}
+          'personal_google_drive',#{' '}
+          $2,#{' '}
+          jsonb_build_object('dify_user_id', $3::text)
+        )
+    SQL
+
+    puts "sql: #{sql}"
+
+    # 執行查詢並傳遞參數
+    conn.exec_params(sql, [workspace, token, dify_user_id])
+
+    # 返回成功信息
+    { success: true }
+  rescue PG::Error => e
+    # 返回錯誤信息
+    puts "Error: #{e.message}"
+    { error: e.message }
+  ensure
+    # 確保連接和 SSH 隧道被關閉
+    conn.close if conn
+    SshTunnelService.close(gateway) if gateway
+  end
+
+  def self.fetch_token_from_db(domain, workspace, dify_user_id)
+    # 建立與數據庫的連接
+    conn, gateway, local_port = DifyGoogleDriveService.connect_db(domain)
 
     # 定義 SQL 查詢並參數化
     sql = <<-SQL
         SELECT data_source_bindings.access_token
         FROM data_source_bindings#{' '}
         INNER JOIN tenants ON tenants.id = data_source_bindings.tenant_id
-        WHERE provider = $1 AND disabled = false AND tenants.name = $2
+        WHERE provider = $1#{' '}
+          AND disabled = false#{' '}
+          AND tenants.id = $2
+          AND source_info->>'dify_user_id' = $3::text
     SQL
 
     # 執行查詢並傳遞參數
-    result = conn.exec_params(sql, ['notion', workspace])
+    result = conn.exec_params(sql, ['personal_google_drive', workspace, dify_user_id])
 
     # 返回訪問令牌
     result.ntuples > 0 ? result[0]['access_token'] : nil
@@ -159,7 +194,7 @@ class NotionService
   end
 
   # def self.test_list_all_pages
-  #   service = NotionService.new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm")
+  #   service = DifyGoogleDriveService.new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm")
   #   result = service.list_all_pages("pcm")
 
   #   if result && (pages = result['results'])
@@ -184,7 +219,7 @@ class NotionService
     service = new(token: 'secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm')
     title = "Test Page #{Time.now}"
     content = "This is a test page created at #{Time.now}."
-    all_pages = NotionService.test_list_all_pages
+    all_pages = DifyGoogleDriveService.test_list_all_pages
     parent_page_id = all_pages.pluck('id').first # .gsub("-", "")
     # binding.pry
     response = service.create_page(parent_page_id, title, content)

@@ -21,15 +21,14 @@
 #  fk_rails_...  (link_set_id => link_sets.id)
 #
 class Link < ApplicationRecord
-
   store_accessor :meta, :is_required_time_limit, :time_limit
 
   belongs_to :link_set
-  validates :url, presence: true, format: { with: URI::regexp(%w[http https]) }
+  validates :url, presence: true, format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]) }
   validates :title, presence: true
 
   before_create :generate_slug
-  
+
   def to_param
     slug
   end
@@ -41,8 +40,7 @@ class Link < ApplicationRecord
   def generate_unique_slug
     loop do
       slug = SecureRandom.urlsafe_base64(6)
-      break slug unless Link.exists?(slug: slug)
+      break slug unless Link.exists?(slug:)
     end
   end
-
 end

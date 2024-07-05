@@ -2,7 +2,7 @@
 module Api
   module V1
     class GroupsController < ApiController
-      before_action :set_group, only: [:show, :edit, :update, :destroy, :add_students, :remove_students]
+      before_action :set_group, only: %i[show edit update destroy add_students remove_students]
 
       # POST /groups/:id/add_students
       def add_students
@@ -50,11 +50,11 @@ module Api
       end
 
       def index
-        if current_general_user.present?
-          @groups = Group.where(owner_id: current_general_user.id) 
-        else
-          @groups = []
-        end
+        @groups = if current_general_user.present?
+                    Group.where(owner_id: current_general_user.id)
+                  else
+                    []
+                  end
         render json: { success: true, groups: @groups }, status: :ok
       end
 
@@ -72,22 +72,22 @@ module Api
         @group.owner_id = current_general_user.id
         # 只有 teacher 可以開 group
         # binding.pry
-        return json_fail("you are not a teacher") unless current_general_user.has_role?("teacher")
+        return json_fail('you are not a teacher') unless current_general_user.has_role?('teacher')
+
         if @group.save
           json_success(@group)
         else
-          json_fail("cannot save")
+          json_fail('cannot save')
         end
       end
 
-      def edit
-      end
+      def edit; end
 
       def update
         if @group.update(group_params)
           json_success(@group)
         else
-          json_fail("cannot save")
+          json_fail('cannot save')
         end
       end
 

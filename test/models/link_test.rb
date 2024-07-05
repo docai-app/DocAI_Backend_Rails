@@ -20,7 +20,7 @@
 #
 #  fk_rails_...  (link_set_id => link_sets.id)
 #
-require "test_helper"
+require 'test_helper'
 
 class LinkTest < ActiveSupport::TestCase
   # test "the truth" do

@@ -14,7 +14,7 @@
 #
 #  index_dify_api_keys_on_domain_and_workspace  (domain,workspace) UNIQUE
 #
-require "test_helper"
+require 'test_helper'
 
 class DifyApiKeyTest < ActiveSupport::TestCase
   # test "the truth" do

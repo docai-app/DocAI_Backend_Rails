@@ -4,12 +4,14 @@ module Api
   module V1
     class EssayAssignmentsController < ApiController
       before_action :authenticate_general_user!
-      before_action :set_essay_assignment, only: [:update, :destroy]
+      before_action :set_essay_assignment, only: %i[update destroy]
 
       def index
-        @essay_assignments = current_general_user.essay_assignments.select(:id, :number_of_submission, :rubric, :topic, :created_at, :updated_at, :code, :assignment)
+        @essay_assignments = current_general_user.essay_assignments.select(:id, :number_of_submission, :rubric, :topic,
+                                                                           :created_at, :updated_at, :code, :assignment)
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
-        render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) }, status: :ok
+        render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) },
+               status: :ok
       end
 
       def show_only
@@ -19,16 +21,16 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-        
+
         @essay_gradings = @essay_assignment.essay_gradings
-                          .joins(:general_user)
-                          .select('essay_gradings.id, essay_gradings.general_user_id, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion, general_users.nickname, general_users.banbie, general_users.class_no')
-                          .includes(:general_user)
+                                           .joins(:general_user)
+                                           .select('essay_gradings.id, essay_gradings.general_user_id, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion, general_users.nickname, general_users.banbie, general_users.class_no')
+                                           .includes(:general_user)
 
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
-          essay_gradings: @essay_gradings.map { |eg|
+          essay_gradings: @essay_gradings.map do |eg|
             {
               id: eg.id,
               general_user: {
@@ -42,7 +44,7 @@ module Api
               status: eg.status,
               number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion']
             }
-          }
+          end
         }, status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
@@ -80,7 +82,7 @@ module Api
       end
 
       def essay_assignment_params
-        params.require(:essay_assignment).permit(:topic, :assignment, rubric: [:name, :app_key])
+        params.require(:essay_assignment).permit(:topic, :assignment, rubric: %i[name app_key])
       end
 
       def pagination_meta(object)

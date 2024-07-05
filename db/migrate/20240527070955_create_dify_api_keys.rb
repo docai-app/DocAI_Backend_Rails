@@ -9,6 +9,6 @@ class CreateDifyApiKeys < ActiveRecord::Migration[6.1]
       t.timestamps
     end
 
-    add_index :dify_api_keys, [:domain, :workspace], unique: true
+    add_index :dify_api_keys, %i[domain workspace], unique: true
   end
 end

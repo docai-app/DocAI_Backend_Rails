@@ -16,7 +16,7 @@ class ChangePrimaryKeyToUuidForGroups < ActiveRecord::Migration[7.0]
     rename_column :groups, :uuid_id, :id
 
     # Add a new primary key index to the id column
-    execute "ALTER TABLE groups ADD PRIMARY KEY (id);"
+    execute 'ALTER TABLE groups ADD PRIMARY KEY (id);'
   end
 
   def down
@@ -28,6 +28,6 @@ class ChangePrimaryKeyToUuidForGroups < ActiveRecord::Migration[7.0]
       group.update_columns(id: group.uuid_id)
     end
     remove_column :groups, :uuid_id
-    execute "ALTER TABLE groups ADD PRIMARY KEY (id);"
+    execute 'ALTER TABLE groups ADD PRIMARY KEY (id);'
   end
 end

@@ -7,11 +7,11 @@ module Api
 
       def index
         # @essay_gradings = current_general_user.essay_gradings.select("id, topic, created_at, updated_at, status")
-        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select("essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.assignment AS assignment_name").order('updated_at desc')
+        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select('essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.assignment AS assignment_name').order('updated_at desc')
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
         render json: {
           success: true,
-          essay_gradings: @essay_gradings.map { |eg|
+          essay_gradings: @essay_gradings.map do |eg|
             {
               id: eg.id,
               topic: eg.topic,
@@ -20,12 +20,12 @@ module Api
               status: eg.status,
               assignment_name: eg.assignment_name
             }
-          },
+          end,
           meta: pagination_meta(@essay_gradings)
         }, status: :ok
         # render json: { success: true, essay_gradings: @essay_gradings, meta: pagination_meta(@essay_gradings) }, status: :ok
       end
-    
+
       # 顯示特定的 EssayGrading
       def show
         set_essay_grading
@@ -45,9 +45,9 @@ module Api
         # raise
 
         if @essay_grading.save
-          render json: {success: true, essay_grading: @essay_grading}, status: :created
+          render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
-          render json: {success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+          render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
@@ -75,7 +75,6 @@ module Api
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
-
 
       private
 

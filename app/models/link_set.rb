@@ -35,7 +35,7 @@ class LinkSet < ApplicationRecord
   def generate_unique_slug
     loop do
       slug = SecureRandom.urlsafe_base64(6)
-      break slug unless Link.exists?(slug: slug)
+      break slug unless Link.exists?(slug:)
     end
   end
 end

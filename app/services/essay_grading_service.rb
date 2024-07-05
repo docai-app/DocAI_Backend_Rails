@@ -24,7 +24,7 @@ class EssayGradingService
   rescue RestClient::ExceptionWithResponse => e
     Rails.logger.error("Exception when calling workflow: #{e.response}")
     update_stop_essay_grading
-  rescue
+  rescue StandardError
     update_stop_essay_grading
   end
 
@@ -61,16 +61,18 @@ class EssayGradingService
   end
 
   def get_number_of_suggestion(result)
-    json = JSON.parse(result["text"])
+    json = JSON.parse(result['text'])
     count_errors(json)
   end
 
   def update_essay_grading(result, num_of_suggestions)
-    @essay_grading.update(grading: @essay_grading.grading.merge('data' => result, 'number_of_suggestion' => num_of_suggestions), status: 'graded')
+    @essay_grading.update(
+      grading: @essay_grading.grading.merge('data' => result,
+                                            'number_of_suggestion' => num_of_suggestions), status: 'graded'
+    )
   end
 
   def update_stop_essay_grading
     @essay_grading.update(status: 'stopped')
   end
-
 end

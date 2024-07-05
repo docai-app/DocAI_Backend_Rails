@@ -3,7 +3,6 @@
 require 'csv'
 
 namespace :general_user do
-
   task saint6: :environment do
     require 'csv'
 
