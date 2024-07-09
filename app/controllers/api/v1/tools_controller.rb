@@ -76,7 +76,6 @@ module Api
       end
 
       def dify_prompt_wrapper
-        # find user by whatsapp
         user = GeneralUser.where(phone: params[:whatsapp]).first
 
         return json_fail('no this user') if user.nil?

@@ -192,35 +192,12 @@ class DifyGoogleDriveService
     JSON.parse(response.body)
   end
 
-  # def self.test_list_all_pages
-  #   service = DifyGoogleDriveService.new(token: "secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm")
-  #   result = service.list_all_pages("pcm")
-
-  #   if result && (pages = result['results'])
-  #     puts "Pages found: #{pages.size}"
-
-  #     pages.each do |page|
-  #       title_elements = page.dig('properties', 'title', 'title')
-  #       title = if title_elements
-  #                 title_elements.map { |t| t.dig('text', 'content') }.join
-  #               else
-  #                 "Untitled"
-  #               end
-
-  #       puts " - #{title} (ID: #{page['id']})"
-  #     end
-  #   else
-  #     puts "No results found or an error occurred."
-  #   end
-  # end
-
   def self.test
     service = new(token: 'secret_ldZskmdnlpDXtCSmS3GONWWMSDwemP8cSTl8Snz4lEm')
     title = "Test Page #{Time.now}"
     content = "This is a test page created at #{Time.now}."
     all_pages = DifyGoogleDriveService.test_list_all_pages
     parent_page_id = all_pages.pluck('id').first # .gsub("-", "")
-    # binding.pry
     response = service.create_page(parent_page_id, title, content)
 
     if response['object'] == 'page'
