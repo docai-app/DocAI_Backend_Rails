@@ -128,7 +128,6 @@ module Api
 
       # Show the PDF document details which involved each page summary and keywords
       def show_pdf_page_details
-        # @document = Document.find(params[:id]).includes([:pdf_page_details]).as_json(except: [:label_list])
         @document = Document.find(params[:id]).as_json(include: { pdf_page_details: { only: %i[page_number summary
                                                                                                keywords] } })
         render json: { success: true, document: @document }, status: :ok
@@ -274,14 +273,6 @@ module Api
         except_fields_array = except_fields.split(' ')
         documents = Document.where(id: Document.accessible_by_user(current_user.id, conditions).pluck(:id))
 
-        # documents = documents.select(Document.attribute_names - except_fields_array)
-        #                      .order(created_at: :desc)
-        #                      .includes(:user, :labels)
-        #                      .as_json(
-        #                        except: except_fields_array, include: { user: { only: %i[id email nickname] },
-        #                                                                labels: { only: %i[id name] } }
-        #                      )
-
         selected_attributes = Document.attribute_names - except_fields_array
 
         documents = documents.select(selected_attributes).order(created_at: :desc).includes(:user, :labels)
@@ -296,7 +287,6 @@ module Api
           document_as_json
         end
 
-        # Kaminari.paginate_array(documents).page(params[:page])
         Kaminari.paginate_array(documents_json).page(params[:page])
       end
 
