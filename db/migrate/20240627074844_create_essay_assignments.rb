@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateEssayAssignments < ActiveRecord::Migration[7.0]
   def change
     create_table :essay_assignments, id: :uuid do |t|

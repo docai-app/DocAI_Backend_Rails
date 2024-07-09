@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
 

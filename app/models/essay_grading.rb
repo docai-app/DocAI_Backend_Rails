@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion
   # 關聯

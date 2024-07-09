@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/services/ssh_tunnel.rb
 require 'net/ssh/gateway'
 
@@ -18,7 +20,7 @@ class SshTunnelService
   end
 
   def self.close(gateway)
-    gateway.shutdown! if gateway
+    gateway&.shutdown!
     puts 'SSH tunnel closed'
   rescue StandardError => e
     puts "Failed to close SSH tunnel: #{e.message}"

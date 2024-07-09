@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class AddUserIdAndSlugToLinkSet < ActiveRecord::Migration[7.0]
   def change
     add_column :link_sets, :user_id, :uuid

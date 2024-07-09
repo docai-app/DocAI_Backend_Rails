@@ -263,6 +263,7 @@ Rails.application.routes.draw do
       post 'tools/dify_chatbot_report', to: 'tools#dify_chatbot_report'
       post 'tools/dify_prompt_wrapper', to: 'tools#dify_prompt_wrapper'
       post 'tools/export_to_notion', to: 'tools#export_to_notion'
+      post 'tools/google_drive/check', to: 'tools#auth_dify_user_google_drive?'
       post 'tools/google_drive/auth', to: 'tools#auth_dify_user_google_drive'
       post 'tools/google_drive/list', to: 'tools#list_google_drive_files'
       post 'tools/google_drive/upload/document', to: 'tools#export_docx_to_google_drive'

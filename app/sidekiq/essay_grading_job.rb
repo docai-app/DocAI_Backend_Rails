@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/workers/essay_grading_worker.rb
 class EssayGradingJob
   include Sidekiq::Worker

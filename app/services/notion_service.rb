@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/services/notion_service.rb
 
 require 'net/http'
@@ -13,9 +15,6 @@ class NotionService
   end
 
   def self.connect_db(domain)
-    gateway = nil
-    local_port = nil
-
     gateway, local_port = SshTunnelService.open(domain, 'akali', 'akl123123')
 
     return { error: 'SSH tunnel setup failed' } if gateway.nil? || local_port.nil?
@@ -34,7 +33,7 @@ class NotionService
 
   def self.fetch_token_from_db(domain, workspace)
     # 建立與數據庫的連接
-    conn, gateway, local_port = NotionService.connect_db(domain)
+    conn, gateway, = NotionService.connect_db(domain)
 
     # 定義 SQL 查詢並參數化
     sql = <<-SQL
@@ -48,13 +47,13 @@ class NotionService
     result = conn.exec_params(sql, ['notion', workspace])
 
     # 返回訪問令牌
-    result.ntuples > 0 ? result[0]['access_token'] : nil
+    result.ntuples.positive? ? result[0]['access_token'] : nil
   rescue PG::Error => e
     # 返回錯誤信息
     { error: e.message }
   ensure
     # 確保連接和 SSH 隧道被關閉
-    conn.close if conn
+    conn&.close
     SshTunnelService.close(gateway) if gateway
   end
 
@@ -198,7 +197,7 @@ class NotionService
 
   def get_default_parent_page_id
     all_pages = list_all_pages(page_size: 1, direction: 'ascending')
-    parent_page_id = extract_parent_id(all_pages[0])
+    extract_parent_id(all_pages[0])
   end
 
   def extract_parent_id(page)

@@ -154,7 +154,7 @@ module Api
           # render json: messages
         ensure
           # 关闭数据库连接
-          conn.close if conn
+          conn&.close
 
           # 关闭 SSH 隧道
           SshTunnelService.close(gateway) if gateway
@@ -189,6 +189,22 @@ module Api
         end
       end
 
+      def auth_dify_user_google_drive?
+        dify_user_id = params[:dify_user_id]
+        workspace = params[:workspace]
+        domain = params[:domain]
+
+        google_drive_access_token = DifyGoogleDriveService.fetch_token_from_db(domain, workspace, dify_user_id)
+
+        if google_drive_access_token.present?
+          render json: { success: true, status: 'success' }, status: :ok
+        else
+          render json: { success: false, error: 'Not authenticated' }, status: :unauthorized
+        end
+      rescue StandardError => e
+        render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
+      end
+
       def auth_dify_user_google_drive
         dify_user_id = params[:dify_user_id]
         workspace = params[:workspace]
@@ -197,9 +213,9 @@ module Api
 
         DifyGoogleDriveService.insert_token_to_db(domain, workspace, access_token, dify_user_id)
 
-        render json: { status: 'success' }, status: :ok
+        render json: { success: true, status: 'success' }, status: :ok
       rescue StandardError => e
-        render json: { error: 'An error occurred', details: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
       end
 
       def export_docx_to_google_drive
@@ -232,11 +248,11 @@ module Api
         drive_service.create_file(file_metadata, upload_source: file,
                                                  content_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
-        render json: { status: 'success' }
+        render json: { success: true, status: 'success' }
       rescue Google::Apis::AuthorizationError => e
-        render json: { error: 'Authorization error', details: e.message }, status: :unauthorized
+        render json: { success: false, error: 'Authorization error', details: e.message }, status: :unauthorized
       rescue StandardError => e
-        render json: { error: 'An error occurred', details: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
       end
 
       def list_google_drive_files
@@ -258,11 +274,11 @@ module Api
         drive_service.authorization = dify_user_credentials
 
         response = drive_service.list_files(page_size: 10, fields: 'nextPageToken, files(id, name)')
-        render json: { files: response.files }, status: :ok
+        render json: { success: true, files: response.files }, status: :ok
       rescue Google::Apis::AuthorizationError => e
-        render json: { error: 'Authorization error', details: e.message }, status: :unauthorized
+        render json: { success: false, error: 'Authorization error', details: e.message }, status: :unauthorized
       rescue StandardError => e
-        render json: { error: 'An error occurred', details: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
       end
     end
   end

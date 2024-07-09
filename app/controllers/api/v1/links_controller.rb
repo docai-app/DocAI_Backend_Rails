@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/controllers/links_controller.rb
 module Api
   module V1

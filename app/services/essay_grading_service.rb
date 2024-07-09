@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/services/essay_grading_service.rb
 require 'rest-client'
 

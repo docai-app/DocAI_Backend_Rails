@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ChangePrimaryKeyToUuidForGroups < ActiveRecord::Migration[7.0]
   def up
     # Add a new temporary UUID column

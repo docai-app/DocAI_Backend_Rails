@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateDifyApiKeys < ActiveRecord::Migration[6.1]
   def change
     create_table :dify_api_keys, id: :uuid do |t|
