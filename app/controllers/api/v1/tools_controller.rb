@@ -217,6 +217,18 @@ module Api
         render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
       end
 
+      def revoke_dify_user_google_drive
+        dify_user_id = params[:dify_user_id]
+        workspace = params[:workspace]
+        domain = params[:domain]
+
+        DifyGoogleDriveService.delete_token_from_db(domain, workspace, dify_user_id)
+
+        render json: { success: true, status: 'success' }, status: :ok
+      rescue StandardError => e
+        render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
+      end
+
       def export_docx_to_google_drive
         dify_user_id = params[:dify_user_id]
         workspace = params[:workspace]

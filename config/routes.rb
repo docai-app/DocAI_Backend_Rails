@@ -267,6 +267,7 @@ Rails.application.routes.draw do
       post 'tools/google_drive/auth', to: 'tools#auth_dify_user_google_drive'
       post 'tools/google_drive/list', to: 'tools#list_google_drive_files'
       post 'tools/google_drive/upload/document', to: 'tools#export_docx_to_google_drive'
+      delete 'tools/google_drive/revoke', to: 'tools#revoke_dify_user_google_drive'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
