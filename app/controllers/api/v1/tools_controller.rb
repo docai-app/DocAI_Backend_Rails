@@ -198,7 +198,7 @@ module Api
         if google_drive_access_token.present?
           render json: { success: true, status: 'success' }, status: :ok
         else
-          render json: { success: false, error: 'Not authenticated' }, status: :unauthorized
+          render json: { success: false, error: 'Not authenticated' }, status: :ok
         end
       rescue StandardError => e
         render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
