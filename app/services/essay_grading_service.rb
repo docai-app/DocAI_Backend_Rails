@@ -18,10 +18,12 @@ class EssayGradingService
     response = RestClient::Request.execute(
       method: :post,
       url: API_URL,
-      payload: request_payload.to_json,
+      payload: request_payload,
       headers: headers,
       timeout: TIMEOUT,
     )
+
+    puts "Response: #{response}"
 
     if response.code == 200
       result = JSON.parse(response.body)
