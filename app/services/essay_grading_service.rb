@@ -5,6 +5,7 @@ require 'rest-client'
 
 class EssayGradingService
   API_URL = 'https://admin.docai.net/v1/workflows/run'
+  TIMEOUT = 300 # Timeout duration in seconds (5 minutes)
 
   def initialize(user_id, essay_grading)
     @user_id = user_id
@@ -13,7 +14,8 @@ class EssayGradingService
   end
 
   def run_workflow
-    response = RestClient.post(API_URL, request_payload, headers)
+    # response = RestClient.post(API_URL, request_payload, headers, timeout: 1200)
+    response = RestClient.post(API_URL, request_payload, headers, timeout: TIMEOUT)
 
     if response.code == 200
       result = JSON.parse(response.body)
