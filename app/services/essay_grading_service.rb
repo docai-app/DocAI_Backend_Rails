@@ -21,6 +21,7 @@ class EssayGradingService
       payload: request_payload,
       headers: headers,
       timeout: TIMEOUT,
+      open_timeout: 10
     )
 
     puts "Response: #{response}"
