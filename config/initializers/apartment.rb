@@ -18,7 +18,7 @@ Apartment.configure do |config|
   # A typical example would be a Customer or Tenant model that stores each Tenant's information.
   #
   config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile Energy
-                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment]
+                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet]
 
   # In order to migrate all of your Tenants you need to provide a list of Tenant names to Apartment.
   # You can make this dynamic by providing a Proc object to be called on migrations.
