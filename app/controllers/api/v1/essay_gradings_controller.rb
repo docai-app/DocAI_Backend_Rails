@@ -35,6 +35,8 @@ module Api
       def create
         set_essay_assignment_by_code
 
+        puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
+
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
 

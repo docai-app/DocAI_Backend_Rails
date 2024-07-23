@@ -198,7 +198,7 @@ module Api
         if google_drive_access_token.present?
           render json: { success: true, status: 'success' }, status: :ok
         else
-          render json: { success: false, error: 'Not authenticated' }, status: :unauthorized
+          render json: { success: false, error: 'Not authenticated' }, status: :ok
         end
       rescue StandardError => e
         render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
@@ -211,6 +211,18 @@ module Api
         access_token = params[:access_token]
 
         DifyGoogleDriveService.insert_token_to_db(domain, workspace, access_token, dify_user_id)
+
+        render json: { success: true, status: 'success' }, status: :ok
+      rescue StandardError => e
+        render json: { success: false, error: 'An error occurred', details: e.message }, status: :internal_server_error
+      end
+
+      def revoke_dify_user_google_drive
+        dify_user_id = params[:dify_user_id]
+        workspace = params[:workspace]
+        domain = params[:domain]
+
+        DifyGoogleDriveService.delete_token_from_db(domain, workspace, dify_user_id)
 
         render json: { success: true, status: 'success' }, status: :ok
       rescue StandardError => e

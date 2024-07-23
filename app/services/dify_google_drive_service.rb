@@ -63,6 +63,32 @@ class DifyGoogleDriveService
     SshTunnelService.close(gateway) if gateway
   end
 
+  def self.delete_token_from_db(domain, workspace, dify_user_id)
+    # 建立與數據庫的連接
+    conn, gateway, = DifyGoogleDriveService.connect_db(domain)
+
+    # 定義 SQL 查詢並參數化
+    sql = <<-SQL
+        DELETE FROM data_source_bindings#{' '}
+        WHERE provider = $1#{' '}
+          AND tenant_id = (SELECT id FROM tenants WHERE id = $2)#{' '}
+          AND source_info->>'dify_user_id' = $3::text
+    SQL
+
+    # 執行查詢並傳遞參數
+    result = conn.exec_params(sql, ['personal_google_drive', workspace, dify_user_id])
+
+    # 返回成功信息
+    { success: true }
+  rescue PG::Error => e
+    # 返回錯誤信息
+    { error: e.message }
+  ensure
+    # 確保連接和 SSH 隧道被關閉
+    conn&.close
+    SshTunnelService.close(gateway) if gateway
+  end
+
   def self.fetch_token_from_db(domain, workspace, dify_user_id)
     # 建立與數據庫的連接
     conn, gateway, = DifyGoogleDriveService.connect_db(domain)
