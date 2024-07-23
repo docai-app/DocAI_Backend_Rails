@@ -15,7 +15,11 @@ module Api
 
       def show_current_user
         @user = current_general_user
-        render json: { success: true, user: @user.as_json(include: :energy) }, status: :ok
+
+        user_data = @user.as_json(include: :energy)
+        user_data['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+
+        render json: { success: true, user: user_data }, status: :ok
       end
 
       def show_purchase_history

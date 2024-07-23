@@ -13,11 +13,16 @@ module Api
       def index
         @chatbots = current_user.chatbots.all.order(created_at: :desc)
         @chatbots = Kaminari.paginate_array(@chatbots).page(params[:page])
+        # @chatbots_with_folders = @chatbots.map do |chatbot|
+        #   puts chatbot.inspect
+        #   folders = Folder.find(chatbot.source['folder_id']) if chatbot.source['folder_id'][0].present?
+        #   { chatbot:, folders: }
+        # end
+
         @chatbots_with_folders = @chatbots.map do |chatbot|
-          puts chatbot.inspect
-          folders = Folder.find(chatbot.source['folder_id']) if chatbot.source['folder_id'][0].present?
-          { chatbot:, folders: }
+          { chatbot:, folders: [] }
         end
+
         render json: { success: true, chatbots: @chatbots_with_folders, meta: pagination_meta(@chatbots) }, status: :ok
       end
 
@@ -142,8 +147,30 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def send_dify_request
+        @general_user = current_general_user || current_user
+        chatbot_id = @chatbot.id # params[:chatbot_id]
+        query = params[:query]
+
+        conversation_id = if params[:new_conversation].to_b == true
+                            nil
+                          else
+                            get_conversation_id(@general_user, chatbot_id)
+                          end
+
+        result = DifyService.new(@general_user, query, conversation_id, @chatbot.dify_token).send_request
+
+        create_log_message(@general_user, chatbot_id, query, result[:conversation_id], result[:answer])
+
+        render json: { success: true, message: { content: result[:answer] } }, status: :ok
+      end
+
       def assistantQA
         @chatbot = Chatbot.find(params[:id])
+
+        # 如果有 dify token, 就將D野 forward 過去
+        return send_dify_request if @chatbot.dify_token?
+
         @documents = []
         if @chatbot
           @folders = @chatbot.source['folder_id'].map { |folder| Folder.find(folder) }
@@ -362,8 +389,34 @@ module Api
 
       private
 
+      def get_conversation_id(user, chatbot_id)
+        last_log_message = Message.where(user:, chatbot_id:).last
+        last_log_message&.dify_conversation_id
+      end
+
+      def create_log_message(user, chatbot_id, query, conversation_id, result)
+        Message.create!(
+          user:,
+          chatbot_id:,
+          content: query,
+          role: 'user',
+          object_type: 'general_user_talk',
+          dify_conversation_id: conversation_id
+        )
+
+        Message.create!(
+          user:,
+          chatbot_id:,
+          content: result,
+          role: 'system',
+          object_type: 'general_user_talk',
+          dify_conversation_id: conversation_id
+        )
+      end
+
       def chatbot_params
-        params.require(:chatbot).permit(:name, :description, :meta, :source, :category, :is_public, :expired_at)
+        params.require(:chatbot).permit(:name, :dify_token, :description, :meta, :source, :category, :is_public,
+                                        :expired_at)
       end
 
       def current_user_chatbots

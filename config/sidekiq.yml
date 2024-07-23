@@ -16,6 +16,8 @@
   - ['pdf_page']
   - ['pdf_page_monitor_job', 1]
   - ['update_chatbot_assistive_questions_job', 1]
+  - ['workflow_schedule_job', 1]
+  - ['general_user_schedule_reminder_job', 1]
 :timeout: 3600
 
 :schedule:

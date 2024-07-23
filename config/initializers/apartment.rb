@@ -18,7 +18,7 @@ Apartment.configure do |config|
   # A typical example would be a Customer or Tenant model that stores each Tenant's information.
   #
   config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile Energy
-                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker]
+                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet]
 
   # In order to migrate all of your Tenants you need to provide a list of Tenant names to Apartment.
   # You can make this dynamic by providing a Proc object to be called on migrations.
@@ -105,6 +105,8 @@ Apartment.configure do |config|
   # Uncomment the line below if you want to enable this behavior.
   #
   # config.active_record_log = true
+
+  Apartment::Elevators::Subdomain.excluded_subdomains = %w[www public ab7b-27-109-208-108 2396-27-109-208-108]
 end
 
 # Setup a custom Tenant switching middleware. The Proc should return the name of the Tenant that

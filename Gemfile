@@ -61,6 +61,7 @@ gem 'by_star'
 gem 'closure_tree'
 gem 'devise'
 gem 'devise-jwt'
+gem 'docx'
 gem 'draper'
 gem 'filterrific'
 gem 'mail'
@@ -73,6 +74,7 @@ gem 'kaminari'
 
 gem 'azure-storage-blob', require: false
 
+gem 'noticed'
 gem 'sidekiq'
 gem 'sidekiq-scheduler'
 
@@ -95,6 +97,8 @@ gem 'pdfkit'
 gem 'wkhtmltopdf-binary'
 
 gem 'addressable'
+gem 'nokogiri'
+gem 'rubyzip'
 gem 'zip_tricks'
 
 gem 'omniauth'
@@ -105,6 +109,7 @@ gem 'acts_as_list'
 gem 'acts_as_tree'
 gem 'net-scp'
 gem 'net-ssh'
+gem 'net-ssh-gateway'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 
 gem 'aasm'

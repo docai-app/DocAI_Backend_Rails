@@ -131,6 +131,9 @@ GEM
       devise (~> 4.0)
       warden-jwt_auth (~> 0.6)
     digest (3.1.0)
+    docx (0.8.0)
+      nokogiri (~> 1.13, >= 1.13.0)
+      rubyzip (~> 2.0)
     domain_name (0.5.20190701)
       unf (>= 0.0.5, < 1.0.0)
     dotenv (2.7.6)
@@ -281,6 +284,8 @@ GEM
       net-protocol
       timeout
     net-ssh (7.2.0)
+    net-ssh-gateway (2.0.0)
+      net-ssh (>= 4.0.0)
     netrc (0.11.0)
     nio4r (2.5.8)
     nokogiri (1.13.6-aarch64-linux)
@@ -291,6 +296,8 @@ GEM
       racc (~> 1.4)
     nokogiri (1.13.6-x86_64-linux)
       racc (~> 1.4)
+    noticed (2.2.2)
+      rails (>= 6.1.0)
     oauth2 (2.0.9)
       faraday (>= 0.17.3, < 3.0)
       jwt (>= 1.0, < 3.0)
@@ -550,6 +557,7 @@ DEPENDENCIES
   debug
   devise
   devise-jwt
+  docx
   dotenv
   draper
   filterrific
@@ -560,6 +568,9 @@ DEPENDENCIES
   matrix
   net-scp
   net-ssh
+  net-ssh-gateway
+  nokogiri
+  noticed
   omniauth
   omniauth-google-oauth2
   omniauth-rails_csrf_protection
@@ -582,6 +593,7 @@ DEPENDENCIES
   ros-apartment-sidekiq
   rubocop
   ruby-openai
+  rubyzip
   selenium-webdriver (~> 4.0)
   sidekiq
   sidekiq-scheduler

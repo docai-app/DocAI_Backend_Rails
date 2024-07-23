@@ -16,6 +16,8 @@
 #  sex                    :integer
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
+#  timezone               :string           default("Asia/Hong_Kong"), not null
+#  whats_app_number       :string
 #
 # Indexes
 #
@@ -24,6 +26,10 @@
 require_dependency 'has_kg_linker'
 
 class GeneralUser < ApplicationRecord
+  self.primary_key = 'id'
+  rolify
+  # has_and_belongs_to_many :roles, join_table: :users_roles
+
   devise :database_authenticatable,
          :jwt_authenticatable,
          :registerable,
@@ -41,21 +47,29 @@ class GeneralUser < ApplicationRecord
   has_many :general_user_feeds, dependent: :destroy
 
   has_many :assessment_records, as: :recordable
+  has_many :scheduled_tasks, as: :user, dependent: :destroy
+
+  has_many :memberships, dependent: :destroy
+  has_many :groups, through: :memberships
+
+  has_many :essay_gradings
+  has_many :essay_assignments
 
   scope :search_query, lambda { |query|
     return nil if query.blank?
+
     terms = query.to_s.downcase.split(/\s+/)
-    terms = terms.map { |e|
-      '%' + (e.gsub('*', '%') + '%').gsub(/%+/, '%')
-    }
+    terms = terms.map do |e|
+      "%#{"#{e.gsub('*', '%')}%".gsub(/%+/, '%')}"
+    end
     num_or_conditions = 1
     where(
-      terms.map {
+      terms.map do
         or_clauses = [
-          "LOWER(nickname) LIKE ?"
+          'LOWER(nickname) LIKE ?'
         ].join(' OR ')
-        "(#{ or_clauses })"
-      }.join(' AND '),
+        "(#{or_clauses})"
+      end.join(' AND '),
       *terms.map { |e| [e] * num_or_conditions }.flatten
     )
   }
@@ -84,6 +98,25 @@ class GeneralUser < ApplicationRecord
     else
       false
     end
+  end
+
+  def chatbots
+    # 创建一个空数组来保存提取的信息
+    chatbot_details = []
+
+    # 遍历原始数组，提取每个 market_item 下的 chatbot 信息
+    purchased_items.each do |item|
+      next unless item['marketplace_item']
+
+      chatbot_info = item['marketplace_item']
+      chatbot_details << {
+        chatbot_id: chatbot_info['chatbot_id'],
+        chatbot_name: chatbot_info['chatbot_name'],
+        chatbot_description: chatbot_info['chatbot_description']
+      }
+    end
+
+    chatbot_details.uniq
   end
 
   def check_can_consume_energy(_chatbot, energy_cost)

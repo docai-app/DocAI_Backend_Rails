@@ -27,6 +27,28 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      # ********** Essay grading ********
+      resources :essay_assignments, only: %i[index show create update destroy] do
+        resources :essay_gradings, only: [:create]
+        member do
+          get 'show_only'
+        end
+      end
+      resources :essay_gradings, only: %i[index show update destroy]
+
+      # ********** Group API *********
+      resources :groups do
+        member do
+          post 'add_students'
+          post 'remove_students'
+        end
+      end
+
+      # ********** LINKTREE API *********
+      resources :link_sets do
+        resources :links
+      end
+
       # ********** TAXO API *********
       resources :conceptmaps do
         # member do
@@ -238,6 +260,14 @@ Rails.application.routes.draw do
       post 'tools/text_to_png', to: 'tools#text_to_png'
       post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
       post 'tools/upload_html_to_png', to: 'tools#upload_html_to_png'
+      post 'tools/dify_chatbot_report', to: 'tools#dify_chatbot_report'
+      post 'tools/dify_prompt_wrapper', to: 'tools#dify_prompt_wrapper'
+      post 'tools/export_to_notion', to: 'tools#export_to_notion'
+      post 'tools/google_drive/check', to: 'tools#auth_dify_user_google_drive?'
+      post 'tools/google_drive/auth', to: 'tools#auth_dify_user_google_drive'
+      post 'tools/google_drive/list', to: 'tools#list_google_drive_files'
+      post 'tools/google_drive/upload/document', to: 'tools#export_docx_to_google_drive'
+      delete 'tools/google_drive/revoke', to: 'tools#revoke_dify_user_google_drive'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
@@ -326,6 +356,9 @@ Rails.application.routes.draw do
 
       # ********** General User Feed API ***********
       resources :general_user_feeds, only: %i[index show create update destroy]
+
+      # ********** Scheduled Task API ***********
+      resources :scheduled_tasks, only: %i[index show create update destroy]
     end
 
     namespace :admin do
