@@ -3,10 +3,13 @@
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
 
+  enum category: ["essay", "comprehension", "speaking_conversation", "speaking_essay"]
+
   before_create :generate_unique_code
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
+
 
   private
 
