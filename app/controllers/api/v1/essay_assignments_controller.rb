@@ -82,7 +82,7 @@ module Api
       end
 
       def essay_assignment_params
-        params.require(:essay_assignment).permit(:topic, :assignment, rubric: %i[name app_key])
+        params.require(:essay_assignment).permit(:topic, :assignment, :title, :hints, :category, rubric: %i[name app_key])
       end
 
       def pagination_meta(object)
