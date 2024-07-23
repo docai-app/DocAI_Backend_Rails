@@ -8,7 +8,7 @@ module Api
 
       def index
         @essay_assignments = current_general_user.essay_assignments
-        @essay_assignments = @essay_assignments.where(category: params[:category])
+        @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
         @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :topic, :created_at, :updated_at, :code, :assignment)
 
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
