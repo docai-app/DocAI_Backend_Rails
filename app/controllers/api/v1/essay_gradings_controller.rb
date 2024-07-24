@@ -66,6 +66,7 @@ module Api
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
             full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
             score: @essay_grading.grading.dig('comprehension', 'score'),
+            grading: @essay_grading.grading,
             general_user: {
               id: @essay_grading.general_user.id,
               nickname: @essay_grading.general_user.nickname,
