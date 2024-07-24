@@ -9,7 +9,7 @@ module Api
       def index
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
-        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :topic, :created_at, :updated_at, :code, :assignment)
+        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :topic, :created_at, :updated_at, :code, :assignment).order("created_at desc")
 
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
         render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) },
