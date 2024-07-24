@@ -48,7 +48,41 @@ module Api
       # 顯示特定的 EssayGrading
       def show
         set_essay_grading
-        render json: { success: true, essay_grading: @essay_grading }
+        # 预加载 essay_assignment 关联
+        # @essay_grading = @essay_grading.includes(:essay_assignment).find(params[:id])
+      
+        # 获取 category 的字符串表示
+        categories = EssayAssignment.categories.invert
+      
+        render json: { 
+          success: true, 
+          essay_grading: {
+            id: @essay_grading.id,
+            topic: @essay_grading.topic,
+            created_at: @essay_grading.created_at,
+            updated_at: @essay_grading.updated_at,
+            status: @essay_grading.status,
+            number_of_suggestion: @essay_grading.grading['number_of_suggestion'],
+            questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
+            full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
+            score: @essay_grading.grading.dig('comprehension', 'score'),
+            general_user: {
+              id: @essay_grading.general_user.id,
+              nickname: @essay_grading.general_user.nickname,
+              class_name: @essay_grading.general_user.banbie,
+              class_no: @essay_grading.general_user.class_no
+            },
+            essay_assignment: {
+              id: @essay_grading.essay_assignment.id,
+              app_key: @essay_grading.essay_assignment.app_key,
+              name: @essay_grading.essay_assignment.name,
+              category: @essay_grading.essay_assignment.category,
+              newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
+              created_at: @essay_grading.essay_assignment.created_at,
+              updated_at: @essay_grading.essay_assignment.updated_at
+            }
+          }
+        }, status: :ok
       end
 
       def create
