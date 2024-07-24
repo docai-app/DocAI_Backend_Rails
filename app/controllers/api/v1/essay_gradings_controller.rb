@@ -6,13 +6,26 @@ module Api
       before_action :authenticate_general_user!
 
       def index
-        # @essay_gradings = current_general_user.essay_gradings.select("id, topic, created_at, updated_at, status")
-        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select('essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.category as essay_assignment_category, essay_assignments.assignment AS assignment_name').order('updated_at desc')
+        # 联合查询，以便选择 essay_assignment 中的 newsfeed_id 字段
+        @essay_gradings = current_general_user.essay_gradings
+                                              .joins(:essay_assignment)
+                                              .select(
+                                                'essay_gradings.id, 
+                                                 essay_gradings.topic, 
+                                                 essay_gradings.created_at, 
+                                                 essay_gradings.updated_at, 
+                                                 essay_gradings.status, 
+                                                 essay_assignments.category as essay_assignment_category, 
+                                                 essay_assignments.assignment AS assignment_name, 
+                                                 essay_assignments.meta ->> \'newsfeed_id\' AS newsfeed_id'
+                                              )
+                                              .order('updated_at desc')
+      
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
         
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
-        
+      
         render json: {
           success: true,
           essay_gradings: @essay_gradings.map do |eg|
@@ -24,6 +37,7 @@ module Api
               status: eg.status,
               assignment_name: eg.assignment_name,
               category: categories[eg['essay_assignment_category']],  # 使用 categories 映射获取字符串表示
+              newsfeed_id: eg.newsfeed_id  # 添加 newsfeed_id
             }
           end,
           meta: pagination_meta(@essay_gradings)
