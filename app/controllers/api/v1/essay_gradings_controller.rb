@@ -7,7 +7,7 @@ module Api
 
       def index
         # @essay_gradings = current_general_user.essay_gradings.select("id, topic, created_at, updated_at, status")
-        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select('essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.assignment AS assignment_name').order('updated_at desc')
+        @essay_gradings = current_general_user.essay_gradings.joins(:essay_assignment).select('essay_gradings.id, essay_gradings.topic, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, essay_assignments.category, essay_assignments.assignment AS assignment_name').order('updated_at desc')
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
         render json: {
           success: true,
@@ -18,7 +18,8 @@ module Api
               created_at: eg.created_at,
               updated_at: eg.updated_at,
               status: eg.status,
-              assignment_name: eg.assignment_name
+              assignment_name: eg.assignment_name,
+              category: eg.category
             }
           end,
           meta: pagination_meta(@essay_gradings)
@@ -39,12 +40,8 @@ module Api
 
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
-
         @essay_grading.topic = @essay_assignment.topic
         @essay_grading.app_key = @essay_assignment.app_key
-
-        # binding.pry
-        # raise
 
         if @essay_grading.save
           render json: { success: true, essay_grading: @essay_grading }, status: :created
@@ -93,7 +90,21 @@ module Api
       end
 
       def essay_grading_params
-        params.require(:essay_grading).permit(:essay, :topic, grading: [:app_key])
+        params.require(:essay_grading).permit(
+          :essay, 
+          :topic, 
+          grading: [
+            :app_key, 
+            comprehension: [
+              questions: [
+                :question, 
+                :answer, 
+                :user_answer, 
+                { options: {} }
+              ]
+            ]
+          ]
+        )
       end
 
       def pagination_meta(object)
