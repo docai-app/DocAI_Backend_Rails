@@ -79,6 +79,7 @@ class EssayGrading < ApplicationRecord
     self['grading']['comprehension']['score'] = score
     self['grading']['comprehension']['questions_count'] = questions.count
     self['grading']['comprehension']['full_score'] = questions.count
+    self['status'] = 'grade'
     save
   end
 
