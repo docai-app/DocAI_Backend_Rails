@@ -32,7 +32,7 @@ class EssayGrading < ApplicationRecord
   end
 
   def need_to_run_workflow?
-    ["essay", "speaking_essay", "speaking_conversation"].include?(eg.category)
+    ["essay", "speaking_essay", "speaking_conversation"].include?(category)
   end
 
   def run_workflow
