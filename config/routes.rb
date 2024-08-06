@@ -31,6 +31,7 @@ Rails.application.routes.draw do
       resources :essay_assignments, only: %i[index show create update destroy] do
         resources :essay_gradings, only: [:create]
         member do
+          get 'read'
           get 'show_only'
         end
       end

@@ -9,7 +9,7 @@ module Api
       def index
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
-        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :topic, :created_at, :updated_at, :code, :assignment)
+        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :topic, :created_at, :updated_at, :code, :assignment).order("created_at desc")
 
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
         render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) },
@@ -21,14 +21,35 @@ module Api
         render json: { success: true, essay_assignment: @essay_assignment }
       end
 
+      def read
+        @essay_assignment = EssayAssignment.find(params[:id])
+        render json: { success: true, essay_assignment: @essay_assignment }
+      end
+
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
 
         @essay_gradings = @essay_assignment.essay_gradings
-                                           .joins(:general_user)
-                                           .select('essay_gradings.id, essay_gradings.general_user_id, essay_gradings.created_at, essay_gradings.updated_at, essay_gradings.status, COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion, general_users.nickname, general_users.banbie, general_users.class_no')
-                                           .includes(:general_user)
+                                   .joins(:general_user)
+                                   .joins(:essay_assignment)
+                                   .select(
+                                     'essay_gradings.id, 
+                                      essay_gradings.general_user_id, 
+                                      essay_assignments.category as essay_assignment_category, 
+                                      essay_gradings.created_at, 
+                                      essay_gradings.updated_at, 
+                                      essay_gradings.status, 
+                                      COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion, 
+                                      general_users.nickname, 
+                                      general_users.banbie, 
+                                      general_users.class_no, 
+                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'questions_count\', \'null\') AS questions_count, 
+                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score, 
+                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS score'
+                                   )
+                                   .includes(:general_user)
 
+        # binding.pry
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
@@ -41,10 +62,14 @@ module Api
                 class_name: eg.banbie,
                 class_no: eg.class_no
               },
+              category: eg['essay_assignment_category'],
               created_at: eg.created_at,
               updated_at: eg.updated_at,
               status: eg.status,
-              number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion']
+              number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion'],
+              questions_count: eg['questions_count'] == 'null' ? nil : eg['questions_count'],
+              full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
+              score: eg['score'] == 'null' ? nil : eg['score']
             }
           end
         }, status: :ok
@@ -84,7 +109,7 @@ module Api
       end
 
       def essay_assignment_params
-        params.require(:essay_assignment).permit(:topic, :assignment, :title, :hints, :category, rubric: %i[name app_key])
+        params.require(:essay_assignment).permit(:topic, :assignment, :title, :hints, :category, rubric: %i[name app_key], meta: %i[newsfeed_id])
       end
 
       def pagination_meta(object)

@@ -2,6 +2,7 @@
 
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
+  store_accessor :meta, :newsfeed_id
 
   enum category: ["essay", "comprehension", "speaking_conversation", "speaking_essay"]
 
