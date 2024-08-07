@@ -16,6 +16,8 @@ class EssayGrading < ApplicationRecord
 
   after_create :calculate_comprehension_score, if: :is_comprehension?
 
+  has_one_attached :file, service: :microsoft
+
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
     define_method(key) do
@@ -26,6 +28,15 @@ class EssayGrading < ApplicationRecord
       self.comprehension = (self.comprehension || {}).merge(key.to_s => value)
     end
   end
+
+  # def upload_file(file)
+  #   blob_service = Azure::Storage::Blob::BlobService.create
+  #   container_name = 'your_container_name'
+  #   blob_name = "essays/#{id}/#{file.original_filename}"
+
+  #   content = file.read
+  #   blob_service.create_block_blob(container_name, blob_name, content)
+  # end
 
   def is_comprehension?
     category == "comprehension"
@@ -38,6 +49,15 @@ class EssayGrading < ApplicationRecord
   def run_workflow
     # EssayGradingService.new(general_user_id, self).run_workflow
     EssayGradingJob.perform_async(id)
+  end
+
+  def transcribe_audio
+    if essay.present?
+      return essay
+    else
+      self['essay'] = OpenAIClient.transcribe_audio(file.url)
+      save
+    end
   end
 
   def run_workflow_sync
