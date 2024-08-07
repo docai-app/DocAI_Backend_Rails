@@ -1,47 +1,47 @@
 :concurrency: 1
 :queues:
-  - ['default', 1]
-  - ['document_classification', 1]
-  - ['document_classification_retrain', 1]
-  - ['document_classification_monitor_job', 1]
-  - ['ocr', 1]
-  - ['ocr_monitor_job', 1]
-  - ['form_deep_understanding', 1]
-  - ['form_deep_understanding_monitor_job', 1]
-  - ['document_embedding', 1]
-  - ['document_embedding_monitor_job', 1]
-  - ['document_smart_extraction', 1]
-  - ['document_smart_extraction_monitor_job', 1]
-  - ['pdf_pages_creation', 1]
-  - ['pdf_page']
-  - ['pdf_page_monitor_job', 1]
-  - ['update_chatbot_assistive_questions_job', 1]
-  - ['workflow_schedule_job', 1]
-  - ['general_user_schedule_reminder_job', 1]
+  - ["default", 1]
+  - ["document_classification", 1]
+  - ["document_classification_retrain", 1]
+  - ["document_classification_monitor_job", 1]
+  - ["ocr", 1]
+  - ["ocr_monitor_job", 1]
+  - ["form_deep_understanding", 1]
+  - ["form_deep_understanding_monitor_job", 1]
+  - ["document_embedding", 1]
+  - ["document_embedding_monitor_job", 1]
+  - ["document_smart_extraction", 1]
+  - ["document_smart_extraction_monitor_job", 1]
+  - ["pdf_pages_creation", 1]
+  - ["pdf_page"]
+  - ["pdf_page_monitor_job", 1]
+  - ["update_chatbot_assistive_questions_job", 1]
+  - ["workflow_schedule_job", 1]
+  - ["general_user_schedule_reminder_job", 1]
 :timeout: 3600
 
-:schedule:
-  DocumentClassificationMonitorJob:
-    every: '1800s'
-    queue: document_classification_monitor_job
-    enabled: true
-  OcrMonitorJob:
-    every: '60s'
-    queue: ocr_monitor_job
-    enabled: true
-  FormDeepUnderstandingMonitorJob:
-    every: '60s'
-    queue: form_deep_understanding_monitor_job
-    enabled: true
-  DocumentEmbeddingMonitorJob:
-    every: '120s'
-    queue: document_embedding_monitor_job
-    enabled: true
-  DocumentSmartExtractionMonitorJob:
-    every: '120s'
-    queue: document_smart_extraction_monitor_job
-    enabled: true
-  PdfPageMonitorJob:
-    every: '120s'
-    queue: pdf_page_monitor_job
-    enabled: true
+:scheduler:
+  # DocumentClassificationMonitorJob:
+  #   every: "1800s"
+  #   queue: document_classification_monitor_job
+  #   enabled: true
+  # OcrMonitorJob:
+  #   every: "60s"
+  #   queue: ocr_monitor_job
+  #   enabled: true
+  # FormDeepUnderstandingMonitorJob:
+  #   every: "60s"
+  #   queue: form_deep_understanding_monitor_job
+  #   enabled: true
+  # DocumentEmbeddingMonitorJob:
+  #   every: "120s"
+  #   queue: document_embedding_monitor_job
+  #   enabled: true
+  # DocumentSmartExtractionMonitorJob:
+  #   every: "120s"
+  #   queue: document_smart_extraction_monitor_job
+  #   enabled: true
+  # PdfPageMonitorJob:
+  #   every: "120s"
+  #   queue: pdf_page_monitor_job
+  #   enabled: true
