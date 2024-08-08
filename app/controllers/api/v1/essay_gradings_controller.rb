@@ -19,7 +19,7 @@ module Api
                                                  essay_assignments.assignment AS assignment_name, 
                                                  essay_assignments.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
-                                              .order('updated_at desc')
+                                              .order('created_at desc, updated_at desc')
       
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
         
