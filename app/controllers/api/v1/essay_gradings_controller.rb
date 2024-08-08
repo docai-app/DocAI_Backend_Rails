@@ -19,7 +19,7 @@ module Api
                                                  essay_assignments.assignment AS assignment_name, 
                                                  essay_assignments.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
-                                              .order('updated_at desc')
+                                              .order('created_at desc, updated_at desc')
       
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
         
@@ -92,6 +92,7 @@ module Api
 
         puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
 
+        
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
@@ -103,20 +104,6 @@ module Api
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
       end
-
-      # def create
-      #   @essay_grading = EssayGrading.new(essay_grading_params)
-      #   @essay_grading.general_user = current_general_user
-      #   @essay_grading['grading'] = {}
-      #   @essay_grading['grading']['app_key'] = params[:app_key]
-      #   if @essay_grading.save
-      #     # 創建後調用服務
-      #     EssayGradingService.new(current_general_user.id, @essay_grading).run_workflow
-      #     render json: @essay_grading, status: :created
-      #   else
-      #     render json: { errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
-      #   end
-      # end
 
       def update
         @user = current_general_user
@@ -147,6 +134,7 @@ module Api
         params.require(:essay_grading).permit(
           :essay, 
           :topic, 
+          :file,
           grading: [
             :app_key, 
             comprehension: [

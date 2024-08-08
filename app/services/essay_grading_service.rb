@@ -39,6 +39,8 @@ class EssayGradingService
     update_stop_essay_grading
   rescue StandardError
     update_stop_essay_grading
+  rescue 
+    update_stop_essay_grading
   end
 
   private

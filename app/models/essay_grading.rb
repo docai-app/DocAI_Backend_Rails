@@ -16,6 +16,8 @@ class EssayGrading < ApplicationRecord
 
   after_create :calculate_comprehension_score, if: :is_comprehension?
 
+  has_one_attached :file, service: :microsoft
+
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
     define_method(key) do
@@ -27,12 +29,21 @@ class EssayGrading < ApplicationRecord
     end
   end
 
+  # def upload_file(file)
+  #   blob_service = Azure::Storage::Blob::BlobService.create
+  #   container_name = 'your_container_name'
+  #   blob_name = "essays/#{id}/#{file.original_filename}"
+
+  #   content = file.read
+  #   blob_service.create_block_blob(container_name, blob_name, content)
+  # end
+
   def is_comprehension?
     category == "comprehension"
   end
 
   def need_to_run_workflow?
-    ["essay", "speaking_essay", "speaking_conversation"].include?(eg.category)
+    ["essay", "speaking_essay", "speaking_conversation"].include?(category)
   end
 
   def run_workflow
@@ -40,7 +51,50 @@ class EssayGrading < ApplicationRecord
     EssayGradingJob.perform_async(id)
   end
 
+  def modify_url
+    uri = URI.parse(file.url)
+    query_params = URI.decode_www_form(uri.query).to_h
+    query_params.delete('rscd') # 删除 rscd 参数
+    uri.query = URI.encode_www_form(query_params)
+    uri.to_s
+  end
+
+  def transcribe_audio
+    return essay if essay.present?
+      
+    # 下载文件
+    audio_data = URI.open(file.url)
+
+    if audio_data
+      # 创建临时文件
+      temp_audio_file = Tempfile.new(['audio', '.wav'])
+      temp_audio_file.binmode
+      temp_audio_file.write(audio_data.read)
+
+      # 计算文件大小
+      file_size_mb = temp_audio_file.size.to_f / (1024 * 1024)
+      puts "File size: #{file_size_mb.round(2)} MB"
+
+      temp_audio_file.rewind
+
+      # 调用 OpenAI 客户端
+      response = OpenAIClient.transcribe_audio(temp_audio_file)
+
+      # 清理临时文件
+      temp_audio_file.close
+      temp_audio_file.unlink
+
+      self['essay'] = response['text']
+      save
+    else
+      puts "Failed to download audio file."
+      nil
+    end
+
+  end
+
   def run_workflow_sync
+    transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
     EssayGradingService.new(general_user_id, self).run_workflow
   end
 

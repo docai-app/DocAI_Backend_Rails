@@ -87,5 +87,5 @@ Rails.application.configure do
 
   config.time_zone = 'Asia/Taipei'
 
-  Redis.exists_returns_integer = true
+  # Redis.exists_returns_integer = true
 end

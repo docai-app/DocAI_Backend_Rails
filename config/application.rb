@@ -32,6 +32,8 @@ module DocaiApi
     config.time_zone = 'Asia/Taipei'
     config.active_record.default_timezone = :local
     # config.eager_load_paths << Rails.root.join("extras")
+    config.autoload_paths << Rails.root.join('lib')
+
     config.eager_load = true
     config.autoloader = :classic
 
@@ -41,8 +43,6 @@ module DocaiApi
     config.api_only = false
 
     config.active_job.queue_adapter = :sidekiq
-
-    Redis.exists_returns_integer = true
 
     config.hosts << 'docai-dev.m2mda.com'
     config.hosts << 'docai.m2mda.com'

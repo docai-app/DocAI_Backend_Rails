@@ -72,7 +72,7 @@ gem 'rolify'
 gem 'api-pagination'
 gem 'kaminari'
 
-gem 'azure-storage-blob', require: false
+gem 'azure-storage-blob'
 
 gem 'noticed'
 gem 'sidekiq'
