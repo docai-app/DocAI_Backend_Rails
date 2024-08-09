@@ -9,7 +9,8 @@ module OpenAIClient
       response = client.audio.transcribe(
         parameters: {
         model: "whisper-1",
-        file: audio_file
+        file: audio_file,
+        language: 'en'
       })
     end
 
