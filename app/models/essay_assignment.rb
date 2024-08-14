@@ -4,13 +4,12 @@ class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id
 
-  enum category: ["essay", "comprehension", "speaking_conversation", "speaking_essay"]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay]
 
   before_create :generate_unique_code
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
-
 
   private
 
