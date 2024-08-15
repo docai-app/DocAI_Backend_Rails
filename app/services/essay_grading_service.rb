@@ -10,42 +10,52 @@ class EssayGradingService
   def initialize(user_id, essay_grading)
     @user_id = user_id
     @essay_grading = essay_grading
-    @api_key = essay_grading.app_key
+    @grading_app_key = essay_grading.grading['app_key']
+    @general_context_app_key = essay_grading.general_context['app_key']
+    @grading_success = false
+    @general_context_success = false
   end
 
-  def run_workflow
-    # response = RestClient.post(API_URL, request_payload, headers)
-    response = RestClient::Request.execute(
-      method: :post,
-      url: API_URL,
-      payload: request_payload,
-      headers:,
-      timeout: TIMEOUT,
-      open_timeout: 10
-    )
+  def run_workflows
+    # 运行 grading workflow
+    grading_response = execute_workflow(@grading_app_key, grading_request_payload)
+    @grading_success = process_response(grading_response, 'grading')
 
-    puts "Response: #{response}"
+    # 运行 general_context workflow
+    general_context_response = execute_workflow(@general_context_app_key, general_context_request_payload)
+    @general_context_success = process_response(general_context_response, 'general_context')
 
-    if response.code == 200
-      result = JSON.parse(response.body)
-      num_of_suggestions = get_number_of_suggestion(result['data']['outputs'])
-      update_essay_grading(result['data']['outputs'], num_of_suggestions)
-    else
-      # Rails.logger.error("Failed to run workflow: #{response.code}, #{response.body}")
-      update_stop_essay_grading
-    end
-  rescue RestClient::ExceptionWithResponse => e
-    Rails.logger.error("Exception when calling workflow: #{e.response}")
-    update_stop_essay_grading
-  rescue StandardError
-    update_stop_essay_grading
-  rescue StandardError
-    update_stop_essay_grading
+    # 最终确认状态
+    update_final_status
   end
 
   private
 
-  def request_payload
+  def execute_workflow(app_key, payload)
+    RestClient::Request.execute(
+      method: :post,
+      url: API_URL,
+      payload: payload,
+      headers: headers(app_key),
+      timeout: TIMEOUT,
+      open_timeout: 100
+    )
+  rescue RestClient::ExceptionWithResponse => e
+    Rails.logger.error("Exception when calling workflow: #{e.response}")
+    nil
+  rescue StandardError => e
+    Rails.logger.error("Standard error when calling workflow: #{e.message}")
+    nil
+  end
+
+  def headers(app_key)
+    {
+      'Authorization' => "Bearer #{app_key}",
+      'Content-Type' => 'application/json'
+    }
+  end
+
+  def grading_request_payload
     {
       inputs: {
         Essay: @essay_grading.essay,
@@ -56,11 +66,39 @@ class EssayGradingService
     }.to_json
   end
 
-  def headers
+  def general_context_request_payload
     {
-      'Authorization' => "Bearer #{@api_key}",
-      'Content-Type' => 'application/json'
-    }
+      inputs: {
+        Essay: @essay_grading.essay, # 假设 general_context 使用相同的 Essay 字段，如果不同则修改
+        essaytopic: @essay_grading.topic # 同样假设 topic 字段相同，如果不同则修改
+      },
+      response_mode: 'blocking',
+      user: @user_id
+    }.to_json
+  end
+
+  def process_response(response, context)
+    return false unless response && response.code == 200
+
+    result = JSON.parse(response.body)
+    num_of_suggestions = get_number_of_suggestion(result['data']['outputs'])
+
+    if context == 'grading'
+      @essay_grading.update(
+        grading: @essay_grading.grading.merge('data' => result['data']['outputs'], 'number_of_suggestion' => num_of_suggestions)
+      )
+    elsif context == 'general_context'
+      @essay_grading.update(
+        general_context: @essay_grading.general_context.merge('data' => result['data']['outputs'])
+      )
+    end
+
+    true
+  end
+
+  def get_number_of_suggestion(result)
+    json = JSON.parse(result['text'])
+    count_errors(json)
   end
 
   def count_errors(hash)
@@ -75,19 +113,11 @@ class EssayGradingService
     count
   end
 
-  def get_number_of_suggestion(result)
-    json = JSON.parse(result['text'])
-    count_errors(json)
-  end
-
-  def update_essay_grading(result, num_of_suggestions)
-    @essay_grading.update(
-      grading: @essay_grading.grading.merge('data' => result,
-                                            'number_of_suggestion' => num_of_suggestions), status: 'graded'
-    )
-  end
-
-  def update_stop_essay_grading
-    @essay_grading.update(status: 'stopped')
+  def update_final_status
+    if @grading_success && @general_context_success
+      @essay_grading.update(status: 'graded')
+    else
+      @essay_grading.update(status: 'stopped')
+    end
   end
 end

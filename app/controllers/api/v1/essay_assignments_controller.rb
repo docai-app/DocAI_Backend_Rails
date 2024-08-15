@@ -110,8 +110,18 @@ module Api
       end
 
       def essay_assignment_params
-        params.require(:essay_assignment).permit(:topic, :assignment, :title, :hints, :category,
-                                                 rubric: %i[name app_key], meta: %i[newsfeed_id])
+        params.require(:essay_assignment).permit(
+          :topic,
+          :assignment,
+          :title,
+          :hints,
+          :category,
+          rubric: [
+            :name,
+            app_key: [:grading, :general_context] # 允许嵌套的 app_key
+          ],
+          meta: [:newsfeed_id]
+        )
       end
 
       def pagination_meta(object)
