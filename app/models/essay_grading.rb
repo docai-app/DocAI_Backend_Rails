@@ -2,7 +2,8 @@
 
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension
-  # store_accessor :comprehension, :questions, :questions_count, :full_score, :score
+  store_accessor :general_context, :app_key, :data
+
   # 關聯
   belongs_to :general_user
   # belongs_to :essay_assignment, optional: true
@@ -13,7 +14,6 @@ class EssayGrading < ApplicationRecord
   enum status: { pending: 0, graded: 1, stopped: 2 }
 
   after_create :run_workflow, if: :need_to_run_workflow?
-
   after_create :calculate_comprehension_score, if: :is_comprehension?
 
   has_one_attached :file, service: :microsoft
@@ -47,7 +47,7 @@ class EssayGrading < ApplicationRecord
   end
 
   def run_workflow
-    # EssayGradingService.new(general_user_id, self).run_workflow
+    # EssayGradingService.new(general_user_id, self).run_workflows
     EssayGradingJob.perform_async(id)
   end
 
@@ -94,7 +94,7 @@ class EssayGrading < ApplicationRecord
 
   def run_workflow_sync
     transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
-    EssayGradingService.new(general_user_id, self).run_workflow
+    EssayGradingService.new(general_user_id, self).run_workflows
   end
 
   # 定義遞歸方法來計算所有 errors 的數量

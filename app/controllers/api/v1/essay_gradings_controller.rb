@@ -67,6 +67,7 @@ module Api
             full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
             score: @essay_grading.grading.dig('comprehension', 'score'),
             grading: @essay_grading.grading,
+            general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
             general_user: {
               id: @essay_grading.general_user.id,
@@ -89,14 +90,17 @@ module Api
 
       def create
         set_essay_assignment_by_code
-
+      
         puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
-
+      
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
-        @essay_grading.app_key = @essay_assignment.app_key
-
+      
+        
+        @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
+        @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+      
         if @essay_grading.save
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
@@ -134,6 +138,7 @@ module Api
           :essay,
           :topic,
           :file,
+          :using_time,
           grading: [
             :app_key,
             { comprehension: [
