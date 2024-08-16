@@ -371,6 +371,13 @@ Rails.application.routes.draw do
             post 'unlock', to: 'users#unlock_user'
           end
         end
+        resources :general_users, only: %i[index show create update destroy] do
+          collection do
+            post 'lock', to: 'general_users#lock_user'
+            post 'unlock', to: 'general_users#unlock_user'
+            post 'batch', to: 'general_users#batch_create'
+          end
+        end
       end
     end
 

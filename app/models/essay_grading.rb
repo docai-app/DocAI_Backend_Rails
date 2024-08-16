@@ -21,11 +21,11 @@ class EssayGrading < ApplicationRecord
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
     define_method(key) do
-      self.comprehension && self.comprehension[key.to_s]
+      comprehension && comprehension[key.to_s]
     end
 
     define_method("#{key}=") do |value|
-      self.comprehension = (self.comprehension || {}).merge(key.to_s => value)
+      self.comprehension = (comprehension || {}).merge(key.to_s => value)
     end
   end
 
@@ -39,11 +39,11 @@ class EssayGrading < ApplicationRecord
   # end
 
   def is_comprehension?
-    category == "comprehension"
+    category == 'comprehension'
   end
 
   def need_to_run_workflow?
-    ["essay", "speaking_essay", "speaking_conversation"].include?(category)
+    %w[essay speaking_essay speaking_conversation].include?(category)
   end
 
   def run_workflow
@@ -61,7 +61,7 @@ class EssayGrading < ApplicationRecord
 
   def transcribe_audio
     return essay if essay.present?
-      
+
     # 下载文件
     audio_data = URI.open(file.url)
 
@@ -87,10 +87,9 @@ class EssayGrading < ApplicationRecord
       self['essay'] = response['text']
       save
     else
-      puts "Failed to download audio file."
+      puts 'Failed to download audio file.'
       nil
     end
-
   end
 
   def run_workflow_sync
@@ -136,5 +135,4 @@ class EssayGrading < ApplicationRecord
     self['status'] = 'graded'
     save
   end
-
 end

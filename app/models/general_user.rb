@@ -36,6 +36,7 @@ class GeneralUser < ApplicationRecord
          :recoverable,
          :rememberable,
          :validatable,
+         :lockable,
          jwt_revocation_strategy: JwtDenylist
 
   has_one :energy, as: :user, dependent: :destroy

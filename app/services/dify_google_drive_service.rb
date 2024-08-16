@@ -76,7 +76,7 @@ class DifyGoogleDriveService
     SQL
 
     # 執行查詢並傳遞參數
-    result = conn.exec_params(sql, ['personal_google_drive', workspace, dify_user_id])
+    conn.exec_params(sql, ['personal_google_drive', workspace, dify_user_id])
 
     # 返回成功信息
     { success: true }

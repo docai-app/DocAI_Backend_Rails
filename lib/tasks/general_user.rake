@@ -26,9 +26,9 @@ namespace :general_user do
   end
 
   desc 'Import general users from a CSV file'
-  task import_general_users_from_csv: :environment do
+  task :import_general_users_from_csv, [:file_path] => :environment do |_t, args|
     puts 'Importing users from CSV file...'
-    file_path = '/Users/chonwai/Downloads/general_users.csv'
+    file_path = args[:file_path]
 
     CSV.foreach(file_path, headers: true) do |row|
       @user = GeneralUser.create!(

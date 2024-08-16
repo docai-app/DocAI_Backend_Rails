@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # lib/openai_client.rb
 module OpenAIClient
   def self.client
@@ -6,39 +8,41 @@ module OpenAIClient
 
   class << self
     def transcribe_audio(audio_file)
-      response = client.audio.transcribe(
+      client.audio.transcribe(
         parameters: {
-        model: "whisper-1",
-        file: audio_file
-      })
+          model: 'whisper-1',
+          file: audio_file,
+          language: 'en'
+        }
+      )
     end
 
     def generate_image(prompt, size: '512x512')
-      response = client.images.generate(
-        parameters: { 
-          model: "dall-e-3",
-          prompt: prompt, 
-          size: "1024x1024",
-          quality: "hd",
-          n: 1 
-        })
+      client.images.generate(
+        parameters: {
+          model: 'dall-e-3',
+          prompt:,
+          size: '1024x1024',
+          quality: 'hd',
+          n: 1
+        }
+      )
     end
 
     def tts(text, voice)
-      if voice == "man"
-        voice = "echo"
-      else
-        voice = "alloy"
-      end
+      voice = if voice == 'man'
+                'echo'
+              else
+                'alloy'
+              end
 
-      response = client.audio.speech(
+      client.audio.speech(
         parameters: {
-          model: "tts-1",
+          model: 'tts-1',
           input: text,
-          voice: voice
+          voice:
         }
       )
-      
     end
   end
 end
