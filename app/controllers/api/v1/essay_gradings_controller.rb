@@ -15,6 +15,7 @@ module Api
                                                  essay_gradings.created_at,
                                                  essay_gradings.updated_at,
                                                  essay_gradings.status,
+                                                 essay_gradings.using_time,
                                                  essay_assignments.category as essay_assignment_category,
                                                  essay_assignments.assignment AS assignment_name,
                                                  essay_assignments.meta ->> \'newsfeed_id\' AS newsfeed_id'
@@ -25,6 +26,8 @@ module Api
 
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
+        
+        # binding.pry
 
         render json: {
           success: true,
@@ -38,12 +41,11 @@ module Api
               assignment_name: eg.assignment_name,
               category: categories[eg['essay_assignment_category']], # 使用 categories 映射获取字符串表示
               using_time: eg.using_time,
-              newsfeed_id: eg.newsfeed_id # 添加 newsfeed_id
+              newsfeed_id: eg['newsfeed_id'] # 添加 newsfeed_id
             }
           end,
           meta: pagination_meta(@essay_gradings)
         }, status: :ok
-        # render json: { success: true, essay_gradings: @essay_gradings, meta: pagination_meta(@essay_gradings) }, status: :ok
       end
 
       # 顯示特定的 EssayGrading
