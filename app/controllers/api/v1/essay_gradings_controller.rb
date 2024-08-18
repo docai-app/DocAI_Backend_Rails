@@ -101,7 +101,7 @@ module Api
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
-        binding.pry
+        # binding.pry
       
         
         @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
