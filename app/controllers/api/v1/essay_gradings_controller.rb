@@ -37,6 +37,7 @@ module Api
               status: eg.status,
               assignment_name: eg.assignment_name,
               category: categories[eg['essay_assignment_category']], # 使用 categories 映射获取字符串表示
+              using_time: eg.using_time,
               newsfeed_id: eg.newsfeed_id # 添加 newsfeed_id
             }
           end,
@@ -69,6 +70,7 @@ module Api
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
+            using_time: @essay_grading.using_time,
             general_user: {
               id: @essay_grading.general_user.id,
               nickname: @essay_grading.general_user.nickname,
@@ -96,6 +98,8 @@ module Api
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
+
+        binding.pry
       
         
         @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
@@ -149,7 +153,8 @@ module Api
                 { options: {} }
               ]
             ] }
-          ]
+          ],
+          meta: [:newsfeed_id]
         )
       end
 

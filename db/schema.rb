@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_08_15_060644) do
+ActiveRecord::Schema[7.0].define(version: 2024_08_17_161432) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -344,6 +344,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_08_15_060644) do
     t.uuid "essay_assignment_id"
     t.jsonb "general_context", default: {}, null: false
     t.integer "using_time", default: 0, null: false
+    t.jsonb "meta", default: {}, null: false
     t.index ["essay_assignment_id"], name: "index_essay_gradings_on_essay_assignment_id"
   end
 

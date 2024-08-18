@@ -4,6 +4,8 @@ class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension
   store_accessor :general_context, :app_key, :data
 
+  store_accessor :meta, :newsfeed_id
+
   # 關聯
   belongs_to :general_user
   # belongs_to :essay_assignment, optional: true
