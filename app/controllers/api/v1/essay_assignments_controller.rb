@@ -37,6 +37,8 @@ module Api
                                              'essay_gradings.id,
                                       essay_gradings.general_user_id,
                                       essay_assignments.category as essay_assignment_category,
+                                      essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id,
+                                      essay_gradings.using_time,
                                       essay_gradings.created_at,
                                       essay_gradings.updated_at,
                                       essay_gradings.status,
@@ -63,6 +65,8 @@ module Api
                 class_name: eg.banbie,
                 class_no: eg.class_no
               },
+              using_time: eg['using_time'],
+              newsfeed_id: eg['newsfeed_id'],
               category: eg['essay_assignment_category'],
               created_at: eg.created_at,
               updated_at: eg.updated_at,

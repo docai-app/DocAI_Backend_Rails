@@ -18,7 +18,7 @@ module Api
                                                  essay_gradings.using_time,
                                                  essay_assignments.category as essay_assignment_category,
                                                  essay_assignments.assignment AS assignment_name,
-                                                 essay_assignments.meta ->> \'newsfeed_id\' AS newsfeed_id'
+                                                 essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
                                               .order('created_at desc, updated_at desc')
 
