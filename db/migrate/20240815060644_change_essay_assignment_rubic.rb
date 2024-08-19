@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ChangeEssayAssignmentRubic < ActiveRecord::Migration[7.0]
   def up
     EssayAssignment.find_each do |assignment|

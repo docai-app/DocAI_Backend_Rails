@@ -18,6 +18,11 @@
 #  updated_at             :datetime         not null
 #  timezone               :string           default("Asia/Hong_Kong"), not null
 #  whats_app_number       :string
+#  banbie                 :string
+#  class_no               :string
+#  failed_attempts        :integer          default(0)
+#  unlock_token           :string
+#  locked_at              :datetime
 #
 # Indexes
 #

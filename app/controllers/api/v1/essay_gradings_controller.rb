@@ -94,19 +94,22 @@ module Api
 
       def create
         set_essay_assignment_by_code
-      
+
         puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
-      
+
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
+<<<<<<< HEAD
         # binding.pry
       
         
+=======
+>>>>>>> a9ed2da (Refactor: Update table names to use schema prefix)
         @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
         @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
-      
+
         if @essay_grading.save
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
