@@ -2,7 +2,7 @@
 
 # == Schema Information
 #
-# Table name: link_sets
+# Table name: public.link_sets
 #
 #  id             :bigint(8)        not null, primary key
 #  name           :string

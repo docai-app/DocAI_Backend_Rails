@@ -15,9 +15,10 @@ module Api
                                                  essay_gradings.created_at,
                                                  essay_gradings.updated_at,
                                                  essay_gradings.status,
+                                                 essay_gradings.using_time,
                                                  essay_assignments.category as essay_assignment_category,
                                                  essay_assignments.assignment AS assignment_name,
-                                                 essay_assignments.meta ->> \'newsfeed_id\' AS newsfeed_id'
+                                                 essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
                                               .order('created_at desc, updated_at desc')
 
@@ -25,6 +26,8 @@ module Api
 
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
+        
+        # binding.pry
 
         render json: {
           success: true,
@@ -37,12 +40,12 @@ module Api
               status: eg.status,
               assignment_name: eg.assignment_name,
               category: categories[eg['essay_assignment_category']], # 使用 categories 映射获取字符串表示
-              newsfeed_id: eg.newsfeed_id # 添加 newsfeed_id
+              using_time: eg.using_time,
+              newsfeed_id: eg['newsfeed_id'] # 添加 newsfeed_id
             }
           end,
           meta: pagination_meta(@essay_gradings)
         }, status: :ok
-        # render json: { success: true, essay_gradings: @essay_gradings, meta: pagination_meta(@essay_gradings) }, status: :ok
       end
 
       # 顯示特定的 EssayGrading
@@ -69,6 +72,7 @@ module Api
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
+            using_time: @essay_grading.using_time,
             general_user: {
               id: @essay_grading.general_user.id,
               nickname: @essay_grading.general_user.nickname,
@@ -90,17 +94,22 @@ module Api
 
       def create
         set_essay_assignment_by_code
-      
+
         puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
-      
+
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
+
+<<<<<<< HEAD
+        # binding.pry
       
         
+=======
+>>>>>>> a9ed2da (Refactor: Update table names to use schema prefix)
         @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
         @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
-      
+
         if @essay_grading.save
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
@@ -149,7 +158,8 @@ module Api
                 { options: {} }
               ]
             ] }
-          ]
+          ],
+          meta: [:newsfeed_id]
         )
       end
 
