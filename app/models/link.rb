@@ -2,7 +2,7 @@
 
 # == Schema Information
 #
-# Table name: links
+# Table name: public.links
 #
 #  id          :bigint(8)        not null, primary key
 #  title       :string

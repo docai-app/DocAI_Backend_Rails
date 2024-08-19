@@ -2,7 +2,7 @@
 
 # == Schema Information
 #
-# Table name: groups
+# Table name: public.groups
 #
 #  name       :string           not null
 #  owner_id   :uuid             not null

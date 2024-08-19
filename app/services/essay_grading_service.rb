@@ -35,7 +35,7 @@ class EssayGradingService
     RestClient::Request.execute(
       method: :post,
       url: API_URL,
-      payload: payload,
+      payload:,
       headers: headers(app_key),
       timeout: TIMEOUT,
       open_timeout: 100
@@ -85,7 +85,8 @@ class EssayGradingService
 
     if context == 'grading'
       @essay_grading.update(
-        grading: @essay_grading.grading.merge('data' => result['data']['outputs'], 'number_of_suggestion' => num_of_suggestions)
+        grading: @essay_grading.grading.merge('data' => result['data']['outputs'],
+                                              'number_of_suggestion' => num_of_suggestions)
       )
     elsif context == 'general_context'
       @essay_grading.update(
