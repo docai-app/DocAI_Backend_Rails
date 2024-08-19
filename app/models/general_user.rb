@@ -33,6 +33,12 @@ require_dependency 'has_kg_linker'
 class GeneralUser < ApplicationRecord
   self.primary_key = 'id'
   rolify
+  acts_as_taggable_on :aienglish_features
+
+  VALID_AI_ENGLISH_FEATURES = %w[essay_grading comprehension speaking_essay speaking_conversation].freeze
+
+  validate :aienglish_features_must_be_valid
+
   # has_and_belongs_to_many :roles, join_table: :users_roles
 
   devise :database_authenticatable,
@@ -169,5 +175,14 @@ class GeneralUser < ApplicationRecord
   def respond_to_relation?(_relation_name)
     # 假设总是返回true，或者你需要一些逻辑来验证这个关系是否有效
     true
+  end
+
+  private
+
+  def aienglish_features_must_be_valid
+    invalid_features = aienglish_feature_list - VALID_AI_ENGLISH_FEATURES
+    return if invalid_features.empty?
+
+    errors.add(:aienglish_features, "Can only include allowed features: #{invalid_features.join(', ')}")
   end
 end
