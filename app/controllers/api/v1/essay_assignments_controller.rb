@@ -50,7 +50,7 @@ module Api
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score,
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS score'
                                            )
-                                           .includes(:general_user)
+                                           .includes(:general_user).order("created_at asc")
 
         # binding.pry
         render json: {

@@ -101,12 +101,9 @@ module Api
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
-<<<<<<< HEAD
         # binding.pry
       
         
-=======
->>>>>>> a9ed2da (Refactor: Update table names to use schema prefix)
         @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
         @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
 
