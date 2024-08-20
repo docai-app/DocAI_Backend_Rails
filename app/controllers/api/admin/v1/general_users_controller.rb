@@ -9,8 +9,16 @@ module Api
         include AdminAuthenticator
 
         def index
-          @users = GeneralUser.all.page(params[:page])
+          @users = GeneralUser.all.order(created_at: :desc).as_json(except: %i[aienglish_feature_list])
+          @users = Kaminari.paginate_array(@users).page(params[:page])
           render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        def show
+          @user = GeneralUser.find(params[:id])
+          render json: { success: true, user: @user }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
@@ -31,6 +39,26 @@ module Api
           else
             render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
           end
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        def update
+          @user = GeneralUser.find(params[:id])
+        
+          if @user.update(general_users_params)
+            if params[:aienglish_features].present?
+              features = Array(params[:aienglish_features])
+              @user.aienglish_feature_list = features
+              @user.save
+            end
+        
+            render json: { success: true, user: @user }, status: :ok
+          else
+            render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
+          end
+        rescue ActiveRecord::RecordNotFound
+          render json: { success: false, error: "User not found" }, status: :not_found
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
