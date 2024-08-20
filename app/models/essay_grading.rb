@@ -91,10 +91,11 @@ class EssayGrading < ApplicationRecord
     return essay if essay.present?
 
     begin
-      response = RestClient.post(
-        'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
-        { audio_url: file.url }.to_json,
-        { content_type: :json, accept: :json },
+      response = RestClient::Request.execute(
+        method: :post,
+        url: 'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
+        payload: { audio_url: file.url }.to_json,
+        headers: { content_type: :json, accept: :json },
         open_timeout: 60,   # 设置连接超时时间为 60 秒
         read_timeout: 300   # 设置读取超时时间为 120 秒
       )
