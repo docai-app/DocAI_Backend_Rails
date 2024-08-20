@@ -94,7 +94,9 @@ class EssayGrading < ApplicationRecord
       response = RestClient.post(
         'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
         { audio_url: file.url }.to_json,
-        { content_type: :json, accept: :json }
+        { content_type: :json, accept: :json },
+        open_timeout: 60,   # 设置连接超时时间为 60 秒
+        read_timeout: 300   # 设置读取超时时间为 120 秒
       )
       
       # 处理成功的响应
@@ -109,35 +111,6 @@ class EssayGrading < ApplicationRecord
       # 处理其他错误
       raise "An error occurred: #{e.message}"
     end
-
-    # 下载文件
-    # audio_data = URI.open(file.url)
-
-    # if audio_data
-    #   # 创建临时文件
-    #   temp_audio_file = Tempfile.new(['audio', '.wav'])
-    #   temp_audio_file.binmode
-    #   temp_audio_file.write(audio_data.read)
-
-    #   # 计算文件大小
-    #   file_size_mb = temp_audio_file.size.to_f / (1024 * 1024)
-    #   puts "File size: #{file_size_mb.round(2)} MB"
-
-    #   temp_audio_file.rewind
-
-    #   # 调用 OpenAI 客户端
-    #   response = OpenAIClient.transcribe_audio(temp_audio_file)
-
-    #   # 清理临时文件
-    #   temp_audio_file.close
-    #   temp_audio_file.unlink
-
-    #   self['essay'] = response['text']
-    #   save
-    # else
-    #   puts 'Failed to download audio file.'
-    #   nil
-    # end
   end
 
   def run_workflow_sync

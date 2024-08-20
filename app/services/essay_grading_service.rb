@@ -21,9 +21,11 @@ class EssayGradingService
     grading_response = execute_workflow(@grading_app_key, grading_request_payload)
     @grading_success = process_response(grading_response, 'grading')
 
-    # 运行 general_context workflow
-    general_context_response = execute_workflow(@general_context_app_key, general_context_request_payload)
-    @general_context_success = process_response(general_context_response, 'general_context')
+    # 运行 general_context workflow (如果 @general_context_app_key 不为 nil)
+    unless @general_context_app_key.blank?
+      general_context_response = execute_workflow(@general_context_app_key, general_context_request_payload)
+      @general_context_success = process_response(general_context_response, 'general_context')
+    end
 
     # 最终确认状态
     update_final_status
@@ -35,7 +37,7 @@ class EssayGradingService
     RestClient::Request.execute(
       method: :post,
       url: API_URL,
-      payload:,
+      payload: payload,
       headers: headers(app_key),
       timeout: TIMEOUT,
       open_timeout: 100
@@ -115,7 +117,7 @@ class EssayGradingService
   end
 
   def update_final_status
-    if @grading_success && @general_context_success
+    if @grading_success && (@general_context_app_key.blank? || @general_context_success)
       @essay_grading.update(status: 'graded')
     else
       @essay_grading.update(status: 'stopped')
