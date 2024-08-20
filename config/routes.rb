@@ -35,7 +35,11 @@ Rails.application.routes.draw do
           get 'show_only'
         end
       end
-      resources :essay_gradings, only: %i[index show update destroy]
+      resources :essay_gradings, only: %i[index show update destroy] do
+        member do
+          get 'download_report'
+        end
+      end
 
       # ********** Group API *********
       resources :groups do

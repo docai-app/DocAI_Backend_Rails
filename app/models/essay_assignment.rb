@@ -37,6 +37,20 @@ class EssayAssignment < ApplicationRecord
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
 
+  def get_news_feed
+    return nil if self['meta']['newsfeed_id'].nil?
+
+    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
+    response = Net::HTTP.get_response(uri)
+
+    if response.is_a?(Net::HTTPSuccess)
+      JSON.parse(response.body)
+    else
+      nil
+    end
+
+  end
+
   private
 
   def generate_unique_code
