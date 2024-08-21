@@ -26,7 +26,7 @@ module Api
 
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
-        
+
         # binding.pry
 
         render json: {
@@ -102,8 +102,7 @@ module Api
         @essay_grading.topic = @essay_assignment.topic
 
         # binding.pry
-      
-        
+
         @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
         @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
 
