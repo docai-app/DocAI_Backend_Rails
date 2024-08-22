@@ -6,7 +6,6 @@ module Api
       before_action :authenticate_general_user!, except: [:download_report]
 
       def download_report
-
         set_essay_grading
         assignment = @essay_grading.essay_assignment
         json_data = {}
@@ -22,14 +21,13 @@ module Api
           end
           # binding.pry
           pdf = generate_comprehension_pdf(json_data)
-        elsif assignment.category.include?("essay")
+        elsif assignment.category.include?('essay')
           pdf = generate_essay_pdf(@essay_grading.grading)
         else
           pdf = generate_pdf_from_json(json_data)
         end
 
-        
-        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: "application/pdf", disposition: "inline"   #disposition: "attachment"
+        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf', disposition: 'inline' # disposition: "attachment"
       end
 
       def index
@@ -198,7 +196,7 @@ module Api
 
       def generate_pdf_from_json(json_data, pdf = nil, indent_level = 0)
         pdf ||= Prawn::Document.new
-      
+
         json_data.each do |key, value|
           case value
           when Hash
@@ -215,7 +213,7 @@ module Api
           end
           pdf.move_down 10
         end
-      
+
         pdf
       end
 
@@ -234,45 +232,45 @@ module Api
           pdf.font 'NotoSans'
 
           # 标题
-          pdf.text json_data["title"], size: 24, style: :bold, align: :center
+          pdf.text json_data['title'], size: 24, style: :bold, align: :center
           pdf.move_down 20
-      
+
           # 话题
-          pdf.text "Topic: #{json_data["topic"]}", size: 18, style: :bold
+          pdf.text "Topic: #{json_data['topic']}", size: 18, style: :bold
           pdf.move_down 10
 
           # binding.pry
-      
+
           # 文章内容
-          pdf.text json_data["article"], size: 12, leading: 4
+          pdf.text json_data['article'], size: 12, leading: 4
           pdf.move_down 20
-      
+
           # 理解测试部分
-          pdf.text "Comprehension Questions", size: 18, style: :bold
+          pdf.text 'Comprehension Questions', size: 18, style: :bold
           pdf.move_down 10
-      
-          comprehension = json_data["comprehension"]
-          comprehension["questions"].each_with_index do |question, index|
-            pdf.text "#{index + 1}. #{question["question"]}", size: 14, style: :bold
+
+          comprehension = json_data['comprehension']
+          comprehension['questions'].each_with_index do |question, index|
+            pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
             pdf.move_down 5
-      
-            question["options"].each do |key, option|
+
+            question['options'].each do |key, option|
               pdf.text "  #{key}: #{option}", size: 12
             end
-      
+
             pdf.move_down 5
-            pdf.fill_color "008000"  # 设置文本颜色为绿色
-            pdf.text "Correct Answer: #{question["answer"]}", style: :bold, size: 12
-            pdf.fill_color "000000"  # 重置颜色为黑色
+            pdf.fill_color '008000'  # 设置文本颜色为绿色
+            pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 12
+            pdf.fill_color '000000'  # 重置颜色为黑色
             pdf.move_down 15
           end
-      
+
           # 在页面底部显示分数
-          pdf.text "Score: #{comprehension["score"]} / #{comprehension["full_score"]}", size: 14, style: :bold
+          pdf.text "Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold
           pdf.move_down 10
-      
+
           # 页脚页码
-          pdf.number_pages "<page> of <total>", at: [pdf.bounds.right - 50, 0], align: :right, size: 12
+          pdf.number_pages '<page> of <total>', at: [pdf.bounds.right - 50, 0], align: :right, size: 12
         end
       end
 
@@ -291,31 +289,31 @@ module Api
           pdf.font 'NotoSans'
 
           # 添加标题
-          pdf.text "Essay Report", size: 24, style: :bold, align: :center
+          pdf.text 'Essay Report', size: 24, style: :bold, align: :center
           pdf.move_down 20
 
           # 解析 JSON 数据
-          sentences = JSON.parse(json_data["data"]["text"])
+          sentences = JSON.parse(json_data['data']['text'])
 
           # 逐句添加内容和错误说明
           sentences.each do |key, value|
-            if key.start_with?("Sentence")
-              # 打印句子
-              pdf.text value["sentence"], size: 14, style: :bold
-              pdf.move_down 5
+            next unless key.start_with?('Sentence')
 
-              # 打印该句子的错误
-              if value["errors"].any?
-                value["errors"].each do |error_key, error_value|
-                  pdf.fill_color "FF0000"  # 设置文本颜色为红色
-                  pdf.text "#{error_value['word']}: #{error_value['explanation']}", size: 12, indent_paragraphs: 20
-                  pdf.fill_color "000000"  # 重置颜色为黑色
-                  pdf.move_down 5
-                end
+            # 打印句子
+            pdf.text value['sentence'], size: 14, style: :bold
+            pdf.move_down 5
+
+            # 打印该句子的错误
+            if value['errors'].any?
+              value['errors'].each do |_error_key, error_value|
+                pdf.fill_color 'FF0000'  # 设置文本颜色为红色
+                pdf.text "#{error_value['word']}: #{error_value['explanation']}", size: 12, indent_paragraphs: 20
+                pdf.fill_color '000000'  # 重置颜色为黑色
+                pdf.move_down 5
               end
-
-              pdf.move_down 10
             end
+
+            pdf.move_down 10
           end
 
           # 添加评分标准和解释
@@ -340,9 +338,6 @@ module Api
           # pdf.text json_data['data']['Final Feedback'], size: 12, indent_paragraphs: 20
         end
       end
-
-
-
     end
   end
 end

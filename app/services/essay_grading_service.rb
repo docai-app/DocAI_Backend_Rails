@@ -37,7 +37,7 @@ class EssayGradingService
     RestClient::Request.execute(
       method: :post,
       url: API_URL,
-      payload: payload,
+      payload:,
       headers: headers(app_key),
       timeout: TIMEOUT,
       open_timeout: 100

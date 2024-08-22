@@ -43,12 +43,9 @@ class EssayAssignment < ApplicationRecord
     uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
     response = Net::HTTP.get_response(uri)
 
-    if response.is_a?(Net::HTTPSuccess)
-      JSON.parse(response.body)
-    else
-      nil
-    end
+    return unless response.is_a?(Net::HTTPSuccess)
 
+    JSON.parse(response.body)
   end
 
   private

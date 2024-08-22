@@ -99,7 +99,7 @@ class EssayGrading < ApplicationRecord
         open_timeout: 60,   # 设置连接超时时间为 60 秒
         read_timeout: 300   # 设置读取超时时间为 120 秒
       )
-      
+
       # 处理成功的响应
       response = JSON.parse(response.body) # 返回解析后的JSON数据
       self['essay'] = response['text']

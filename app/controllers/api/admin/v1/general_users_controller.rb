@@ -23,6 +23,25 @@ module Api
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
+        def show_students
+          @user = GeneralUser.find(params[:id])
+          @students = @user.linkable_relation('student').order(created_at: :desc).as_json(except: %i[aienglish_feature_list])
+          @students = Kaminari.paginate_array(@students).page(params[:page])
+          render json: { success: true, teacher: @user, students: @students, meta: pagination_meta(@students) },
+                 status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        def show_teachers
+          @user = GeneralUser.find(params[:id])
+          @teachers = @user.find_teachers_via_students
+          @teachers = Kaminari.paginate_array(@teachers).page(params[:page])
+          render json: { success: true, student: @user, teachers: @teachers }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
         def create
           @user = GeneralUser.new(general_users_params)
 
@@ -111,6 +130,63 @@ module Api
           else
             render json: { success: false, errors: }, status: :unprocessable_entity
           end
+        end
+
+        def lock_user
+          @user = GeneralUser.find(params[:id])
+          if @user.update(locked_at: Time.current)
+            render json: { success: true, user: @user }, status: :ok
+          else
+            render json: { success: false, error: 'User not found' }, status: :not_found
+          end
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        def unlock_user
+          @user = GeneralUser.find(params[:id])
+          if @user.update(locked_at: nil, failed_attempts: 0, unlock_token: nil)
+            render json: { success: true, user: @user }, status: :ok
+          else
+            render json: { success: false, error: 'User not found' }, status: :not_found
+          end
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        def batch_students_relation_by_emails
+          file = params[:file]
+
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          @teacher = []
+          @students = []
+          errors = []
+
+          CSV.foreach(file.path, headers: true) do |row|
+            ActiveRecord::Base.transaction do
+              teacher_email = row['teacher_email']&.strip
+
+              student_emails = begin
+                JSON.parse(row['student_emails'])
+              rescue StandardError
+                []
+              end
+
+              @teacher = GeneralUser.find_by(email: teacher_email)
+              @students = GeneralUser.where(email: student_emails)
+
+              @students.each do |student|
+                KgLinker.add_student_relation(teacher: @teacher, student:)
+              end
+            end
+          rescue StandardError => e
+            errors << { email: email || 'N/A', error: e.message }
+          end
+
+          render json: { success: true, message: 'Done' }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, message: e.message, errors: }, status: :internal_server_error
         end
 
         private

@@ -377,9 +377,12 @@ Rails.application.routes.draw do
         end
         resources :general_users, only: %i[index show create update destroy] do
           collection do
+            get ':id/students', to: 'general_users#show_students'
+            get ':id/teachers', to: 'general_users#show_teachers'
             post 'lock', to: 'general_users#lock_user'
             post 'unlock', to: 'general_users#unlock_user'
             post 'batch', to: 'general_users#batch_create'
+            post 'batch/student/email', to: 'general_users#batch_students_relation_by_emails'
           end
         end
       end

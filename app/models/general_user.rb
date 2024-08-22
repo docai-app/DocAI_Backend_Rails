@@ -177,6 +177,13 @@ class GeneralUser < ApplicationRecord
     true
   end
 
+  def find_teachers_via_students
+    teacher_ids = KgLinker.where(map_to_id: id, relation: 'has_student')
+                          .pluck(:map_from_id)
+                          .uniq
+    GeneralUser.where(id: teacher_ids).order(created_at: :desc).as_json(except: %i[aienglish_feature_list])
+  end
+
   private
 
   def aienglish_features_must_be_valid
