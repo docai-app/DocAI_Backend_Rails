@@ -22,7 +22,6 @@
 #  index_essay_assignments_on_code             (code) UNIQUE
 #  index_essay_assignments_on_general_user_id  (general_user_id)
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   topic: MyString

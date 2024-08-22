@@ -382,7 +382,8 @@ Rails.application.routes.draw do
             post 'lock', to: 'general_users#lock_user'
             post 'unlock', to: 'general_users#unlock_user'
             post 'batch', to: 'general_users#batch_create'
-            post 'batch/student/email', to: 'general_users#batch_students_relation_by_emails'
+            post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
+            post 'student/email', to: 'general_users#add_students_relation_by_emails'
           end
         end
       end

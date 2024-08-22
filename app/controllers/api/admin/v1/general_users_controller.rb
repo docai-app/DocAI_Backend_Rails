@@ -154,6 +154,19 @@ module Api
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
+        def add_students_relation_by_emails
+          @teacher = GeneralUser.find_by(email: params[:teacher_email])
+          @students = GeneralUser.where(email: params[:student_emails])
+
+          @students.each do |student|
+            KgLinker.add_student_relation(teacher: @teacher, student:)
+          end
+
+          render json: { success: true, teacher: @teacher, students: @students }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, message: e.message }, status: :internal_server_error
+        end
+
         def batch_students_relation_by_emails
           file = params[:file]
 

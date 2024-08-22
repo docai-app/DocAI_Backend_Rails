@@ -305,7 +305,7 @@ module Api
 
             # 打印该句子的错误
             if value['errors'].any?
-              value['errors'].each do |_error_key, error_value|
+              value['errors'].each_value do |error_value|
                 pdf.fill_color 'FF0000'  # 设置文本颜色为红色
                 pdf.text "#{error_value['word']}: #{error_value['explanation']}", size: 12, indent_paragraphs: 20
                 pdf.fill_color '000000'  # 重置颜色为黑色

@@ -13,7 +13,6 @@
 #  fk_rails_...  (general_user_id => general_users.id)
 #  fk_rails_...  (group_id => groups.id)
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   general_user: 

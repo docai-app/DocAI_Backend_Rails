@@ -24,7 +24,6 @@
 #  fk_rails_...  (essay_assignment_id => essay_assignments.id)
 #  fk_rails_...  (general_user_id => general_users.id)
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   essay: MyText

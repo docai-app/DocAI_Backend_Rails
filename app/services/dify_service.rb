@@ -25,23 +25,20 @@ class DifyService
   def self.prompt_wrapper(user, query)
     # 讀取 user 的必要資訊，附加過去
     chatbot_list = user.chatbots
-    ''"
-    可以使用的 chatbots:
-    ====
-    #{chatbot_list}
-    ====
 
-    我的資料如下:
-    ====
-    user_id: #{user.id}
-    timezone: 'Asia/Hong_Kong'
-    ====
-
-    query:
-    ====
-    #{query}
-    ====
-    "''
+    "可以使用的 chatbots:\n" \
+    "====\n" \
+    "#{chatbot_list}\n" \
+    "====\n\n" \
+    "我的資料如下:\n" \
+    "====\n" \
+    "user_id: #{user.id}\n" \
+    "timezone: 'Asia/Hong_Kong'\n" \
+    "====\n\n" \
+    "query:\n" \
+    "====\n" \
+    "#{query}\n" \
+    "====\n"
   end
 
   def self.test
