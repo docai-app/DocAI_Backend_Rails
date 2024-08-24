@@ -35,7 +35,7 @@ class GeneralUser < ApplicationRecord
   rolify
   acts_as_taggable_on :aienglish_features
 
-  VALID_AI_ENGLISH_FEATURES = %w[essay_grading comprehension speaking_essay speaking_conversation].freeze
+  VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation].freeze
 
   validate :aienglish_features_must_be_valid
 
