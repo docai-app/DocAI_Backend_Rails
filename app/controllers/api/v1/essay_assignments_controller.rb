@@ -5,6 +5,7 @@ module Api
     class EssayAssignmentsController < ApiController
       before_action :authenticate_general_user!
       before_action :set_essay_assignment, only: %i[update destroy]
+      before_action :aienglish_access, only: %i[show_only]
 
       def index
         @essay_assignments = current_general_user.essay_assignments
@@ -111,6 +112,16 @@ module Api
         @essay_assignment = EssayAssignment.find(params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      end
+
+      def aienglish_access
+        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
+        if current_general_user.aienglish_feature_list.include?(@essay_assignment.category)
+          true
+        else
+          puts 'Access denied'
+          render json: { success: false, error: 'Access denied' }, status: :forbidden
+        end
       end
 
       def essay_assignment_params
