@@ -119,8 +119,7 @@ module Api
         if current_general_user.aienglish_feature_list.include?(@essay_assignment.category)
           true
         else
-          puts 'Access denied'
-          render json: { success: false, error: 'Access denied' }, status: :forbidden
+          render json: { success: false, error: 'Access denied' }, status: :ok
         end
       end
 
