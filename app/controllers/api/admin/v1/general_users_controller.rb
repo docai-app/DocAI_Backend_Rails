@@ -9,8 +9,10 @@ module Api
         include AdminAuthenticator
 
         def index
-          @users = GeneralUser.includes(:taggings).order(created_at: :desc)
+          @users = GeneralUser.includes([:taggings]).order(created_at: :desc).as_json(methods: [:locked_at],
+                                                                                      except: %i[aienglish_feature_list])
           @users = Kaminari.paginate_array(@users).page(params[:page])
+
           render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
@@ -72,6 +74,20 @@ module Api
               @user.save
             end
 
+            render json: { success: true, user: @user }, status: :ok
+          else
+            render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
+          end
+        rescue ActiveRecord::RecordNotFound
+          render json: { success: false, error: 'User not found' }, status: :not_found
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        def update_password
+          @user = GeneralUser.find(params[:id])
+
+          if @user.update(password: params[:password])
             render json: { success: true, user: @user }, status: :ok
           else
             render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity

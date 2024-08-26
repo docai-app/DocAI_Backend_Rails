@@ -379,8 +379,9 @@ Rails.application.routes.draw do
           collection do
             get ':id/students', to: 'general_users#show_students'
             get ':id/teachers', to: 'general_users#show_teachers'
-            post 'lock', to: 'general_users#lock_user'
-            post 'unlock', to: 'general_users#unlock_user'
+            put ':id/password', to: 'general_users#update_password'
+            put ':id/lock', to: 'general_users#lock_user'
+            put ':id/unlock', to: 'general_users#unlock_user'
             post 'batch', to: 'general_users#batch_create'
             post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
             post 'student/email', to: 'general_users#add_students_relation_by_emails'
