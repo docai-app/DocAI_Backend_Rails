@@ -9,7 +9,7 @@ module Api
         include AdminAuthenticator
 
         def index
-          @users = GeneralUser.all.order(created_at: :desc).as_json(except: %i[aienglish_feature_list])
+          @users = GeneralUser.includes(:taggings).order(created_at: :desc)
           @users = Kaminari.paginate_array(@users).page(params[:page])
           render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
         rescue StandardError => e
