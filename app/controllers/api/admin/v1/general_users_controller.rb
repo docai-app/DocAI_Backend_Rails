@@ -27,7 +27,7 @@ module Api
 
         def show_students
           @user = GeneralUser.find(params[:id])
-          @students = @user.linkable_relation('student').order(created_at: :desc).as_json(except: %i[aienglish_feature_list])
+          @students = @user.linkable_relation('student').order(created_at: :desc)
           @students = Kaminari.paginate_array(@students).page(params[:page])
           render json: { success: true, teacher: @user, students: @students, meta: pagination_meta(@students) },
                  status: :ok
@@ -53,7 +53,7 @@ module Api
             if params[:aienglish_features].present?
               features = Array(params[:aienglish_features])
               @user.aienglish_feature_list.add(*features)
-              @user.save
+              @user.save!
             end
 
             render json: { success: true, user: @user }, status: :ok
