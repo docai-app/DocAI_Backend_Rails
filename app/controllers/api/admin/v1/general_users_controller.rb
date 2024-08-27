@@ -20,7 +20,13 @@ module Api
 
         def show
           @user = GeneralUser.find(params[:id])
-          render json: { success: true, user: @user }, status: :ok
+          user_json = @user.as_json(
+            methods: [:locked_at],
+            except: %i[aienglish_feature_list]
+          )
+          user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+
+          render json: { success: true, user: user_json }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
@@ -56,6 +62,11 @@ module Api
               @user.save!
             end
 
+            if params[:role].present?
+              @user.add_role(params[:role])
+              @user.save!
+            end
+
             render json: { success: true, user: @user }, status: :ok
           else
             render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
@@ -74,6 +85,12 @@ module Api
               @user.save
             end
 
+            if params[:role].present?
+              @user.remove_role(:student)
+              @user.remove_role(:teacher)
+              @user.add_role(params[:role])
+              @user.save
+            end
             render json: { success: true, user: @user }, status: :ok
           else
             render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
@@ -130,6 +147,11 @@ module Api
                   []
                 end
                 @user.aienglish_feature_list.add(*features)
+                @user.save!
+              end
+
+              if row['role'].present?
+                @user.add_role(row['role'])
                 @user.save!
               end
 
