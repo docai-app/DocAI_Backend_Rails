@@ -117,6 +117,27 @@ module Api
         }, status: :ok
       end
 
+      # def create
+      #   set_essay_assignment_by_code
+
+      #   puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
+
+      #   @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
+      #   @essay_grading.general_user = current_general_user
+      #   @essay_grading.topic = @essay_assignment.topic
+
+      #   # binding.pry
+
+      #   @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
+      #   @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+
+      #   if @essay_grading.save
+      #     render json: { success: true, essay_grading: @essay_grading }, status: :created
+      #   else
+      #     render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+      #   end
+      # end
+
       def create
         set_essay_assignment_by_code
 
@@ -126,10 +147,12 @@ module Api
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
-        # binding.pry
-
-        @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
-        @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+        if @essay_assignment.rubric.present? && @essay_assignment.rubric['app_key'].present?
+          @essay_grading.grading ||= {}
+          @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
+          @essay_grading.general_context ||= {}
+          @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+        end
 
         if @essay_grading.save
           render json: { success: true, essay_grading: @essay_grading }, status: :created
