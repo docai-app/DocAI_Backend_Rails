@@ -21,8 +21,7 @@ module Api
         def show
           @user = GeneralUser.find(params[:id])
           user_json = @user.as_json(
-            methods: [:locked_at],
-            except: %i[aienglish_feature_list]
+            methods: [:locked_at]
           )
           user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
 
