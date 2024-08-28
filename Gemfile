@@ -54,7 +54,7 @@ end
 gem 'dotenv'
 gem 'pg'
 
-gem 'acts-as-taggable-on', '~> 9.0'
+gem 'acts-as-taggable-on', '~> 11.0'
 gem 'annotate'
 gem 'bullet', group: 'development'
 gem 'by_star'
