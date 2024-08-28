@@ -112,13 +112,13 @@ module Api
       def set_essay_assignment
         @essay_assignment = EssayAssignment.find(params[:id])
       rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :ok
       end
 
       def set_essay_assignment_by_code
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
       rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :ok
       end
 
       def aienglish_access
