@@ -19,8 +19,12 @@ module Api
       end
 
       def show_only
-        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
-        render json: { success: true, essay_assignment: @essay_assignment }
+        begin
+          @essay_assignment = EssayAssignment.find_by!(code: params[:id])
+          render json: { success: true, essay_assignment: @essay_assignment }
+        rescue
+          json_fail('assignment not found')
+        end
       end
 
       def read
@@ -57,7 +61,7 @@ module Api
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
-          essay_gradings: @essay_gradings.map do |eg|
+          essay_gradings: @essay_gradings.sort_by { |eg| eg.class_no.to_i }.map do |eg|
             {
               id: eg.id,
               general_user: {
