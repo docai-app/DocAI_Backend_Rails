@@ -5,6 +5,8 @@ module Api
     class EssayAssignmentsController < ApiController
       before_action :authenticate_general_user!
       before_action :set_essay_assignment, only: %i[update destroy]
+
+      before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
 
       def index
@@ -19,12 +21,7 @@ module Api
       end
 
       def show_only
-        begin
-          @essay_assignment = EssayAssignment.find_by!(code: params[:id])
-          render json: { success: true, essay_assignment: @essay_assignment }
-        rescue
-          json_fail('assignment not found')
-        end
+        render json: { success: true, essay_assignment: @essay_assignment }
       end
 
       def read
@@ -114,6 +111,12 @@ module Api
 
       def set_essay_assignment
         @essay_assignment = EssayAssignment.find(params[:id])
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      end
+
+      def set_essay_assignment_by_code
+        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
       end
