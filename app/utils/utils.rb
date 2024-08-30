@@ -130,18 +130,6 @@ class Utils
     http.request(request).body.bytesize
   end
 
-  # def self.text_to_docx(content, file_name)
-  #   puts "\ncontent: #{content}"
-  #   # doc = Docx::Document.open(file_name)
-  #   doc = Docx::Document.new
-  #   puts "\ndoc: #{doc}"
-  #   doc.add_paragraph(content)
-  #   StringIO.new.tap do |file|
-  #     doc.save(file)
-  #     file.rewind
-  #   end
-  # end
-
   def self.text_to_docx(content, _file_name)
     # 創建一個新的.docx文件
     buffer = Zip::OutputStream.write_buffer do |out|
@@ -178,5 +166,9 @@ class Utils
     end
 
     StringIO.new(buffer.string)
+  end
+
+  def self.array_to_tag_string(tag_array)
+    tag_array.join(', ')
   end
 end
