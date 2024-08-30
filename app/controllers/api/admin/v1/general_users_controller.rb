@@ -56,7 +56,7 @@ module Api
             @user.create_energy(value: 100)
 
             if params[:aienglish_features].present?
-              features = Array(params[:aienglish_features])
+              features = Utils.array_to_tag_string(params[:aienglish_features])
               @user.aienglish_feature_list.add(*features)
               @user.save!
             end
@@ -79,7 +79,7 @@ module Api
 
           if @user.update(general_users_params)
             if params[:aienglish_features].present?
-              features = Array(params[:aienglish_features])
+              features = Utils.array_to_tag_string(params[:aienglish_features])
               @user.aienglish_feature_list = features
               @user.save
             end
