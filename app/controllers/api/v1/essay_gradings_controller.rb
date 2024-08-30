@@ -22,7 +22,10 @@ module Api
           # binding.pry
           pdf = generate_comprehension_pdf(json_data)
         elsif assignment.category.include?('essay')
-          pdf = generate_essay_pdf(@essay_grading.grading)
+          json_data = @essay_grading.grading
+          json_data['topic'] = assignment.topic
+          json_data['account'] = @essay_grading.general_user.nickname
+          pdf = generate_essay_pdf(json_data)
         else
           pdf = generate_pdf_from_json(json_data)
         end
@@ -277,68 +280,114 @@ module Api
       end
 
       def generate_essay_pdf(json_data)
-        Prawn::Document.new do |pdf|
-          # 加载和注册字体
-          font_path = Rails.root.join('app/assets/fonts/')
-          pdf.font_families.update(
-            'NotoSans' => {
-              normal: font_path.join('NotoSansTC-Regular.ttf'),
-              bold: font_path.join('NotoSansTC-Bold.ttf')
-            }
-          )
+        pdf = Prawn::Document.new(page_size: "A4", margin: 40)
+      
+        # 设置全局样式
+        font_path = Rails.root.join('app/assets/fonts/')
+        pdf.font_families.update(
+          'NotoSans' => {
+            normal: font_path.join('NotoSansTC-Regular.ttf'),
+            bold: font_path.join('NotoSansTC-Bold.ttf')
+          }
+        )
+        pdf.font 'NotoSans'
+      
+        # 开始内容部分
+        pdf.move_down 50
 
-          # 设置默认字体
-          pdf.font 'NotoSans'
+        # 话题
+        pdf.text "Topic: #{json_data['topic']}", size: 18, style: :bold
+        pdf.move_down 10
 
-          # 添加标题
-          pdf.text 'Essay Report', size: 24, style: :bold, align: :center
-          pdf.move_down 20
-
-          # 解析 JSON 数据
-          sentences = JSON.parse(json_data['data']['text'])
-
-          # 逐句添加内容和错误说明
-          sentences.each do |key, value|
-            next unless key.start_with?('Sentence')
-
-            # 打印句子
-            pdf.text value['sentence'], size: 14, style: :bold
+        # 學生資訊
+        pdf.text "Account: #{json_data['account']}"
+        pdf.move_down 10
+      
+        # 解析 JSON 数据
+        sentences = JSON.parse(json_data['data']['text'])
+      
+        # 逐句添加内容和错误说明
+        sentences.each do |key, value|
+          if key.start_with?('Sentence')
+            # 句子标题
+            pdf.text "Sentence #{key[-1]}:", size: 14, style: :bold, color: "003366"
             pdf.move_down 5
-
-            # 打印该句子的错误
-            if value['errors'].any?
-              value['errors'].each_value do |error_value|
-                pdf.fill_color 'FF0000'  # 设置文本颜色为红色
-                pdf.text "#{error_value['word']}: #{error_value['explanation']}", size: 12, indent_paragraphs: 20
-                pdf.fill_color '000000'  # 重置颜色为黑色
-                pdf.move_down 5
+      
+            # 句子内容（带错误单词高亮）
+            sentence_text = value['sentence']
+            errors = value['errors']
+      
+            # 初始化 formatted_text 为句子的原始文本
+            formatted_text = sentence_text
+      
+            # 替换错误单词或短语为红色
+            errors.each_value do |error_value|
+              error_word = error_value['word']
+      
+              # 使用单词边界确保只替换完整单词
+              formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
+                "<color rgb='FF0000'>#{match}</color>"
               end
             end
-
+      
+            # 使用 inline_format 打印带有颜色的句子
+            pdf.text formatted_text, size: 12, inline_format: true
             pdf.move_down 10
+      
+            # 打印该句子的错误（如果有）
+            if errors.any?
+              pdf.indent(20) do
+                errors.each_value do |error_value|
+                  # 提取并显示 category 和错误解释
+                  category = error_value['category']
+                  error_word = error_value['word']
+                  explanation = error_value['explanation']
+      
+                  # 使用 inline_format 将 category 显示为蓝色
+                  pdf.text "• #{error_word}<color rgb='0000FF'>(Category: #{category})</color>: #{explanation}", size: 10, inline_format: true
+                  pdf.move_down 5
+                end
+              end
+              pdf.move_down 10
+            end
+      
+            pdf.move_down 15
+          elsif key.start_with?('Criterion')
+            # 处理评估标准部分
+            value.each do |criterion_name, criterion_value|
+              next if criterion_name == 'Full Score' || criterion_name == 'explanation'  # 跳过满分和解释部分
+      
+              pdf.text "#{criterion_name}:", size: 14, style: :bold, color: "003366"
+              pdf.move_down 5
+      
+              full_score = value['Full Score'] || "N/A"
+              score = criterion_value
+      
+              pdf.text "Score: #{score} / #{full_score}", size: 12
+              pdf.move_down 10
+      
+              if value['explanation']
+                pdf.indent(20) do
+                  pdf.text value['explanation'], size: 10
+                  pdf.move_down 15
+                end
+              end
+      
+              pdf.stroke_horizontal_rule
+              pdf.move_down 15
+            end
           end
-
-          # 添加评分标准和解释
-          # pdf.text "Grading Criteria", size: 18, style: :bold
-          # pdf.move_down 10
-
-          # %w[Criterion1 Criterion2 Criterion3 Criterion4].each do |criterion|
-          #   criterion_data = sentences[criterion]
-          #   pdf.text "#{criterion_data.keys[0]}: #{criterion_data.values[0]} / 9", size: 14, style: :bold
-          #   pdf.text criterion_data["explanation"], size: 12, indent_paragraphs: 20
-          #   pdf.move_down 10
-          # end
-
-          # # 添加总评分和反馈
-          # pdf.text "Overall Score: #{json_data['data']['Overall Score']} / 9", size: 16, style: :bold
-          # pdf.move_down 10
-          # pdf.text "Overall Coherence and Readability:", size: 14, style: :bold
-          # pdf.text json_data['data']["Essay's overall coherence and readability"], size: 12, indent_paragraphs: 20
-          # pdf.move_down 10
-
-          # pdf.text "Final Feedback:", size: 14, style: :bold
-          # pdf.text json_data['data']['Final Feedback'], size: 12, indent_paragraphs: 20
         end
+      
+        # 添加总分部分
+        if sentences['Overall Score']
+          pdf.text "Overall Score", size: 16, style: :bold, color: "003366"
+          pdf.move_down 10
+          pdf.text "Total Score: #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 14, style: :bold
+        end
+      
+        # 返回生成的 PDF 数据
+        pdf
       end
     end
   end
