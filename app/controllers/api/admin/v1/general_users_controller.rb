@@ -58,12 +58,12 @@ module Api
             if params[:aienglish_features].present?
               features = Utils.array_to_tag_string(params[:aienglish_features])
               @user.aienglish_feature_list.add(*features)
-              @user.save!
+              @user.save
             end
 
             if params[:role].present?
               @user.add_role(params[:role])
-              @user.save!
+              @user.save
             end
 
             render json: { success: true, user: @user }, status: :ok
@@ -78,10 +78,14 @@ module Api
           @user = GeneralUser.find(params[:id])
 
           if @user.update(general_users_params)
+            @user.reload
             if params[:aienglish_features].present?
               features = Utils.array_to_tag_string(params[:aienglish_features])
-              @user.aienglish_feature_list = features
+              current_features = Utils.array_to_tag_string(@user.aienglish_feature_list)
+              @user.aienglish_feature_list.remove(current_features, parse: true)
+              @user.aienglish_feature_list.add(features, parse: true)
               @user.save
+              @user.reload
             end
 
             if params[:role].present?
@@ -242,7 +246,7 @@ module Api
         private
 
         def general_users_params
-          params.permit(:email, :password, :nickname, :phone, :banbie, :class_no)
+          params.permit(:email, :password, :nickname, :phone, :banbie, :class_no, :role)
         end
 
         def pagination_meta(object)
