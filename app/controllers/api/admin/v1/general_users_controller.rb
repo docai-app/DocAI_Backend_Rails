@@ -246,7 +246,7 @@ module Api
         private
 
         def general_users_params
-          params.permit(:email, :password, :nickname, :phone, :banbie, :class_no, :role)
+          params.permit(:email, :password, :nickname, :phone, :banbie, :class_no)
         end
 
         def pagination_meta(object)
