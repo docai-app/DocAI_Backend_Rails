@@ -280,8 +280,8 @@ module Api
       end
 
       def generate_essay_pdf(json_data)
-        pdf = Prawn::Document.new(page_size: "A4", margin: 40)
-      
+        pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
+
         # 设置全局样式
         font_path = Rails.root.join('app/assets/fonts/')
         pdf.font_families.update(
@@ -291,7 +291,7 @@ module Api
           }
         )
         pdf.font 'NotoSans'
-      
+
         # 开始内容部分
         pdf.move_down 50
 
@@ -302,38 +302,38 @@ module Api
         # 學生資訊
         pdf.text "Account: #{json_data['account']}"
         pdf.move_down 10
-      
+
         # 解析 JSON 数据
         sentences = JSON.parse(json_data['data']['text'])
-      
+
         # 逐句添加内容和错误说明
         sentences.each do |key, value|
           if key.start_with?('Sentence')
             # 句子标题
-            pdf.text "Sentence #{key[-1]}:", size: 14, style: :bold, color: "003366"
+            pdf.text "Sentence #{key[-1]}:", size: 14, style: :bold, color: '003366'
             pdf.move_down 5
-      
+
             # 句子内容（带错误单词高亮）
             sentence_text = value['sentence']
             errors = value['errors']
-      
+
             # 初始化 formatted_text 为句子的原始文本
             formatted_text = sentence_text
-      
+
             # 替换错误单词或短语为红色
             errors.each_value do |error_value|
               error_word = error_value['word']
-      
+
               # 使用单词边界确保只替换完整单词
               formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
                 "<color rgb='FF0000'>#{match}</color>"
               end
             end
-      
+
             # 使用 inline_format 打印带有颜色的句子
             pdf.text formatted_text, size: 12, inline_format: true
             pdf.move_down 10
-      
+
             # 打印该句子的错误（如果有）
             if errors.any?
               pdf.indent(20) do
@@ -342,50 +342,51 @@ module Api
                   category = error_value['category']
                   error_word = error_value['word']
                   explanation = error_value['explanation']
-      
+
                   # 使用 inline_format 将 category 显示为蓝色
-                  pdf.text "• #{error_word}<color rgb='0000FF'>(Category: #{category})</color>: #{explanation}", size: 10, inline_format: true
+                  pdf.text "• #{error_word}<color rgb='0000FF'>(Category: #{category})</color>: #{explanation}",
+                           size: 10, inline_format: true
                   pdf.move_down 5
                 end
               end
               pdf.move_down 10
             end
-      
+
             pdf.move_down 15
           elsif key.start_with?('Criterion')
             # 处理评估标准部分
             value.each do |criterion_name, criterion_value|
-              next if criterion_name == 'Full Score' || criterion_name == 'explanation'  # 跳过满分和解释部分
-      
-              pdf.text "#{criterion_name}:", size: 14, style: :bold, color: "003366"
+              next if ['Full Score', 'explanation'].include?(criterion_name) # 跳过满分和解释部分
+
+              pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
               pdf.move_down 5
-      
-              full_score = value['Full Score'] || "N/A"
+
+              full_score = value['Full Score'] || 'N/A'
               score = criterion_value
-      
+
               pdf.text "Score: #{score} / #{full_score}", size: 12
               pdf.move_down 10
-      
+
               if value['explanation']
                 pdf.indent(20) do
                   pdf.text value['explanation'], size: 10
                   pdf.move_down 15
                 end
               end
-      
+
               pdf.stroke_horizontal_rule
               pdf.move_down 15
             end
           end
         end
-      
+
         # 添加总分部分
         if sentences['Overall Score']
-          pdf.text "Overall Score", size: 16, style: :bold, color: "003366"
+          pdf.text 'Overall Score', size: 16, style: :bold, color: '003366'
           pdf.move_down 10
           pdf.text "Total Score: #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 14, style: :bold
         end
-      
+
         # 返回生成的 PDF 数据
         pdf
       end
