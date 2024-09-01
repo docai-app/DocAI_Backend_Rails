@@ -153,12 +153,14 @@ module Api
                   []
                 end
                 @user.aienglish_feature_list.add(*features)
-                @user.save!
+                @user.save
+                @user.reload
               end
 
               if row['role'].present?
                 @user.add_role(row['role'])
-                @user.save!
+                @user.save
+                @user.reload
               end
 
               @users << @user
@@ -249,7 +251,7 @@ module Api
         private
 
         def general_users_params
-          params.permit(:email, :password, :nickname, :phone, :banbie, :class_no, :role)
+          params.permit(:email, :password, :nickname, :phone, :banbie, :class_no)
         end
 
         def pagination_meta(object)
