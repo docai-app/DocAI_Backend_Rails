@@ -49,62 +49,102 @@ module Api
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
+        # def create
+        #   begin
+        #     ActiveRecord::Base.transaction do
+        #       @user = GeneralUser.new(general_users_params)
+        
+        #       if @user.save
+        #         @user.create_energy(value: 100)
+        
+        #         if params[:aienglish_features].present?
+        #           features = Utils.array_to_tag_string(params[:aienglish_features])
+        #           @user.aienglish_feature_list.add(features, parse: true)
+        #         end
+        
+        #         if params[:role].present?
+        #           @user.add_role(params[:role])
+        #         end
+        
+        #         # Save and return response only after all operations are completed successfully
+        #         if @user.save
+        #           user_json = @user.as_json()
+        #           user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+        #           render json: { success: true, user: user_json }, status: :ok
+        #         else
+        #           raise ActiveRecord::RecordInvalid.new(@user)
+        #         end
+        #       else
+        #         render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
+        #       end
+        #     end
+        #   rescue StandardError => e
+        #     render json: { success: false, error: e.message }, status: :internal_server_error
+        #   end
+        # end        
+
         def create
-          @user = GeneralUser.new(general_users_params)
-
-          if @user.save
-            @user.create_energy(value: 100)
-
-            if params[:aienglish_features].present?
-              features = Utils.array_to_tag_string(params[:aienglish_features])
-              @user.aienglish_feature_list.add(*features)
-              @user.save
-              @user.reload
+          begin
+            ActiveRecord::Base.transaction do
+              @user = GeneralUser.create!(general_users_params)
+        
+              # 創建energy
+              @user.create_energy(value: 100)
+        
+              # 添加aienglish_features標籤
+              if params[:aienglish_features].present?
+                features = Utils.array_to_tag_string(params[:aienglish_features])
+                @user.aienglish_feature_list.add(features, parse: true)
+              end
+        
+              # 添加角色
+              if params[:role].present?
+                @user.add_role(params[:role])
+              end
+        
+              # 構建 user_json 並返回
+              user_json = @user.as_json
+              user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+              render json: { success: true, user: user_json }, status: :ok
             end
-
-            if params[:role].present?
-              @user.add_role(params[:role])
-              @user.save
-              @user.reload
-            end
-
-            render json: { success: true, user: @user }, status: :ok
-          else
-            render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
+          rescue ActiveRecord::RecordInvalid => e
+            render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
           end
-        rescue StandardError => e
-          render json: { success: false, error: e.message }, status: :internal_server_error
-        end
+        end        
 
         def update
           @user = GeneralUser.find(params[:id])
 
-          if @user.update(general_users_params)
-            @user.reload
-            if params[:aienglish_features].present?
-              features = Utils.array_to_tag_string(params[:aienglish_features])
-              current_features = Utils.array_to_tag_string(@user.aienglish_feature_list)
-              @user.aienglish_feature_list.remove(current_features, parse: true)
-              @user.aienglish_feature_list.add(features, parse: true)
-              @user.save
-              @user.reload
-            end
+          begin
+            ActiveRecord::Base.transaction do
+              if params[:aienglish_features].present?
+                features = Utils.array_to_tag_string(params[:aienglish_features])
+                current_features = Utils.array_to_tag_string(@user.aienglish_feature_list)
+                @user.aienglish_feature_list.remove(current_features, parse: true)
+                @user.aienglish_feature_list.add(features, parse: true)
+              end
 
-            if params[:role].present?
-              @user.remove_role(:student)
-              @user.remove_role(:teacher)
-              @user.add_role(params[:role])
-              @user.save
-              @user.reload
+              if params[:role].present?
+                @user.roles = [] # 清空所有角色
+                @user.add_role(params[:role])
+              end
+
+              raise ActiveRecord::RecordInvalid, @user unless @user.update(general_users_params)
+
+              user_json = @user.as_json()
+              user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+
+              render json: { success: true, user: user_json }, status: :ok
             end
-            render json: { success: true, user: @user }, status: :ok
-          else
+          rescue ActiveRecord::RecordNotFound
+            render json: { success: false, error: 'User not found' }, status: :not_found
+          rescue ActiveRecord::RecordInvalid
             render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
           end
-        rescue ActiveRecord::RecordNotFound
-          render json: { success: false, error: 'User not found' }, status: :not_found
-        rescue StandardError => e
-          render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
         def update_password
@@ -123,60 +163,66 @@ module Api
 
         def batch_create
           file = params[:file]
-
+        
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
-
+        
           @users = []
           errors = []
-
+        
           CSV.foreach(file.path, headers: true) do |row|
-            ActiveRecord::Base.transaction do
-              email = row['email']&.strip
-              password = row['password']&.strip
-              nickname = row['name']&.strip.to_s
-              banbie = row['class_name']&.strip.to_s
-              class_no = row['class_no']&.strip.to_s
-
-              @user = GeneralUser.create!(
-                email:,
-                password:,
-                nickname:,
-                banbie:,
-                class_no:
-              )
-              @user.create_energy(value: 100)
-
-              if row['aienglish_features'].present?
-                features = begin
-                  JSON.parse(row['aienglish_features'])
-                rescue StandardError
-                  []
+            email = row['email']&.strip
+            password = row['password']&.strip
+            nickname = row['name']&.strip.to_s
+            banbie = row['class_name']&.strip.to_s
+            class_no = row['class_no']&.strip.to_s
+        
+            begin
+              ActiveRecord::Base.transaction do
+                @user = GeneralUser.create!(
+                  email:,
+                  password:,
+                  nickname:,
+                  banbie:,
+                  class_no:
+                )
+                @user.create_energy(value: 100)
+        
+                if row['aienglish_features'].present?
+                  features = begin
+                    JSON.parse(row['aienglish_features'])
+                  rescue JSON::ParserError
+                    []
+                  end
+                  @user.aienglish_feature_list.add(features, parse: true)
                 end
-                @user.aienglish_feature_list.add(*features)
-                @user.save
-                @user.reload
+        
+                if row['role'].present?
+                  @user.add_role(row['role'])
+                end
+        
+                # Only save once at the end of all operations
+                if @user.save
+                  @users << @user
+                  puts "Imported #{email} successfully."
+                else
+                  raise ActiveRecord::RecordInvalid.new(@user)
+                end
               end
-
-              if row['role'].present?
-                @user.add_role(row['role'])
-                @user.save
-                @user.reload
-              end
-
-              @users << @user
-              puts "Imported #{email} successfully."
+            rescue ActiveRecord::RecordInvalid => e
+              errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(", ") }
+              puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(", ")}"
+            rescue StandardError => e
+              errors << { email: email || 'N/A', error: e.message }
+              puts "Failed to import #{email || 'N/A'}: #{e.message}"
             end
-          rescue StandardError => e
-            errors << { email: email || 'N/A', error: e.message }
-            puts "Failed to import #{email || 'N/A'}: #{e.message}"
           end
-
+        
           if errors.empty?
             render json: { success: true, users: @users }, status: :created
           else
-            render json: { success: false, errors: }, status: :unprocessable_entity
+            render json: { success: false, errors: errors }, status: :unprocessable_entity
           end
-        end
+        end        
 
         def lock_user
           @user = GeneralUser.find(params[:id])
