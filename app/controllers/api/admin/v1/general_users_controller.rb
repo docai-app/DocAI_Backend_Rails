@@ -59,11 +59,13 @@ module Api
               features = Utils.array_to_tag_string(params[:aienglish_features])
               @user.aienglish_feature_list.add(*features)
               @user.save
+              @user.reload
             end
 
             if params[:role].present?
               @user.add_role(params[:role])
               @user.save
+              @user.reload
             end
 
             render json: { success: true, user: @user }, status: :ok
@@ -93,6 +95,7 @@ module Api
               @user.remove_role(:teacher)
               @user.add_role(params[:role])
               @user.save
+              @user.reload
             end
             render json: { success: true, user: @user }, status: :ok
           else

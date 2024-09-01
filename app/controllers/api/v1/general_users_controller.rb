@@ -15,7 +15,6 @@ module Api
 
       def show_current_user
         @user = current_general_user
-
         user_data = @user.as_json(include: :energy)
         user_data['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
 
