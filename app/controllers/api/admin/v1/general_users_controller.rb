@@ -47,41 +47,7 @@ module Api
           render json: { success: true, student: @user, teachers: @teachers }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
-        end
-
-        # def create
-        #   begin
-        #     ActiveRecord::Base.transaction do
-        #       @user = GeneralUser.new(general_users_params)
-        
-        #       if @user.save
-        #         @user.create_energy(value: 100)
-        
-        #         if params[:aienglish_features].present?
-        #           features = Utils.array_to_tag_string(params[:aienglish_features])
-        #           @user.aienglish_feature_list.add(features, parse: true)
-        #         end
-        
-        #         if params[:role].present?
-        #           @user.add_role(params[:role])
-        #         end
-        
-        #         # Save and return response only after all operations are completed successfully
-        #         if @user.save
-        #           user_json = @user.as_json()
-        #           user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
-        #           render json: { success: true, user: user_json }, status: :ok
-        #         else
-        #           raise ActiveRecord::RecordInvalid.new(@user)
-        #         end
-        #       else
-        #         render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
-        #       end
-        #     end
-        #   rescue StandardError => e
-        #     render json: { success: false, error: e.message }, status: :internal_server_error
-        #   end
-        # end        
+        end      
 
         def create
           begin
@@ -94,7 +60,7 @@ module Api
               # 添加aienglish_features標籤
               if params[:aienglish_features].present?
                 features = Utils.array_to_tag_string(params[:aienglish_features])
-                @user.aienglish_feature_list.add(features, parse: true)
+                @user.aienglish_feature_list.add(params[:aienglish_features], parse: true)
               end
         
               # 添加角色
@@ -102,10 +68,14 @@ module Api
                 @user.add_role(params[:role])
               end
         
-              # 構建 user_json 並返回
-              user_json = @user.as_json
-              user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
-              render json: { success: true, user: user_json }, status: :ok
+              if @user.save
+                # 構建 user_json 並返回
+                user_json = @user.as_json
+                user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+                render json: { success: true, user: user_json }, status: :ok
+              else
+                raise ActiveRecord::RecordInvalid.new(@user)
+              end
             end
           rescue ActiveRecord::RecordInvalid => e
             render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
