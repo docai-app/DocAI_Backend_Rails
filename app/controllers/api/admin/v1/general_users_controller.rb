@@ -12,7 +12,7 @@ module Api
           @users = GeneralUser.includes([:taggings])
           @users = @users.search_query(params[:keyword]) if params[:keyword].present?
           @users = @users.order(created_at: :desc).as_json(methods: [:locked_at],
-                                                                                      except: %i[aienglish_feature_list])
+                                                           except: %i[aienglish_feature_list])
           @users = Kaminari.paginate_array(@users).page(params[:page])
 
           render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
@@ -60,14 +60,14 @@ module Api
 
             # 添加aienglish_features標籤
             if params[:aienglish_features].present?
-              features = Utils.array_to_tag_string(params[:aienglish_features])
+              Utils.array_to_tag_string(params[:aienglish_features])
               @user.aienglish_feature_list.add(params[:aienglish_features], parse: true)
             end
 
             # 添加角色
             @user.add_role(params[:role]) if params[:role].present?
 
-            raise ActiveRecord::RecordInvalid.new(@user) unless @user.save
+            raise ActiveRecord::RecordInvalid, @user unless @user.save
 
             # 構建 user_json 並返回
             user_json = @user.as_json
@@ -165,7 +165,7 @@ module Api
                 @user.add_role(row['role']) if row['role'].present?
 
                 # Only save once at the end of all operations
-                raise ActiveRecord::RecordInvalid.new(@user) unless @user.save
+                raise ActiveRecord::RecordInvalid, @user unless @user.save
 
                 @users << @user
                 puts "Imported #{email} successfully."
