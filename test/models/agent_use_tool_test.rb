@@ -17,8 +17,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (agent_tool_id => agent_tools.id)
-#  fk_rails_...  (assistant_agent_id => assistant_agents.id)
+#  fk_rails_...  (agent_tool_id => public.agent_tools.id)
+#  fk_rails_...  (assistant_agent_id => public.assistant_agents.id)
 #
 require 'test_helper'
 

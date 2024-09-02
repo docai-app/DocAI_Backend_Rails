@@ -23,6 +23,7 @@
 # Indexes
 #
 #  index_form_schemas_on_name  (name)
+#  index_form_schemas_on_name  (name)
 #
 require 'test_helper'
 

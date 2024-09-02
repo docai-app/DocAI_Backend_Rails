@@ -19,7 +19,10 @@
 # Indexes
 #
 #  index_log_messages_on_chatbot_id            (chatbot_id)
+#  index_log_messages_on_chatbot_id            (chatbot_id)
 #  index_log_messages_on_dify_conversation_id  (dify_conversation_id)
+#  index_log_messages_on_dify_conversation_id  (dify_conversation_id)
+#  index_log_messages_on_session_id            (session_id)
 #  index_log_messages_on_session_id            (session_id)
 #
 require 'test_helper'

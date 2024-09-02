@@ -23,8 +23,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (marketplace_item_id => marketplace_items.id)
-#  fk_rails_...  (purchase_id => purchases.id)
+#  fk_rails_...  (marketplace_item_id => public.marketplace_items.id)
+#  fk_rails_...  (purchase_id => public.purchases.id)
 #
 require 'test_helper'
 

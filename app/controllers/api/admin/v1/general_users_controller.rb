@@ -47,42 +47,36 @@ module Api
           render json: { success: true, student: @user, teachers: @teachers }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
-        end      
+        end
 
         def create
-          begin
-            ActiveRecord::Base.transaction do
-              @user = GeneralUser.create!(general_users_params)
-        
-              # 創建energy
-              @user.create_energy(value: 100)
-        
-              # 添加aienglish_features標籤
-              if params[:aienglish_features].present?
-                features = Utils.array_to_tag_string(params[:aienglish_features])
-                @user.aienglish_feature_list.add(params[:aienglish_features], parse: true)
-              end
-        
-              # 添加角色
-              if params[:role].present?
-                @user.add_role(params[:role])
-              end
-        
-              if @user.save
-                # 構建 user_json 並返回
-                user_json = @user.as_json
-                user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
-                render json: { success: true, user: user_json }, status: :ok
-              else
-                raise ActiveRecord::RecordInvalid.new(@user)
-              end
+          ActiveRecord::Base.transaction do
+            @user = GeneralUser.create!(general_users_params)
+
+            # 創建energy
+            @user.create_energy(value: 100)
+
+            # 添加aienglish_features標籤
+            if params[:aienglish_features].present?
+              features = Utils.array_to_tag_string(params[:aienglish_features])
+              @user.aienglish_feature_list.add(params[:aienglish_features], parse: true)
             end
-          rescue ActiveRecord::RecordInvalid => e
-            render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
-          rescue StandardError => e
-            render json: { success: false, error: e.message }, status: :internal_server_error
+
+            # 添加角色
+            @user.add_role(params[:role]) if params[:role].present?
+
+            raise ActiveRecord::RecordInvalid.new(@user) unless @user.save
+
+            # 構建 user_json 並返回
+            user_json = @user.as_json
+            user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+            render json: { success: true, user: user_json }, status: :ok
           end
-        end        
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
 
         def update
           @user = GeneralUser.find(params[:id])
@@ -103,7 +97,7 @@ module Api
 
               raise ActiveRecord::RecordInvalid, @user unless @user.update(general_users_params)
 
-              user_json = @user.as_json()
+              user_json = @user.as_json
               user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
 
               render json: { success: true, user: user_json }, status: :ok
@@ -133,19 +127,19 @@ module Api
 
         def batch_create
           file = params[:file]
-        
+
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
-        
+
           @users = []
           errors = []
-        
+
           CSV.foreach(file.path, headers: true) do |row|
             email = row['email']&.strip
             password = row['password']&.strip
             nickname = row['name']&.strip.to_s
             banbie = row['class_name']&.strip.to_s
             class_no = row['class_no']&.strip.to_s
-        
+
             begin
               ActiveRecord::Base.transaction do
                 @user = GeneralUser.create!(
@@ -156,7 +150,7 @@ module Api
                   class_no:
                 )
                 @user.create_energy(value: 100)
-        
+
                 if row['aienglish_features'].present?
                   features = begin
                     JSON.parse(row['aienglish_features'])
@@ -165,34 +159,30 @@ module Api
                   end
                   @user.aienglish_feature_list.add(features, parse: true)
                 end
-        
-                if row['role'].present?
-                  @user.add_role(row['role'])
-                end
-        
+
+                @user.add_role(row['role']) if row['role'].present?
+
                 # Only save once at the end of all operations
-                if @user.save
-                  @users << @user
-                  puts "Imported #{email} successfully."
-                else
-                  raise ActiveRecord::RecordInvalid.new(@user)
-                end
+                raise ActiveRecord::RecordInvalid.new(@user) unless @user.save
+
+                @users << @user
+                puts "Imported #{email} successfully."
               end
             rescue ActiveRecord::RecordInvalid => e
-              errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(", ") }
-              puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(", ")}"
+              errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(', ') }
+              puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(', ')}"
             rescue StandardError => e
               errors << { email: email || 'N/A', error: e.message }
               puts "Failed to import #{email || 'N/A'}: #{e.message}"
             end
           end
-        
+
           if errors.empty?
             render json: { success: true, users: @users }, status: :created
           else
-            render json: { success: false, errors: errors }, status: :unprocessable_entity
+            render json: { success: false, errors: }, status: :unprocessable_entity
           end
-        end        
+        end
 
         def lock_user
           @user = GeneralUser.find(params[:id])

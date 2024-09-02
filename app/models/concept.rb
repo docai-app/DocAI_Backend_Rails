@@ -16,6 +16,7 @@
 # Indexes
 #
 #  index_concepts_on_root_node  (root_node)
+#  index_concepts_on_root_node  (root_node)
 #
 class Concept < ApplicationRecord
   store_accessor :meta, :conceptmap_name, :conceptmap_id, :introduction

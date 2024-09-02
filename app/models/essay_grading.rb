@@ -23,8 +23,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (essay_assignment_id => essay_assignments.id)
-#  fk_rails_...  (general_user_id => general_users.id)
+#  fk_rails_...  (essay_assignment_id => public.essay_assignments.id)
+#  fk_rails_...  (general_user_id => public.general_users.id)
 #
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension

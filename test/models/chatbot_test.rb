@@ -26,7 +26,10 @@
 # Indexes
 #
 #  index_chatbots_on_category    (category)
+#  index_chatbots_on_category    (category)
 #  index_chatbots_on_dify_token  (dify_token)
+#  index_chatbots_on_dify_token  (dify_token)
+#  index_chatbots_on_user_id     (user_id)
 #  index_chatbots_on_user_id     (user_id)
 #
 require 'test_helper'

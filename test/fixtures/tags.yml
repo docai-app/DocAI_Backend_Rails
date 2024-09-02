@@ -16,6 +16,7 @@
 # Indexes
 #
 #  index_tags_on_name  (name) UNIQUE
+#  index_tags_on_name  (name) UNIQUE
 #
 
 # This model initially had no columns defined. If you add columns to the

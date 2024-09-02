@@ -12,7 +12,7 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (owner_id => general_users.id)
+#  groups_owner_id_fkey  (owner_id => public.general_users.id)
 #
 require 'test_helper'
 

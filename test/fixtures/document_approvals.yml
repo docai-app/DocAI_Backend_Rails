@@ -16,8 +16,12 @@
 # Indexes
 #
 #  index_document_approvals_on_approval_status   (approval_status)
+#  index_document_approvals_on_approval_status   (approval_status)
+#  index_document_approvals_on_approval_user_id  (approval_user_id)
 #  index_document_approvals_on_approval_user_id  (approval_user_id)
 #  index_document_approvals_on_document_id       (document_id)
+#  index_document_approvals_on_document_id       (document_id)
+#  index_document_approvals_on_form_data_id      (form_data_id)
 #  index_document_approvals_on_form_data_id      (form_data_id)
 #
 
