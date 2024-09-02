@@ -9,7 +9,9 @@ module Api
         include AdminAuthenticator
 
         def index
-          @users = GeneralUser.includes([:taggings]).order(created_at: :desc).as_json(methods: [:locked_at],
+          @users = GeneralUser.includes([:taggings])
+          @users = @users.search_query(params[:keyword]) if params[:keyword].present?
+          @users = @users.order(created_at: :desc).as_json(methods: [:locked_at],
                                                                                       except: %i[aienglish_feature_list])
           @users = Kaminari.paginate_array(@users).page(params[:page])
 

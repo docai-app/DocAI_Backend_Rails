@@ -137,6 +137,16 @@ class EssayGrading < ApplicationRecord
     count_errors(json)
   end
 
+  def calculate_essay_score
+    # 檢查 grading 入邊有冇 Overall Score
+    json_data = JSON.parse(self['grading']['data']['text'])
+    score = json_data['Overall Score']
+    if score.present?
+      self['score'] = score
+      save
+    end
+  end
+
   def calculate_comprehension_score
     # 初始化分数
     score = 0
@@ -155,6 +165,7 @@ class EssayGrading < ApplicationRecord
     self['grading']['comprehension']['questions_count'] = questions.count
     self['grading']['comprehension']['full_score'] = questions.count
     self['status'] = 'graded'
+    self['score'] = score
     save
   end
 end

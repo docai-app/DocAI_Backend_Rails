@@ -74,11 +74,12 @@ class GeneralUser < ApplicationRecord
     terms = terms.map do |e|
       "%#{"#{e.gsub('*', '%')}%".gsub(/%+/, '%')}"
     end
-    num_or_conditions = 1
+    num_or_conditions = 2
     where(
       terms.map do
         or_clauses = [
-          'LOWER(nickname) LIKE ?'
+          'LOWER(nickname) LIKE ?',
+          'LOWER(email) LIKE ?',
         ].join(' OR ')
         "(#{or_clauses})"
       end.join(' AND '),
