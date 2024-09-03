@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_09_02_082627) do
+ActiveRecord::Schema[7.0].define(version: 2024_09_02_091425) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -455,6 +455,7 @@ ActiveRecord::Schema[7.0].define(version: 2024_09_02_082627) do
     t.integer "failed_attempts", default: 0
     t.string "unlock_token"
     t.datetime "locked_at"
+    t.jsonb "meta", default: {}, null: false
     t.index ["email"], name: "index_general_users_on_email", unique: true
   end
 

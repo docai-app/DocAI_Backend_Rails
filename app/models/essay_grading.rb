@@ -88,6 +88,7 @@ class EssayGrading < ApplicationRecord
   end
 
   def transcribe_audio
+    return nil
     return essay if essay.present?
 
     begin
