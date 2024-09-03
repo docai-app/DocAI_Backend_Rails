@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'csv'
+require 'bcrypt'
 
 module Api
   module Admin
@@ -133,10 +134,13 @@ module Api
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
         
           users_data = []
-          energy_data = []
-          roles_data = []
+          energy_insert_data = []
+          role_insert_data = []
           aienglish_features_data = []
+          roles_data = []
           errors = []
+          inserted_users = nil
+          email = nil  # 在方法的开头定义 email 变量
         
           begin
             CSV.foreach(file.path, headers: true) do |row|
@@ -177,10 +181,6 @@ module Api
             # 批量插入用户数据，并获取插入后的用户记录
             inserted_users = GeneralUser.insert_all(users_data, returning: %w[id email])
         
-            # 准备批量插入的角色和能量数据
-            role_insert_data = []
-            energy_insert_data = []
-        
             inserted_users.each do |user|
               user_id = user['id']
               email = user['email']
@@ -197,12 +197,16 @@ module Api
               # 批量添加角色
               role_row = roles_data.find { |r| r[:email] == email }
               if role_row.present?
-                role_insert_data << {
-                  general_user_id: user_id,
-                  role_name: role_row[:role],  # 根据 GeneralUsersRole 模型的实际字段名调整
-                  created_at: Time.now,
-                  updated_at: Time.now
-                }
+                # 根据角色名称查找角色ID
+                role = Role.find_by(name: role_row[:role])
+                if role.present?
+                  role_insert_data << {
+                    general_user_id: user_id,
+                    role_id: role.id
+                  }
+                else
+                  errors << { email: email, error: "Role '#{role_row[:role]}' not found" }
+                end
               end
         
               # 批量添加 AI English features
@@ -211,9 +215,11 @@ module Api
                 GeneralUser.find(user_id).aienglish_feature_list.add(feature_row[:features], parse: true)
               end
             end
+
+            # binding.pry
         
             # 批量插入 Energy 数据
-            Energy.insert_all(energy_insert_data)
+            Energy.insert_all(energy_insert_data) if energy_insert_data.any?
         
             # 批量插入 GeneralUsersRole 数据
             GeneralUsersRole.insert_all(role_insert_data) if role_insert_data.any?
