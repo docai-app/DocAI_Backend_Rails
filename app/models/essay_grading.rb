@@ -142,10 +142,10 @@ class EssayGrading < ApplicationRecord
     # 檢查 grading 入邊有冇 Overall Score
     json_data = JSON.parse(self['grading']['data']['text'])
     score = json_data['Overall Score']
-    if score.present?
-      self['score'] = score
-      save
-    end
+    return unless score.present?
+
+    self['score'] = score
+    save
   end
 
   def calculate_comprehension_score

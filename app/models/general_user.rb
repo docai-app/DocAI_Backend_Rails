@@ -79,7 +79,7 @@ class GeneralUser < ApplicationRecord
       terms.map do
         or_clauses = [
           'LOWER(nickname) LIKE ?',
-          'LOWER(email) LIKE ?',
+          'LOWER(email) LIKE ?'
         ].join(' OR ')
         "(#{or_clauses})"
       end.join(' AND '),
