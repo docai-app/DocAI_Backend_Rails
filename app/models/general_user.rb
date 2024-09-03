@@ -185,6 +185,10 @@ class GeneralUser < ApplicationRecord
     GeneralUser.where(id: teacher_ids).order(created_at: :desc).as_json(except: %i[aienglish_feature_list])
   end
 
+  def show_in_report_name
+    "#{email}(#{nickname}, #{banbie}, #{class_no}) [User, Class, Number]"
+  end
+
   private
 
   def aienglish_features_must_be_valid
