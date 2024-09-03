@@ -212,7 +212,9 @@ module Api
               # 批量添加 AI English features
               feature_row = aienglish_features_data.find { |f| f[:email] == email }
               if feature_row.present?
-                GeneralUser.find(user_id).aienglish_feature_list.add(feature_row[:features], parse: true)
+                gu = GeneralUser.find(user_id)
+                gu.aienglish_feature_list.add(feature_row[:features], parse: true)
+                gu.save
               end
             end
 
