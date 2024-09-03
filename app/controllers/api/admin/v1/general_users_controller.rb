@@ -129,60 +129,107 @@ module Api
 
         def batch_create
           file = params[:file]
-
+        
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
-
-          @users = []
+        
+          users_data = []
+          energy_data = []
+          roles_data = []
+          aienglish_features_data = []
           errors = []
-
-          CSV.foreach(file.path, headers: true) do |row|
-            email = row['email']&.strip
-            password = row['password']&.strip
-            nickname = row['name']&.strip.to_s
-            banbie = row['class_name']&.strip.to_s
-            class_no = row['class_no']&.strip.to_s
-
-            begin
-              ActiveRecord::Base.transaction do
-                @user = GeneralUser.create!(
-                  email:,
-                  password:,
-                  nickname:,
-                  banbie:,
-                  class_no:
-                )
-                @user.create_energy(value: 100)
-
-                if row['aienglish_features'].present?
-                  features = begin
-                    JSON.parse(row['aienglish_features'])
-                  rescue JSON::ParserError
-                    []
-                  end
-                  @user.aienglish_feature_list.add(features, parse: true)
-                end
-
-                @user.add_role(row['role']) if row['role'].present?
-
-                # Only save once at the end of all operations
-                raise ActiveRecord::RecordInvalid, @user unless @user.save
-
-                @users << @user
-                puts "Imported #{email} successfully."
+        
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip
+              password = row['password']&.strip
+              nickname = row['name']&.strip.to_s
+              banbie = row['class_name']&.strip.to_s
+              class_no = row['class_no']&.strip.to_s
+        
+              user_data = {
+                email: email,
+                encrypted_password: BCrypt::Password.create(password), # 加密密码
+                nickname: nickname,
+                banbie: banbie,
+                class_no: class_no,
+                created_at: Time.now,
+                updated_at: Time.now
+              }
+        
+              users_data << user_data
+        
+              # 收集角色数据
+              if row['role'].present?
+                roles_data << { email: email, role: row['role'] }
               end
-            rescue ActiveRecord::RecordInvalid => e
-              errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(', ') }
-              puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(', ')}"
-            rescue StandardError => e
-              errors << { email: email || 'N/A', error: e.message }
-              puts "Failed to import #{email || 'N/A'}: #{e.message}"
+        
+              # 收集 AI English features 数据
+              if row['aienglish_features'].present?
+                features = begin
+                  JSON.parse(row['aienglish_features'].gsub(/[“”]/, '"'))
+                rescue JSON::ParserError
+                  []
+                end
+                aienglish_features_data << { email: email, features: features }
+              end
             end
+        
+            # 批量插入用户数据，并获取插入后的用户记录
+            inserted_users = GeneralUser.insert_all(users_data, returning: %w[id email])
+        
+            # 准备批量插入的角色和能量数据
+            role_insert_data = []
+            energy_insert_data = []
+        
+            inserted_users.each do |user|
+              user_id = user['id']
+              email = user['email']
+        
+              # 批量创建 Energy
+              energy_insert_data << {
+                user_id: user_id,
+                user_type: 'GeneralUser',
+                value: 100,
+                created_at: Time.now,
+                updated_at: Time.now
+              }
+        
+              # 批量添加角色
+              role_row = roles_data.find { |r| r[:email] == email }
+              if role_row.present?
+                role_insert_data << {
+                  general_user_id: user_id,
+                  role_name: role_row[:role],  # 根据 GeneralUsersRole 模型的实际字段名调整
+                  created_at: Time.now,
+                  updated_at: Time.now
+                }
+              end
+        
+              # 批量添加 AI English features
+              feature_row = aienglish_features_data.find { |f| f[:email] == email }
+              if feature_row.present?
+                GeneralUser.find(user_id).aienglish_feature_list.add(feature_row[:features], parse: true)
+              end
+            end
+        
+            # 批量插入 Energy 数据
+            Energy.insert_all(energy_insert_data)
+        
+            # 批量插入 GeneralUsersRole 数据
+            GeneralUsersRole.insert_all(role_insert_data) if role_insert_data.any?
+        
+          rescue ActiveRecord::RecordInvalid => e
+            errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(', ') }
+            puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(', ')}"
+          rescue StandardError => e
+            errors << { email: email || 'N/A', error: e.message }
+            puts "Failed to import #{email || 'N/A'}: #{e.message}"
           end
-
+        
           if errors.empty?
-            render json: { success: true, users: @users }, status: :created
+            render json: { success: true, users: inserted_users }, status: :created
           else
-            render json: { success: false, errors: }, status: :unprocessable_entity
+            render json: { success: false, errors: errors }, status: :unprocessable_entity
           end
         end
 
