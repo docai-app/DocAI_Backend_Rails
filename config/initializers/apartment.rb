@@ -32,7 +32,7 @@ Apartment.configure do |config|
   # config.tenant_names = ENV.fetch('TENANT_NAMES', '').split(',')
   config.tenant_names = -> { Entity.pluck(:name) }
 
-  config.default_schema = "public" # 默认 schema
+  config.persistent_schemas = %w{public shared_extensions}
   # config.tenant_names = {
   #   'tenant1' => {
   #     adapter: 'postgresql',
