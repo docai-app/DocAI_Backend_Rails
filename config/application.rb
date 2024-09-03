@@ -46,9 +46,6 @@ module DocaiApi
 
     config.hosts << 'docai-dev.m2mda.com'
     config.hosts << 'docai.m2mda.com'
-    config.hosts << 'ab7b-27-109-208-108.ngrok-free.app'
-    config.hosts << '5xwqlf0q-3001.asse.devtunnels.ms'
-    config.hosts << '2396-27-109-208-108.ngrok-free.app'
 
     config.action_cable.mount_path = '/cable'
   end
