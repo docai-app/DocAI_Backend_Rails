@@ -123,7 +123,9 @@ module Api
 
       def aienglish_access
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
-        if current_general_user.aienglish_feature_list.include?(@essay_assignment.category)
+        
+        # 檢查 meta 欄位中的 aienglish_features_list
+        if current_general_user.aienglish_features_list.include?(@essay_assignment.category)
           true
         else
           render json: { success: false, error: 'Access denied' }, status: :ok
