@@ -339,16 +339,16 @@ module Api
 
         # 话题
         if json_data['assignment'].present?
-          pdf.text "Assignment: #{json_data['assignment']}", size: 18 # , style: :bold
+          pdf.text "Assignment: #{json_data['assignment']}", size: 14 # , style: :bold
           pdf.move_down 10
         end
 
         # 话题
-        pdf.text "Topic: #{json_data['topic']}", size: 18 # , style: :bold
+        pdf.text "Topic: #{json_data['topic']}", size: 14 # , style: :bold
         pdf.move_down 10
 
         # 學生資訊
-        pdf.text "Account: #{json_data['account']}"
+        pdf.text "Account: #{json_data['account']}", size: 14
         pdf.move_down 10
 
         # 解析 JSON 数据
