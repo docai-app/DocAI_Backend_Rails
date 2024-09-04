@@ -216,14 +216,14 @@ module Api
           'C' => 'Word Choice and Word Usage',
           'D' => 'Sentence Structure'
         }
-      
+
         # 定义 speaking_essay 和 speaking_conversation 的映射
         speaking_mapping = {
           'A' => 'Grammatical Errors',
           'B' => 'Lexical Errors',
           'C' => 'Speech Errors'
         }
-      
+
         # 根据 context 选择正确的映射
         case context
         when 'essay'
@@ -400,7 +400,7 @@ module Api
                   explanation = error_value['explanation']
 
                   # 使用 inline_format 将 category 显示为蓝色
-                  pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(@essay_grading.category ,category)})</color>: #{explanation}",
+                  pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(@essay_grading.category, category)})</color>: #{explanation}",
                            size: 10, inline_format: true
                   pdf.move_down 5
                 end
@@ -458,7 +458,4 @@ module Api
       end
     end
   end
-
-  
-
 end
