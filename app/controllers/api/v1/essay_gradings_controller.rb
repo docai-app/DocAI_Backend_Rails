@@ -15,8 +15,10 @@ module Api
         if assignment.category == 'comprehension'
           json_data['comprehension'] = @essay_grading.grading['comprehension']
           json_data['topic'] = assignment.topic
+          json_data['assignment'] = assignment.assignment
+          json_data['account'] = @essay_grading.general_user.show_in_report_name
 
-          newsfeed = assignment.get_news_feed
+          newsfeed = @essay_grading.get_news_feed
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
             json_data['article'] = newsfeed['data']['content']
@@ -274,29 +276,47 @@ module Api
           # 设置默认字体
           pdf.font 'NotoSans'
 
-          # 标题
-          pdf.text json_data['title'], size: 24, style: :bold, align: :center
+          # 开始内容部分
           pdf.move_down 20
-
-          # 话题
-          pdf.text "Assignment: #{json_data['assignment']}", size: 18, style: :bold
+          pdf.text "Grading Report(#{@essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
 
+         # 话题
+          if json_data['assignment'].present?
+            pdf.text "Assignment: #{json_data['assignment']}", size: 14 # , style: :bold
+            pdf.move_down 10
+          end
+
           # 话题
-          pdf.text "Topic: #{json_data['topic']}", size: 18, style: :bold
+          pdf.text "Topic: #{json_data['topic']}", size: 14 # , style: :bold
           pdf.move_down 10
 
+          # 學生資訊
+          pdf.text "Account: #{json_data['account']}", size: 14
+          pdf.move_down 30
+
+          # binding.pry
+          comprehension = json_data['comprehension']
+
+          # 在页面底部显示分数
+          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold, align: :center
+          pdf.move_down 10
+          pdf.stroke_horizontal_rule
+          pdf.move_down 20
           # binding.pry
 
           # 文章内容
           pdf.text json_data['article'], size: 12, leading: 4
           pdf.move_down 20
 
+          pdf.stroke_horizontal_rule
+          pdf.move_down 20
+
           # 理解测试部分
           pdf.text 'Comprehension Questions', size: 18, style: :bold
           pdf.move_down 10
 
-          comprehension = json_data['comprehension']
+          
           comprehension['questions'].each_with_index do |question, index|
             pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
             pdf.move_down 5
@@ -312,9 +332,7 @@ module Api
             pdf.move_down 15
           end
 
-          # 在页面底部显示分数
-          pdf.text "Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold
-          pdf.move_down 10
+          
 
           # 页脚页码
           pdf.number_pages '<page> of <total>', at: [pdf.bounds.right - 50, 0], align: :right, size: 12
@@ -336,7 +354,7 @@ module Api
 
         # 开始内容部分
         pdf.move_down 20
-        pdf.text 'Grading Report', size: 20, style: :bold, align: :center
+        pdf.text "Grading Report(#{@essay_grading.category})", size: 20, style: :bold, align: :center
         pdf.move_down 10
 
         # 话题

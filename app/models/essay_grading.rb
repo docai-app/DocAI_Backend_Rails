@@ -148,6 +148,17 @@ class EssayGrading < ApplicationRecord
     save
   end
 
+  def get_news_feed
+    return nil if self['meta']['newsfeed_id'].nil?
+
+    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
+    response = Net::HTTP.get_response(uri)
+
+    return unless response.is_a?(Net::HTTPSuccess)
+
+    JSON.parse(response.body)
+  end
+
   def calculate_comprehension_score
     # 初始化分数
     score = 0
