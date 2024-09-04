@@ -386,6 +386,11 @@ Rails.application.routes.draw do
             post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
             post 'student/email', to: 'general_users#add_students_relation_by_emails'
           end
+          collection do
+            post 'aienglish/create', to: 'general_users#create_aienglish_user'
+            post 'aienglish/batch', to: 'general_users#batch_create_aienglish_user'
+            put 'aienglish/update', to: 'general_users#update_aienglish_user'
+          end
         end
       end
     end
