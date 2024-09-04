@@ -81,6 +81,39 @@ module Api
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
+        def create_aienglish_user
+          ActiveRecord::Base.transaction do
+            @user = GeneralUser.create!(general_users_params)
+
+            # 創建energy
+            @user.create_energy(value: 100)
+
+            # 將 aienglish_features 存入 meta 欄位
+            if params[:aienglish_features].present?
+              features = begin
+                JSON.parse(params[:aienglish_features].gsub(/[“”]/, '"'))
+              rescue StandardError
+                []
+              end
+              @user.aienglish_features_list = features
+            end
+
+            # 將 role 存入 meta 欄位
+            @user.aienglish_role = params[:role] if params[:role].present?
+
+            raise ActiveRecord::RecordInvalid, @user unless @user.save
+
+            # 構建 user_json 並返回
+            user_json = @user.as_json
+            user_json['role'] = @user.aienglish_role
+            render json: { success: true, user: user_json }, status: :ok
+          end
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
         def update
           @user = GeneralUser.find(params[:id])
 
@@ -102,6 +135,42 @@ module Api
 
               user_json = @user.as_json
               user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
+
+              render json: { success: true, user: user_json }, status: :ok
+            end
+          rescue ActiveRecord::RecordNotFound
+            render json: { success: false, error: 'User not found' }, status: :not_found
+          rescue ActiveRecord::RecordInvalid
+            render json: { success: false, errors: @user.errors.full_messages }, status: :unprocessable_entity
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
+        def update_aienglish_user
+          @user = GeneralUser.find(params[:id])
+
+          begin
+            ActiveRecord::Base.transaction do
+              # 更新 aienglish_features_list 到 meta 欄位
+              if params[:aienglish_features].present?
+                features = begin
+                  JSON.parse(params[:aienglish_features].gsub(/[“”]/, '"'))
+                rescue StandardError
+                  []
+                end
+                @user.aienglish_features_list = features
+              end
+
+              # 更新 role 到 meta 欄位
+              @user.aienglish_role = params[:role] if params[:role].present?
+
+              # 更新其他用戶屬性
+              raise ActiveRecord::RecordInvalid, @user unless @user.update(general_users_params)
+
+              # 構建 user_json，並返回角色信息
+              user_json = @user.as_json
+              user_json['role'] = @user.aienglish_role
 
               render json: { success: true, user: user_json }, status: :ok
             end
@@ -219,6 +288,75 @@ module Api
 
             # 批量插入 GeneralUsersRole 数据
             GeneralUsersRole.insert_all(role_insert_data) if role_insert_data.any?
+          rescue ActiveRecord::RecordInvalid => e
+            errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(', ') }
+            puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(', ')}"
+          rescue StandardError => e
+            errors << { email: email || 'N/A', error: e.message }
+            puts "Failed to import #{email || 'N/A'}: #{e.message}"
+          end
+
+          if errors.empty?
+            render json: { success: true, users: inserted_users }, status: :created
+          else
+            render json: { success: false, errors: }, status: :unprocessable_entity
+          end
+        end
+
+        def batch_create_aienglish_user
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          energy_insert_data = []
+          errors = []
+          inserted_users = []
+          email = nil
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              password = row['password']&.strip
+              nickname = row['name']&.strip.to_s
+              banbie = row['class_name']&.strip.to_s
+              class_no = row['class_no']&.strip.to_s
+
+              user = GeneralUser.create!(
+                email:,
+                password:,
+                password_confirmation: password,
+                nickname:,
+                banbie:,
+                class_no:
+              )
+
+              # 收集 AI English features 並保存到 meta 欄位
+              if row['aienglish_features'].present?
+                features = begin
+                  JSON.parse(row['aienglish_features'].gsub(/[“”]/, '"'))
+                rescue StandardError
+                  []
+                end
+                user.aienglish_features_list = features
+              end
+
+              # 收集角色並保存到 meta 欄位
+              user.aienglish_role = row['role'] if row['role'].present?
+
+              user.save!
+              inserted_users << user
+
+              # 批量創建 energy
+              energy_insert_data << {
+                user_id: user.id,
+                user_type: 'GeneralUser',
+                value: 100,
+                created_at: Time.now,
+                updated_at: Time.now
+              }
+            end
+
+            # 批量插入 Energy 数据
+            Energy.insert_all(energy_insert_data) if energy_insert_data.any?
           rescue ActiveRecord::RecordInvalid => e
             errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(', ') }
             puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(', ')}"
