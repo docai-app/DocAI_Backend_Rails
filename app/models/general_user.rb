@@ -189,6 +189,30 @@ class GeneralUser < ApplicationRecord
     "#{email}(#{nickname}, #{banbie}, #{class_no})"
   end
 
+  # AI English features getter, setter and validator section (aienglish_role, aienglish_features_list, aienglish_user?)
+  def aienglish_role
+    meta['aienglish_role']
+  end
+
+  def aienglish_role=(value)
+    meta['aienglish_role'] = value
+    save
+  end
+
+  def aienglish_features_list
+    meta['aienglish_features_list'] || []
+  end
+
+  def aienglish_features_list=(features)
+    meta['aienglish_features_list'] = features
+    save
+  end
+
+  # 確認是否具備AI English功能
+  def aienglish_user?
+    meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
+  end
+
   private
 
   def aienglish_features_must_be_valid

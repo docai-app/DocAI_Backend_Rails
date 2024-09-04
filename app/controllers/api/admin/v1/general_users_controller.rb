@@ -132,14 +132,13 @@ module Api
           file = params[:file]
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
 
-          users_data = []
           energy_insert_data = []
           role_insert_data = []
           aienglish_features_data = []
           roles_data = []
           errors = []
           inserted_users = []
-          email = nil  # 在方法的开头定义 email 变量
+          email = nil # 在方法的开头定义 email 变量
 
           begin
             CSV.foreach(file.path, headers: true) do |row|
@@ -151,14 +150,14 @@ module Api
               class_no = row['class_no']&.strip.to_s
 
               inserted_users << GeneralUser.create!(
-                email: email,
-                password: password,
+                email:,
+                password:,
                 password_confirmation: password,
-                nickname: nickname,
-                banbie: banbie,
-                class_no: class_no
+                nickname:,
+                banbie:,
+                class_no:
               )
-        
+
               # 收集角色数据
               roles_data << { email:, role: row['role'] } if row['role'].present?
 
@@ -175,7 +174,7 @@ module Api
 
             # 批量插入用户数据，并获取插入后的用户记录
             # inserted_users = GeneralUser.insert_all(users_data, returning: %w[id email])
-        
+
             inserted_users.each do |user|
               user_id = user['id']
               email = user['email']
@@ -206,11 +205,11 @@ module Api
 
               # 批量添加 AI English features
               feature_row = aienglish_features_data.find { |f| f[:email].downcase == email.downcase }
-              if feature_row.present?
-                gu = GeneralUser.find(user_id)
-                gu.aienglish_feature_list.add(feature_row[:features], parse: true)
-                gu.save
-              end
+              next unless feature_row.present?
+
+              gu = GeneralUser.find(user_id)
+              gu.aienglish_feature_list.add(feature_row[:features], parse: true)
+              gu.save
             end
 
             # binding.pry
