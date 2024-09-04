@@ -131,7 +131,7 @@ module Api
         def batch_create
           file = params[:file]
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
-        
+
           users_data = []
           energy_insert_data = []
           role_insert_data = []
@@ -160,10 +160,8 @@ module Api
               )
         
               # 收集角色数据
-              if row['role'].present?
-                roles_data << { email: email, role: row['role'] }
-              end
-        
+              roles_data << { email:, role: row['role'] } if row['role'].present?
+
               # 收集 AI English features 数据
               if row['aienglish_features'].present?
                 features = begin
@@ -171,26 +169,26 @@ module Api
                 rescue JSON::ParserError
                   []
                 end
-                aienglish_features_data << { email: email, features: features }
+                aienglish_features_data << { email:, features: }
               end
             end
-        
+
             # 批量插入用户数据，并获取插入后的用户记录
             # inserted_users = GeneralUser.insert_all(users_data, returning: %w[id email])
         
             inserted_users.each do |user|
               user_id = user['id']
               email = user['email']
-        
+
               # 批量创建 Energy
               energy_insert_data << {
-                user_id: user_id,
+                user_id:,
                 user_type: 'GeneralUser',
                 value: 100,
                 created_at: Time.now,
                 updated_at: Time.now
               }
-        
+
               # 批量添加角色
               role_row = roles_data.find { |r| r[:email].downcase == email.downcase }
               if role_row.present?
@@ -202,10 +200,10 @@ module Api
                     role_id: role.id
                   }
                 else
-                  errors << { email: email, error: "Role '#{role_row[:role]}' not found" }
+                  errors << { email:, error: "Role '#{role_row[:role]}' not found" }
                 end
               end
-        
+
               # 批量添加 AI English features
               feature_row = aienglish_features_data.find { |f| f[:email].downcase == email.downcase }
               if feature_row.present?
@@ -216,13 +214,12 @@ module Api
             end
 
             # binding.pry
-        
+
             # 批量插入 Energy 数据
             Energy.insert_all(energy_insert_data) if energy_insert_data.any?
-        
+
             # 批量插入 GeneralUsersRole 数据
             GeneralUsersRole.insert_all(role_insert_data) if role_insert_data.any?
-        
           rescue ActiveRecord::RecordInvalid => e
             errors << { email: email || 'N/A', error: e.record.errors.full_messages.join(', ') }
             puts "Failed to import #{email || 'N/A'}: #{e.record.errors.full_messages.join(', ')}"
@@ -230,11 +227,11 @@ module Api
             errors << { email: email || 'N/A', error: e.message }
             puts "Failed to import #{email || 'N/A'}: #{e.message}"
           end
-        
+
           if errors.empty?
             render json: { success: true, users: inserted_users }, status: :created
           else
-            render json: { success: false, errors: errors }, status: :unprocessable_entity
+            render json: { success: false, errors: }, status: :unprocessable_entity
           end
         end
 
