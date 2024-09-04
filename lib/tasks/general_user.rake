@@ -170,7 +170,7 @@ namespace :general_user do
 
     begin
       CSV.foreach(file_path, headers: true) do |row|
-        email = row['email']&.strip
+        email = row['email']&.strip&.downcase
         password = row['password']&.strip
         nickname = row['name']&.strip.to_s
         banbie = row['class_name']&.strip.to_s

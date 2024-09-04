@@ -32,8 +32,6 @@ require_dependency 'has_kg_linker'
 
 class GeneralUser < ApplicationRecord
   self.primary_key = 'id'
-  rolify
-  acts_as_taggable_on :aienglish_features
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation].freeze
 
@@ -186,7 +184,31 @@ class GeneralUser < ApplicationRecord
   end
 
   def show_in_report_name
-    "#{email}(#{nickname}, #{banbie}, #{class_no}) [User, Class, Number]"
+    "#{email}(#{nickname}, #{banbie}, #{class_no})"
+  end
+
+  # AI English features getter, setter and validator section (aienglish_role, aienglish_features_list, aienglish_user?)
+  def aienglish_role
+    meta['aienglish_role']
+  end
+
+  def aienglish_role=(value)
+    meta['aienglish_role'] = value
+    save
+  end
+
+  def aienglish_features_list
+    meta['aienglish_features_list'] || []
+  end
+
+  def aienglish_features_list=(features)
+    meta['aienglish_features_list'] = features
+    save
+  end
+
+  # 確認是否具備AI English功能
+  def aienglish_user?
+    meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
   end
 
   # AI English features getter, setter and validator section (aienglish_role, aienglish_features_list, aienglish_user?)
@@ -216,7 +238,8 @@ class GeneralUser < ApplicationRecord
   private
 
   def aienglish_features_must_be_valid
-    invalid_features = aienglish_feature_list - VALID_AI_ENGLISH_FEATURES
+    # 確保 features list 存在於 meta 並且是合法的
+    invalid_features = aienglish_features_list - VALID_AI_ENGLISH_FEATURES
     return if invalid_features.empty?
 
     errors.add(:aienglish_features, "Can only include allowed features: #{invalid_features.join(', ')}")
