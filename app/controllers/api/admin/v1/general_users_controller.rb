@@ -130,7 +130,6 @@ module Api
 
         def batch_create
           file = params[:file]
-        
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
         
           users_data = []
@@ -139,28 +138,26 @@ module Api
           aienglish_features_data = []
           roles_data = []
           errors = []
-          inserted_users = nil
+          inserted_users = []
           email = nil  # 在方法的开头定义 email 变量
-        
+
           begin
             CSV.foreach(file.path, headers: true) do |row|
+              puts row['email']
               email = row['email']&.strip
               password = row['password']&.strip
               nickname = row['name']&.strip.to_s
               banbie = row['class_name']&.strip.to_s
               class_no = row['class_no']&.strip.to_s
-        
-              user_data = {
+
+              inserted_users << GeneralUser.create!(
                 email: email,
-                encrypted_password: BCrypt::Password.create(password), # 加密密码
+                password: password,
+                password_confirmation: password,
                 nickname: nickname,
                 banbie: banbie,
-                class_no: class_no,
-                created_at: Time.now,
-                updated_at: Time.now
-              }
-        
-              users_data << user_data
+                class_no: class_no
+              )
         
               # 收集角色数据
               if row['role'].present?
@@ -179,7 +176,7 @@ module Api
             end
         
             # 批量插入用户数据，并获取插入后的用户记录
-            inserted_users = GeneralUser.insert_all(users_data, returning: %w[id email])
+            # inserted_users = GeneralUser.insert_all(users_data, returning: %w[id email])
         
             inserted_users.each do |user|
               user_id = user['id']
@@ -195,7 +192,7 @@ module Api
               }
         
               # 批量添加角色
-              role_row = roles_data.find { |r| r[:email] == email }
+              role_row = roles_data.find { |r| r[:email].downcase == email.downcase }
               if role_row.present?
                 # 根据角色名称查找角色ID
                 role = Role.find_by(name: role_row[:role])
@@ -210,7 +207,7 @@ module Api
               end
         
               # 批量添加 AI English features
-              feature_row = aienglish_features_data.find { |f| f[:email] == email }
+              feature_row = aienglish_features_data.find { |f| f[:email].downcase == email.downcase }
               if feature_row.present?
                 gu = GeneralUser.find(user_id)
                 gu.aienglish_feature_list.add(feature_row[:features], parse: true)
