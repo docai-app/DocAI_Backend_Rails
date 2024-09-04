@@ -25,7 +25,7 @@ module Api
           json_data = @essay_grading.grading
           json_data['topic'] = assignment.topic
           json_data['account'] = @essay_grading.general_user.show_in_report_name
-          json_data['assignment'] = assignment.title
+          json_data['assignment'] = assignment.assignment
           #
           # binding.pry
           if @essay_grading.general_context['data'].present?
@@ -208,6 +208,33 @@ module Api
         }
       end
 
+      def convert_category(context, category)
+        # 定义 essay grading 的映射
+        essay_grading_mapping = {
+          'A' => 'Spelling and Grammar Errors',
+          'B' => 'Punctuation and Capitalization',
+          'C' => 'Word Choice and Word Usage',
+          'D' => 'Sentence Structure'
+        }
+      
+        # 定义 speaking_essay 和 speaking_conversation 的映射
+        speaking_mapping = {
+          'A' => 'Grammatical Errors',
+          'B' => 'Lexical Errors',
+          'C' => 'Speech Errors'
+        }
+      
+        # 根据 context 选择正确的映射
+        case context
+        when 'essay'
+          essay_grading_mapping[category]
+        when 'speaking_essay', 'speaking_conversation'
+          speaking_mapping[category]
+        else
+          'Unknown category' # 处理未知的 context 或 category
+        end
+      end
+
       def generate_pdf_from_json(json_data, pdf = nil, indent_level = 0)
         pdf ||= Prawn::Document.new
 
@@ -248,6 +275,10 @@ module Api
           # 标题
           pdf.text json_data['title'], size: 24, style: :bold, align: :center
           pdf.move_down 20
+
+          # 话题
+          pdf.text "Assignment: #{json_data['assignment']}", size: 18, style: :bold
+          pdf.move_down 10
 
           # 话题
           pdf.text "Topic: #{json_data['topic']}", size: 18, style: :bold
@@ -369,7 +400,7 @@ module Api
                   explanation = error_value['explanation']
 
                   # 使用 inline_format 将 category 显示为蓝色
-                  pdf.text "• #{error_word}<color rgb='0000FF'>(Category: #{category})</color>: #{explanation}",
+                  pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(@essay_grading.category ,category)})</color>: #{explanation}",
                            size: 10, inline_format: true
                   pdf.move_down 5
                 end
@@ -382,14 +413,14 @@ module Api
 
           pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
           pdf.move_down 20
-          pdf.text (json_data['general_context']).to_s
+          pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
           pdf.move_down 20
 
           pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
           pdf.move_down 20
           # 添加总分部分
           if sentences['Overall Score']
-            pdf.text 'Overall Score', size: 16, style: :bold, color: '003366', align: :center
+            pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold, color: '003366', align: :center
 
             sentences.each do |key, value|
               next unless key.start_with?('Criterion')
@@ -420,8 +451,8 @@ module Api
             end
           end
 
-          pdf.move_down 10
-          pdf.text "Total Score: #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 14, style: :bold
+          # pdf.move_down 10
+          # pdf.text "Total Score: ", size: 14, style: :bold
         end
 
         # 返回生成的 PDF 数据
@@ -429,4 +460,7 @@ module Api
       end
     end
   end
+
+  
+
 end

@@ -186,7 +186,7 @@ class GeneralUser < ApplicationRecord
   end
 
   def show_in_report_name
-    "#{email}(#{nickname}, #{banbie}, #{class_no}) [User, Class, Number]"
+    "#{email}(#{nickname}, #{banbie}, #{class_no})"
   end
 
   private
