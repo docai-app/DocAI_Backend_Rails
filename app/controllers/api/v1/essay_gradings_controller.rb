@@ -349,7 +349,7 @@ module Api
 
         # 學生資訊
         pdf.text "Account: #{json_data['account']}", size: 14
-        pdf.move_down 10
+        pdf.move_down 30
 
         # 解析 JSON 数据
         sentences = JSON.parse(json_data['data']['text'])
@@ -411,48 +411,46 @@ module Api
             pdf.move_down 15
           end
 
-          pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
-          pdf.move_down 20
-          pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
-          pdf.move_down 20
+        end
 
-          pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
-          pdf.move_down 20
-          # 添加总分部分
-          if sentences['Overall Score']
-            pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold, color: '003366', align: :center
+        pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
+        pdf.move_down 20
+        pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
+        pdf.move_down 20
 
-            sentences.each do |key, value|
-              next unless key.start_with?('Criterion')
+        pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
+        pdf.move_down 20
+        # 添加总分部分
+        if sentences['Overall Score']
+          pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold, color: '003366', align: :center
 
-              # 处理评估标准部分
-              value.each do |criterion_name, criterion_value|
-                next if ['Full Score', 'explanation'].include?(criterion_name) # 跳过满分和解释部分
+          sentences.each do |key, value|
+            next unless key.start_with?('Criterion')
 
-                pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
-                pdf.move_down 5
+            # 处理评估标准部分
+            value.each do |criterion_name, criterion_value|
+              next if ['Full Score', 'explanation'].include?(criterion_name) # 跳过满分和解释部分
 
-                full_score = value['Full Score'] || 'N/A'
-                score = criterion_value
+              pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
+              pdf.move_down 5
 
-                pdf.text "Score: #{score} / #{full_score}", size: 12
-                pdf.move_down 10
+              full_score = value['Full Score'] || 'N/A'
+              score = criterion_value
 
-                if value['explanation']
-                  pdf.indent(20) do
-                    pdf.text value['explanation'], size: 10
-                    pdf.move_down 15
-                  end
+              pdf.text "Score: #{score} / #{full_score}", size: 12
+              pdf.move_down 10
+
+              if value['explanation']
+                pdf.indent(20) do
+                  pdf.text value['explanation'], size: 10
+                  pdf.move_down 15
                 end
-
-                pdf.stroke_horizontal_rule
-                pdf.move_down 15
               end
+
+              pdf.stroke_horizontal_rule
+              pdf.move_down 15
             end
           end
-
-          # pdf.move_down 10
-          # pdf.text "Total Score: ", size: 14, style: :bold
         end
 
         # 返回生成的 PDF 数据
