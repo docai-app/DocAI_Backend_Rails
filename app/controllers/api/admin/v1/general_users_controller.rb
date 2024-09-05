@@ -90,12 +90,7 @@ module Api
 
             # 將 aienglish_features 存入 meta 欄位
             if params[:aienglish_features].present?
-              features = begin
-                JSON.parse(params[:aienglish_features].gsub(/[“”]/, '"'))
-              rescue StandardError
-                []
-              end
-              @user.aienglish_features_list = features
+              @user.aienglish_features_list = params[:aienglish_features]
             end
 
             # 將 role 存入 meta 欄位
@@ -154,12 +149,7 @@ module Api
             ActiveRecord::Base.transaction do
               # 更新 aienglish_features_list 到 meta 欄位
               if params[:aienglish_features].present?
-                features = begin
-                  JSON.parse(params[:aienglish_features].gsub(/[“”]/, '"'))
-                rescue StandardError
-                  []
-                end
-                @user.aienglish_features_list = features
+                @user.aienglish_features_list = params[:aienglish_features]
               end
 
               # 更新 role 到 meta 欄位
