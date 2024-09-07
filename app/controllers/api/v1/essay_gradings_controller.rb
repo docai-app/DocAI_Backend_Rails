@@ -114,6 +114,7 @@ module Api
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
             using_time: @essay_grading.using_time,
+            file: @essay_grading.file.url,
             general_user: {
               id: @essay_grading.general_user.id,
               nickname: @essay_grading.general_user.nickname,
