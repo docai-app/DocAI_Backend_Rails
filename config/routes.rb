@@ -389,7 +389,7 @@ Rails.application.routes.draw do
           collection do
             post 'aienglish/create', to: 'general_users#create_aienglish_user'
             post 'aienglish/batch', to: 'general_users#batch_create_aienglish_user'
-            put 'aienglish/update', to: 'general_users#update_aienglish_user'
+            put ':id/aienglish/update', to: 'general_users#update_aienglish_user'
           end
         end
       end

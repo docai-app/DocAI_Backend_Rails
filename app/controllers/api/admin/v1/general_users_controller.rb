@@ -10,10 +10,9 @@ module Api
         include AdminAuthenticator
 
         def index
-          @users = GeneralUser.includes([:taggings])
+          @users = GeneralUser.all
           @users = @users.search_query(params[:keyword]) if params[:keyword].present?
-          @users = @users.order(created_at: :desc).as_json(methods: [:locked_at],
-                                                           except: %i[aienglish_feature_list])
+          @users = @users.order(created_at: :desc).as_json(methods: [:locked_at])
           @users = Kaminari.paginate_array(@users).page(params[:page])
 
           render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
@@ -26,7 +25,6 @@ module Api
           user_json = @user.as_json(
             methods: [:locked_at]
           )
-          user_json['role'] = @user.has_role?(:teacher) ? 'teacher' : 'student'
 
           render json: { success: true, user: user_json }, status: :ok
         rescue StandardError => e
@@ -89,14 +87,7 @@ module Api
             @user.create_energy(value: 100)
 
             # 將 aienglish_features 存入 meta 欄位
-            if params[:aienglish_features].present?
-              features = begin
-                JSON.parse(params[:aienglish_features].gsub(/[“”]/, '"'))
-              rescue StandardError
-                []
-              end
-              @user.aienglish_features_list = features
-            end
+            @user.aienglish_features_list = params[:aienglish_features] if params[:aienglish_features].present?
 
             # 將 role 存入 meta 欄位
             @user.aienglish_role = params[:role] if params[:role].present?
@@ -153,14 +144,7 @@ module Api
           begin
             ActiveRecord::Base.transaction do
               # 更新 aienglish_features_list 到 meta 欄位
-              if params[:aienglish_features].present?
-                features = begin
-                  JSON.parse(params[:aienglish_features].gsub(/[“”]/, '"'))
-                rescue StandardError
-                  []
-                end
-                @user.aienglish_features_list = features
-              end
+              @user.aienglish_features_list = params[:aienglish_features] if params[:aienglish_features].present?
 
               # 更新 role 到 meta 欄位
               @user.aienglish_role = params[:role] if params[:role].present?

@@ -282,7 +282,7 @@ module Api
           pdf.text "Grading Report(#{@essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
 
-         # 话题
+          # 话题
           if json_data['assignment'].present?
             pdf.text "Assignment: #{json_data['assignment']}", size: 14 # , style: :bold
             pdf.move_down 10
@@ -300,7 +300,8 @@ module Api
           comprehension = json_data['comprehension']
 
           # 在页面底部显示分数
-          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold, align: :center
+          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold,
+                                                                                                align: :center
           pdf.move_down 10
           pdf.stroke_horizontal_rule
           pdf.move_down 20
@@ -317,7 +318,6 @@ module Api
           pdf.text 'Comprehension Questions', size: 18, style: :bold
           pdf.move_down 10
 
-          
           comprehension['questions'].each_with_index do |question, index|
             pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
             pdf.move_down 5
@@ -332,8 +332,6 @@ module Api
             pdf.fill_color '000000'  # 重置颜色为黑色
             pdf.move_down 15
           end
-
-          
 
           # 页脚页码
           pdf.number_pages '<page> of <total>', at: [pdf.bounds.right - 50, 0], align: :right, size: 12
@@ -431,7 +429,6 @@ module Api
 
             pdf.move_down 15
           end
-
         end
 
         pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
@@ -439,13 +436,13 @@ module Api
         pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
         pdf.move_down 20
 
-
         if @role == 'teacher' && @essay_grading.category == 'essay'
           pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
           pdf.move_down 20
           # 添加总分部分
           if sentences['Overall Score']
-            pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold, color: '003366', align: :center
+            pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold,
+                                                                                               color: '003366', align: :center
 
             sentences.each do |key, value|
               next unless key.start_with?('Criterion')
