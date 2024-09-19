@@ -14,16 +14,24 @@
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
 #  airflow_accepted :boolean          default(FALSE), not null
+#  tanent           :string
+#  user_type        :string           default("User"), not null
 #
 # Indexes
 #
 #  index_dag_runs_on_airflow_accepted  (airflow_accepted)
+#  index_dag_runs_on_airflow_accepted  (airflow_accepted)
 #  index_dag_runs_on_dag_status        (dag_status)
+#  index_dag_runs_on_dag_status        (dag_status)
+#  index_dag_runs_on_tanent            (tanent)
+#  index_dag_runs_on_tanent            (tanent)
+#  index_dag_runs_on_user_id           (user_id)
 #  index_dag_runs_on_user_id           (user_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (user_id => users.id)
+#  fk_rails_...  (user_id => public.users.id)
 #
 class DagRun < ApplicationRecord
   store_accessor :meta, :status_stack, :params, :project_workflow_step_id, :chatbot_id
@@ -37,7 +45,7 @@ class DagRun < ApplicationRecord
   #   {"name"=>"task3", "content"=>"xxxxxx"}
   # ]
 
-  belongs_to :user, optional: true
+  belongs_to :user, optional: true, polymorphic: true
 
   after_update :handle_finish_status, if: :status_changed_to_finish?
 
@@ -87,6 +95,10 @@ class DagRun < ApplicationRecord
         chatbot_id: chatbot.id
       }
     )
+
+    # if self['meta']['user_type'] == 'GeneralUser'
+    #   GeneralUserFeed.create('file_type' => Utils.determine_file_type(self.meta['status_stack'].last['content']), 'file_content' => self.meta['status_stack'].last['content'], 'user_id' => self['meta']['user_id'], 'user_marketplace_item_id' => self['meta']['user_marketplace_item_id'])
+    # end
   end
 
   def reset_init!

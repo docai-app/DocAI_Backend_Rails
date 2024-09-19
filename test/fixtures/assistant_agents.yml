@@ -32,13 +32,13 @@ one:
   description: MyString
   system_message: MyString
   subdomain: MyString
-  llm_config: 
-  meta: 
+  llm_config:
+  meta:
 
 two:
   name: MyString
   description: MyString
   system_message: MyString
   subdomain: MyString
-  llm_config: 
-  meta: 
+  llm_config:
+  meta:

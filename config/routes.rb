@@ -17,14 +17,67 @@ Rails.application.routes.draw do
              }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
+  devise_for :general_users, controllers: {
+    sessions: 'general_users/sessions',
+    registrations: 'general_users/registrations'
+  }
+
   # Defines the root path route ("/")
   # root "articles#index"
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      # ********** Essay grading ********
+      resources :essay_assignments, only: %i[index show create update destroy] do
+        resources :essay_gradings, only: [:create]
+        member do
+          get 'read'
+          get 'show_only'
+        end
+      end
+      resources :essay_gradings, only: %i[index show update destroy] do
+        member do
+          get 'download_report'
+        end
+      end
+
+      # ********** Group API *********
+      resources :groups do
+        member do
+          post 'add_students'
+          post 'remove_students'
+        end
+      end
+
+      # ********** LINKTREE API *********
+      resources :link_sets do
+        resources :links
+      end
+
+      # ********** TAXO API *********
+      resources :conceptmaps do
+        # member do
+        #   get 'concept_options'
+        #   get 'markdown'
+        #   get 'qa_documents'
+        #   get 'search_documents'
+        #   get 'recommand_epaper'
+        #   get 'nodes' # 比 taxo loader 用
+        # end
+
+        collection do
+          # get 'dropdown_options'
+          # get 'select_options'
+          post 'taxo_creator'
+        end
+      end
 
       # **********做評估 API**********
       resources :assessment_records, only: %i[create index show update destroy] do
+        collection do
+          get 'students'
+          get 'students/:uuid', to: 'assessment_records#show_student_assessments'
+        end
       end
 
       # **********Documents API**********
@@ -84,6 +137,8 @@ Rails.application.routes.draw do
       post 'storage/upload/directly', to: 'storage#upload_directly'
       post 'storage/upload/generated_content', to: 'storage#upload_generated_content'
       post 'storage/upload/chatbot', to: 'storage#chatbot_upload'
+      post 'storage/upload/general_user_file', to: 'storage#upload_general_user_file'
+      post 'storage/upload/general_user_file_by_url', to: 'storage#upload_general_user_file_by_url'
 
       # **********FormSchema API**********
       get 'form/schemas', to: 'form_schema#index'
@@ -194,6 +249,10 @@ Rails.application.routes.draw do
           post 'assistant/multiagent', to: 'chatbots#assistantMultiagent'
           post 'assistant/tool_metadata', to: 'chatbots#tool_metadata'
           post ':id/share', to: 'chatbots#shareChatbotWithSignature'
+          post 'general_users/assistant/message', to: 'chatbots#general_user_chat_with_bot'
+          post 'general_users/assistant/autogen/message', to: 'chatbots#general_user_chat_with_bot_via_autogen'
+          get 'general_users/assistant/history', to: 'chatbots#fetch_general_user_chat_history'
+          put ':id/assistive_questions', to: 'chatbots#update_assistive_questions'
         end
       end
 
@@ -206,6 +265,14 @@ Rails.application.routes.draw do
       post 'tools/text_to_png', to: 'tools#text_to_png'
       post 'tools/upload_html_to_pdf', to: 'tools#upload_html_to_pdf'
       post 'tools/upload_html_to_png', to: 'tools#upload_html_to_png'
+      post 'tools/dify_chatbot_report', to: 'tools#dify_chatbot_report'
+      post 'tools/dify_prompt_wrapper', to: 'tools#dify_prompt_wrapper'
+      post 'tools/export_to_notion', to: 'tools#export_to_notion'
+      post 'tools/google_drive/check', to: 'tools#auth_dify_user_google_drive?'
+      post 'tools/google_drive/auth', to: 'tools#auth_dify_user_google_drive'
+      post 'tools/google_drive/list', to: 'tools#list_google_drive_files'
+      post 'tools/google_drive/upload/document', to: 'tools#export_docx_to_google_drive'
+      delete 'tools/google_drive/revoke', to: 'tools#revoke_dify_user_google_drive'
 
       # **********Smart Extraction Schema API**********
       resources :smart_extraction_schemas, only: %i[index show create update destroy] do
@@ -270,6 +337,33 @@ Rails.application.routes.draw do
           get 'storyboard_items'
         end
       end
+
+      # ********** General User API ***********
+      resources :general_users, only: %i[show create] do
+        collection do
+          get 'me', to: 'general_users#show_current_user'
+          get 'me/purchase_history', to: 'general_users#show_purchase_history'
+          get 'me/marketplace_items', to: 'general_users#show_marketplace_items'
+          get 'me/marketplace_items/:id', to: 'general_users#show_marketplace_item'
+          get 'me/files', to: 'general_users#show_files'
+          delete 'me/files/:id', to: 'general_users#destroy_file'
+          put 'me/profile', to: 'general_users#update_profile'
+          put 'me/password', to: 'general_users#update_password'
+        end
+      end
+
+      # ********** Marketplace API ***********
+      resources :marketplace_items, only: %i[index show create update destroy] do
+        collection do
+          post 'general_users/purchase', to: 'marketplace_items#general_users_purchase'
+        end
+      end
+
+      # ********** General User Feed API ***********
+      resources :general_user_feeds, only: %i[index show create update destroy]
+
+      # ********** Scheduled Task API ***********
+      resources :scheduled_tasks, only: %i[index show create update destroy]
     end
 
     namespace :admin do
@@ -279,6 +373,23 @@ Rails.application.routes.draw do
           collection do
             post 'lock', to: 'users#lock_user'
             post 'unlock', to: 'users#unlock_user'
+          end
+        end
+        resources :general_users, only: %i[index show create update destroy] do
+          collection do
+            get ':id/students', to: 'general_users#show_students'
+            get ':id/teachers', to: 'general_users#show_teachers'
+            put ':id/password', to: 'general_users#update_password'
+            put ':id/lock', to: 'general_users#lock_user'
+            put ':id/unlock', to: 'general_users#unlock_user'
+            post 'batch', to: 'general_users#batch_create'
+            post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
+            post 'student/email', to: 'general_users#add_students_relation_by_emails'
+          end
+          collection do
+            post 'aienglish/create', to: 'general_users#create_aienglish_user'
+            post 'aienglish/batch', to: 'general_users#batch_create_aienglish_user'
+            put ':id/aienglish/update', to: 'general_users#update_aienglish_user'
           end
         end
       end

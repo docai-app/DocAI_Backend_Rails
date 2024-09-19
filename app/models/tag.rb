@@ -18,6 +18,7 @@
 # Indexes
 #
 #  index_tags_on_name  (name) UNIQUE
+#  index_tags_on_name  (name) UNIQUE
 #
 class Tag < ApplicationRecord
   has_many :tag_functions, dependent: :destroy, class_name: 'TagFunction', foreign_key: 'tag_id'

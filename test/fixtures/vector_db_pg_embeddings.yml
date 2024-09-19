@@ -9,6 +9,10 @@
 #  cmetadata     :json
 #  custom_id     :string
 #
+# Foreign Keys
+#
+#  langchain_pg_embedding_collection_id_fkey  (collection_id => langchain_pg_collection.uuid) ON DELETE => cascade
+#
 
 # This model initially had no columns defined. If you add columns to the
 # model remove the "{}" from the fixture names and add the columns immediately

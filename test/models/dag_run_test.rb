@@ -14,16 +14,24 @@
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
 #  airflow_accepted :boolean          default(FALSE), not null
+#  tanent           :string
+#  user_type        :string           default("User"), not null
 #
 # Indexes
 #
 #  index_dag_runs_on_airflow_accepted  (airflow_accepted)
+#  index_dag_runs_on_airflow_accepted  (airflow_accepted)
 #  index_dag_runs_on_dag_status        (dag_status)
+#  index_dag_runs_on_dag_status        (dag_status)
+#  index_dag_runs_on_tanent            (tanent)
+#  index_dag_runs_on_tanent            (tanent)
+#  index_dag_runs_on_user_id           (user_id)
 #  index_dag_runs_on_user_id           (user_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (user_id => users.id)
+#  fk_rails_...  (user_id => public.users.id)
 #
 require 'test_helper'
 

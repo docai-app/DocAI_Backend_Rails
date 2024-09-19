@@ -14,11 +14,14 @@
 # Indexes
 #
 #  index_folders_on_parent_id  (parent_id)
+#  index_folders_on_parent_id  (parent_id)
+#  index_folders_on_user_id    (user_id)
 #  index_folders_on_user_id    (user_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (user_id => users.id)
+#  fk_rails_...  (user_id => public.users.id)
 #
 require 'test_helper'
 

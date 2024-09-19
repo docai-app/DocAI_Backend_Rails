@@ -27,7 +27,6 @@ module Api
         def lock_user
           Apartment::Tenant.switch!(params[:entity])
           @user = User.find_by(email: params[:email])
-          puts @user.inspect
           if @user.update(locked_at: Time.current)
             render json: { success: true, user: @user }, status: :ok
           else

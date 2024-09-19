@@ -17,17 +17,23 @@
 #  folder_id           :uuid
 #  is_template         :boolean          default(FALSE), not null
 #  source_workflow_id  :uuid
+#  user_type           :string           default("User"), not null
 #
 # Indexes
 #
 #  index_project_workflows_on_folder_id            (folder_id)
+#  index_project_workflows_on_folder_id            (folder_id)
+#  index_project_workflows_on_is_process_workflow  (is_process_workflow)
 #  index_project_workflows_on_is_process_workflow  (is_process_workflow)
 #  index_project_workflows_on_source_workflow_id   (source_workflow_id)
+#  index_project_workflows_on_source_workflow_id   (source_workflow_id)
+#  index_project_workflows_on_status               (status)
 #  index_project_workflows_on_status               (status)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (folder_id => folders.id)
+#  fk_rails_...  (folder_id => public.folders.id)
 #
 class ProjectWorkflow < ApplicationRecord
   store_accessor :meta, :description, :current_task_id, :executed_times
@@ -37,7 +43,7 @@ class ProjectWorkflow < ApplicationRecord
                      order(position: :asc)
                    }, dependent: :destroy, class_name: 'ProjectWorkflowStep', foreign_key: 'project_workflow_id'
   belongs_to :folder, optional: true, class_name: 'Folder'
-  belongs_to :user, optional: true, class_name: 'User', foreign_key: 'user_id'
+  belongs_to :user, optional: true, polymorphic: true
 
   has_many :derives, class_name: 'ProjectWorkflow', foreign_key: 'source_workflow_id'
   belongs_to :source_workflow, class_name: 'ProjectWorkflow', optional: true

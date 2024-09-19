@@ -18,6 +18,7 @@
 # Indexes
 #
 #  index_tags_on_name  (name) UNIQUE
+#  index_tags_on_name  (name) UNIQUE
 #
 require 'test_helper'
 

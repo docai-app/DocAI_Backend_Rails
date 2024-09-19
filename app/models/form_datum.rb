@@ -14,6 +14,8 @@
 # Indexes
 #
 #  index_form_datum_on_document_id     (document_id)
+#  index_form_datum_on_document_id     (document_id)
+#  index_form_datum_on_form_schema_id  (form_schema_id)
 #  index_form_datum_on_form_schema_id  (form_schema_id)
 #
 class FormDatum < ApplicationRecord

@@ -17,7 +17,8 @@ Apartment.configure do |config|
   # Add any models that you do not want to be multi-tenanted, but remain in the global (public) namespace.
   # A typical example would be a Customer or Tenant model that stores each Tenant's information.
   #
-  config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors]
+  config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile GeneralUsersRole Role Energy
+                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet]
 
   # In order to migrate all of your Tenants you need to provide a list of Tenant names to Apartment.
   # You can make this dynamic by providing a Proc object to be called on migrations.
@@ -30,6 +31,8 @@ Apartment.configure do |config|
   # Get the tenant names from the env
   # config.tenant_names = ENV.fetch('TENANT_NAMES', '').split(',')
   config.tenant_names = -> { Entity.pluck(:name) }
+
+  config.persistent_schemas = %w[public shared_extensions]
   # config.tenant_names = {
   #   'tenant1' => {
   #     adapter: 'postgresql',
@@ -104,6 +107,8 @@ Apartment.configure do |config|
   # Uncomment the line below if you want to enable this behavior.
   #
   # config.active_record_log = true
+
+  Apartment::Elevators::Subdomain.excluded_subdomains = %w[www public docai docai-dev]
 end
 
 # Setup a custom Tenant switching middleware. The Proc should return the name of the Tenant that

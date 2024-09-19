@@ -30,21 +30,21 @@ module Api
       def show_by_ids
         conditions = Document.where(id: params[:ids]).select('id')
         @documents = filter_documents_by_conditions(conditions)
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by name like name param
       def show_by_name
         conditions = Document.where('name like ?', "%#{params[:name]}%").order(created_at: :desc).select('id')
         @documents = filter_documents_by_conditions(conditions)
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by content like content param
       def show_by_content
         conditions = Document.includes([:taggings]).where('content like ?', "%#{params[:content]}%").select('id')
         @documents = filter_documents_by_conditions(conditions)
-        render json: { success: true, documents: @document, meta: pagination_meta(@document) }, status: :ok
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
       end
 
       # Show documents by ActsAsTaggableOn tag id
@@ -82,26 +82,21 @@ module Api
         conditions = conditions.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
         conditions = conditions.select('id')
 
-        @documents = filter_documents_by_conditions(conditions)
+        @documents = filter_documents_by_conditions(conditions,
+                                                    'label_list folder_id user labels meta updated_at approval_status approval_user_id approval_at upload_local_path is_classified status is_classifier_trained is_embedded error_message retry_count')
 
-        # @documents = Document.tagged_with(tag)
-        #                     .where('content LIKE ?', "%#{content}%")
-        #                     .where('documents.created_at >= ?', from.to_date)
-        #                     .where('documents.created_at <= ?', to.to_date)
-        #                     .select(Document.attribute_names - %w[label_list content])
-        #                     .page(params[:page])
-
-        # @documents = documents.where('documents.folder_id IN (?)', folder_ids) unless folder_ids.empty?
-
-        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) }, status: :ok
+        render json: { success: true, documents: @documents, meta: pagination_meta(@documents) },
+               status: :ok
       end
 
       # Show and Predict the Latest Uploaded Document
       def show_latest_predict
         @document = @current_user_documents.where(status: :ready).order(:created_at).page(params[:page]).per(1)
+        classification_model_name = ClassificationModelVersion.where(entity_name: getSubdomain).order(created_at: :desc).first&.classification_model_name
         if @document.present?
-          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
-          @tag = Tag.find(JSON.parse(res)['label']['id']).as_json(include: :functions)
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{classification_model_name}"
+          puts "res: #{res}"
+          @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, meta: pagination_meta(@document) },
                  status: :ok
         else
@@ -120,8 +115,9 @@ module Api
         @confirmed_count = @current_user_documents.where(status: :confirmed).where('created_at >= ?', params[:date].to_date).where(
           'created_at <= ?', params[:date].to_date + 1.day
         ).order(:created_at).count
+        classification_model_name = ClassificationModelVersion.where(entity_name: getSubdomain).order(created_at: :desc).first&.classification_model_name
         if @document.present?
-          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{getSubdomain}"
+          res = RestClient.get "#{ENV['DOCAI_ALPHA_URL']}/classification/predict?content=#{URI.encode_www_form_component(@document.last.content.to_s)}&model=#{classification_model_name}"
           @tag = Tag.find(JSON.parse(res)['label_id']).as_json(include: :functions)
           render json: { success: true, prediction: { tag: @tag, document: @document.last }, confirmed_count: @confirmed_count, unconfirmed_count: @unconfirmed_count, meta: pagination_meta(@document) },
                  status: :ok
@@ -132,7 +128,6 @@ module Api
 
       # Show the PDF document details which involved each page summary and keywords
       def show_pdf_page_details
-        # @document = Document.find(params[:id]).includes([:pdf_page_details]).as_json(except: [:label_list])
         @document = Document.find(params[:id]).as_json(include: { pdf_page_details: { only: %i[page_number summary
                                                                                                keywords] } })
         render json: { success: true, document: @document }, status: :ok
@@ -274,17 +269,25 @@ module Api
         Utils.extractRequestTenantByToken(request)
       end
 
-      def filter_documents_by_conditions(conditions)
+      def filter_documents_by_conditions(conditions, except_fields = 'label_list')
+        except_fields_array = except_fields.split(' ')
         documents = Document.where(id: Document.accessible_by_user(current_user.id, conditions).pluck(:id))
 
-        documents = documents.select(Document.attribute_names - %w[label_list content])
-                             .order(created_at: :desc)
-                             .includes(:user, :labels)
-                             .as_json(
-                               except: %i[label_list
-                                          content], include: { user: { only: %i[id email nickname] }, labels: { only: %i[id name] } }
-                             )
-        Kaminari.paginate_array(documents).page(params[:page])
+        selected_attributes = Document.attribute_names - except_fields_array
+
+        documents = documents.select(selected_attributes).order(created_at: :desc).includes(:user, :labels)
+
+        documents_json = documents.map do |document|
+          document_as_json = document.as_json(
+            except: except_fields_array, include: { user: { only: %i[id email nickname] },
+                                                    labels: { only: %i[id name] } }
+          )
+
+          document_as_json['content'] = document.content.truncate(500) if document_as_json['content']
+          document_as_json
+        end
+
+        Kaminari.paginate_array(documents_json).page(params[:page])
       end
 
       def checkDocumentItemsIsDocument

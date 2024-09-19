@@ -14,10 +14,12 @@
 # Indexes
 #
 #  index_dags_on_user_id  (user_id)
+#  index_dags_on_user_id  (user_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (user_id => users.id)
+#  fk_rails_...  (user_id => public.users.id)
 #
 require 'net/scp'
 require 'net/ssh'
@@ -25,7 +27,7 @@ require 'tempfile'
 class Dag < ApplicationRecord
   store_accessor :meta # , :original_name
 
-  belongs_to :user
+  belongs_to :user, optional: true, polymorphic: true
 
   before_save :name_no_space
   after_save :sync_to_airflow

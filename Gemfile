@@ -54,24 +54,27 @@ end
 gem 'dotenv'
 gem 'pg'
 
-gem 'acts-as-taggable-on', '~> 9.0'
+gem 'acts-as-taggable-on', '~> 11.0'
 gem 'annotate'
 gem 'bullet', group: 'development'
 gem 'by_star'
 gem 'closure_tree'
 gem 'devise'
 gem 'devise-jwt'
+gem 'docx'
 gem 'draper'
 gem 'filterrific'
 gem 'mail'
+gem 'ransack'
 gem 'rest-client'
 gem 'rolify'
 
 gem 'api-pagination'
 gem 'kaminari'
 
-gem 'azure-storage-blob', require: false
+gem 'azure-storage-blob'
 
+gem 'noticed'
 gem 'sidekiq'
 gem 'sidekiq-scheduler'
 
@@ -94,6 +97,8 @@ gem 'pdfkit'
 gem 'wkhtmltopdf-binary'
 
 gem 'addressable'
+gem 'nokogiri'
+gem 'rubyzip'
 gem 'zip_tricks'
 
 gem 'omniauth'
@@ -101,8 +106,10 @@ gem 'omniauth-google-oauth2'
 gem 'omniauth-rails_csrf_protection'
 
 gem 'acts_as_list'
+gem 'acts_as_tree'
 gem 'net-scp'
 gem 'net-ssh'
+gem 'net-ssh-gateway'
 gem 'wannabe_bool' # 1, '1', 'T', true, "true" 都可以 to_b
 
 gem 'aasm'

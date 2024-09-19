@@ -24,15 +24,6 @@ module Api
         render json: { success: true, user: @user }, status: :ok
       end
 
-      # def create
-      #   @user = User.new(user_params)
-      #   if @user.save
-      #     render json: { success: true, user: @user }, status: :ok
-      #   else
-      #     render json: { success: false, errors: @user.errors }, status: :ok
-      #   end
-      # end
-
       # Only user can update his own profile
       def update
         @user = User.find(params[:id])
@@ -105,7 +96,6 @@ module Api
 
       def find_for_google_oauth2(uid, access_token, refresh_token)
         user = Identity.where(provider: 'Google', uid:).first&.user
-        # user = User.where(:google_token => access_token.credentials.token, :google_uid => access_token.uid ).first
         return user if user
 
         existing_user = current_user

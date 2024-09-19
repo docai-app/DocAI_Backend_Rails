@@ -16,7 +16,6 @@
 #
 #  index_agent_tools_on_category  (category)
 #
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
   name: MyString
@@ -24,7 +23,7 @@ one:
   description: MyString
   invoke_description: MyString
   category: MyString
-  meta: 
+  meta:
 
 two:
   name: MyString
@@ -32,4 +31,4 @@ two:
   description: MyString
   invoke_description: MyString
   category: MyString
-  meta: 
+  meta:

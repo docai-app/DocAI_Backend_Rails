@@ -1,9 +1,30 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'docx'
+require 'zip'
+require 'nokogiri'
 
 class Utils
   def self.cleansingContentFromGPT(content)
+    json_regex = /{[\s\S]*?}/m
+    json_match = content.match(json_regex)
+
+    if json_match
+      json_str = json_match.to_s
+      puts "json_str: #{json_str}"
+      json_obj = JSON.parse(json_str)
+      puts "json_obj: #{json_obj}"
+      return json_obj
+    else
+      puts 'No JSON found in the paragraph'
+      return {}
+    end
+
+    {}
+  end
+
+  def self.cleansingContentFromLLM(content)
     json_regex = /{[\s\S]*?}/m
     json_match = content.match(json_regex)
 
@@ -89,5 +110,65 @@ class Utils
 
   def self.encrypt(value)
     Base64.encode64(value.to_s)
+  end
+
+  def self.determine_file_type(file_url)
+    file_type = File.extname(URI.parse(file_url).path).delete('.') # Delete the dot, only leave the extension
+    file_type || 'unknown'
+  end
+
+  def self.calculate_file_size(file)
+    File.size(file.path)
+  end
+
+  def self.calculate_file_size_by_url(url)
+    uri = URI(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    request = Net::HTTP::Get.new(uri)
+    http.request(request).body.bytesize
+  end
+
+  def self.text_to_docx(content, _file_name)
+    # 創建一個新的.docx文件
+    buffer = Zip::OutputStream.write_buffer do |out|
+      # [Content_Types].xml
+      out.put_next_entry('[Content_Types].xml')
+      out.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+      out.write('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">')
+      out.write('<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>')
+      out.write('<Default Extension="xml" ContentType="application/xml"/>')
+      out.write('<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>')
+      out.write('</Types>')
+
+      # _rels/.rels
+      out.put_next_entry('_rels/.rels')
+      out.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+      out.write('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">')
+      out.write('<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>')
+      out.write('</Relationships>')
+
+      # word/_rels/document.xml.rels
+      out.put_next_entry('word/_rels/document.xml.rels')
+      out.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+      out.write('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">')
+      out.write('</Relationships>')
+
+      # word/document.xml
+      out.put_next_entry('word/document.xml')
+      out.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+      out.write('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">')
+      out.write('<w:body>')
+      out.write("<w:p><w:r><w:t>#{content}</w:t></w:r></w:p>")
+      out.write('</w:body>')
+      out.write('</w:document>')
+    end
+
+    StringIO.new(buffer.string)
+  end
+
+  def self.array_to_tag_string(tag_array)
+    tag_array.join(', ')
   end
 end

@@ -13,12 +13,16 @@
 # Indexes
 #
 #  index_storyboard_item_associations_on_storyboard_id       (storyboard_id)
+#  index_storyboard_item_associations_on_storyboard_id       (storyboard_id)
+#  index_storyboard_item_associations_on_storyboard_item_id  (storyboard_item_id)
 #  index_storyboard_item_associations_on_storyboard_item_id  (storyboard_item_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (storyboard_id => storyboards.id)
+#  fk_rails_...  (storyboard_id => public.storyboards.id)
 #  fk_rails_...  (storyboard_item_id => storyboard_items.id)
+#  fk_rails_...  (storyboard_item_id => public.storyboard_items.id)
 #
 require 'test_helper'
 
