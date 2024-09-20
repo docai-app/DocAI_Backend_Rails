@@ -309,8 +309,10 @@ module Api
           # binding.pry
 
           # 文章内容
-          pdf.text json_data['article'], size: 12, leading: 4
+          pdf.text json_data['article'].gsub("\n", "<br><br>"), size: 12, leading: 4, inline_format: true
           pdf.move_down 20
+
+          # binding.pry
 
           pdf.stroke_horizontal_rule
           pdf.move_down 20
