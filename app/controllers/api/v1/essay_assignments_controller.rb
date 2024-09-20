@@ -12,7 +12,7 @@ module Api
       def index
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
-        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category,
+        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
                                                        :topic, :created_at, :updated_at, :code, :assignment).order('created_at desc')
 
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
@@ -139,6 +139,7 @@ module Api
           :title,
           :hints,
           :category,
+          :answer_visible,
           rubric: [
             :name,
             { app_key: %i[grading general_context] } # 允许嵌套的 app_key

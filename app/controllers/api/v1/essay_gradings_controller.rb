@@ -114,6 +114,7 @@ module Api
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
             using_time: @essay_grading.using_time,
+            file: @essay_grading.file.url,
             general_user: {
               id: @essay_grading.general_user.id,
               nickname: @essay_grading.general_user.nickname,
@@ -125,6 +126,7 @@ module Api
               app_key: @essay_grading.essay_assignment.app_key,
               name: @essay_grading.essay_assignment.name,
               category: @essay_grading.essay_assignment.category,
+              answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
               created_at: @essay_grading.essay_assignment.created_at,
               updated_at: @essay_grading.essay_assignment.updated_at
@@ -307,8 +309,10 @@ module Api
           # binding.pry
 
           # 文章内容
-          pdf.text json_data['article'], size: 12, leading: 4
+          pdf.text json_data['article'].gsub("\n", "<br><br>"), size: 12, leading: 4, inline_format: true
           pdf.move_down 20
+
+          # binding.pry
 
           pdf.stroke_horizontal_rule
           pdf.move_down 20
