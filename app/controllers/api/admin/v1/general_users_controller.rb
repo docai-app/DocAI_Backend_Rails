@@ -356,6 +356,54 @@ module Api
           end
         end
 
+        def batch_update_aienglish_user
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          errors = []
+          updated_users = []
+          email = nil
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              next if email.blank?
+
+              user = GeneralUser.find_by(email:)
+              next unless user
+
+              puts user.inspect
+
+              # 更新 aienglish_features_list 到 meta 欄位
+              if row['aienglish_features'].present?
+                features = begin
+                  JSON.parse(row['aienglish_features'].gsub(/[“”]/, '"'))
+                rescue JSON::ParserError
+                  []
+                end
+                user.aienglish_features_list = features
+              end
+
+              # 更新 role 到 meta 欄位
+              user.aienglish_role = row['role'] if row['role'].present?
+
+              if user.save
+                updated_users << user
+              else
+                errors << { email:, error: user.errors.full_messages.join(', ') }
+              end
+            end
+          rescue StandardError => e
+            errors << { email: email || 'N/A', error: e.message }
+          end
+
+          if errors.empty?
+            render json: { success: true, users: updated_users }, status: :ok
+          else
+            render json: { success: false, errors: }, status: :unprocessable_entity
+          end
+        end
+
         def lock_user
           @user = GeneralUser.find(params[:id])
           if @user.update(locked_at: Time.current)
