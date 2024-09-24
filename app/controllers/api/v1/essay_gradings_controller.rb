@@ -19,6 +19,7 @@ module Api
           json_data['account'] = @essay_grading.general_user.show_in_report_name
 
           newsfeed = @essay_grading.get_news_feed
+
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
             json_data['article'] = newsfeed['data']['content']

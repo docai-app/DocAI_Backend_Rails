@@ -151,7 +151,11 @@ class EssayGrading < ApplicationRecord
   def get_news_feed
 
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
-    return essay_assignment.get_news_feed if essay_assignment.get_news_feed.present?
+    if essay_assignment.get_news_feed.present?
+      result = {}
+      result['data'] = essay_assignment.get_news_feed
+      return result
+    end
 
     return nil if self['meta']['newsfeed_id'].nil?
 
