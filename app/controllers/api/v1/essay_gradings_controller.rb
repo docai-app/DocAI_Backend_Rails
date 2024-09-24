@@ -128,6 +128,7 @@ module Api
               category: @essay_grading.essay_assignment.category,
               answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
+              meta: @essay_grading.essay_assignment.meta,
               created_at: @essay_grading.essay_assignment.created_at,
               updated_at: @essay_grading.essay_assignment.updated_at
             }
