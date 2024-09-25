@@ -332,6 +332,8 @@ module Api
             end
 
             pdf.move_down 5
+            pdf.fill_color '000000'  # 重置颜色为黑色
+            pdf.text "My Answer: #{question['user_answer']}", style: :bold, size: 12 # 添加我的答案
             pdf.fill_color '008000'  # 设置文本颜色为绿色
             pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 12
             pdf.fill_color '000000'  # 重置颜色为黑色
