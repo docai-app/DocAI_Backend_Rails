@@ -22,9 +22,9 @@ module Api
 
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
-            json_data['article'] = newsfeed['data']['content']
+            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
           end
-          # binding.pry
+
           pdf = generate_comprehension_pdf(json_data)
         elsif assignment.category.include?('essay')
           json_data = @essay_grading.grading
