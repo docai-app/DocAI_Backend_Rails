@@ -149,6 +149,15 @@ class EssayGrading < ApplicationRecord
   end
 
   def get_news_feed
+
+    # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
+    if essay_assignment.get_news_feed.present?
+      news_feed = essay_assignment.get_news_feed
+      result = {}
+      result['data'] = news_feed.key?('data') ? news_feed['data'] : news_feed
+      return result
+    end
+
     return nil if self['meta']['newsfeed_id'].nil?
 
     uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")

@@ -26,9 +26,7 @@
 #
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
-  # store_accessor :rubric, :name
-  # store_accessor :rubric, app_key: [:grading, :general_context]
-  store_accessor :meta, :newsfeed_id
+  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay]
 
@@ -38,7 +36,11 @@ class EssayAssignment < ApplicationRecord
   belongs_to :general_user
 
   def get_news_feed
-    return nil if self['meta']['newsfeed_id'].nil?
+    # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
+    return meta['self_upload_newsfeed'] if meta['self_upload_newsfeed'].present?
+
+    # 否則通過 newsfeed_id 請求外部 API
+    return nil if meta['newsfeed_id'].nil?
 
     uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
     response = Net::HTTP.get_response(uri)
