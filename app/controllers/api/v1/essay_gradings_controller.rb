@@ -127,6 +127,7 @@ module Api
               app_key: @essay_grading.essay_assignment.app_key,
               name: @essay_grading.essay_assignment.name,
               category: @essay_grading.essay_assignment.category,
+              remark: @essay_grading.essay_assignment.remark,
               answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
               meta: @essay_grading.essay_assignment.meta,
