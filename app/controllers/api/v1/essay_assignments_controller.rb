@@ -137,6 +137,7 @@ module Api
           :topic,
           :assignment,
           :title,
+          :remark,
           :hints,
           :category,
           :answer_visible,
