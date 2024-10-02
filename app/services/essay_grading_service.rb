@@ -4,7 +4,8 @@
 require 'rest-client'
 
 class EssayGradingService
-  API_URL = 'https://admin.docai.net/v1/workflows/run'
+  # API_URL = 'https://admin.docai.net/v1/workflows/run'
+  API_URL = 'https://aienglish-dify.docai.net/v1/workflows/run'
   TIMEOUT = 300 # Timeout duration in seconds (5 minutes)
 
   def initialize(user_id, essay_grading)
