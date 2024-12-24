@@ -19,11 +19,12 @@ module Api
           json_data['account'] = @essay_grading.general_user.show_in_report_name
 
           newsfeed = @essay_grading.get_news_feed
+
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
-            json_data['article'] = newsfeed['data']['content']
+            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
           end
-          # binding.pry
+
           pdf = generate_comprehension_pdf(json_data)
         elsif assignment.category.include?('essay')
           json_data = @essay_grading.grading
@@ -126,8 +127,10 @@ module Api
               app_key: @essay_grading.essay_assignment.app_key,
               name: @essay_grading.essay_assignment.name,
               category: @essay_grading.essay_assignment.category,
+              remark: @essay_grading.essay_assignment.remark,
               answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
+              meta: @essay_grading.essay_assignment.meta,
               created_at: @essay_grading.essay_assignment.created_at,
               updated_at: @essay_grading.essay_assignment.updated_at
             }
@@ -330,6 +333,8 @@ module Api
             end
 
             pdf.move_down 5
+            pdf.fill_color '000000'  # 重置颜色为黑色
+            pdf.text "My Answer: #{question['user_answer']}", style: :bold, size: 12 # 添加我的答案
             pdf.fill_color '008000'  # 设置文本颜色为绿色
             pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 12
             pdf.fill_color '000000'  # 重置颜色为黑色
