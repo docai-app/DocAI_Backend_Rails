@@ -44,6 +44,7 @@ module Api
                                       essay_gradings.created_at,
                                       essay_gradings.updated_at,
                                       essay_gradings.status,
+                                      essay_gradings.grading,
                                       COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion,
                                       general_users.nickname,
                                       general_users.banbie,
@@ -54,11 +55,32 @@ module Api
                                            )
                                            .includes(:general_user).order('created_at asc')
 
-        # binding.pry
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
           essay_gradings: @essay_gradings.sort_by { |eg| eg.class_no.to_i }.map do |eg|
+            # 解析 grading JSON
+            grading_json = JSON.parse(eg["grading"]["data"]["text"]) rescue {}
+
+            # 提取每個 criterion 的分數和總分
+            scores = grading_json.each_with_object({}) do |(key, value), result|
+              if value.is_a?(Hash)
+                if value.key?("Task Response")
+                  result["Task Response"] = value["Task Response"].to_i
+                elsif value.key?("Coherence and Cohesion")
+                  result["Coherence and Cohesion"] = value["Coherence and Cohesion"].to_i
+                elsif value.key?("Lexical Resource")
+                  result["Lexical Resource"] = value["Lexical Resource"].to_i
+                elsif value.key?("Grammatical Range and Accuracy")
+                  result["Grammatical Range and Accuracy"] = value["Grammatical Range and Accuracy"].to_i
+                end
+                result["Full Score"] = value["Full Score"].to_i if value.key?("Full Score")
+              end
+            end
+
+            # 提取 Overall Score
+            overall_score = grading_json["Overall Score"]
+
             {
               id: eg.id,
               general_user: {
@@ -76,7 +98,9 @@ module Api
               number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion'],
               questions_count: eg['questions_count'] == 'null' ? nil : eg['questions_count'],
               full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
-              score: eg['score'] == 'null' ? nil : eg['score']
+              score: eg['score'] == 'null' ? nil : eg['score'],
+              scores: scores,
+              overall_score: overall_score
             }
           end
         }, status: :ok
