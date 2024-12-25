@@ -74,7 +74,7 @@ module Api
                 elsif value.key?("Grammatical Range and Accuracy")
                   result["Grammatical Range and Accuracy"] = value["Grammatical Range and Accuracy"].to_i
                 end
-                result["Full Score"] = value["Full Score"].to_i if value.key?("Full Score")
+                # result["Full Score"] = value["Full Score"].to_i if value.key?("Full Score")
               end
             end
 
