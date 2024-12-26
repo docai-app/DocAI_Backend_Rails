@@ -80,6 +80,7 @@ module Api
 
             # 提取 Overall Score
             overall_score = grading_json["Overall Score"]
+            the_full_score = grading_json["Full Score"]
 
             {
               id: eg.id,
@@ -100,7 +101,8 @@ module Api
               full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
               score: eg['score'] == 'null' ? nil : eg['score'],
               scores: scores,
-              overall_score: overall_score
+              overall_score: overall_score,
+              the_full_score: the_full_score
             }
           end
         }, status: :ok
