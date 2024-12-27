@@ -33,6 +33,7 @@ Rails.application.routes.draw do
         member do
           get 'read'
           get 'show_only'
+          get 'download_reports', to: 'essay_gradings#download_reports'
         end
       end
       resources :essay_gradings, only: %i[index show update destroy] do
