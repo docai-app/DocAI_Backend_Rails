@@ -139,12 +139,12 @@ module Api
 
       def download_reports
         essay_assignment = EssayAssignment.find(params[:id])
-        essay_gradings = essay_assignment.essay_gradings
+        essay_gradings = essay_assignment.essay_gradings.includes(:general_user)
 
         zip_data = Zip::OutputStream.write_buffer do |zip|
           essay_gradings.each do |grading|
             report = generate_report(grading)
-            zip.put_next_entry("report_#{grading.id}.pdf")
+            zip.put_next_entry("report_#{grading.general_user.nickname}.pdf")
             zip.write(report)
           end
         end
@@ -262,7 +262,7 @@ module Api
 
           # 开始内容部分
           pdf.move_down 20
-          pdf.text "Grading Report(#{@essay_grading.category})", size: 20, style: :bold, align: :center
+          pdf.text "Grading Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
 
           # 话题
@@ -476,9 +476,9 @@ module Api
       def prepare_report_data(essay_grading)
         assignment = essay_grading.essay_assignment
         json_data = {
-          topic: assignment.topic,
-          account: essay_grading.general_user.show_in_report_name,
-          assignment: assignment.assignment
+          'topic' => assignment.topic,
+          'account' => essay_grading.general_user.show_in_report_name,
+          'assignment' => assignment.assignment
         }
 
         if assignment.category == 'comprehension'
