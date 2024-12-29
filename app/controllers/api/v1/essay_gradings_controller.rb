@@ -139,7 +139,7 @@ module Api
 
       def download_reports
         essay_assignment = EssayAssignment.find(params[:id])
-        essay_gradings = essay_assignment.essay_gradings.includes(:general_user)
+        essay_gradings = essay_assignment.essay_gradings.where(status: 'graded').includes(:general_user)
 
         zip_data = Zip::OutputStream.write_buffer do |zip|
           essay_gradings.each_with_index do |grading, index|
