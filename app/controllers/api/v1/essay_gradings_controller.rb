@@ -142,9 +142,10 @@ module Api
         essay_gradings = essay_assignment.essay_gradings.includes(:general_user)
 
         zip_data = Zip::OutputStream.write_buffer do |zip|
-          essay_gradings.each do |grading|
+          essay_gradings.each_with_index do |grading, index|
             report = generate_report(grading)
-            zip.put_next_entry("report_#{grading.general_user.nickname}.pdf")
+            # 使用 index 确保文件名唯一
+            zip.put_next_entry("report_#{grading.general_user.nickname}_#{index + 1}.pdf")
             zip.write(report)
           end
         end
