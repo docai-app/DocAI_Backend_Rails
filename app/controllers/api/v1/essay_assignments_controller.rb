@@ -64,17 +64,13 @@ module Api
 
             # 提取每個 criterion 的分數和總分
             scores = grading_json.each_with_object({}) do |(key, value), result|
-              if value.is_a?(Hash)
-                if value.key?("Task Response")
-                  result["Task Response"] = value["Task Response"].to_i
-                elsif value.key?("Coherence and Cohesion")
-                  result["Coherence and Cohesion"] = value["Coherence and Cohesion"].to_i
-                elsif value.key?("Lexical Resource")
-                  result["Lexical Resource"] = value["Lexical Resource"].to_i
-                elsif value.key?("Grammatical Range and Accuracy")
-                  result["Grammatical Range and Accuracy"] = value["Grammatical Range and Accuracy"].to_i
+              if key.start_with?('Criterion') && value.is_a?(Hash)
+                value.each do |criterion_key, criterion_value|
+                  # 排除不需要的键
+                  unless ['Full Score', 'explanation'].include?(criterion_key)
+                    result[criterion_key] = criterion_value
+                  end
                 end
-                # result["Full Score"] = value["Full Score"].to_i if value.key?("Full Score")
               end
             end
 

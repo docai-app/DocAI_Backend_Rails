@@ -64,6 +64,20 @@ module Api
         # 获取 category 的字符串表示
         EssayAssignment.categories.invert
 
+        grading_json = JSON.parse(@essay_grading.grading["data"]["text"]) rescue {}
+        scores = grading_json.each_with_object({}) do |(key, value), result|
+          if key.start_with?('Criterion') && value.is_a?(Hash)
+            value.each do |criterion_key, criterion_value|
+              # 排除不需要的键
+              unless ['Full Score', 'explanation'].include?(criterion_key)
+                result[criterion_key] = criterion_value
+              end
+            end
+          end
+        end
+
+        # binding.pry
+
         render json: {
           success: true,
           essay_grading: {
@@ -76,6 +90,7 @@ module Api
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
             full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
             score: @essay_grading.grading.dig('comprehension', 'score'),
+            scores: scores,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
