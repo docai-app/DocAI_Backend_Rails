@@ -84,6 +84,8 @@ class User < ApplicationRecord
 
   require 'google/apis/gmail_v1'
 
+  store_accessor :konnecai_tokens, :essay, :report, :other_type
+
   def jwt_payload
     {
       'sub' => id,

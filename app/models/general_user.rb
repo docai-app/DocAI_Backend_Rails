@@ -37,6 +37,8 @@ class GeneralUser < ApplicationRecord
 
   validate :aienglish_features_must_be_valid
 
+  store_accessor :konnecai_tokens, :essay, :comprehension, :speaking_essay, :speaking_conversation
+
   # has_and_belongs_to_many :roles, join_table: :users_roles
 
   devise :database_authenticatable,

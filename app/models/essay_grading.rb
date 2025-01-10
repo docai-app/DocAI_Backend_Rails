@@ -189,4 +189,46 @@ class EssayGrading < ApplicationRecord
     self['score'] = score
     save
   end
+
+  def call_webhook
+    # 从 general_user 的 konnecai_tokens 中获取对应 category 的 token
+    token = general_user.konnecai_tokens[essay_assignment.category]
+
+    # 确保 token 存在
+    unless token
+      Rails.logger.error("No token found for category: #{essay_assignment.category}")
+      return
+    end
+
+    webhook_url = ENV['WEBHOOK_URL']
+
+    # 准备简化后的请求数据
+    payload = {
+      record: {
+        User: general_user.nickname,
+        Class: general_user.banbie,
+        Number: general_user.class_no,
+        "Submitted Time": created_at,
+        "Time Taken(s)": using_time,
+        "Full Score": grading.dig('comprehension', 'full_score'),
+        Score: grading.dig('comprehension', 'score'),
+        Status: status
+      }
+    }
+
+    # 使用 RestClient 发送 POST 请求到 webhook
+    begin
+      response = RestClient.post(webhook_url, payload.to_json, 
+                                 { 'X-Webhook-Token': token, content_type: :json, accept: :json })
+      
+      # 检查响应
+      unless response.code == 200
+        Rails.logger.error("Webhook call failed: #{response.body}")
+      end
+    rescue RestClient::ExceptionWithResponse => e
+      Rails.logger.error("Webhook call failed: #{e.response}")
+    rescue StandardError => e
+      Rails.logger.error("Webhook call failed: #{e.message}")
+    end
+  end
 end
