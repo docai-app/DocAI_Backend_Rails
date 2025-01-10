@@ -188,6 +188,9 @@ class EssayGrading < ApplicationRecord
     self['status'] = 'graded'
     self['score'] = score
     save
+
+    # 呼叫 webhook
+    call_webhook
   end
 
   def call_webhook
