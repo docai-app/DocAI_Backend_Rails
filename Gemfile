@@ -126,3 +126,5 @@ gem 'trestle'
 gem 'trestle-auth'
 gem 'trestle-jsoneditor'
 gem 'trestle-search'
+
+gem 'opencc-rb'

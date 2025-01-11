@@ -7,44 +7,9 @@ module Api
 
       def download_report
         set_essay_grading
-        assignment = @essay_grading.essay_assignment
-        json_data = {}
-
-        @role = params[:role]
-
-        if assignment.category == 'comprehension'
-          json_data['comprehension'] = @essay_grading.grading['comprehension']
-          json_data['topic'] = assignment.topic
-          json_data['assignment'] = assignment.assignment
-          json_data['account'] = @essay_grading.general_user.show_in_report_name
-
-          newsfeed = @essay_grading.get_news_feed
-
-          if newsfeed.present?
-            json_data['title'] = newsfeed['data']['title']
-            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
-          end
-
-          pdf = generate_comprehension_pdf(json_data)
-        elsif assignment.category.include?('essay')
-          json_data = @essay_grading.grading
-          json_data['topic'] = assignment.topic
-          json_data['account'] = @essay_grading.general_user.show_in_report_name
-          json_data['assignment'] = assignment.assignment
-          #
-          # binding.pry
-          if @essay_grading.general_context['data'].present?
-            general_context = JSON.parse(@essay_grading.general_context['data']['text'])
-            if general_context.present? && general_context['Feedback'].present?
-              json_data['general_context'] = general_context['Feedback']
-            end
-          end
-          pdf = generate_essay_pdf(json_data)
-        else
-          pdf = generate_pdf_from_json(json_data)
-        end
-
-        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf', disposition: 'inline' # disposition: "attachment"
+        json_data = prepare_report_data(@essay_grading)
+        pdf = generate_pdf(json_data, @essay_grading)
+        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf', disposition: 'inline'
       end
 
       def index
@@ -99,6 +64,20 @@ module Api
         # 获取 category 的字符串表示
         EssayAssignment.categories.invert
 
+        grading_json = JSON.parse(@essay_grading.grading["data"]["text"]) rescue {}
+        scores = grading_json.each_with_object({}) do |(key, value), result|
+          if key.start_with?('Criterion') && value.is_a?(Hash)
+            value.each do |criterion_key, criterion_value|
+              # 排除不需要的键
+              unless ['Full Score', 'explanation'].include?(criterion_key)
+                result[criterion_key] = criterion_value
+              end
+            end
+          end
+        end
+
+        # binding.pry
+
         render json: {
           success: true,
           essay_grading: {
@@ -111,6 +90,7 @@ module Api
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
             full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
             score: @essay_grading.grading.dig('comprehension', 'score'),
+            scores: scores,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
@@ -172,11 +152,26 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      def download_reports
+        essay_assignment = EssayAssignment.find(params[:id])
+        essay_gradings = essay_assignment.essay_gradings.where(status: 'graded').includes(:general_user)
+
+        zip_data = Zip::OutputStream.write_buffer do |zip|
+          essay_gradings.each_with_index do |grading, index|
+            report = generate_report(grading)
+            # 使用 index 确保文件名唯一
+            zip.put_next_entry("report_#{grading.general_user.nickname}_#{index + 1}.pdf")
+            zip.write(report)
+          end
+        end
+
+        send_data zip_data.string, type: 'application/zip', filename: "essay_assignment_#{essay_assignment.id}_reports.zip"
+      end
+
       private
 
       # 設置特定的 EssayGrading
       def set_essay_grading
-        # @essay_grading = current_general_user.essay_gradings.find(params[:id])
         @essay_grading = EssayGrading.find(params[:id])
       end
 
@@ -267,7 +262,7 @@ module Api
         pdf
       end
 
-      def generate_comprehension_pdf(json_data)
+      def generate_comprehension_pdf(json_data, essay_grading)
         Prawn::Document.new do |pdf|
           # 加载和注册字体
           font_path = Rails.root.join('app/assets/fonts/')
@@ -283,7 +278,7 @@ module Api
 
           # 开始内容部分
           pdf.move_down 20
-          pdf.text "Grading Report(#{@essay_grading.category})", size: 20, style: :bold, align: :center
+          pdf.text "Grading Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
 
           # 话题
@@ -304,8 +299,7 @@ module Api
           comprehension = json_data['comprehension']
 
           # 在页面底部显示分数
-          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold,
-                                                                                                align: :center
+          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold, align: :center
           pdf.move_down 10
           pdf.stroke_horizontal_rule
           pdf.move_down 20
@@ -346,7 +340,7 @@ module Api
         end
       end
 
-      def generate_essay_pdf(json_data)
+      def generate_essay_pdf(json_data, essay_grading)
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
 
         # 设置全局样式
@@ -361,20 +355,20 @@ module Api
 
         # 开始内容部分
         pdf.move_down 20
-        pdf.text "Grading Report(#{@essay_grading.category})", size: 20, style: :bold, align: :center
+        pdf.text "Grading Report(#{essay_grading.essay_assignment.category})", size: 20, style: :bold, align: :center
         pdf.move_down 10
 
         # 话题
         if json_data['assignment'].present?
-          pdf.text "Assignment: #{json_data['assignment']}", size: 14 # , style: :bold
+          pdf.text "Assignment: #{json_data['assignment']}", size: 14
           pdf.move_down 10
         end
 
         # 话题
-        pdf.text "Topic: #{json_data['topic']}", size: 14 # , style: :bold
+        pdf.text "Topic: #{json_data['topic']}", size: 14
         pdf.move_down 10
 
-        # 學生資訊
+        # 学生信息
         pdf.text "Account: #{json_data['account']}", size: 14
         pdf.move_down 30
 
@@ -387,8 +381,6 @@ module Api
 
         # 缩进 sentences 部分
         pdf.indent(20) do
-          # 逐句添加内容和错误说明
-          # binding.pry
           sentences.each do |key, value|
             next unless key.start_with?('Sentence')
 
@@ -400,34 +392,26 @@ module Api
             sentence_text = value['sentence']
             errors = value['errors']
 
-            # 初始化 formatted_text 为句子的原始文本
             formatted_text = sentence_text
 
-            # 替换错误单词或短语为红色
             errors.each_value do |error_value|
               error_word = error_value['word']
-
-              # 使用单词边界确保只替换完整单词
               formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
                 "<color rgb='FF0000'>#{match}</color>"
               end
             end
 
-            # 使用 inline_format 打印带有颜色的句子
             pdf.text formatted_text, size: 12, inline_format: true
             pdf.move_down 10
 
-            # 打印该句子的错误（如果有）
             if errors.any?
               pdf.indent(20) do
                 errors.each_value do |error_value|
-                  # 提取并显示 category 和错误解释
                   category = error_value['category']
                   error_word = error_value['word']
                   explanation = error_value['explanation']
 
-                  # 使用 inline_format 将 category 显示为蓝色
-                  pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(@essay_grading.category, category)})</color>: #{explanation}",
+                  pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
                            size: 10, inline_format: true
                   pdf.move_down 5
                 end
@@ -444,10 +428,9 @@ module Api
         pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
         pdf.move_down 20
 
-        if @role == 'teacher' && @essay_grading.category == 'essay'
+        if @role == 'teacher' && essay_grading.essay_assignment.category == 'essay'
           pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
           pdf.move_down 20
-          # 添加总分部分
           if sentences['Overall Score']
             pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold,
                                                                                                color: '003366', align: :center
@@ -455,9 +438,8 @@ module Api
             sentences.each do |key, value|
               next unless key.start_with?('Criterion')
 
-              # 处理评估标准部分
               value.each do |criterion_name, criterion_value|
-                next if ['Full Score', 'explanation'].include?(criterion_name) # 跳过满分和解释部分
+                next if ['Full Score', 'explanation'].include?(criterion_name)
 
                 pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
                 pdf.move_down 5
@@ -482,8 +464,55 @@ module Api
           end
         end
 
-        # 返回生成的 PDF 数据
         pdf
+      end
+
+      def generate_report(grading)
+        grading = EssayGrading.includes(:essay_assignment).find(grading.id) # 确保 essay_assignment 被加载
+        json_data = prepare_report_data(grading)
+        pdf = generate_pdf(json_data, grading)
+        pdf.render
+      end
+
+      def generate_pdf(json_data, essay_grading)
+        assignment = essay_grading.essay_assignment
+        if assignment.nil?
+          raise "Essay assignment not found for grading ID #{essay_grading.id}"
+        end
+
+        if assignment.category == 'comprehension'
+          generate_comprehension_pdf(json_data, essay_grading)
+        elsif assignment.category.include?('essay')
+          generate_essay_pdf(json_data, essay_grading)
+        else
+          generate_pdf_from_json(json_data)
+        end
+      end
+
+      def prepare_report_data(essay_grading)
+        assignment = essay_grading.essay_assignment
+        json_data = {
+          'topic' => assignment.topic,
+          'account' => essay_grading.general_user.show_in_report_name,
+          'assignment' => assignment.assignment
+        }
+
+        if assignment.category == 'comprehension'
+          json_data['comprehension'] = essay_grading.grading['comprehension']
+          newsfeed = essay_grading.get_news_feed
+          if newsfeed.present?
+            json_data['title'] = newsfeed['data']['title']
+            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
+          end
+        elsif assignment.category.include?('essay')
+          json_data.merge!(essay_grading.grading)
+          if essay_grading.general_context['data'].present?
+            general_context = JSON.parse(essay_grading.general_context['data']['text'])
+            json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
+          end
+        end
+
+        json_data
       end
     end
   end

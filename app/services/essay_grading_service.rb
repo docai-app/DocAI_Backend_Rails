@@ -120,6 +120,7 @@ class EssayGradingService
   def update_final_status
     if @grading_success && (@general_context_app_key.blank? || @general_context_success)
       @essay_grading.update(status: 'graded')
+      @essay_grading.call_webhook
     else
       @essay_grading.update(status: 'stopped')
     end

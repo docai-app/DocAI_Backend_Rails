@@ -25,6 +25,7 @@ RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
     fontconfig \
     libjpeg62-turbo \
     libxrender1 \
+    libopencc-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 RUN npm install -g yarn@1
