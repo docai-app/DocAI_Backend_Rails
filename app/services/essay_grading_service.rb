@@ -59,11 +59,14 @@ class EssayGradingService
   end
 
   def grading_request_payload
+    inputs = if @essay_grading.essay_assignment.category == 'sentence_builder'
+               { sentence_builder: @essay_grading.sentence_builder.to_json }
+             else
+               { Essay: @essay_grading.essay, essaytopic: @essay_grading.topic }
+             end
+
     {
-      inputs: {
-        Essay: @essay_grading.essay,
-        essaytopic: @essay_grading.topic
-      },
+      inputs: inputs,
       response_mode: 'blocking',
       user: @user_id
     }.to_json
@@ -102,7 +105,22 @@ class EssayGradingService
 
   def get_number_of_suggestion(result)
     json = JSON.parse(result['text'])
-    count_errors(json)
+    if @essay_grading.category == 'sentence_builder'
+      count_sentence_builder_errors(json)
+    else
+      count_errors(json)
+    end
+    
+  end
+
+  def count_sentence_builder_errors(hash)
+    count = 0
+    hash['results'].each do |result|
+      if result['errors'].is_a?(Array)
+        count += result['errors'].size
+      end
+    end
+    count
   end
 
   def count_errors(hash)
@@ -120,6 +138,11 @@ class EssayGradingService
   def update_final_status
     if @grading_success && (@general_context_app_key.blank? || @general_context_success)
       @essay_grading.update(status: 'graded')
+
+      if @essay_grading.category == 'sentence_builder'
+        @essay_grading.calculate_sentence_builder_score
+      end
+
       @essay_grading.call_webhook
     else
       @essay_grading.update(status: 'stopped')

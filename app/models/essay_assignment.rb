@@ -26,9 +26,9 @@
 #
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
-  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed
+  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs
 
-  enum category: %w[essay comprehension speaking_conversation speaking_essay]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder]
 
   before_create :generate_unique_code
 

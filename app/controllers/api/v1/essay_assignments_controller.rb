@@ -167,7 +167,7 @@ module Api
             :name,
             { app_key: %i[grading general_context] } # 允许嵌套的 app_key
           ],
-          meta: [:newsfeed_id, self_upload_newsfeed: {}]
+          meta: [:newsfeed_id, {self_upload_newsfeed: {}, vocabs: [] }]
         )
       end
 

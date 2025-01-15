@@ -198,7 +198,8 @@ module Api
               ]
             ] }
           ],
-          meta: [:newsfeed_id]
+          meta: [:newsfeed_id],
+          sentence_builder: [:vocab, :sentence] # 允许数组中的哈希结构
         )
       end
 
@@ -339,6 +340,113 @@ module Api
           pdf.number_pages '<page> of <total>', at: [pdf.bounds.right - 50, 0], align: :right, size: 12
         end
       end
+
+      def generate_sentence_builder_pdf(json_data, essay_grading)
+        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+          # 設定主要字型 & DejaVuSans
+          font_path = Rails.root.join('app/assets/fonts')
+          pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold:   font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf')
+              # 如果有粗體檔也可以加上 :bold
+            }
+          )
+      
+          # 預設使用 NotoSans
+          pdf.font('NotoSans')
+          # 碰到無法顯示的符號 (如 ❌ / ✅) 時，自動 fallback 到 DejaVuSans
+          pdf.fallback_fonts(['DejaVuSans'])
+      
+          # 顯示 Assignment (若有)
+          if json_data['assignment'].present?
+            pdf.text "Assignment: #{json_data['assignment']}", size: 14
+            pdf.move_down 10
+          end
+      
+          # 顯示 Topic
+          pdf.text "Topic: #{json_data['topic']}", size: 14
+          pdf.move_down 10
+      
+          # 學生資訊
+          pdf.text "Account: #{json_data['account']}", size: 14
+          pdf.move_down 30
+      
+          # 解析批改結果
+          response = JSON.parse(essay_grading.grading['data']['text'])
+          # 遍歷每個句子結果
+          response['results'].each_with_index do |result, index|
+            has_errors = !result['errors'].empty?
+      
+            # 使用 ❌ / ✅ 表示正確或錯誤
+            status_symbol = has_errors ? "<color rgb='FF0000'>✘</color>" : "<color rgb='008000'>✔</color>"
+            pdf.text "#{index + 1}. #{result['original_sentence']} #{status_symbol}", size: 16, style: :bold, inline_format: true
+            pdf.move_down 5
+      
+            # 融合錯誤信息到原句 & 修正句中
+            original_sentence  = result['original_sentence']
+            corrected_sentence = result['corrected_sentence']
+            errors             = result['errors']
+      
+            # 在原句中標記錯誤
+            errors.each_with_index do |error, error_index|
+              if error['word']
+                original_sentence.gsub!(
+                  /\b#{Regexp.escape(error['word'])}\b/,
+                  "<color rgb='FF0000'>#{error['word']} (#{('A'.ord + error_index).chr})</color>"
+                )
+              end
+            end
+      
+            # 在修正句中標記修正
+            errors.each_with_index do |error, error_index|
+              if error['corr']
+                corrected_word = error['corr'].split(' -> ').last
+                corrected_sentence.gsub!(
+                  /\b#{Regexp.escape(corrected_word)}\b/,
+                  "<color rgb='0000FF'>#{corrected_word} (#{('A'.ord + error_index).chr})</color>"
+                )
+              end
+            end
+      
+            pdf.text "Original Sentence: #{original_sentence}", size: 12, inline_format: true
+            pdf.move_down 5
+      
+            pdf.text "Corrected Sentence: #{corrected_sentence}", size: 12, inline_format: true
+            pdf.move_down 10
+      
+            # 若有錯誤，列出錯誤資訊
+            if has_errors
+              pdf.text "Errors:", size: 14, style: :bold
+              pdf.move_down 5
+      
+              errors.each_with_index do |error, error_index|
+                pdf.text "• (#{('A'.ord + error_index).chr})", size: 12, style: :bold
+                pdf.indent(20) do
+                  pdf.text "Word: #{error['word']}", size: 12
+                  pdf.text "Correction: #{error['corr']}", size: 12
+                  pdf.text "Category: #{error['category']}", size: 12
+                  pdf.text "Explanation: #{error['explanation']}", size: 12
+                end
+                pdf.move_down 10
+              end
+            end
+      
+            pdf.move_down 20
+          end
+      
+          # 頁腳頁碼
+          pdf.number_pages '<page> of <total>',
+                           at: [pdf.bounds.right - 50, 0],
+                           align: :right,
+                           size: 12
+        end
+      end
+      
+      
 
       def generate_essay_pdf(json_data, essay_grading)
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
@@ -484,6 +592,8 @@ module Api
           generate_comprehension_pdf(json_data, essay_grading)
         elsif assignment.category.include?('essay')
           generate_essay_pdf(json_data, essay_grading)
+        elsif assignment.category.include?('sentence_builder')
+          generate_sentence_builder_pdf(json_data, essay_grading)
         else
           generate_pdf_from_json(json_data)
         end
