@@ -71,12 +71,12 @@ class EssayGrading < ApplicationRecord
   end
 
   def need_to_run_workflow?
-    %w[essay speaking_essay speaking_conversation].include?(category)
+    %w[essay speaking_essay speaking_conversation sentence_builder].include?(category)
   end
 
   def run_workflow
-    # EssayGradingService.new(general_user_id, self).run_workflows
-    EssayGradingJob.perform_async(id)
+    EssayGradingService.new(general_user_id, self).run_workflows
+    # EssayGradingJob.perform_async(id)
   end
 
   def modify_url
@@ -191,6 +191,10 @@ class EssayGrading < ApplicationRecord
 
     # 呼叫 webhook
     call_webhook
+  end
+
+  def calculate_sentence_builder_score
+    self['score']
   end
 
   def call_webhook
