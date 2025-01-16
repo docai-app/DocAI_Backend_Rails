@@ -33,11 +33,11 @@ require_dependency 'has_kg_linker'
 class GeneralUser < ApplicationRecord
   self.primary_key = 'id'
 
-  VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation].freeze
+  VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder].freeze
 
   validate :aienglish_features_must_be_valid
 
-  store_accessor :konnecai_tokens, :essay, :comprehension, :speaking_essay, :speaking_conversation
+  store_accessor :konnecai_tokens, :essay, :comprehension, :speaking_essay, :speaking_conversation, :sentence_builder
 
   # has_and_belongs_to_many :roles, join_table: :users_roles
 
