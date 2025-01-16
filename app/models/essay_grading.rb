@@ -75,8 +75,8 @@ class EssayGrading < ApplicationRecord
   end
 
   def run_workflow
-    EssayGradingService.new(general_user_id, self).run_workflows
-    # EssayGradingJob.perform_async(id)
+    # EssayGradingService.new(general_user_id, self).run_workflows
+    EssayGradingJob.perform_async(id)
   end
 
   def modify_url
