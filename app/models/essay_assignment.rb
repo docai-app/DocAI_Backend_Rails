@@ -32,6 +32,7 @@ class EssayAssignment < ApplicationRecord
 
   before_create :generate_unique_code
   before_save :generate_vocab_examples, if: :vocabs_changed?
+  after_create :generate_vocab_examples
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
