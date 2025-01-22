@@ -58,7 +58,14 @@ module Api
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
-          essay_gradings: @essay_gradings.sort_by { |eg| eg.class_no.to_i }.map do |eg|
+          essay_gradings: @essay_gradings.sort_by { |eg| 
+            begin
+              eg.class_no.to_i
+            rescue => e
+              puts "Error converting class_no to integer: #{e.message}"
+              0 # 或者其他默认值
+            end
+          }.map do |eg|
             # 解析 grading JSON
             grading_json = JSON.parse(eg["grading"]["data"]["text"]) rescue {}
 

@@ -194,12 +194,23 @@ class EssayGrading < ApplicationRecord
   end
 
   def calculate_sentence_builder_score
-    # 如果已經計算過分數，則返回現有的分數
-    if self['grading']['sentence_builder'] && self['grading']['sentence_builder']['score'].present?
-      return {
-        full_score: self['grading']['sentence_builder']['full_score'],
-        score: self['grading']['sentence_builder']['score']
-      }
+    if self['grading']['sentence_builder'].is_a?(Array)
+      # 遍历数组，检查每个元素是否有 score
+      sentence_builder_data = self['grading']['sentence_builder'].find { |item| item['score'].present? }
+      if sentence_builder_data
+        return {
+          full_score: sentence_builder_data['full_score'],
+          score: sentence_builder_data['score']
+        }
+      end
+    else
+      # 如果是哈希，直接访问
+      if self['grading']['sentence_builder'] && self['grading']['sentence_builder']['score'].present?
+        return {
+          full_score: self['grading']['sentence_builder']['full_score'],
+          score: self['grading']['sentence_builder']['score']
+        }
+      end
     end
 
     response = JSON.parse(self.grading['data']['text'])
@@ -216,8 +227,8 @@ class EssayGrading < ApplicationRecord
 
     # 設置分數
     self['grading']['sentence_builder'] ||= {}
-    self['grading']['sentence_builder']['score'] = score
-    self['grading']['sentence_builder']['full_score'] = total_score
+    self['grading']['score'] = score
+    self['grading']['full_score'] = total_score
     self['score'] = score
     save
 
