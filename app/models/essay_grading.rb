@@ -194,6 +194,7 @@ class EssayGrading < ApplicationRecord
   end
 
   def calculate_sentence_builder_score
+    return { full_score: nil, score: nil } if self['status'] != 'graded'
     if self['grading']['sentence_builder'].is_a?(Array)
       # 遍历数组，检查每个元素是否有 score
       sentence_builder_data = self['grading']['sentence_builder'].find { |item| item['score'].present? }
