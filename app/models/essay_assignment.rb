@@ -26,11 +26,12 @@
 #
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
-  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs
+  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder]
 
   before_create :generate_unique_code
+  before_save :generate_vocab_examples, if: :vocabs_changed?
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
@@ -50,12 +51,17 @@ class EssayAssignment < ApplicationRecord
     JSON.parse(response.body)
   end
 
-  private
-
   def generate_unique_code
     self.code = loop do
       random_code = SecureRandom.hex(3)
       break random_code unless self.class.exists?(code: random_code)
     end
+  end
+
+  def generate_vocab_examples
+    return unless category == 'sentence_builder'
+
+    # 使用 Sidekiq 後台執行 SentenceBuilderExampleJob
+    SentenceBuilderExampleJob.perform_async(id)
   end
 end

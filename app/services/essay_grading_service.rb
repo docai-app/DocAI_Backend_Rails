@@ -117,7 +117,8 @@ class EssayGradingService
     count = 0
     hash['results'].each do |result|
       if result['errors'].is_a?(Array)
-        count += result['errors'].size
+        # 只計算 error1 不等於 'Correct' 的錯誤
+        count += result['errors'].count { |error| error['error1'] != 'Correct' }
       end
     end
     count

@@ -238,4 +238,10 @@ class EssayGrading < ApplicationRecord
       Rails.logger.error("Webhook call failed: #{e.message}")
     end
   end
+
+  def test_sentence_builder_example
+    ea = essay_assignment
+    sbe = SentenceBuilderExampleService.new(ea.general_user_id, ea)
+    examples = sbe.generate_examples
+  end
 end

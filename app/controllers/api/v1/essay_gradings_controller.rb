@@ -379,57 +379,46 @@ module Api
           response = JSON.parse(essay_grading.grading['data']['text'])
           # 遍歷每個句子結果
           response['results'].each_with_index do |result, index|
-            has_errors = !result['errors'].empty?
+            # 檢查是否有錯誤
+            has_errors = result['errors'].any? { |error| error['error1'] != 'Correct' }
       
             # 使用 ❌ / ✅ 表示正確或錯誤
             status_symbol = has_errors ? "<color rgb='FF0000'>✘</color>" : "<color rgb='008000'>✔</color>"
-            pdf.text "#{index + 1}. #{result['original_sentence']} #{status_symbol}", size: 16, style: :bold, inline_format: true
+
+            # 顯示 vocab 和狀態符號
+            vocab = essay_grading.sentence_builder[index]['vocab'] || "N/A"
+            pdf.text "#{index + 1}. #{vocab} #{status_symbol}", size: 16, style: :bold, inline_format: true
             pdf.move_down 5
       
-            # 融合錯誤信息到原句 & 修正句中
-            original_sentence  = result['original_sentence']
-            corrected_sentence = result['corrected_sentence']
-            errors             = result['errors']
-      
-            # 在原句中標記錯誤
-            errors.each_with_index do |error, error_index|
-              if error['word']
-                original_sentence.gsub!(
-                  /\b#{Regexp.escape(error['word'])}\b/,
-                  "<color rgb='FF0000'>#{error['word']} (#{('A'.ord + error_index).chr})</color>"
-                )
-              end
-            end
-      
-            # 在修正句中標記修正
-            errors.each_with_index do |error, error_index|
-              if error['corr']
-                corrected_word = error['corr'].split(' -> ').last
-                corrected_sentence.gsub!(
-                  /\b#{Regexp.escape(corrected_word)}\b/,
-                  "<color rgb='0000FF'>#{corrected_word} (#{('A'.ord + error_index).chr})</color>"
-                )
-              end
-            end
-      
-            pdf.text "Original Sentence: #{original_sentence}", size: 12, inline_format: true
-            pdf.move_down 5
-      
-            pdf.text "Corrected Sentence: #{corrected_sentence}", size: 12, inline_format: true
+            # 顯示原句
+            pdf.text "Original Sentence: #{result['original_sentence']}", size: 12, inline_format: true
             pdf.move_down 10
       
-            # 若有錯誤，列出錯誤資訊
+            # 如果有錯誤，才顯示修正句和錯誤信息
             if has_errors
+              corrected_sentence = result['corrected_sentence']
+              pdf.text "Corrected Sentence: #{corrected_sentence}", size: 12, inline_format: true
+              pdf.move_down 10
+
+              # 列出錯誤資訊
               pdf.text "Errors:", size: 14, style: :bold
               pdf.move_down 5
-      
-              errors.each_with_index do |error, error_index|
-                pdf.text "• (#{('A'.ord + error_index).chr})", size: 12, style: :bold
+
+              result['errors'].each_with_index do |error, error_index|
+                next if error['error1'] == 'Correct'
+                
+                # 顯示錯誤信息
+                if error['word'] && error['corr']
+                  pdf.text "• Mistake: #{error['corr']} (#{error['category']})", size: 12, style: :bold
+                else
+                  pdf.text "• (#{error['category']}) #{error['error1']}", size: 12, style: :bold
+                end
+                
+                # 顯示解釋
                 pdf.indent(20) do
-                  pdf.text "Word: #{error['word']}", size: 12
-                  pdf.text "Correction: #{error['corr']}", size: 12
-                  pdf.text "Category: #{error['category']}", size: 12
-                  pdf.text "Explanation: #{error['explanation']}", size: 12
+                  if error['explanation']
+                    pdf.text error['explanation'], size: 12
+                  end
                 end
                 pdf.move_down 10
               end
