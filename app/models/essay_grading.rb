@@ -27,7 +27,7 @@
 #  fk_rails_...  (general_user_id => public.general_users.id)
 #
 class EssayGrading < ApplicationRecord
-  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension
+  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder
   store_accessor :general_context, :app_key, :data
 
   store_accessor :meta, :newsfeed_id
@@ -194,7 +194,35 @@ class EssayGrading < ApplicationRecord
   end
 
   def calculate_sentence_builder_score
-    self['score']
+    # 如果已經計算過分數，則返回現有的分數
+    if self['grading']['sentence_builder'] && self['grading']['sentence_builder']['score'].present?
+      return {
+        full_score: self['grading']['sentence_builder']['full_score'],
+        score: self['grading']['sentence_builder']['score']
+      }
+    end
+
+    response = JSON.parse(self.grading['data']['text'])
+    total_score = response['results'].size
+    score = 0
+
+    # 遍歷每個句子結果
+    response['results'].each do |result|
+      # 檢查是否有錯誤
+      if result['errors'].all? { |error| error['error1'] == 'Correct' }
+        score += 1
+      end
+    end
+
+    # 設置分數
+    self['grading']['sentence_builder'] ||= {}
+    self['grading']['sentence_builder']['score'] = score
+    self['grading']['sentence_builder']['full_score'] = total_score
+    self['score'] = score
+    save
+
+    # 返回 full_score 和 score
+    { full_score: total_score, score: score }
   end
 
   def call_webhook

@@ -62,21 +62,28 @@ module Api
             # 解析 grading JSON
             grading_json = JSON.parse(eg["grading"]["data"]["text"]) rescue {}
 
-            # 提取每個 criterion 的分數和總分
-            scores = grading_json.each_with_object({}) do |(key, value), result|
-              if key.start_with?('Criterion') && value.is_a?(Hash)
-                value.each do |criterion_key, criterion_value|
-                  # 排除不需要的键
-                  unless ['Full Score', 'explanation'].include?(criterion_key)
-                    result[criterion_key] = criterion_value
+            if @essay_assignment.sentence_builder?
+              sb_score = eg.calculate_sentence_builder_score
+              the_full_score = sb_score[:full_score]
+              overall_score = sb_score[:score]
+              eg['score'] = overall_score
+            else              
+              # 提取每個 criterion 的分數和總分
+              scores = grading_json.each_with_object({}) do |(key, value), result|
+                if key.start_with?('Criterion') && value.is_a?(Hash)
+                  value.each do |criterion_key, criterion_value|
+                    # 排除不需要的键
+                    unless ['Full Score', 'explanation'].include?(criterion_key)
+                      result[criterion_key] = criterion_value
+                    end
                   end
                 end
               end
-            end
 
-            # 提取 Overall Score
-            overall_score = grading_json["Overall Score"]
-            the_full_score = grading_json["Full Score"]
+              # 提取 Overall Score
+              overall_score = grading_json["Overall Score"]
+              the_full_score = grading_json["Full Score"]
+            end
 
             {
               id: eg.id,
