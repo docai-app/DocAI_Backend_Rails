@@ -96,6 +96,7 @@ module Api
             essay: @essay_grading.essay,
             using_time: @essay_grading.using_time,
             file: @essay_grading.file.url,
+            transformed_newsfeed: @essay_grading.get_transformed_newsfeed,
             general_user: {
               id: @essay_grading.general_user.id,
               nickname: @essay_grading.general_user.nickname,
@@ -598,7 +599,11 @@ module Api
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
-          newsfeed = essay_grading.get_news_feed
+          if essay_grading['meta']['transformed_newsfeed'].present?
+            newsfeed = essay_grading.get_transformed_newsfeed
+          else
+            newsfeed = essay_grading.get_news_feed
+          end
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
             json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
