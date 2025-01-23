@@ -599,11 +599,7 @@ module Api
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
-          if essay_grading['meta']['transformed_newsfeed'].present?
-            newsfeed = essay_grading.get_transformed_newsfeed
-          else
-            newsfeed = essay_grading.get_news_feed
-          end
+          newsfeed = essay_grading.get_news_feed
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
             json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']

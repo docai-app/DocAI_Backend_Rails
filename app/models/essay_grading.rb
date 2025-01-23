@@ -285,49 +285,49 @@ class EssayGrading < ApplicationRecord
     examples = sbe.generate_examples
   end
 
-  def shuffle_questions_and_save
-    # 解析 news_feed
-    news_feed_hash = get_news_feed
+  # def shuffle_questions_and_save
+  #   # 解析 news_feed
+  #   news_feed_hash = get_news_feed
 
-    # 获取问题列表
-    questions = news_feed_hash["data"]["questions"]
+  #   # 获取问题列表
+  #   questions = news_feed_hash["data"]["questions"]
 
-    # 打乱问题的顺序
-    shuffled_questions = questions.shuffle
+  #   # 打乱问题的顺序
+  #   shuffled_questions = questions.shuffle
 
-    # 对每个问题的选项内容进行打乱，并更新答案
-    shuffled_questions.each do |question|
-      original_answer = question["answer"]
-      original_options = question["options"]
+  #   # 对每个问题的选项内容进行打乱，并更新答案
+  #   shuffled_questions.each do |question|
+  #     original_answer = question["answer"]
+  #     original_options = question["options"]
 
-      # 打乱选项内容
-      shuffled_content = original_options.values.shuffle
+  #     # 打乱选项内容
+  #     shuffled_content = original_options.values.shuffle
 
-      # 重新构建选项，保持标签不变
-      new_options = original_options.keys.zip(shuffled_content).to_h
-      question["options"] = new_options
+  #     # 重新构建选项，保持标签不变
+  #     new_options = original_options.keys.zip(shuffled_content).to_h
+  #     question["options"] = new_options
 
-      # 更新答案
-      question["answer"] = new_options.key(original_options[original_answer])
-    end
+  #     # 更新答案
+  #     question["answer"] = new_options.key(original_options[original_answer])
+  #   end
 
-    # 更新 news_feed_hash 中的问题
-    news_feed_hash["data"]["questions"] = shuffled_questions
+  #   # 更新 news_feed_hash 中的问题
+  #   news_feed_hash["data"]["questions"] = shuffled_questions
 
-    # 将打乱后的 news_feed 保存到 transformed_newsfeed
-    self['meta']['transformed_newsfeed'] = news_feed_hash.to_json
-    save
-  end
+  #   # 将打乱后的 news_feed 保存到 transformed_newsfeed
+  #   self['meta']['transformed_newsfeed'] = news_feed_hash.to_json
+  #   save
+  # end
 
-  def get_transformed_newsfeed
-    # 检查 transformed_newsfeed 是否存在
-    if self['meta']['transformed_newsfeed'].present?
-      # 返回现有的 transformed_newsfeed
-      JSON.parse(self['meta']['transformed_newsfeed'])
-    else
-      # 生成 transformed_newsfeed
-      shuffle_questions_and_save
-      JSON.parse(self['meta']['transformed_newsfeed'])
-    end
-  end
+  # def get_transformed_newsfeed
+  #   # 检查 transformed_newsfeed 是否存在
+  #   if self['meta']['transformed_newsfeed'].present?
+  #     # 返回现有的 transformed_newsfeed
+  #     JSON.parse(self['meta']['transformed_newsfeed'])
+  #   else
+  #     # 生成 transformed_newsfeed
+  #     shuffle_questions_and_save
+  #     JSON.parse(self['meta']['transformed_newsfeed'])
+  #   end
+  # end
 end
