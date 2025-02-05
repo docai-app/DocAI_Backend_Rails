@@ -374,11 +374,17 @@ module Api
           end
       
           # 顯示 Topic
-          pdf.text "Topic: #{json_data['topic']}", size: 14
-          pdf.move_down 10
+          if json_data['topic'].present?
+            pdf.text "Topic: #{json_data['topic']}", size: 14
+            pdf.move_down 10
+          end
       
           # 學生資訊
           pdf.text "Account: #{json_data['account']}", size: 14
+          pdf.move_down 10
+
+          pdf.text "Score: #{essay_grading['grading']['score']} / #{ essay_grading['grading']['full_score']}", size: 14
+          # binding.pry
           pdf.move_down 30
       
           # 解析批改結果
@@ -391,8 +397,12 @@ module Api
             # 使用 ❌ / ✅ 表示正確或錯誤
             status_symbol = has_errors ? "<color rgb='FF0000'>✘</color>" : "<color rgb='008000'>✔</color>"
 
+            # binding.pry
             # 顯示 vocab 和狀態符號
-            vocab = essay_grading.sentence_builder[index]['vocab'] || "N/A"
+            # vocab = essay_grading.sentence_builder[index]['vocab'] || "N/A"
+            vocabs = essay_grading.essay_assignment.vocabs
+            vocab = "#{vocabs[index]['word']}(#{vocabs[index]['pos']})"
+            # binding.pry
             pdf.text "#{index + 1}. #{vocab} #{status_symbol}", size: 16, style: :bold, inline_format: true
             pdf.move_down 5
       
