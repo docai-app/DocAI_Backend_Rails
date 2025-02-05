@@ -64,5 +64,14 @@ class EssayAssignment < ApplicationRecord
 
     # 使用 Sidekiq 後台執行 SentenceBuilderExampleJob
     SentenceBuilderExampleJob.perform_async(id)
+    # service = SentenceBuilderExampleService.new(general_user_id, self)
+    # examples = service.generate_examples
+
+    # # binding.pry
+    # if examples
+    #   self.update(vocab_examples: examples)
+    # else
+    #   Rails.logger.error("Failed to generate vocab examples for EssayAssignment ID: #{essay_assignment_id}")
+    # end
   end
 end

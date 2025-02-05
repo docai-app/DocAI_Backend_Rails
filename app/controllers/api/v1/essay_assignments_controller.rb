@@ -183,7 +183,7 @@ module Api
           ],
           meta: [
             :newsfeed_id, 
-            { self_upload_newsfeed: {}, vocabs: [:word, :pos, :definition] }
+            { self_upload_newsfeed: {}, vocabs: [:word, :pos, :definition, array: true] }
           ]
         )
       end

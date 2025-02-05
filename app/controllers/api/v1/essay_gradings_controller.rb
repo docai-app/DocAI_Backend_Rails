@@ -361,6 +361,11 @@ module Api
           pdf.font('NotoSans')
           # 碰到無法顯示的符號 (如 ❌ / ✅) 時，自動 fallback 到 DejaVuSans
           pdf.fallback_fonts(['DejaVuSans'])
+
+          # 开始内容部分
+          pdf.move_down 20
+          pdf.text "Grading Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
+          pdf.move_down 10
       
           # 顯示 Assignment (若有)
           if json_data['assignment'].present?
