@@ -31,8 +31,7 @@ class EssayAssignment < ApplicationRecord
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder]
 
   before_create :generate_unique_code
-  before_save :generate_vocab_examples, if: :vocabs_changed?
-  after_create :generate_vocab_examples
+  after_save :check_and_generate_vocab_examples
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
@@ -59,19 +58,22 @@ class EssayAssignment < ApplicationRecord
     end
   end
 
-  def generate_vocab_examples
+  def check_and_generate_vocab_examples
+    # 只針對 sentence_builder 類型處理
     return unless category == 'sentence_builder'
+    # 先確認 meta 有否異動
+    return unless saved_change_to_meta?
 
-    # 使用 Sidekiq 後台執行 SentenceBuilderExampleJob
-    SentenceBuilderExampleJob.perform_async(id)
-    # service = SentenceBuilderExampleService.new(general_user_id, self)
-    # examples = service.generate_examples
+    # 取得 meta 中 vocabs 的前後值（確保為 Hash 時的操作）
+    meta_previous, meta_current = saved_change_to_meta
+    previous_vocabs = meta_previous.is_a?(Hash) ? meta_previous['vocabs'] : nil
+    current_vocabs  = meta_current.is_a?(Hash) ? meta_current['vocabs'] : nil
 
-    # # binding.pry
-    # if examples
-    #   self.update(vocab_examples: examples)
-    # else
-    #   Rails.logger.error("Failed to generate vocab examples for EssayAssignment ID: #{essay_assignment_id}")
-    # end
+    # 檢查 vocabs 是否有改變
+    if previous_vocabs != current_vocabs
+      puts "running gen examples sidekiq job"
+      SentenceBuilderExampleJob.perform_async(id)
+    end
   end
+
 end

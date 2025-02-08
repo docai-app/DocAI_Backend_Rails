@@ -46,3 +46,6 @@ docker-compose.yml
 dump.rdb
 
 .byebug_history
+
+
+config/initializers/sidekiq.rb
