@@ -285,6 +285,17 @@ class EssayGrading < ApplicationRecord
     examples = sbe.generate_examples
   end
 
+  def sentence_builder_for_dify
+    sentences = sentence_builder
+    vocabs = essay_assignment.vocabs
+
+    combined = sentences.zip(vocabs).map do |sentence_hash, vocab_hash|
+      sentence_hash.merge(vocab_hash)
+    end
+
+    combined
+  end
+
   # def shuffle_questions_and_save
   #   # 解析 news_feed
   #   news_feed_hash = get_news_feed

@@ -60,7 +60,7 @@ class EssayGradingService
 
   def grading_request_payload
     inputs = if @essay_grading.essay_assignment.category == 'sentence_builder'
-               { sentence_builder: @essay_grading.sentence_builder.to_json }
+               { sentence_builder: @essay_grading.sentence_builder_for_dify.to_json }
              else
                { Essay: @essay_grading.essay, essaytopic: @essay_grading.topic }
              end
