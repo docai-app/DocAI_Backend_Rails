@@ -11,7 +11,7 @@ class SentenceBuilderExampleService
     @app_key = ENV['sentence_builder_example_app_key']
     @vocabs = essay_assignment.vocabs.map do |vocab|
       "#{vocab['word']}(#{vocab['pos']})"
-    end.join(",")
+    end.join(',')
   end
 
   def generate_examples
@@ -19,25 +19,24 @@ class SentenceBuilderExampleService
     return unless response && response.code == 200
 
     result = JSON.parse(response.body)
-    return JSON.parse(result['data']['outputs']["text"])["examples"]
-
+    JSON.parse(result['data']['outputs']['text'])['examples']
   rescue JSON::ParserError => e
     Rails.logger.error("Failed to parse response: #{e.message}")
     nil
   end
-  
+
   def execute_request
     RestClient::Request.execute(
       method: :post,
       url: API_URL,
-      payload: { 
+      payload: {
         inputs: {
-          vocabs: @vocabs, 
+          vocabs: @vocabs
         },
         response_mode: 'blocking',
         user: @user_id
       }.to_json,
-      headers: headers,
+      headers:,
       timeout: TIMEOUT,
       open_timeout: 100
     )

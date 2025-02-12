@@ -35,6 +35,9 @@ Rails.application.routes.draw do
           get 'show_only'
           get 'download_reports', to: 'essay_gradings#download_reports'
         end
+        collection do
+          post :parse_vocab_csv
+        end
       end
       resources :essay_gradings, only: %i[index show update destroy] do
         member do

@@ -149,7 +149,6 @@ class EssayGrading < ApplicationRecord
   end
 
   def get_news_feed
-
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
     if essay_assignment.get_news_feed.present?
       news_feed = essay_assignment.get_news_feed
@@ -195,6 +194,7 @@ class EssayGrading < ApplicationRecord
 
   def calculate_sentence_builder_score
     return { full_score: nil, score: nil } if self['status'] != 'graded'
+
     if self['grading']['sentence_builder'].is_a?(Array)
       # 遍历数组，检查每个元素是否有 score
       sentence_builder_data = self['grading']['sentence_builder'].find { |item| item['score'].present? }
@@ -204,26 +204,22 @@ class EssayGrading < ApplicationRecord
           score: sentence_builder_data['score']
         }
       end
-    else
+    elsif self['grading']['sentence_builder'] && self['grading']['sentence_builder']['score'].present?
       # 如果是哈希，直接访问
-      if self['grading']['sentence_builder'] && self['grading']['sentence_builder']['score'].present?
-        return {
-          full_score: self['grading']['sentence_builder']['full_score'],
-          score: self['grading']['sentence_builder']['score']
-        }
-      end
+      return {
+        full_score: self['grading']['sentence_builder']['full_score'],
+        score: self['grading']['sentence_builder']['score']
+      }
     end
 
-    response = JSON.parse(self.grading['data']['text'])
+    response = JSON.parse(grading['data']['text'])
     total_score = response['results'].size
     score = 0
 
     # 遍歷每個句子結果
     response['results'].each do |result|
       # 檢查是否有錯誤
-      if result['errors'].all? { |error| error['error1'] == 'Correct' }
-        score += 1
-      end
+      score += 1 if result['errors'].all? { |error| error['error1'] == 'Correct' }
     end
 
     # 設置分數
@@ -234,7 +230,7 @@ class EssayGrading < ApplicationRecord
     save
 
     # 返回 full_score 和 score
-    { full_score: total_score, score: score }
+    { full_score: total_score, score: }
   end
 
   def call_webhook
@@ -265,13 +261,11 @@ class EssayGrading < ApplicationRecord
 
     # 使用 RestClient 发送 POST 请求到 webhook
     begin
-      response = RestClient.post(webhook_url, payload.to_json, 
+      response = RestClient.post(webhook_url, payload.to_json,
                                  { 'X-Webhook-Token': token, content_type: :json, accept: :json })
-      
+
       # 检查响应
-      unless response.code == 200
-        Rails.logger.error("Webhook call failed: #{response.body}")
-      end
+      Rails.logger.error("Webhook call failed: #{response.body}") unless response.code == 200
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Webhook call failed: #{e.response}")
     rescue StandardError => e
@@ -289,11 +283,9 @@ class EssayGrading < ApplicationRecord
     sentences = sentence_builder
     vocabs = essay_assignment.vocabs
 
-    combined = sentences.zip(vocabs).map do |sentence_hash, vocab_hash|
+    sentences.zip(vocabs).map do |sentence_hash, vocab_hash|
       sentence_hash.merge(vocab_hash)
     end
-
-    combined
   end
 
   # def shuffle_questions_and_save

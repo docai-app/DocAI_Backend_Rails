@@ -66,7 +66,7 @@ class EssayGradingService
              end
 
     {
-      inputs: inputs,
+      inputs:,
       response_mode: 'blocking',
       user: @user_id
     }.to_json
@@ -110,7 +110,6 @@ class EssayGradingService
     else
       count_errors(json)
     end
-    
   end
 
   def count_sentence_builder_errors(hash)
@@ -140,9 +139,7 @@ class EssayGradingService
     if @grading_success && (@general_context_app_key.blank? || @general_context_success)
       @essay_grading.update(status: 'graded')
 
-      if @essay_grading.category == 'sentence_builder'
-        @essay_grading.calculate_sentence_builder_score
-      end
+      @essay_grading.calculate_sentence_builder_score if @essay_grading.category == 'sentence_builder'
 
       @essay_grading.call_webhook
     else

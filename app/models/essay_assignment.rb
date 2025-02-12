@@ -70,10 +70,9 @@ class EssayAssignment < ApplicationRecord
     current_vocabs  = meta_current.is_a?(Hash) ? meta_current['vocabs'] : nil
 
     # 檢查 vocabs 是否有改變
-    if previous_vocabs != current_vocabs
-      puts "running gen examples sidekiq job"
-      SentenceBuilderExampleJob.perform_async(id)
-    end
-  end
+    return unless previous_vocabs != current_vocabs
 
+    puts 'running gen examples sidekiq job'
+    SentenceBuilderExampleJob.perform_async(id)
+  end
 end

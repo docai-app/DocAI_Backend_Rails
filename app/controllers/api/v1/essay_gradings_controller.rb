@@ -9,7 +9,8 @@ module Api
         set_essay_grading
         json_data = prepare_report_data(@essay_grading)
         pdf = generate_pdf(json_data, @essay_grading)
-        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf', disposition: 'inline'
+        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf',
+                              disposition: 'inline'
       end
 
       def index
@@ -64,15 +65,17 @@ module Api
         # 获取 category 的字符串表示
         EssayAssignment.categories.invert
 
-        grading_json = JSON.parse(@essay_grading.grading["data"]["text"]) rescue {}
+        grading_json = begin
+          JSON.parse(@essay_grading.grading['data']['text'])
+        rescue StandardError
+          {}
+        end
         scores = grading_json.each_with_object({}) do |(key, value), result|
-          if key.start_with?('Criterion') && value.is_a?(Hash)
-            value.each do |criterion_key, criterion_value|
-              # 排除不需要的键
-              unless ['Full Score', 'explanation'].include?(criterion_key)
-                result[criterion_key] = criterion_value
-              end
-            end
+          next unless key.start_with?('Criterion') && value.is_a?(Hash)
+
+          value.each do |criterion_key, criterion_value|
+            # 排除不需要的键
+            result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
           end
         end
 
@@ -90,7 +93,7 @@ module Api
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
             full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
             score: @essay_grading.grading.dig('comprehension', 'score'),
-            scores: scores,
+            scores:,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
@@ -166,7 +169,8 @@ module Api
           end
         end
 
-        send_data zip_data.string, type: 'application/zip', filename: "essay_assignment_#{essay_assignment.id}_reports.zip"
+        send_data zip_data.string, type: 'application/zip',
+                                   filename: "essay_assignment_#{essay_assignment.id}_reports.zip"
       end
 
       private
@@ -200,7 +204,7 @@ module Api
             ] }
           ],
           meta: [:newsfeed_id],
-          sentence_builder: [:vocab, :sentence] # 允许数组中的哈希结构
+          sentence_builder: %i[vocab sentence] # 允许数组中的哈希结构
         )
       end
 
@@ -301,14 +305,15 @@ module Api
           comprehension = json_data['comprehension']
 
           # 在页面底部显示分数
-          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold, align: :center
+          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold,
+                                                                                                align: :center
           pdf.move_down 10
           pdf.stroke_horizontal_rule
           pdf.move_down 20
           # binding.pry
 
           # 文章内容
-          pdf.text json_data['article'].gsub("\n", "<br><br>"), size: 12, leading: 4, inline_format: true
+          pdf.text json_data['article'].gsub("\n", '<br><br>'), size: 12, leading: 4, inline_format: true
           pdf.move_down 20
 
           # binding.pry
@@ -329,7 +334,7 @@ module Api
             end
 
             pdf.move_down 5
-            pdf.fill_color '000000'  # 重置颜色为黑色
+            pdf.fill_color '000000' # 重置颜色为黑色
             pdf.text "My Answer: #{question['user_answer']}", style: :bold, size: 12 # 添加我的答案
             pdf.fill_color '008000'  # 设置文本颜色为绿色
             pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 12
@@ -349,14 +354,14 @@ module Api
           pdf.font_families.update(
             'NotoSans' => {
               normal: font_path.join('NotoSansTC-Regular.ttf'),
-              bold:   font_path.join('NotoSansTC-Bold.ttf')
+              bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
               normal: font_path.join('DejaVuSans.ttf')
               # 如果有粗體檔也可以加上 :bold
             }
           )
-      
+
           # 預設使用 NotoSans
           pdf.font('NotoSans')
           # 碰到無法顯示的符號 (如 ❌ / ✅) 時，自動 fallback 到 DejaVuSans
@@ -366,34 +371,34 @@ module Api
           pdf.move_down 20
           pdf.text "Grading Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
-      
+
           # 顯示 Assignment (若有)
           if json_data['assignment'].present?
             pdf.text "Assignment: #{json_data['assignment']}", size: 14
             pdf.move_down 10
           end
-      
+
           # 顯示 Topic
           if json_data['topic'].present?
             pdf.text "Topic: #{json_data['topic']}", size: 14
             pdf.move_down 10
           end
-      
+
           # 學生資訊
           pdf.text "Account: #{json_data['account']}", size: 14
           pdf.move_down 10
 
-          pdf.text "Score: #{essay_grading['grading']['score']} / #{ essay_grading['grading']['full_score']}", size: 14
+          pdf.text "Score: #{essay_grading['grading']['score']} / #{essay_grading['grading']['full_score']}", size: 14
           # binding.pry
           pdf.move_down 30
-      
+
           # 解析批改結果
           response = JSON.parse(essay_grading.grading['data']['text'])
           # 遍歷每個句子結果
           response['results'].each_with_index do |result, index|
             # 檢查是否有錯誤
             has_errors = result['errors'].any? { |error| error['error1'] != 'Correct' }
-      
+
             # 使用 ❌ / ✅ 表示正確或錯誤
             status_symbol = has_errors ? "<color rgb='FF0000'>✘</color>" : "<color rgb='008000'>✔</color>"
 
@@ -405,11 +410,11 @@ module Api
             # binding.pry
             pdf.text "#{index + 1}. #{vocab} #{status_symbol}", size: 16, style: :bold, inline_format: true
             pdf.move_down 5
-      
+
             # 顯示原句
             pdf.text "Original Sentence: #{result['original_sentence']}", size: 12, inline_format: true
             pdf.move_down 10
-      
+
             # 如果有錯誤，才顯示修正句和錯誤信息
             if has_errors
               corrected_sentence = result['corrected_sentence']
@@ -417,32 +422,30 @@ module Api
               pdf.move_down 10
 
               # 列出錯誤資訊
-              pdf.text "Errors:", size: 14, style: :bold
+              pdf.text 'Errors:', size: 14, style: :bold
               pdf.move_down 5
 
-              result['errors'].each_with_index do |error, error_index|
+              result['errors'].each_with_index do |error, _error_index|
                 next if error['error1'] == 'Correct'
-                
+
                 # 顯示錯誤信息
                 if error['word'] && error['corr']
                   pdf.text "• Mistake: #{error['corr']} (#{error['category']})", size: 12, style: :bold
                 else
                   pdf.text "• (#{error['category']}) #{error['error1']}", size: 12, style: :bold
                 end
-                
+
                 # 顯示解釋
                 pdf.indent(20) do
-                  if error['explanation']
-                    pdf.text error['explanation'], size: 12
-                  end
+                  pdf.text error['explanation'], size: 12 if error['explanation']
                 end
                 pdf.move_down 10
               end
             end
-      
+
             pdf.move_down 20
           end
-      
+
           # 頁腳頁碼
           pdf.number_pages '<page> of <total>',
                            at: [pdf.bounds.right - 50, 0],
@@ -450,8 +453,6 @@ module Api
                            size: 12
         end
       end
-      
-      
 
       def generate_essay_pdf(json_data, essay_grading)
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
@@ -589,9 +590,7 @@ module Api
 
       def generate_pdf(json_data, essay_grading)
         assignment = essay_grading.essay_assignment
-        if assignment.nil?
-          raise "Essay assignment not found for grading ID #{essay_grading.id}"
-        end
+        raise "Essay assignment not found for grading ID #{essay_grading.id}" if assignment.nil?
 
         if assignment.category == 'comprehension'
           generate_comprehension_pdf(json_data, essay_grading)
