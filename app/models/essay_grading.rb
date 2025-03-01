@@ -16,6 +16,8 @@
 #  general_context     :jsonb            not null
 #  using_time          :integer          default(0), not null
 #  meta                :jsonb            not null
+#  score               :decimal(, )
+#  sentence_builder    :jsonb
 #
 # Indexes
 #

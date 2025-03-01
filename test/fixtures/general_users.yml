@@ -21,6 +21,8 @@
 #  failed_attempts        :integer          default(0)
 #  unlock_token           :string
 #  locked_at              :datetime
+#  meta                   :jsonb            not null
+#  konnecai_tokens        :jsonb            not null
 #
 # Indexes
 #
