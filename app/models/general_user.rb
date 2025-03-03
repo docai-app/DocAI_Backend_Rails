@@ -69,6 +69,9 @@ class GeneralUser < ApplicationRecord
   has_many :essay_gradings
   has_many :essay_assignments
 
+  has_many :student_enrollments, dependent: :destroy
+  has_many :academic_years, through: :student_enrollments
+
   scope :search_query, lambda { |query|
     return nil if query.blank?
 
@@ -237,6 +240,19 @@ class GeneralUser < ApplicationRecord
   # 確認是否具備AI English功能
   def aienglish_user?
     meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
+  end
+
+  # 獲取指定日期的班級信息
+  def enrollment_at(date)
+    student_enrollments.at_date(date).first
+  end
+
+  # 獲取當前班級信息
+  def current_enrollment
+    student_enrollments
+      .joins(:school_academic_year)
+      .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
+      .first
   end
 
   private

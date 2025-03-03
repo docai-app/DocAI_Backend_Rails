@@ -1,0 +1,36 @@
+# frozen_string_literal: true
+
+class SchoolAcademicYear < ApplicationRecord
+  belongs_to :school
+  has_many :student_enrollments, dependent: :restrict_with_error
+
+  validates :name, presence: true
+  validates :start_date, presence: true
+  validates :end_date, presence: true
+  validate :end_date_after_start_date
+  validate :no_overlapping_academic_years
+
+  enum status: {
+    preparing: 0,   # 準備中
+    active: 1,      # 當前學年
+    archived: 2     # 已歸檔
+  }
+
+  private
+
+  def end_date_after_start_date
+    return if end_date.blank? || start_date.blank?
+
+    errors.add(:end_date, '必須在開始日期之後') if end_date < start_date
+  end
+
+  def no_overlapping_academic_years
+    return if start_date.blank? || end_date.blank?
+
+    overlapping = school.school_academic_years
+                        .where.not(id:)
+                        .where('start_date <= ? AND end_date >= ?', end_date, start_date)
+
+    errors.add(:base, '學年時間範圍不能重疊') if overlapping.exists?
+  end
+end

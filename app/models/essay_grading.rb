@@ -36,8 +36,10 @@ class EssayGrading < ApplicationRecord
 
   # 關聯
   belongs_to :general_user
-  # belongs_to :essay_assignment, optional: true
   belongs_to :essay_assignment, counter_cache: :number_of_submission, optional: true
+  belongs_to :student_snapshot
+  belongs_to :submission_school, class_name: 'School', optional: true
+  belongs_to :submission_academic_year, class_name: 'SchoolAcademicYear', optional: true
   delegate :category, to: :essay_assignment
 
   # 狀態枚舉
@@ -278,7 +280,7 @@ class EssayGrading < ApplicationRecord
   def test_sentence_builder_example
     ea = essay_assignment
     sbe = SentenceBuilderExampleService.new(ea.general_user_id, ea)
-    examples = sbe.generate_examples
+    sbe.generate_examples
   end
 
   def sentence_builder_for_dify
@@ -335,4 +337,20 @@ class EssayGrading < ApplicationRecord
   #     JSON.parse(self['meta']['transformed_newsfeed'])
   #   end
   # end
+
+  # 在創建時保存提交時的班級信息
+  before_create :store_submission_class_info
+
+  private
+
+  def store_submission_class_info
+    enrollment = general_user.student_enrollments.at_date(created_at).first
+
+    return unless enrollment
+
+    self.submission_class_name = enrollment.class_name
+    self.submission_class_number = enrollment.class_number
+    self.submission_school_id = enrollment.school.id
+    self.submission_academic_year_id = enrollment.school_academic_year.id
+  end
 end

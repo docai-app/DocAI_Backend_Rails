@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  general_user: one
+  academic_year: one
+  class_name: MyString
+  class_number: MyString
+  status: 1
+
+two:
+  general_user: two
+  academic_year: two
+  class_name: MyString
+  class_number: MyString
+  status: 1
