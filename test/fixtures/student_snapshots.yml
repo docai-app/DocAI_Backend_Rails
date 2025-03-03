@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  nickname: MyString
+  class_name: MyString
+  class_no: MyString
+  school_id: 
+  academic_year: MyString
+  semester: MyString
+  general_user_id: 
+
+two:
+  nickname: MyString
+  class_name: MyString
+  class_no: MyString
+  school_id: 
+  academic_year: MyString
+  semester: MyString
+  general_user_id: 
