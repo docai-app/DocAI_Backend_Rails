@@ -75,6 +75,10 @@ class GeneralUser < ApplicationRecord
   # 添加學校關聯
   belongs_to :school, optional: true
 
+  # 添加教師任教記錄關聯
+  has_many :teacher_assignments, dependent: :destroy
+  has_many :teaching_academic_years, through: :teacher_assignments, source: :school_academic_year
+
   scope :search_query, lambda { |query|
     return nil if query.blank?
 
@@ -256,6 +260,21 @@ class GeneralUser < ApplicationRecord
       .joins(:school_academic_year)
       .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
       .first
+  end
+
+  # 獲取當前任教記錄
+  def current_teaching_assignment
+    teacher_assignments
+      .joins(:school_academic_year)
+      .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
+      .first
+  end
+
+  # 判斷是否為特定學校的教師
+  def teacher_at?(school)
+    teacher_assignments.joins(:school_academic_year)
+                       .where(school_academic_years: { school_id: school.id })
+                       .exists?
   end
 
   private

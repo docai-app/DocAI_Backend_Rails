@@ -25,6 +25,8 @@
 class SchoolAcademicYear < ApplicationRecord
   belongs_to :school
   has_many :student_enrollments, dependent: :restrict_with_error
+  has_many :teacher_assignments, dependent: :restrict_with_error
+  has_many :teachers, through: :teacher_assignments, source: :general_user
 
   validates :name, presence: true
   validates :start_date, presence: true

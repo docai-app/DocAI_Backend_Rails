@@ -12,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_250_303_105_027) do
+ActiveRecord::Schema[7.0].define(version: 20_250_304_084_458) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'pgcrypto'
   enable_extension 'plpgsql'
@@ -899,6 +899,19 @@ ActiveRecord::Schema[7.0].define(version: 20_250_303_105_027) do
     t.index ['name'], name: 'index_tags_on_name', unique: true
   end
 
+  create_table 'teacher_assignments', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'general_user_id', null: false
+    t.uuid 'school_academic_year_id', null: false
+    t.string 'department'
+    t.string 'position'
+    t.integer 'status'
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['general_user_id'], name: 'index_teacher_assignments_on_general_user_id'
+    t.index ['school_academic_year_id'], name: 'index_teacher_assignments_on_school_academic_year_id'
+  end
+
   create_table 'user_mailboxes', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.uuid 'user_id', null: false
     t.uuid 'document_id', null: false
@@ -1010,6 +1023,8 @@ ActiveRecord::Schema[7.0].define(version: 20_250_303_105_027) do
   add_foreign_key 'student_enrollments', 'general_users'
   add_foreign_key 'student_enrollments', 'school_academic_years'
   add_foreign_key 'taggings', 'tags'
+  add_foreign_key 'teacher_assignments', 'general_users'
+  add_foreign_key 'teacher_assignments', 'school_academic_years'
   add_foreign_key 'user_mailboxes', 'documents'
   add_foreign_key 'user_mailboxes', 'users'
   add_foreign_key 'user_marketplace_items', 'marketplace_items'

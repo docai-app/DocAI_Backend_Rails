@@ -578,4 +578,111 @@ namespace :school do
       end
     end
   end
+
+  # 添加新的任務用於分配教師
+  desc '將特定郵箱後綴的 AI English 教師分配到指定學校和學年'
+  task :assign_teachers,
+       %i[school_code academic_year_name email_patterns department position] => :environment do |_task, args|
+    class TeacherAssigner
+      def self.assign_teachers(school_code:, academic_year_name:, email_patterns:, department:, position:)
+        # 驗證參數
+        unless school_code.present? && academic_year_name.present? && email_patterns.present?
+          puts '錯誤: 缺少必要參數'
+          puts '使用方式: rails school:assign_teachers[school_code,academic_year_name,"pattern1;pattern2",department,position]'
+          puts '例如: rails school:assign_teachers[SCHOOL_A,2023-2024,"@schoola.edu.hk","英文部","教師"]'
+          return
+        end
+
+        # 查找學校和學年
+        school = School.find_by(code: school_code)
+        academic_year = school&.school_academic_years&.find_by(name: academic_year_name)
+
+        unless school && academic_year
+          puts '錯誤: 找不到指定的學校或學年'
+          return
+        end
+
+        # 解析郵箱模式
+        patterns = email_patterns.split(';').map(&:strip)
+
+        # 開始處理
+        puts "\n=== 開始分配 AI English 教師 ==="
+        puts "學校: #{school.name}"
+        puts "學年: #{academic_year.name}"
+        puts "部門: #{department}"
+        puts "職位: #{position}"
+        puts "郵箱模式: #{patterns.join(', ')}"
+
+        ActiveRecord::Base.transaction do
+          patterns.each do |pattern|
+            process_pattern(pattern, school, academic_year, department, position)
+          end
+        end
+      end
+
+      def self.process_pattern(pattern, school, academic_year, department, position)
+        # 只查找 AI English 教師
+        teachers = GeneralUser.where('email LIKE ?', "%#{pattern}")
+                              .select { |user| user.aienglish_user? && user.meta['aienglish_role'] == 'teacher' }
+
+        if teachers.empty?
+          puts "\n沒有找到符合模式 #{pattern} 的 AI English 教師"
+          return
+        end
+
+        puts "\n處理郵箱模式: #{pattern}"
+        puts "找到 #{teachers.count} 個 AI English 教師"
+
+        teachers.each do |teacher|
+          assign_single_teacher(teacher, school, academic_year, department, position)
+          print '.'
+        end
+        puts
+      end
+
+      def self.assign_single_teacher(teacher, school, academic_year, department, position)
+        # 創建或更新教師任教記錄
+        assignment = TeacherAssignment.find_or_initialize_by(
+          general_user: teacher,
+          school_academic_year: academic_year
+        )
+
+        if assignment.new_record?
+          assignment.department = department
+          assignment.position = position
+          assignment.status = :active
+          assignment.meta = {
+            teaching_subjects: [],
+            class_teacher_of: nil,
+            additional_duties: []
+          }
+        end
+
+        assignment.save!
+
+        # 更新教師所屬學校
+        teacher.update!(school:) unless teacher.school == school
+
+        puts "\n已分配教師 #{teacher.email} 到 #{school.name} (#{academic_year.name})"
+      rescue StandardError => e
+        puts "\n處理教師 #{teacher.email} 時發生錯誤: #{e.message}"
+        raise
+      end
+    end
+
+    # 執行分配任務
+    begin
+      TeacherAssigner.assign_teachers(
+        school_code: args[:school_code],
+        academic_year_name: args[:academic_year_name],
+        email_patterns: args[:email_patterns],
+        department: args[:department],
+        position: args[:position]
+      )
+    rescue StandardError => e
+      puts "\n執行過程中發生錯誤:"
+      puts e.message
+      puts e.backtrace
+    end
+  end
 end
