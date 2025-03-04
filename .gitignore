@@ -49,3 +49,5 @@ dump.rdb
 
 
 config/initializers/sidekiq.rb
+
+temp
