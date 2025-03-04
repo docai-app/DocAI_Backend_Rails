@@ -18,7 +18,6 @@
 # Indexes
 #
 #  index_smart_extraction_data_on_smart_extraction_schema_id  (smart_extraction_schema_id)
-#  index_smart_extraction_data_on_smart_extraction_schema_id  (smart_extraction_schema_id)
 #
 require 'test_helper'
 

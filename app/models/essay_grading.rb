@@ -4,20 +4,24 @@
 #
 # Table name: public.essay_gradings
 #
-#  id                  :uuid             not null, primary key
-#  essay               :text
-#  topic               :string
-#  status              :integer          default("pending"), not null
-#  grading             :jsonb            not null
-#  general_user_id     :uuid             not null
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
-#  essay_assignment_id :uuid
-#  general_context     :jsonb            not null
-#  using_time          :integer          default(0), not null
-#  meta                :jsonb            not null
-#  score               :decimal(, )
-#  sentence_builder    :jsonb
+#  id                          :uuid             not null, primary key
+#  essay                       :text
+#  topic                       :string
+#  status                      :integer          default("pending"), not null
+#  grading                     :jsonb            not null
+#  general_user_id             :uuid             not null
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  essay_assignment_id         :uuid
+#  general_context             :jsonb            not null
+#  using_time                  :integer          default(0), not null
+#  meta                        :jsonb            not null
+#  score                       :decimal(, )
+#  sentence_builder            :jsonb
+#  submission_class_name       :string
+#  submission_class_number     :string
+#  submission_school_id        :uuid
+#  submission_academic_year_id :uuid
 #
 # Indexes
 #
@@ -25,8 +29,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (essay_assignment_id => public.essay_assignments.id)
-#  fk_rails_...  (general_user_id => public.general_users.id)
+#  fk_rails_...  (essay_assignment_id => essay_assignments.id)
+#  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder

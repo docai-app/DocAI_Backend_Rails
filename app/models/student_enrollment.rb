@@ -1,5 +1,29 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: student_enrollments
+#
+#  id                      :uuid             not null, primary key
+#  general_user_id         :uuid             not null
+#  school_academic_year_id :uuid             not null
+#  class_name              :string
+#  class_number            :string
+#  status                  :integer
+#  meta                    :jsonb            not null
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#
+# Indexes
+#
+#  index_student_enrollments_on_general_user_id          (general_user_id)
+#  index_student_enrollments_on_school_academic_year_id  (school_academic_year_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (general_user_id => general_users.id)
+#  fk_rails_...  (school_academic_year_id => school_academic_years.id)
+#
 class StudentEnrollment < ApplicationRecord
   belongs_to :general_user
   belongs_to :school_academic_year

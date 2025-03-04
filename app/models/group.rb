@@ -12,7 +12,7 @@
 #
 # Foreign Keys
 #
-#  groups_owner_id_fkey  (owner_id => public.general_users.id)
+#  fk_rails_...  (owner_id => general_users.id)
 #
 class Group < ApplicationRecord
   belongs_to :owner, class_name: 'GeneralUser', foreign_key: 'owner_id'

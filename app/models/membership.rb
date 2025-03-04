@@ -12,8 +12,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (general_user_id => public.general_users.id)
-#  fk_rails_...  (group_id => public.groups.id)
+#  fk_rails_...  (general_user_id => general_users.id)
+#  fk_rails_...  (group_id => groups.id)
 #
 class Membership < ApplicationRecord
   belongs_to :general_user

@@ -17,9 +17,7 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (folder_id => public.folders.id)
 #  fk_rails_...  (folder_id => folders.id)
-#  fk_rails_...  (user_id => public.users.id)
 #  fk_rails_...  (user_id => users.id)
 #
 require 'test_helper'

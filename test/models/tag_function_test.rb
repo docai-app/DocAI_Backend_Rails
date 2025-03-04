@@ -13,8 +13,6 @@
 # Indexes
 #
 #  index_tag_functions_on_function_id  (function_id)
-#  index_tag_functions_on_function_id  (function_id)
-#  index_tag_functions_on_tag_id       (tag_id)
 #  index_tag_functions_on_tag_id       (tag_id)
 #
 require 'test_helper'

@@ -16,7 +16,6 @@
 # Indexes
 #
 #  index_conceptmaps_on_root_node  (root_node)
-#  index_conceptmaps_on_root_node  (root_node)
 #
 require 'test_helper'
 

@@ -15,12 +15,10 @@
 # Indexes
 #
 #  index_storyboards_on_user_id  (user_id)
-#  index_storyboards_on_user_id  (user_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (user_id => users.id)
-#  fk_rails_...  (user_id => public.users.id)
 #
 class Storyboard < ApplicationRecord
   has_many :storyboard_item_associations, dependent: :destroy

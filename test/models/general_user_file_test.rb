@@ -23,8 +23,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (general_user_id => public.general_users.id)
-#  fk_rails_...  (user_marketplace_item_id => public.user_marketplace_items.id)
+#  fk_rails_...  (general_user_id => general_users.id)
+#  fk_rails_...  (user_marketplace_item_id => user_marketplace_items.id)
 #
 require 'test_helper'
 

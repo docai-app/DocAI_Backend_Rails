@@ -20,7 +20,7 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (link_set_id => public.link_sets.id)
+#  fk_rails_...  (link_set_id => link_sets.id)
 #
 require 'test_helper'
 
