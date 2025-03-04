@@ -1,6 +1,79 @@
 # frozen_string_literal: true
 
 # lib/tasks/school_management.rake
+
+# 學校管理系統 Rake 任務使用說明
+# ============================
+#
+# 教師管理
+# --------
+# 1. 分配單個教師:
+#    $ rails school:assign_teachers[學校代碼,學年,"@郵箱域名",部門,職位]
+#    例如: $ rails school:assign_teachers[SCHOOL_A,2023-2024,"@schoola.edu.hk","英文部","教師"]
+#
+# 2. 批量分配多個教師:
+#    $ rails school:assign_teachers[學校代碼,學年,"@域名1;@域名2",部門,職位]
+#    例如: $ rails school:assign_teachers[SCHOOL_A,2023-2024,"@schoola.edu.hk;@schoolb.edu.hk","英文部","教師"]
+#
+# 3. 查看教師統計:
+#    $ rails school:show_teacher_stats[學校代碼]
+#    例如: $ rails school:show_teacher_stats[SCHOOL_A]
+#
+# 學生管理
+# --------
+# 1. 分配學生:
+#    $ rails school:assign_students[學校代碼,學年,"@郵箱域名"]
+#    例如: $ rails school:assign_students[SCHOOL_A,2023-2024,"@schoola.edu.hk"]
+#
+# 2. 批量分配學生:
+#    $ rails school:assign_students[學校代碼,學年,"@域名1;@域名2"]
+#    例如: $ rails school:assign_students[SCHOOL_A,2023-2024,"@schoola.edu.hk;@schoolb.edu.hk"]
+#
+# 3. 查看學生統計:
+#    $ rails school:show_student_stats[學校代碼]
+#    例如: $ rails school:show_student_stats[SCHOOL_A]
+#
+# 學校管理
+# --------
+# 1. 創建新學校（互動模式）:
+#    $ rails school:create[input]
+#
+# 2. 從 CSV 文件創建學校:
+#    $ rails school:create[csv] CSV_FILE=檔案路徑
+#    例如: $ rails school:create[csv] CSV_FILE=temp/schools.csv
+#
+# 3. 查看學校列表:
+#    $ rails school:list
+#
+# CSV 文件格式
+# -----------
+# schools.csv 文件格式示例：
+# name,code,status,address,contact_email,contact_phone,region,timezone,school_type,curriculum_type,academic_system,academic_years
+# 澳門測試學校,SCHOOL_MO,active,澳門XX區XX街XX號,contact@school.mo,+853-12345678,mo,Asia/Macau,secondary,local,6_3_3,"2023-2024:active;2024-2025:preparing"
+#
+# 注意事項
+# --------
+# 1. 所有命令都支持香港和澳門地區的學校
+# 2. 教師和學生分配時會自動檢查 AI English 用戶身份
+# 3. 學年信息可以通過 CSV 導入或在創建學校時手動設置
+# 4. 統計功能提供詳細的用戶分佈信息
+# 5. 所有操作都在事務中執行，確保數據一致性
+#
+# 常見問題處理
+# -----------
+# 1. 如果遇到權限問題，請確保已登入並有相應權限
+# 2. CSV 導入失敗時，請檢查文件格式是否正確
+# 3. 分配用戶時如果找不到對應學校或學年，請先確認學校和學年是否存在
+# 4. 統計數據不準確時，可以嘗試重新運行相應的分配命令
+#
+# 建議使用順序
+# -----------
+# 1. 先創建學校（create）
+# 2. 確認學校信息（list）
+# 3. 分配教師（assign_teachers）
+# 4. 分配學生（assign_students）
+# 5. 查看統計信息（show_teacher_stats/show_student_stats）
+
 require 'csv'
 
 namespace :school do
@@ -537,18 +610,6 @@ namespace :school do
 
     puts "\n=== #{school.name} AI English 用戶統計 ==="
 
-    # 顯示教師統計
-    teachers = school.general_users
-                     .where("meta->>'aienglish_role' = ?", 'teacher')
-                     .where("meta->>'aienglish_features_list' IS NOT NULL")
-
-    puts "\n教師統計:"
-    puts "總人數: #{teachers.count}"
-    puts '郵箱域名分佈:'
-    teachers.group_by { |t| t.email.split('@').last }.each do |domain, users|
-      puts "  - @#{domain}: #{users.count}人"
-    end
-
     # 顯示學生統計（按學年和班級）
     puts "\n學生統計:"
     school.school_academic_years.order(start_date: :desc).each do |year|
@@ -675,6 +736,84 @@ namespace :school do
       puts "\n執行過程中發生錯誤:"
       puts e.message
       puts e.backtrace
+    end
+  end
+
+  desc '顯示學校教師分配統計'
+  task :show_teacher_stats, [:school_code] => :environment do |_task, args|
+    school = School.find_by(code: args[:school_code])
+
+    unless school
+      puts "錯誤: 找不到學校代碼 #{args[:school_code]}"
+      next
+    end
+
+    puts "\n=== #{school.name} 教師分配統計 ==="
+
+    # 按學年顯示教師統計
+    school.school_academic_years.order(start_date: :desc).each do |year|
+      puts "\n學年: #{year.name}"
+
+      # 獲取該學年的教師任教記錄
+      assignments = year.teacher_assignments.includes(:general_user)
+                        .select { |a| a.general_user.aienglish_user? && a.general_user.meta['aienglish_role'] == 'teacher' }
+
+      if assignments.empty?
+        puts '  暫無教師分配記錄'
+        next
+      end
+
+      # 按部門分組統計
+      puts "\n部門分佈:"
+      assignments.group_by(&:department).each do |department, dept_assignments|
+        puts "  #{department || '未分配部門'}:"
+        puts "    教師人數: #{dept_assignments.count}"
+
+        # 顯示職位分佈
+        position_counts = dept_assignments.group_by(&:position)
+                                          .transform_values(&:count)
+        puts '    職位分佈:'
+        position_counts.each do |position, count|
+          puts "      - #{position || '未指定'}: #{count}人"
+        end
+
+        # 顯示郵箱域名分佈
+        puts '    郵箱域名分佈:'
+        email_domains = dept_assignments.map { |a| a.general_user.email.split('@').last }
+        email_domains.tally.each do |domain, count|
+          puts "      - @#{domain}: #{count}人"
+        end
+      end
+
+      # 顯示教師列表（可選）
+      puts "\n教師列表:"
+      assignments.each do |assignment|
+        teacher = assignment.general_user
+        puts "  - #{teacher.email} (#{assignment.department}/#{assignment.position})"
+      end
+    end
+
+    # 顯示總體統計
+    puts "\n=== 總體統計 ==="
+    total_assignments = TeacherAssignment.joins(:school_academic_year)
+                                         .where(school_academic_years: { school_id: school.id })
+                                         .includes(:general_user)
+                                         .select { |a| a.general_user.aienglish_user? && a.general_user.meta['aienglish_role'] == 'teacher' }
+
+    puts "總教師人數: #{total_assignments.map(&:general_user_id).uniq.count}"
+    puts "總任教記錄數: #{total_assignments.count}"
+
+    # 顯示跨學年任教的教師
+    multi_year_teachers = total_assignments.group_by(&:general_user_id)
+                                           .select { |_, assignments| assignments.count > 1 }
+
+    if multi_year_teachers.any?
+      puts "\n跨學年任教的教師:"
+      multi_year_teachers.each do |_, assignments|
+        teacher = assignments.first.general_user
+        years = assignments.map { |a| a.school_academic_year.name }.join(', ')
+        puts "  - #{teacher.email} (任教學年: #{years})"
+      end
     end
   end
 end

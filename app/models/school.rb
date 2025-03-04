@@ -25,6 +25,7 @@ class School < ApplicationRecord
   # 關聯
   has_many :school_academic_years, dependent: :destroy
   has_many :student_enrollments, through: :school_academic_years
+  has_many :teacher_assignments, through: :school_academic_years
 
   # 驗證
   validates :name, presence: true
