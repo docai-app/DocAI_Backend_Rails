@@ -469,16 +469,11 @@ namespace :school do
 
         # 檢查用戶是否為教師
         is_teacher = user.meta['aienglish_role'] == 'teacher'
-
-        # 更新用戶所屬學校
-        user.update!(school:)
-
         if is_teacher
-          puts "\n設置教師 #{user.email} 到學校 #{school.name}"
+          puts "\n跳過教師用戶: #{user.email}"
           return # 教師不需要創建學生註冊記錄
         end
 
-        # 以下是學生相關的處理
         # 創建或更新學生註冊記錄
         enrollment = StudentEnrollment.find_or_initialize_by(
           general_user: user,
@@ -659,9 +654,6 @@ namespace :school do
         end
 
         assignment.save!
-
-        # 更新教師所屬學校
-        teacher.update!(school:) unless teacher.school == school
 
         puts "\n已分配教師 #{teacher.email} 到 #{school.name} (#{academic_year.name})"
       rescue StandardError => e
