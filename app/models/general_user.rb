@@ -70,7 +70,10 @@ class GeneralUser < ApplicationRecord
   has_many :essay_assignments
 
   has_many :student_enrollments, dependent: :destroy
-  has_many :academic_years, through: :student_enrollments
+  has_many :school_academic_years, through: :student_enrollments
+
+  # 添加學校關聯
+  belongs_to :school, optional: true
 
   scope :search_query, lambda { |query|
     return nil if query.blank?

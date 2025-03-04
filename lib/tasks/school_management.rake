@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # lib/tasks/school_management.rake
 require 'csv'
 
@@ -98,7 +100,7 @@ namespace :school do
           'chinese' => '中文課程',
           'custom' => '自定義課程'
         }
-      }
+      }.freeze
 
       # 定義學制（按地區）
       ACADEMIC_SYSTEMS = {
@@ -113,13 +115,13 @@ namespace :school do
           '15_years' => '十五年一貫制',
           'custom' => '自定義學制'
         }
-      }
+      }.freeze
 
       # 定義默認時區
       TIMEZONE_BY_REGION = {
         'hk' => 'Asia/Hong_Kong',
         'mo' => 'Asia/Macau'
-      }
+      }.freeze
 
       # 定義學年的默認設置
       ACADEMIC_YEAR_DEFAULTS = {
@@ -300,7 +302,7 @@ namespace :school do
       # 輔助方法
       def self.prompt(message)
         print "#{message}: "
-        STDIN.gets.chomp
+        $stdin.gets.chomp
       end
 
       def self.prompt_with_options(message, options)
@@ -310,7 +312,7 @@ namespace :school do
         end
         print "請選擇 (1-#{options.length}): "
 
-        choice = STDIN.gets.chomp.to_i
+        choice = $stdin.gets.chomp.to_i
         return options[choice - 1] if choice.between?(1, options.length)
 
         options.first # 返回默認選項
@@ -318,7 +320,7 @@ namespace :school do
 
       def self.prompt_with_default(message, default)
         print "#{message} [#{default}]: "
-        input = STDIN.gets.chomp
+        input = $stdin.gets.chomp
         input.empty? ? default : input
       end
 
@@ -326,7 +328,7 @@ namespace :school do
         custom_settings = {}
 
         puts "\n是否添加自定義設置？(y/n)"
-        return custom_settings unless STDIN.gets.chomp.downcase == 'y'
+        return custom_settings unless $stdin.gets.chomp.downcase == 'y'
 
         loop do
           key = prompt('設置鍵名 (留空結束)')
@@ -391,6 +393,189 @@ namespace :school do
         puts "- #{year.name} (#{year.status})"
       end
       puts '--------------------------------'
+    end
+  end
+
+  desc '將特定郵箱後綴的 AI English 學生加入指定學校和學年'
+  task :assign_students, %i[school_code academic_year_name email_patterns] => :environment do |_task, args|
+    class StudentAssigner
+      def self.assign_students(school_code:, academic_year_name:, email_patterns:)
+        # 驗證參數
+        unless school_code.present? && academic_year_name.present? && email_patterns.present?
+          puts '錯誤: 缺少必要參數'
+          puts '使用方式: rails school:assign_students[school_code,academic_year_name,"pattern1;pattern2"]'
+          puts '例如: rails school:assign_students[SCHOOL_A,2023-2024,"@schoola.edu.hk;@schoolb.edu.hk"]'
+          return
+        end
+
+        # 查找學校
+        school = School.find_by(code: school_code)
+        unless school
+          puts "錯誤: 找不到學校代碼 #{school_code}"
+          return
+        end
+
+        # 查找學年
+        academic_year = school.school_academic_years.find_by(name: academic_year_name)
+        unless academic_year
+          puts "錯誤: 在學校 #{school.name} 中找不到學年 #{academic_year_name}"
+          return
+        end
+
+        # 解析郵箱模式
+        patterns = email_patterns.split(';').map(&:strip)
+
+        # 開始處理
+        puts "\n=== 開始分配 AI English 學生 ==="
+        puts "學校: #{school.name}"
+        puts "學年: #{academic_year.name}"
+        puts "郵箱模式: #{patterns.join(', ')}"
+
+        # 使用事務來確保數據一致性
+        ActiveRecord::Base.transaction do
+          patterns.each do |pattern|
+            process_pattern(pattern, school, academic_year)
+          end
+        end
+      end
+
+      def self.process_pattern(pattern, school, academic_year)
+        # 只查找 AI English 用戶
+        users = GeneralUser.where('email LIKE ?', "%#{pattern}")
+                           .select(&:aienglish_user?)
+
+        if users.empty?
+          puts "\n沒有找到符合模式 #{pattern} 的 AI English 用戶"
+          return
+        end
+
+        puts "\n處理郵箱模式: #{pattern}"
+        puts "找到 #{users.count} 個 AI English 用戶"
+
+        # 批量處理用戶
+        users.each do |user|
+          assign_single_user(user, school, academic_year)
+          print '.' # 進度指示
+        end
+        puts # 換行
+      end
+
+      def self.assign_single_user(user, school, academic_year)
+        # 檢查用戶角色
+        unless user.aienglish_user?
+          puts "\n跳過非 AI English 用戶: #{user.email}"
+          return
+        end
+
+        # 檢查用戶是否為教師
+        is_teacher = user.meta['aienglish_role'] == 'teacher'
+
+        # 更新用戶所屬學校
+        user.update!(school:)
+
+        if is_teacher
+          puts "\n設置教師 #{user.email} 到學校 #{school.name}"
+          return # 教師不需要創建學生註冊記錄
+        end
+
+        # 以下是學生相關的處理
+        # 創建或更新學生註冊記錄
+        enrollment = StudentEnrollment.find_or_initialize_by(
+          general_user: user,
+          school_academic_year: academic_year
+        )
+
+        # 如果是新記錄，設置班級信息
+        if enrollment.new_record?
+          enrollment.class_name = user.banbie.presence || '未分配'
+          enrollment.class_number = user.class_no.presence || '未分配'
+          enrollment.status = :active
+          enrollment.save!
+        end
+
+        # 更新該用戶的所有未完成的 EssayGrading 記錄
+        update_essay_gradings(user, school, academic_year, enrollment)
+      rescue StandardError => e
+        puts "\n處理用戶 #{user.email} 時發生錯誤: #{e.message}"
+        raise # 重新拋出異常以觸發事務回滾
+      end
+
+      def self.update_essay_gradings(user, school, academic_year, enrollment)
+        # 只更新最近30天的作業記錄
+        recent_date = 30.days.ago
+        user.essay_gradings
+            .where('created_at > ?', recent_date)
+            .find_each do |grading|
+          grading.update!(
+            submission_class_name: enrollment.class_name,
+            submission_class_number: enrollment.class_number,
+            submission_school_id: school.id,
+            submission_academic_year_id: academic_year.id
+          )
+        end
+      end
+    end
+
+    # 執行分配任務
+    begin
+      StudentAssigner.assign_students(
+        school_code: args[:school_code],
+        academic_year_name: args[:academic_year_name],
+        email_patterns: args[:email_patterns]
+      )
+    rescue StandardError => e
+      puts "\n執行過程中發生錯誤:"
+      puts e.message
+      puts e.backtrace
+    end
+  end
+
+  # 修改統計任務以顯示 AI English 用戶信息
+  desc '顯示學校學生分配統計'
+  task :show_student_stats, [:school_code] => :environment do |_task, args|
+    school = School.find_by(code: args[:school_code])
+
+    unless school
+      puts "錯誤: 找不到學校代碼 #{args[:school_code]}"
+      next
+    end
+
+    puts "\n=== #{school.name} AI English 用戶統計 ==="
+
+    # 顯示教師統計
+    teachers = school.general_users
+                     .where("meta->>'aienglish_role' = ?", 'teacher')
+                     .where("meta->>'aienglish_features_list' IS NOT NULL")
+
+    puts "\n教師統計:"
+    puts "總人數: #{teachers.count}"
+    puts '郵箱域名分佈:'
+    teachers.group_by { |t| t.email.split('@').last }.each do |domain, users|
+      puts "  - @#{domain}: #{users.count}人"
+    end
+
+    # 顯示學生統計（按學年和班級）
+    puts "\n學生統計:"
+    school.school_academic_years.order(start_date: :desc).each do |year|
+      puts "\n學年: #{year.name}"
+
+      # 只獲取學生用戶的註冊記錄
+      enrollments = year.student_enrollments.includes(:general_user)
+                        .select { |e| e.general_user.aienglish_user? && e.general_user.meta['aienglish_role'] != 'teacher' }
+
+      # 按班級分組統計
+      enrollments.group_by(&:class_name).each do |class_name, class_enrollments|
+        puts "  班級: #{class_name || '未分配'}"
+        puts "  學生人數: #{class_enrollments.count}"
+        puts '  郵箱域名統計:'
+
+        # 統計郵箱域名分佈
+        email_domains = class_enrollments.map { |e| e.general_user.email.split('@').last }
+        email_domains.tally.each do |domain, count|
+          puts "    - @#{domain}: #{count}人"
+        end
+        puts
+      end
     end
   end
 end

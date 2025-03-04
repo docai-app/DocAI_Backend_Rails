@@ -24,7 +24,6 @@
 class School < ApplicationRecord
   # 關聯
   has_many :school_academic_years, dependent: :destroy
-  has_many :general_users
   has_many :student_enrollments, through: :school_academic_years
 
   # 驗證
