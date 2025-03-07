@@ -397,6 +397,24 @@ Rails.application.routes.draw do
             put 'aienglish/batch/update', to: 'general_users#batch_update_aienglish_user'
           end
         end
+        resources :schools, param: :code do
+          member do
+            post :assign_students
+            post :assign_teachers
+            get :student_stats
+            get :teacher_stats
+          end
+
+          collection do
+            # 添加導入學校的功能
+            post :import_from_csv
+            # 添加批量操作功能
+            post :bulk_assign_students
+            post :bulk_assign_teachers
+          end
+        end
+        # 學年管理
+        resources :school_academic_years, only: %i[create update destroy]
       end
     end
 

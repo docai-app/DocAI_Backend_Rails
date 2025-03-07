@@ -809,7 +809,7 @@ namespace :school do
 
     if multi_year_teachers.any?
       puts "\n跨學年任教的教師:"
-      multi_year_teachers.each do |_, assignments|
+      multi_year_teachers.each_value do |assignments|
         teacher = assignments.first.general_user
         years = assignments.map { |a| a.school_academic_year.name }.join(', ')
         puts "  - #{teacher.email} (任教學年: #{years})"
