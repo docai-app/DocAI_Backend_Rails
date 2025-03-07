@@ -33,6 +33,7 @@ module DocaiApi
     config.active_record.default_timezone = :local
     # config.eager_load_paths << Rails.root.join("extras")
     config.autoload_paths << Rails.root.join('lib')
+    config.autoload_paths += %W[#{config.root}/app/constants]
 
     config.eager_load = true
     config.autoloader = :classic

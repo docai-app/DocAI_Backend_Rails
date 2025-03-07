@@ -404,7 +404,7 @@ Rails.application.routes.draw do
             get :student_stats
             get :teacher_stats
           end
-          
+
           collection do
             post :import_from_csv
             post :bulk_assign_students
@@ -412,7 +412,7 @@ Rails.application.routes.draw do
           end
         end
         # 學年管理
-        resources :school_academic_years, only: [:show, :create, :update, :destroy]
+        resources :school_academic_years, only: %i[show create update destroy]
       end
     end
 
