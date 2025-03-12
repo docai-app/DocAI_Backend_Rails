@@ -248,16 +248,25 @@ class EssayGrading < ApplicationRecord
     # 准备简化后的请求数据
     payload = {
       record: {
+        Id: id,
         User: general_user.nickname,
         Class: general_user.banbie,
         Number: general_user.class_no,
         "Submitted Time": created_at,
         "Time Taken(s)": using_time,
-        "Full Score": grading.dig('comprehension', 'full_score'),
-        Score: grading.dig('comprehension', 'score'),
-        Status: status
+        Status: status,
+        Category: category
       }
     }
+
+    if category == 'comprehension'
+      payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
+      payload[:record][:Score] = grading.dig('comprehension', 'score')
+    else
+      grading_data = JSON.parse(grading['data']['text'])
+      payload[:record][:Score] = grading_data["Overall Score"]
+      payload[:record]["Full Score"] = grading_data["Full Score"]
+    end
 
     # 使用 RestClient 发送 POST 请求到 webhook
     begin
@@ -333,4 +342,29 @@ class EssayGrading < ApplicationRecord
   #     JSON.parse(self['meta']['transformed_newsfeed'])
   #   end
   # end
+
+  def build_payload
+    payload = {
+      record: {
+        Id: id,
+        User: general_user.nickname,
+        Class: general_user.banbie,
+        Number: general_user.class_no,
+        "Submitted Time": created_at,
+        "Time Taken(s)": using_time,
+        Status: status
+      }
+    }
+
+    if category == 'comprehension'
+      payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
+      payload[:record][:Score] = grading.dig('comprehension', 'score')
+    else
+      grading_data = JSON.parse(grading['data']['text'])
+      payload[:record]["Overall Score"] = grading_data["Overall Score"]
+      payload[:record]["Full Score"] = grading_data["Full Score"]
+    end
+
+    payload
+  end
 end
