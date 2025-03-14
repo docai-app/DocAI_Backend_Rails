@@ -47,5 +47,6 @@ dump.rdb
 
 .byebug_history
 
-
 config/initializers/sidekiq.rb
+
+/temp
