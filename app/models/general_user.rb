@@ -239,6 +239,19 @@ class GeneralUser < ApplicationRecord
     meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
   end
 
+  def set_konnecai_tokens_all_same(web_token)
+    # 定義 category 的鍵
+    categories = %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
+
+    # 遍歷 categories 的每個鍵，將其值設置為 web_token
+    categories.each do |category|
+      konnecai_tokens[category] = web_token
+    end
+
+    # 保存更改
+    save
+  end
+
   private
 
   def aienglish_features_must_be_valid

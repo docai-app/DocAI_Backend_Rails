@@ -264,10 +264,25 @@ class EssayGrading < ApplicationRecord
     if category == 'comprehension'
       payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
+    elsif category == 'sentence_builder'
+      payload[:record]["Full Score"] = grading['full_score']
+      payload[:record][:Score] = grading['score']
     else
       grading_data = JSON.parse(grading['data']['text'])
       payload[:record][:Score] = grading_data["Overall Score"]
       payload[:record]["Full Score"] = grading_data["Full Score"]
+      payload[:record][:Rubric] = essay_assignment.rubric["name"]
+      grading_data.each do |key, value|
+        next unless key.start_with?('Criterion')
+    
+        # 遍歷 value，排除 'Full Score' 和 'explanation'
+        value.each do |criterion_name, criterion_value|
+          next if ['Full Score', 'explanation'].include?(criterion_name)
+    
+          # 將符合條件的 criterion_name 和 criterion_value 加入到 payload[:record] 中
+          payload[:record][criterion_name] = criterion_value
+        end
+      end
     end
 
     # 使用 RestClient 发送 POST 请求到 webhook
@@ -276,7 +291,7 @@ class EssayGrading < ApplicationRecord
                                  { 'X-Webhook-Token': token, content_type: :json, accept: :json })
 
       # 检查响应
-      Rails.logger.error("Webhook call failed: #{response.body}") unless response.code == 200
+      Rails.logger.error("Webhook call failed: #{response.body}") unless response.code == 201
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Webhook call failed: #{e.response}")
     rescue StandardError => e
