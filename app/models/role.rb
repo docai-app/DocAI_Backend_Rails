@@ -2,7 +2,7 @@
 
 # == Schema Information
 #
-# Table name: roles
+# Table name: public.roles
 #
 #  id            :uuid             not null, primary key
 #  name          :string
@@ -14,8 +14,6 @@
 # Indexes
 #
 #  index_roles_on_name_and_resource_type_and_resource_id  (name,resource_type,resource_id)
-#  index_roles_on_name_and_resource_type_and_resource_id  (name,resource_type,resource_id)
-#  index_roles_on_resource                                (resource_type,resource_id)
 #  index_roles_on_resource                                (resource_type,resource_id)
 #
 class Role < ApplicationRecord

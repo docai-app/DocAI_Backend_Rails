@@ -17,6 +17,8 @@
 #  title                :string
 #  hints                :string
 #  meta                 :jsonb            not null
+#  answer_visible       :boolean          default(TRUE), not null
+#  remark               :string
 #
 # Indexes
 #
