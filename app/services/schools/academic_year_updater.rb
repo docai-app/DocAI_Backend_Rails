@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 學年更新服務
   # 負責更新現有學年

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 學校創建服務
   # 負責新學校的創建邏輯

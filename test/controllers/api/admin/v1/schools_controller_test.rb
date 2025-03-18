@@ -1,7 +1,15 @@
+# frozen_string_literal: true
+
 require 'test_helper'
 
-class Api::Admin::V1::SchoolsControllerTest < ActionDispatch::IntegrationTest
-  # test "the truth" do
-  #   assert true
-  # end
+module Api
+  module Admin
+    module V1
+      class SchoolsControllerTest < ActionDispatch::IntegrationTest
+        # test "the truth" do
+        #   assert true
+        # end
+      end
+    end
+  end
 end

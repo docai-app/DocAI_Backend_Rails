@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # CSV 導入服務
   # 負責從 CSV 文件批量導入學校

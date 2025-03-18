@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 學生統計生成器
   # 負責生成學校學生統計信息

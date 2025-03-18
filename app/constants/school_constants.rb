@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SchoolConstants
   REGIONS = {
     'hk' => '香港',

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 學校更新服務
   # 負責現有學校的更新邏輯

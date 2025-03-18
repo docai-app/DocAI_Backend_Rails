@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 批量學生分配服務
   # 負責將學生批量分配到多個學校和學年

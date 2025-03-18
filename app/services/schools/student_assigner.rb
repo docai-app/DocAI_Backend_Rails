@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 學生分配服務
   # 負責將 AI English 學生分配到指定學校和學年

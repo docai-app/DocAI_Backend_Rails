@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Schools
   # 學年創建服務
   # 負責為學校創建新學年

@@ -1,4 +1,12 @@
+# frozen_string_literal: true
+
 require 'test_helper'
 
-class Api::Admin::V1::SchoolDecoratorTest < Draper::TestCase
+module Api
+  module Admin
+    module V1
+      class SchoolDecoratorTest < Draper::TestCase
+      end
+    end
+  end
 end
