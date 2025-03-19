@@ -443,7 +443,6 @@ module Api
                                       .includes(:general_user)
                                       .joins(:general_user)
                                       .where("general_users.meta->>'aienglish_role' != 'teacher'")
-                                      .where("general_users.meta->>'is_aienglish_user' = 'true'")
                                       .order('student_enrollments.class_name ASC NULLS LAST, student_enrollments.class_number ASC NULLS LAST')
 
           # 分頁處理
@@ -486,7 +485,6 @@ module Api
                                       .joins(:general_user)
                                       .where(class_name: params[:class_name])
                                       .where("general_users.meta->>'aienglish_role' != 'teacher'")
-                                      .where("general_users.meta->>'is_aienglish_user' = 'true'")
                                       .order('student_enrollments.class_number ASC NULLS LAST')
 
           # 分頁處理
