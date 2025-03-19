@@ -7,7 +7,8 @@ module Api
       # 提供學校創建、列表、分配學生/教師等功能的 API 端點
       class SchoolsController < AdminApiController
         before_action :set_school, only: %i[show update destroy assign_students
-                                            assign_teachers student_stats teacher_stats]
+                                            assign_teachers student_stats teacher_stats
+                                            academic_year_students class_students]
 
         # GET /admin/v1/schools
         # 獲取所有學校的列表
@@ -425,6 +426,91 @@ module Api
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
+        # GET /admin/v1/schools/:code/academic_years/:academic_year_id/students
+        # 獲取指定學年的所有學生
+        # @param code [String] 學校代碼
+        # @param academic_year_id [String] 學年ID
+        # @return [JSON] 學生列表
+        def academic_year_students
+          # 查找指定學年
+          academic_year = @school.school_academic_years.find(params[:academic_year_id])
+
+          # 獲取學生列表（帶分頁）
+          # 1. 只獲取 AI English 學生（排除教師）
+          # 2. 按班級名稱和班號排序
+          # 3. 預加載關聯數據以提高性能
+          @enrollments = academic_year.student_enrollments
+                                      .includes(:general_user)
+                                      .joins(:general_user)
+                                      .where("general_users.meta->>'aienglish_role' != 'teacher'")
+                                      .where("general_users.meta->>'is_aienglish_user' = 'true'")
+                                      .order('student_enrollments.class_name ASC NULLS LAST, student_enrollments.class_number ASC NULLS LAST')
+
+          # 分頁處理
+          @enrollments = @enrollments.page(params[:page] || 1).per(params[:per_page] || 20)
+
+          render json: {
+            status: 'success',
+            data: {
+              academic_year: {
+                id: academic_year.id,
+                name: academic_year.name,
+                status: academic_year.status
+              },
+              students: @enrollments.map { |enrollment| student_info(enrollment) },
+              meta: pagination_meta(@enrollments)
+            }
+          }
+        rescue ActiveRecord::RecordNotFound => e
+          render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
+        rescue StandardError => e
+          render json: { status: 'error', error: e.message }, status: :internal_server_error
+        end
+
+        # GET /admin/v1/schools/:code/academic_years/:academic_year_id/classes/:class_name/students
+        # 獲取指定班級的所有學生
+        # @param code [String] 學校代碼
+        # @param academic_year_id [String] 學年ID
+        # @param class_name [String] 班級名稱
+        # @return [JSON] 學生列表
+        def class_students
+          # 查找指定學年
+          academic_year = @school.school_academic_years.find(params[:academic_year_id])
+
+          # 獲取班級學生列表（帶分頁）
+          # 1. 只獲取指定班級的 AI English 學生（排除教師）
+          # 2. 按班號排序
+          # 3. 預加載關聯數據以提高性能
+          @enrollments = academic_year.student_enrollments
+                                      .includes(:general_user)
+                                      .joins(:general_user)
+                                      .where(class_name: params[:class_name])
+                                      .where("general_users.meta->>'aienglish_role' != 'teacher'")
+                                      .where("general_users.meta->>'is_aienglish_user' = 'true'")
+                                      .order('student_enrollments.class_number ASC NULLS LAST')
+
+          # 分頁處理
+          @enrollments = @enrollments.page(params[:page] || 1).per(params[:per_page] || 20)
+
+          render json: {
+            status: 'success',
+            data: {
+              academic_year: {
+                id: academic_year.id,
+                name: academic_year.name,
+                status: academic_year.status
+              },
+              class_name: params[:class_name],
+              students: @enrollments.map { |enrollment| student_info(enrollment) },
+              meta: pagination_meta(@enrollments)
+            }
+          }
+        rescue ActiveRecord::RecordNotFound => e
+          render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
+        rescue StandardError => e
+          render json: { status: 'error', error: e.message }, status: :internal_server_error
+        end
+
         private
 
         # 設置當前學校
@@ -531,6 +617,25 @@ module Api
               submission_academic_year_id: academic_year.id
             )
           end
+        end
+
+        # 學生詳細信息
+        # @param enrollment [StudentEnrollment] 註冊記錄
+        # @return [Hash] 學生信息
+        def student_info(enrollment)
+          student = enrollment.general_user
+          {
+            id: student.id,
+            email: student.email,
+            nickname: student.nickname,
+            banbie: student.banbie,
+            class_no: student.class_no,
+            status: enrollment.status,
+            class_name: enrollment.class_name,
+            class_number: enrollment.class_number,
+            created_at: enrollment.created_at,
+            updated_at: enrollment.updated_at
+          }
         end
       end
     end

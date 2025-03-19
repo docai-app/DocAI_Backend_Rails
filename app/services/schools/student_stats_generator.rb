@@ -83,14 +83,14 @@ module Schools
       # 分年級學生數量
       grade_counts = count_by_grade(all_enrollments)
 
-      # 多學年學生
-      multi_year_students = find_multi_year_students(all_enrollments)
+      # 多學年學生數量
+      multi_year_count = count_multi_year_students(all_enrollments)
 
       {
         total_student_count: all_student_ids.count,
         total_enrollment_count: all_enrollments.count,
         grade_distribution: grade_counts,
-        multi_year_student_count: multi_year_students.count
+        multi_year_student_count: multi_year_count
       }
     end
 
@@ -108,26 +108,12 @@ module Schools
       end.sort.to_h
     end
 
-    # 尋找多學年學生
+    # 計算多學年學生數量
     # @param enrollments [Array<StudentEnrollment>] 註冊記錄
-    # @return [Array<Hash>] 多學年學生信息
-    def find_multi_year_students(enrollments)
-      # 按學生 ID 分組
-      grouped = enrollments.group_by(&:general_user_id)
-
-      # 找出註冊多個學年的學生
-      multi_year_students = grouped.select { |_, student_enrollments| student_enrollments.count > 1 }
-
-      multi_year_students.map do |student_id, student_enrollments|
-        student = student_enrollments.first.general_user
-        years = student_enrollments.map { |e| e.school_academic_year.name }.join(', ')
-
-        {
-          id: student_id,
-          email: student.email,
-          years:
-        }
-      end
+    # @return [Integer] 多學年學生數量
+    def count_multi_year_students(enrollments)
+      enrollments.group_by(&:general_user_id)
+                 .count { |_, student_enrollments| student_enrollments.count > 1 }
     end
   end
 end

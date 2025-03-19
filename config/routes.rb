@@ -403,10 +403,9 @@ Rails.application.routes.draw do
             post :assign_teachers
             get :student_stats
             get :teacher_stats
-            post :assign_student_by_email
-            post :assign_teacher_by_email
-            post :assign_student_by_id
-            post :assign_teacher_by_id
+            get 'academic_years/:academic_year_id/students', to: 'schools#academic_year_students'
+            get 'academic_years/:academic_year_id/classes/:class_name/students', to: 'schools#class_students'
+            get 'multi_year_students', to: 'schools#multi_year_students'
           end
 
           collection do
