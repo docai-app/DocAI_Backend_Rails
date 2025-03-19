@@ -273,6 +273,158 @@ module Api
           end
         end
 
+        # 通過 email 分配學生到學校
+        def assign_student_by_email
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
+          return render json: { success: false, error: '找不到指定的學年' }, status: :not_found unless @academic_year
+
+          @user = GeneralUser.find_by(email: params[:email])
+          return render json: { success: false, error: '找不到指定的用戶' }, status: :not_found unless @user
+
+          # 檢查用戶是否為 AI English 學生
+          unless @user.aienglish_user? && @user.meta['aienglish_role'] != 'teacher'
+            return render json: { success: false, error: '該用戶不是 AI English 學生' }, status: :unprocessable_entity
+          end
+
+          # 創建或更新學生註冊記錄
+          enrollment = StudentEnrollment.find_or_initialize_by(
+            general_user: @user,
+            school_academic_year: @academic_year
+          )
+
+          if enrollment.new_record?
+            enrollment.class_name = @user.banbie.presence || '未分配'
+            enrollment.class_number = @user.class_no.presence || '未分配'
+            enrollment.status = :active
+            enrollment.save!
+          end
+
+          # 更新該用戶的所有未完成的 EssayGrading 記錄
+          update_essay_gradings(@user, @school, @academic_year, enrollment)
+
+          render json: { success: true, message: '學生分配成功', enrollment: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        # 通過 email 分配教師到學校
+        def assign_teacher_by_email
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
+          return render json: { success: false, error: '找不到指定的學年' }, status: :not_found unless @academic_year
+
+          @user = GeneralUser.find_by(email: params[:email])
+          return render json: { success: false, error: '找不到指定的用戶' }, status: :not_found unless @user
+
+          # 檢查用戶是否為 AI English 教師
+          unless @user.aienglish_user? && @user.meta['aienglish_role'] == 'teacher'
+            return render json: { success: false, error: '該用戶不是 AI English 教師' }, status: :unprocessable_entity
+          end
+
+          # 創建或更新教師任教記錄
+          assignment = TeacherAssignment.find_or_initialize_by(
+            general_user: @user,
+            school_academic_year: @academic_year
+          )
+
+          if assignment.new_record?
+            assignment.department = params[:department]
+            assignment.position = params[:position]
+            assignment.status = :active
+            assignment.meta = {
+              teaching_subjects: [],
+              class_teacher_of: nil,
+              additional_duties: []
+            }
+            assignment.save!
+          end
+
+          render json: { success: true, message: '教師分配成功', assignment: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        # 通過 ai_english_user_id 分配學生到學校
+        def assign_student_by_id
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
+          return render json: { success: false, error: '找不到指定的學年' }, status: :not_found unless @academic_year
+
+          @user = GeneralUser.find_by(id: params[:ai_english_user_id])
+          return render json: { success: false, error: '找不到指定的用戶' }, status: :not_found unless @user
+
+          # 檢查用戶是否為 AI English 學生
+          unless @user.aienglish_user? && @user.meta['aienglish_role'] != 'teacher'
+            return render json: { success: false, error: '該用戶不是 AI English 學生' }, status: :unprocessable_entity
+          end
+
+          # 創建或更新學生註冊記錄
+          enrollment = StudentEnrollment.find_or_initialize_by(
+            general_user: @user,
+            school_academic_year: @academic_year
+          )
+
+          if enrollment.new_record?
+            enrollment.class_name = @user.banbie.presence || '未分配'
+            enrollment.class_number = @user.class_no.presence || '未分配'
+            enrollment.status = :active
+            enrollment.save!
+          end
+
+          # 更新該用戶的所有未完成的 EssayGrading 記錄
+          update_essay_gradings(@user, @school, @academic_year, enrollment)
+
+          render json: { success: true, message: '學生分配成功', enrollment: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        # 通過 ai_english_user_id 分配教師到學校
+        def assign_teacher_by_id
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
+          return render json: { success: false, error: '找不到指定的學年' }, status: :not_found unless @academic_year
+
+          @user = GeneralUser.find_by(id: params[:ai_english_user_id])
+          return render json: { success: false, error: '找不到指定的用戶' }, status: :not_found unless @user
+
+          # 檢查用戶是否為 AI English 教師
+          unless @user.aienglish_user? && @user.meta['aienglish_role'] == 'teacher'
+            return render json: { success: false, error: '該用戶不是 AI English 教師' }, status: :unprocessable_entity
+          end
+
+          # 創建或更新教師任教記錄
+          assignment = TeacherAssignment.find_or_initialize_by(
+            general_user: @user,
+            school_academic_year: @academic_year
+          )
+
+          if assignment.new_record?
+            assignment.department = params[:department]
+            assignment.position = params[:position]
+            assignment.status = :active
+            assignment.meta = {
+              teaching_subjects: [],
+              class_teacher_of: nil,
+              additional_duties: []
+            }
+            assignment.save!
+          end
+
+          render json: { success: true, message: '教師分配成功', assignment: }, status: :ok
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
         private
 
         # 設置當前學校
@@ -363,6 +515,22 @@ module Api
             total_pages: collection.total_pages,
             total_count: collection.total_count
           }
+        end
+
+        # 更新用戶的 EssayGrading 記錄
+        def update_essay_gradings(user, school, academic_year, enrollment)
+          # 只更新最近30天的作業記錄
+          recent_date = 30.days.ago
+          user.essay_gradings
+              .where('created_at > ?', recent_date)
+              .find_each do |grading|
+            grading.update!(
+              submission_class_name: enrollment.class_name,
+              submission_class_number: enrollment.class_number,
+              submission_school_id: school.id,
+              submission_academic_year_id: academic_year.id
+            )
+          end
         end
       end
     end
