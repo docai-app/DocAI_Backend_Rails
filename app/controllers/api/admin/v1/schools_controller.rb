@@ -8,7 +8,8 @@ module Api
       class SchoolsController < AdminApiController
         before_action :set_school, only: %i[show update destroy assign_students
                                             assign_teachers student_stats teacher_stats
-                                            academic_year_students class_students]
+                                            academic_year_students class_students
+                                            academic_year_teachers department_teachers]
 
         # GET /admin/v1/schools
         # 獲取所有學校的列表
@@ -509,6 +510,89 @@ module Api
           render json: { status: 'error', error: e.message }, status: :internal_server_error
         end
 
+        # GET /admin/v1/schools/:code/academic_years/:academic_year_id/teachers
+        # 獲取指定學年的所有教師
+        # @param code [String] 學校代碼
+        # @param academic_year_id [String] 學年ID
+        # @return [JSON] 教師列表
+        def academic_year_teachers
+          # 查找指定學年
+          academic_year = @school.school_academic_years.find(params[:academic_year_id])
+
+          # 獲取教師列表（帶分頁）
+          # 1. 只獲取 AI English 教師
+          # 2. 按部門和職位排序
+          # 3. 預加載關聯數據以提高性能
+          @assignments = academic_year.teacher_assignments
+                                      .includes(:general_user)
+                                      .joins(:general_user)
+                                      .where("general_users.meta->>'aienglish_role' = 'teacher'")
+                                      .order('teacher_assignments.department ASC NULLS LAST, teacher_assignments.position ASC NULLS LAST')
+
+          # 分頁處理
+          @assignments = @assignments.page(params[:page] || 1).per(params[:per_page] || 20)
+
+          render json: {
+            status: 'success',
+            data: {
+              academic_year: {
+                id: academic_year.id,
+                name: academic_year.name,
+                status: academic_year.status
+              },
+              teachers: @assignments.map { |assignment| teacher_info(assignment) },
+              meta: pagination_meta(@assignments)
+            }
+          }
+        rescue ActiveRecord::RecordNotFound => e
+          render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
+        rescue StandardError => e
+          render json: { status: 'error', error: e.message }, status: :internal_server_error
+        end
+
+        # GET /admin/v1/schools/:code/academic_years/:academic_year_id/departments/:department/teachers
+        # 獲取指定部門的所有教師
+        # @param code [String] 學校代碼
+        # @param academic_year_id [String] 學年ID
+        # @param department [String] 部門名稱
+        # @return [JSON] 教師列表
+        def department_teachers
+          # 查找指定學年
+          academic_year = @school.school_academic_years.find(params[:academic_year_id])
+
+          # 獲取部門教師列表（帶分頁）
+          # 1. 只獲取指定部門的 AI English 教師
+          # 2. 按職位排序
+          # 3. 預加載關聯數據以提高性能
+          @assignments = academic_year.teacher_assignments
+                                      .includes(:general_user)
+                                      .joins(:general_user)
+                                      .where(department: params[:department])
+                                      .where("general_users.meta->>'aienglish_role' = 'teacher'")
+                                      .order('teacher_assignments.position ASC NULLS LAST')
+
+          # 分頁處理
+          @assignments = @assignments.page(params[:page] || 1).per(params[:per_page] || 20)
+
+          render json: {
+            status: 'success',
+            data: {
+              academic_year: {
+                id: academic_year.id,
+                name: academic_year.name,
+                status: academic_year.status
+              },
+              department: params[:department],
+              teachers: @assignments.map { |assignment| teacher_info(assignment) },
+              meta: pagination_meta(@assignments)
+            }
+          }
+        rescue ActiveRecord::RecordNotFound => e
+          render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
+        rescue StandardError => e
+          render json: { status: 'error', error: e.message }, status: :internal_server_error
+        end
+
         private
 
         # 設置當前學校
@@ -633,6 +717,26 @@ module Api
             class_number: enrollment.class_number,
             created_at: enrollment.created_at,
             updated_at: enrollment.updated_at
+          }
+        end
+
+        # 教師詳細信息
+        # @param assignment [TeacherAssignment] 任教記錄
+        # @return [Hash] 教師信息
+        def teacher_info(assignment)
+          teacher = assignment.general_user
+          {
+            id: teacher.id,
+            email: teacher.email,
+            nickname: teacher.nickname,
+            department: assignment.department,
+            position: assignment.position,
+            status: assignment.status,
+            teaching_subjects: assignment.meta['teaching_subjects'] || [],
+            class_teacher_of: assignment.meta['class_teacher_of'],
+            additional_duties: assignment.meta['additional_duties'] || [],
+            created_at: assignment.created_at,
+            updated_at: assignment.updated_at
           }
         end
       end
