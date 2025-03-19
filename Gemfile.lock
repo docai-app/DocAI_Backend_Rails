@@ -235,6 +235,9 @@ GEM
       actionview (>= 5.0.0)
       activesupport (>= 5.0.0)
     json (2.7.2)
+    json-schema (5.1.1)
+      addressable (~> 2.8)
+      bigdecimal (~> 3.1)
     jwt (2.8.2)
       base64
     kaminari (1.2.2)
@@ -444,6 +447,20 @@ GEM
       ros-apartment (>= 1.0)
       sidekiq (>= 2.11)
     rouge (4.3.0)
+    rspec-core (3.13.3)
+      rspec-support (~> 3.13.0)
+    rspec-support (3.13.2)
+    rswag-api (2.16.0)
+      activesupport (>= 5.2, < 8.1)
+      railties (>= 5.2, < 8.1)
+    rswag-specs (2.16.0)
+      activesupport (>= 5.2, < 8.1)
+      json-schema (>= 2.2, < 6.0)
+      railties (>= 5.2, < 8.1)
+      rspec-core (>= 2.14)
+    rswag-ui (2.16.0)
+      actionpack (>= 5.2, < 8.1)
+      railties (>= 5.2, < 8.1)
     rubocop (1.65.1)
       json (~> 2.3)
       language_server-protocol (>= 3.17.0)
@@ -617,6 +634,9 @@ DEPENDENCIES
   rolify
   ros-apartment
   ros-apartment-sidekiq
+  rswag-api
+  rswag-specs
+  rswag-ui
   rubocop
   ruby-openai
   rubyzip

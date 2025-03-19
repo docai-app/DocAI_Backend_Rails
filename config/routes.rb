@@ -4,6 +4,8 @@
 #
 
 Rails.application.routes.draw do
+  mount Rswag::Api::Engine => '/api-docs'
+  mount Rswag::Ui::Engine => '/api-docs'
   devise_for :super_admins
   require 'sidekiq/web'
   require 'sidekiq-scheduler/web'
