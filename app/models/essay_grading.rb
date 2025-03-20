@@ -390,19 +390,92 @@ class EssayGrading < ApplicationRecord
     payload
   end
 
-  # 在創建時保存提交時的班級信息
-  before_create :store_submission_class_info
+  # 獲取顯示用的學生信息
+  def display_student_info
+    return nil unless general_user
+
+    # 優先使用提交時的信息
+    info = submission_student_info || current_student_info
+    return nil unless info
+
+    {
+      id: general_user.id,
+      name: general_user.name,
+      email: general_user.email,
+      class_name: info[:class_name],
+      class_number: info[:class_number],
+      school_id: info[:school_id],
+      academic_year_id: info[:academic_year_id]
+    }
+  end
 
   private
 
-  def store_submission_class_info
-    enrollment = general_user.student_enrollments.at_date(created_at).first
+  # 獲取提交時的學生信息
+  def submission_student_info
+    return nil unless submission_class_name.present? && submission_class_number.present?
 
-    return unless enrollment
+    {
+      class_name: submission_class_name,
+      class_number: submission_class_number,
+      school_id: submission_school_id,
+      academic_year_id: submission_academic_year_id
+    }
+  end
 
-    self.submission_class_name = enrollment.class_name
-    self.submission_class_number = enrollment.class_number
-    self.submission_school_id = enrollment.school.id
-    self.submission_academic_year_id = enrollment.school_academic_year.id
+  # 獲取當前學生信息
+  def current_student_info
+    return nil unless general_user.current_enrollment
+
+    {
+      class_name: general_user.current_enrollment.class_name,
+      class_number: general_user.current_enrollment.class_number,
+      school_id: general_user.current_enrollment.school_academic_year.school_id,
+      academic_year_id: general_user.current_enrollment.school_academic_year_id
+    }
+  end
+
+  # 確保在創建時保存提交時的學生信息
+  before_create :save_submission_info
+
+  # 保存提交時的學生信息
+  def save_submission_info
+    Rails.logger.info "Saving submission info for essay grading #{id}"
+
+    # 確保 general_user 存在
+    unless general_user
+      Rails.logger.error "No general_user found for essay grading #{id}"
+      return
+    end
+
+    # 獲取當前的入學記錄
+    enrollment = general_user.current_enrollment
+
+    if enrollment
+      # 獲取學校學年信息
+      school_academic_year = enrollment.school_academic_year
+      if school_academic_year
+        # 如果有完整的入學記錄，保存所有信息
+        self.submission_class_name = enrollment.class_name
+        self.submission_class_number = general_user.class_no
+        self.submission_school_id = school_academic_year.school_id
+        self.submission_academic_year_id = school_academic_year.id
+        Rails.logger.info "Saved submission info: class_name=#{submission_class_name}, class_no=#{submission_class_number}"
+      else
+        # 如果沒有學校學年信息，設置空值
+        Rails.logger.info "No school_academic_year found for enrollment #{enrollment.id}, setting null values"
+        self.submission_class_name = general_user.banbie
+        self.submission_class_number = general_user.class_no
+        self.submission_school_id = nil
+        self.submission_academic_year_id = nil
+      end
+    else
+      # 如果沒有入學記錄，設置空值
+      Rails.logger.info "No current enrollment found for user #{general_user.id}, setting null values"
+      self.submission_class_name = general_user.banbie
+      self.submission_class_number = general_user.class_no
+      self.submission_school_id = nil
+      self.submission_academic_year_id = nil
+    end
   end
 end

@@ -31,93 +31,17 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-
-        @essay_gradings = @essay_assignment.essay_gradings
-                                           .joins(:general_user)
-                                           .joins(:essay_assignment)
-                                           .select(
-                                             'essay_gradings.id,
-                                      essay_gradings.general_user_id,
-                                      essay_assignments.category as essay_assignment_category,
-                                      essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id,
-                                      essay_gradings.using_time,
-                                      essay_gradings.created_at,
-                                      essay_gradings.updated_at,
-                                      essay_gradings.status,
-                                      essay_gradings.grading,
-                                      COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion,
-                                      general_users.nickname,
-                                      general_users.banbie,
-                                      general_users.class_no,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'questions_count\', \'null\') AS questions_count,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS score'
-                                           )
-                                           .includes(:general_user).order('created_at asc')
+        @essay_gradings = @essay_assignment.essay_gradings.includes(:general_user)
 
         render json: {
           success: true,
-          essay_assignment: @essay_assignment,
-          essay_gradings: @essay_gradings.sort_by do |eg|
-            eg.class_no.to_i
-          rescue StandardError => e
-            puts "Error converting class_no to integer: #{e.message}"
-            0 # 或者其他默认值
-          end.map do |eg|
-            # 解析 grading JSON
-            grading_json = begin
-              JSON.parse(eg['grading']['data']['text'])
-            rescue StandardError
-              {}
-            end
-
-            if @essay_assignment.sentence_builder?
-              sb_score = eg.calculate_sentence_builder_score
-              the_full_score = sb_score[:full_score]
-              overall_score = sb_score[:score]
-              eg['score'] = overall_score
-            else
-              # 提取每個 criterion 的分數和總分
-              scores = grading_json.each_with_object({}) do |(key, value), result|
-                next unless key.start_with?('Criterion') && value.is_a?(Hash)
-
-                value.each do |criterion_key, criterion_value|
-                  # 排除不需要的键
-                  result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
-                end
-              end
-
-              # 提取 Overall Score
-              overall_score = grading_json['Overall Score']
-              the_full_score = grading_json['Full Score']
-            end
-
-            {
-              id: eg.id,
-              general_user: {
-                id: eg.general_user_id,
-                nickname: eg.nickname,
-                class_name: eg.banbie,
-                class_no: eg.class_no
-              },
-              using_time: eg['using_time'],
-              newsfeed_id: eg['newsfeed_id'],
-              category: eg['essay_assignment_category'],
-              created_at: eg.created_at,
-              updated_at: eg.updated_at,
-              status: eg.status,
-              number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion'],
-              questions_count: eg['questions_count'] == 'null' ? nil : eg['questions_count'],
-              full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
-              score: eg['score'] == 'null' ? nil : eg['score'],
-              scores:,
-              overall_score:,
-              the_full_score:
-            }
+          essay_assignment: @essay_assignment.as_json,
+          essay_gradings: @essay_gradings.map do |grading|
+            grading.as_json.merge(
+              general_user: grading.display_student_info
+            )
           end
-        }, status: :ok
-      rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+        }
       end
 
       def create
@@ -165,6 +89,40 @@ module Api
           success: false,
           error: e.message
         }, status: :internal_server_error
+      end
+
+      def create_essay_grading
+        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
+
+        # 創建新的 essay_grading 並加載必要的關聯
+        @essay_grading = @essay_assignment.essay_gradings.build(
+          general_user_id: current_general_user.id,
+          grading: {
+            sentence_builder: params[:sentence_builder],
+            app_key: @essay_assignment.rubric['app_key']['grading']
+          },
+          general_context: {
+            app_key: @essay_assignment.rubric['app_key']['general_context']
+          },
+          meta: {}
+        )
+
+        # 確保加載關聯數據
+        @essay_grading.general_user = current_general_user
+
+        if @essay_grading.save
+          render json: {
+            success: true,
+            essay_grading: @essay_grading.as_json.merge(
+              general_user: @essay_grading.display_student_info
+            )
+          }, status: :created
+        else
+          render json: {
+            success: false,
+            errors: @essay_grading.errors.full_messages
+          }, status: :unprocessable_entity
+        end
       end
 
       private
