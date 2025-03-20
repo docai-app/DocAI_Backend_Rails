@@ -41,7 +41,6 @@ class EssayGrading < ApplicationRecord
   # 關聯
   belongs_to :general_user
   belongs_to :essay_assignment, counter_cache: :number_of_submission, optional: true
-  belongs_to :student_snapshot
   belongs_to :submission_school, class_name: 'School', optional: true
   belongs_to :submission_academic_year, class_name: 'SchoolAcademicYear', optional: true
   delegate :category, to: :essay_assignment
