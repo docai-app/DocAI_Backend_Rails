@@ -28,7 +28,7 @@
 #
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
-  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples
+  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples, :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
 

@@ -207,6 +207,8 @@ module Api
           ],
           meta: [
             :newsfeed_id,
+            :speaking_pronunciation_pass_score,
+            { speaking_pronunciation_sentences: [:sentence] },
             { self_upload_newsfeed: {}, vocabs: [:word, :pos, :definition, { array: true }] }
           ]
         )
