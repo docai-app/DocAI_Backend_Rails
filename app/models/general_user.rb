@@ -225,30 +225,6 @@ class GeneralUser < ApplicationRecord
     meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
   end
 
-  # AI English features getter, setter and validator section (aienglish_role, aienglish_features_list, aienglish_user?)
-  def aienglish_role
-    meta['aienglish_role']
-  end
-
-  def aienglish_role=(value)
-    meta['aienglish_role'] = value
-    save
-  end
-
-  def aienglish_features_list
-    meta['aienglish_features_list'] || []
-  end
-
-  def aienglish_features_list=(features)
-    meta['aienglish_features_list'] = features
-    save
-  end
-
-  # 確認是否具備AI English功能
-  def aienglish_user?
-    meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
-  end
-
   # 獲取指定日期的班級信息
   def enrollment_at(date)
     student_enrollments.at_date(date).first
@@ -271,10 +247,83 @@ class GeneralUser < ApplicationRecord
   end
 
   # 判斷是否為特定學校的教師
-  def teacher_at?(school)
-    teacher_assignments.joins(:school_academic_year)
-                       .where(school_academic_years: { school_id: school.id })
-                       .exists?
+  # @param school [School] 要檢查的學校
+  # @param date [Date, nil] 可選的日期參數，用於檢查特定日期的教師狀態
+  # @return [Boolean] 是否為該學校的教師
+  def teacher_at?(school, date = nil)
+    # 基本參數驗證
+    return false unless school.is_a?(School)
+
+    # 構建基礎查詢
+    query = teacher_assignments
+            .joins(:school_academic_year)
+            .where(school_academic_years: { school_id: school.id })
+
+    # 如果提供了日期，使用該日期進行過濾
+    if date.present?
+      query = query.where('school_academic_years.start_date <= ? AND school_academic_years.end_date >= ?', date, date)
+    end
+
+    # 只檢查有效的學年
+    query = query.where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
+
+    # 只檢查在職的教師
+    query = query.where(status: TeacherAssignment.statuses[:active])
+
+    # 執行查詢並返回結果
+    query.exists?
+  end
+
+  # 獲取在特定學校的教師職位信息
+  # @param school [School] 要查詢的學校
+  # @param date [Date, nil] 可選的日期參數
+  # @return [Array<Hash>] 教師職位信息列表
+  def teaching_positions_at(school, date = nil)
+    return [] unless teacher_at?(school, date)
+
+    query = teacher_assignments
+            .joins(:school_academic_year)
+            .where(school_academic_years: { school_id: school.id })
+            .where(status: TeacherAssignment.statuses[:active])
+
+    if date.present?
+      query = query.where('school_academic_years.start_date <= ? AND school_academic_years.end_date >= ?', date, date)
+    end
+
+    query.map do |assignment|
+      {
+        department: assignment.department,
+        position: assignment.position,
+        teaching_subjects: assignment.meta['teaching_subjects'] || [],
+        class_teacher_of: assignment.meta['class_teacher_of'],
+        additional_duties: assignment.meta['additional_duties'] || [],
+        start_date: assignment.school_academic_year.start_date,
+        end_date: assignment.school_academic_year.end_date
+      }
+    end
+  end
+
+  # 檢查是否為特定學校特定部門的教師
+  # @param school [School] 要檢查的學校
+  # @param department [String] 部門名稱
+  # @param date [Date, nil] 可選的日期參數
+  # @return [Boolean] 是否為該部門的教師
+  def teacher_in_department?(school, department, date = nil)
+    return false unless teacher_at?(school, date)
+
+    query = teacher_assignments
+            .joins(:school_academic_year)
+            .where(school_academic_years: { school_id: school.id })
+            .where(department:)
+            .where(status: TeacherAssignment.statuses[:active])
+
+    if date.present?
+      query = query.where('school_academic_years.start_date <= ? AND school_academic_years.end_date >= ?', date, date)
+    end
+
+    query.exists?
+  end
+
   def set_konnecai_tokens_all_same(web_token)
     # 定義 category 的鍵
     categories = %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]

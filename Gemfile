@@ -130,5 +130,5 @@ gem 'trestle-search'
 gem 'opencc-rb'
 
 gem 'rswag-api'
-gem 'rswag-ui'
 gem 'rswag-specs'
+gem 'rswag-ui'
