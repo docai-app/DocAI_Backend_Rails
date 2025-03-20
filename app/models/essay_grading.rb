@@ -256,16 +256,40 @@ class EssayGrading < ApplicationRecord
     # 准备简化后的请求数据
     payload = {
       record: {
+        Id: id,
         User: general_user.nickname,
         Class: general_user.banbie,
         Number: general_user.class_no,
         "Submitted Time": created_at,
         "Time Taken(s)": using_time,
-        "Full Score": grading.dig('comprehension', 'full_score'),
-        Score: grading.dig('comprehension', 'score'),
-        Status: status
+        Status: status,
+        Category: category
       }
     }
+
+    if category == 'comprehension'
+      payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
+      payload[:record][:Score] = grading.dig('comprehension', 'score')
+    elsif category == 'sentence_builder'
+      payload[:record]["Full Score"] = grading['full_score']
+      payload[:record][:Score] = grading['score']
+    else
+      grading_data = JSON.parse(grading['data']['text'])
+      payload[:record][:Score] = grading_data["Overall Score"]
+      payload[:record]["Full Score"] = grading_data["Full Score"]
+      payload[:record][:Rubric] = essay_assignment.rubric["name"]
+      grading_data.each do |key, value|
+        next unless key.start_with?('Criterion')
+    
+        # 遍歷 value，排除 'Full Score' 和 'explanation'
+        value.each do |criterion_name, criterion_value|
+          next if ['Full Score', 'explanation'].include?(criterion_name)
+    
+          # 將符合條件的 criterion_name 和 criterion_value 加入到 payload[:record] 中
+          payload[:record][criterion_name] = criterion_value
+        end
+      end
+    end
 
     # 使用 RestClient 发送 POST 请求到 webhook
     begin
@@ -273,7 +297,7 @@ class EssayGrading < ApplicationRecord
                                  { 'X-Webhook-Token': token, content_type: :json, accept: :json })
 
       # 检查响应
-      Rails.logger.error("Webhook call failed: #{response.body}") unless response.code == 200
+      Rails.logger.error("Webhook call failed: #{response.body}") unless response.code == 201
     rescue RestClient::ExceptionWithResponse => e
       Rails.logger.error("Webhook call failed: #{e.response}")
     rescue StandardError => e
@@ -341,6 +365,31 @@ class EssayGrading < ApplicationRecord
   #     JSON.parse(self['meta']['transformed_newsfeed'])
   #   end
   # end
+
+  def build_payload
+    payload = {
+      record: {
+        Id: id,
+        User: general_user.nickname,
+        Class: general_user.banbie,
+        Number: general_user.class_no,
+        "Submitted Time": created_at,
+        "Time Taken(s)": using_time,
+        Status: status
+      }
+    }
+
+    if category == 'comprehension'
+      payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
+      payload[:record][:Score] = grading.dig('comprehension', 'score')
+    else
+      grading_data = JSON.parse(grading['data']['text'])
+      payload[:record]["Overall Score"] = grading_data["Overall Score"]
+      payload[:record]["Full Score"] = grading_data["Full Score"]
+    end
+
+    payload
+  end
 
   # 在創建時保存提交時的班級信息
   before_create :store_submission_class_info

@@ -275,6 +275,17 @@ class GeneralUser < ApplicationRecord
     teacher_assignments.joins(:school_academic_year)
                        .where(school_academic_years: { school_id: school.id })
                        .exists?
+  def set_konnecai_tokens_all_same(web_token)
+    # 定義 category 的鍵
+    categories = %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
+
+    # 遍歷 categories 的每個鍵，將其值設置為 web_token
+    categories.each do |category|
+      konnecai_tokens[category] = web_token
+    end
+
+    # 保存更改
+    save
   end
 
   private

@@ -30,7 +30,7 @@ class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples
 
-  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
 
   before_create :generate_unique_code
   after_save :check_and_generate_vocab_examples
