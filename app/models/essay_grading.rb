@@ -391,27 +391,38 @@ class EssayGrading < ApplicationRecord
   end
 
   # 獲取顯示用的學生信息
+  # @return [Hash, nil] 包含用戶信息的哈希，如果無法獲取則返回 nil
   def display_student_info
     return nil unless general_user
 
     # 優先使用提交時的信息
     info = submission_student_info || current_student_info
-    return nil unless info
 
-    {
+    # 構建基本用戶信息
+    user_info = {
       id: general_user.id,
-      name: general_user.name,
+      nickname: general_user.nickname,
       email: general_user.email,
-      class_name: info[:class_name],
-      class_number: info[:class_number],
-      school_id: info[:school_id],
-      academic_year_id: info[:academic_year_id]
+      meta: general_user.meta
     }
+
+    # 如果有班級信息，添加到用戶信息中
+    if info
+      user_info.merge!(
+        class_name: info[:class_name],
+        class_number: info[:class_number],
+        school_id: info[:school_id],
+        academic_year_id: info[:academic_year_id]
+      )
+    end
+
+    user_info
   end
 
   private
 
   # 獲取提交時的學生信息
+  # @return [Hash, nil] 包含提交時學生信息的哈希，如果無法獲取則返回 nil
   def submission_student_info
     return nil unless submission_class_name.present? && submission_class_number.present?
 
@@ -424,6 +435,7 @@ class EssayGrading < ApplicationRecord
   end
 
   # 獲取當前學生信息
+  # @return [Hash, nil] 包含當前學生信息的哈希，如果無法獲取則返回 nil
   def current_student_info
     return nil unless general_user.current_enrollment
 
@@ -439,6 +451,7 @@ class EssayGrading < ApplicationRecord
   before_create :save_submission_info
 
   # 保存提交時的學生信息
+  # 如果用戶是教師或沒有入學記錄，使用 banbie 和 class_no 作為備用信息
   def save_submission_info
     Rails.logger.info "Saving submission info for essay grading #{id}"
 
@@ -462,16 +475,16 @@ class EssayGrading < ApplicationRecord
         self.submission_academic_year_id = school_academic_year.id
         Rails.logger.info "Saved submission info: class_name=#{submission_class_name}, class_no=#{submission_class_number}"
       else
-        # 如果沒有學校學年信息，設置空值
-        Rails.logger.info "No school_academic_year found for enrollment #{enrollment.id}, setting null values"
+        # 如果沒有學校學年信息，使用備用信息
+        Rails.logger.info "No school_academic_year found for enrollment #{enrollment.id}, using fallback info"
         self.submission_class_name = general_user.banbie
         self.submission_class_number = general_user.class_no
         self.submission_school_id = nil
         self.submission_academic_year_id = nil
       end
     else
-      # 如果沒有入學記錄，設置空值
-      Rails.logger.info "No current enrollment found for user #{general_user.id}, setting null values"
+      # 如果沒有入學記錄，使用備用信息
+      Rails.logger.info "No current enrollment found for user #{general_user.id}, using fallback info"
       self.submission_class_name = general_user.banbie
       self.submission_class_number = general_user.class_no
       self.submission_school_id = nil
