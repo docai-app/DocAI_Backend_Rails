@@ -133,4 +133,5 @@ gem 'rswag-api'
 gem 'rswag-specs'
 gem 'rswag-ui'
 
-gem 'image_processing'
+gem 'image_processing', '~> 1.2'
+gem 'mini_magick', '~> 4.10'

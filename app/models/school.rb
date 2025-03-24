@@ -68,10 +68,17 @@ class School < ApplicationRecord
   def logo_thumbnail_url
     return nil unless logo.attached?
 
-    if logo.variable?
-      logo.variant(resize_to_limit: [200, 200]).processed.url
+    if Rails.env.development? || Rails.env.test?
+      # 開發和測試環境直接返回原始 URL
+      logo.url
     else
-      logo_url
+      # 生產環境使用變體
+      begin
+        logo.variant(resize_to_limit: [200, 200])&.processed&.url
+      rescue StandardError => e
+        Rails.logger.error("處理 logo 縮圖錯誤: #{e.message}")
+        logo.url
+      end
     end
   end
 
@@ -79,10 +86,15 @@ class School < ApplicationRecord
   def logo_small_url
     return nil unless logo.attached?
 
-    if logo.variable?
-      logo.variant(resize_to_limit: [100, 100]).processed.url
+    if Rails.env.development? || Rails.env.test?
+      logo.url
     else
-      logo_url
+      begin
+        logo.variant(resize_to_limit: [100, 100])&.processed&.url
+      rescue StandardError => e
+        Rails.logger.error("處理 logo 小圖錯誤: #{e.message}")
+        logo.url
+      end
     end
   end
 
@@ -90,10 +102,15 @@ class School < ApplicationRecord
   def logo_large_url
     return nil unless logo.attached?
 
-    if logo.variable?
-      logo.variant(resize_to_limit: [500, 500]).processed.url
+    if Rails.env.development? || Rails.env.test?
+      logo.url
     else
-      logo_url
+      begin
+        logo.variant(resize_to_limit: [500, 500])&.processed&.url
+      rescue StandardError => e
+        Rails.logger.error("處理 logo 大圖錯誤: #{e.message}")
+        logo.url
+      end
     end
   end
 
@@ -101,10 +118,15 @@ class School < ApplicationRecord
   def logo_square_url
     return nil unless logo.attached?
 
-    if logo.variable?
-      logo.variant(resize_to_fill: [300, 300]).processed.url
+    if Rails.env.development? || Rails.env.test?
+      logo.url
     else
-      logo_url
+      begin
+        logo.variant(resize_to_fill: [300, 300])&.processed&.url
+      rescue StandardError => e
+        Rails.logger.error("處理 logo 方圖錯誤: #{e.message}")
+        logo.url
+      end
     end
   end
 
