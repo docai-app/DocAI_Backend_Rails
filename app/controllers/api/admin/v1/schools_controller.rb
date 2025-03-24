@@ -461,7 +461,7 @@ module Api
               meta: pagination_meta(@enrollments)
             }
           }
-        rescue ActiveRecord::RecordNotFound => e
+        rescue ActiveRecord::RecordNotFound
           render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
         rescue StandardError => e
           render json: { status: 'error', error: e.message }, status: :internal_server_error
@@ -504,7 +504,7 @@ module Api
               meta: pagination_meta(@enrollments)
             }
           }
-        rescue ActiveRecord::RecordNotFound => e
+        rescue ActiveRecord::RecordNotFound
           render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
         rescue StandardError => e
           render json: { status: 'error', error: e.message }, status: :internal_server_error
@@ -544,7 +544,7 @@ module Api
               meta: pagination_meta(@assignments)
             }
           }
-        rescue ActiveRecord::RecordNotFound => e
+        rescue ActiveRecord::RecordNotFound
           render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
         rescue StandardError => e
           render json: { status: 'error', error: e.message }, status: :internal_server_error
@@ -587,7 +587,7 @@ module Api
               meta: pagination_meta(@assignments)
             }
           }
-        rescue ActiveRecord::RecordNotFound => e
+        rescue ActiveRecord::RecordNotFound
           render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
         rescue StandardError => e
           render json: { status: 'error', error: e.message }, status: :internal_server_error

@@ -395,9 +395,6 @@ class EssayGrading < ApplicationRecord
   def display_student_info
     return nil unless general_user
 
-    # 優先使用提交時的信息
-    info = submission_student_info || current_student_info
-
     # 構建基本用戶信息
     user_info = {
       id: general_user.id,
@@ -406,13 +403,20 @@ class EssayGrading < ApplicationRecord
       meta: general_user.meta
     }
 
-    # 如果有班級信息，添加到用戶信息中
-    if info
+    # 檢查是否有新的 submission 信息
+    if submission_class_name.present? && submission_class_number.present?
+      # 使用新的 submission 信息
       user_info.merge!(
-        class_name: info[:class_name],
-        class_number: info[:class_number],
-        school_id: info[:school_id],
-        academic_year_id: info[:academic_year_id]
+        class_name: submission_class_name,
+        class_number: submission_class_number,
+        school_id: submission_school_id,
+        academic_year_id: submission_academic_year_id
+      )
+    else
+      # 向後兼容：使用用戶的備用信息
+      user_info.merge!(
+        class_name: general_user.banbie,
+        class_number: general_user.class_no
       )
     end
 
