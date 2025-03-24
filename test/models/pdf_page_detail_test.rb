@@ -18,12 +18,10 @@
 # Indexes
 #
 #  index_pdf_page_details_on_document_id  (document_id)
-#  index_pdf_page_details_on_document_id  (document_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (document_id => documents.id)
-#  fk_rails_...  (document_id => public.documents.id)
 #
 require 'test_helper'
 

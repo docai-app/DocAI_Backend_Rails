@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 namespace :manage_general_users do
   desc 'Find GeneralUsers by email keywords and update their AI English features'
   task update_aienglish_features_by_email_keywords: :environment do

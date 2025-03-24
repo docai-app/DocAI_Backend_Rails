@@ -33,6 +33,7 @@ module DocaiApi
     config.active_record.default_timezone = :local
     # config.eager_load_paths << Rails.root.join("extras")
     config.autoload_paths << Rails.root.join('lib')
+    config.autoload_paths += %W[#{config.root}/app/constants]
 
     config.eager_load = true
     config.autoloader = :classic
@@ -48,5 +49,11 @@ module DocaiApi
     config.hosts << 'docai.m2mda.com'
 
     config.action_cable.mount_path = '/cable'
+
+    # 使用 vips（如果已安裝）
+    config.active_storage.variant_processor = :vips
+
+    # 或使用 mini_magick（如果 vips 無法安裝）
+    # config.active_storage.variant_processor = :mini_magick
   end
 end

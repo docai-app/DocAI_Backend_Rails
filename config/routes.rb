@@ -4,6 +4,8 @@
 #
 
 Rails.application.routes.draw do
+  mount Rswag::Api::Engine => '/api-docs'
+  mount Rswag::Ui::Engine => '/api-docs'
   devise_for :super_admins
   require 'sidekiq/web'
   require 'sidekiq-scheduler/web'
@@ -397,6 +399,29 @@ Rails.application.routes.draw do
             put 'aienglish/batch/update', to: 'general_users#batch_update_aienglish_user'
           end
         end
+        resources :schools, param: :code do
+          member do
+            post :assign_students
+            post :assign_teachers
+            get :student_stats
+            get :teacher_stats
+            get 'academic_years/:academic_year_id/students', to: 'schools#academic_year_students'
+            get 'academic_years/:academic_year_id/classes/:class_name/students', to: 'schools#class_students'
+            get 'academic_years/:academic_year_id/teachers', to: 'schools#academic_year_teachers'
+            get 'academic_years/:academic_year_id/departments/:department/teachers', to: 'schools#department_teachers'
+            get 'multi_year_students', to: 'schools#multi_year_students'
+            put :logo, to: 'school_logos#update'
+            delete :logo, to: 'school_logos#destroy'
+          end
+
+          collection do
+            post :import_from_csv
+            post :bulk_assign_students
+            post :bulk_assign_teachers
+          end
+        end
+        # 學年管理
+        resources :school_academic_years, only: %i[show create update destroy]
       end
     end
 

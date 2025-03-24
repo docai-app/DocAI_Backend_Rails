@@ -23,7 +23,6 @@
 # Indexes
 #
 #  index_form_schemas_on_name  (name)
-#  index_form_schemas_on_name  (name)
 #
 class FormSchema < ApplicationRecord
   has_many :form_datum, class_name: 'FormDatum'

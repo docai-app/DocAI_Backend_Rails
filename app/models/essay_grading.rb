@@ -4,20 +4,24 @@
 #
 # Table name: public.essay_gradings
 #
-#  id                  :uuid             not null, primary key
-#  essay               :text
-#  topic               :string
-#  status              :integer          default("pending"), not null
-#  grading             :jsonb            not null
-#  general_user_id     :uuid             not null
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
-#  essay_assignment_id :uuid
-#  general_context     :jsonb            not null
-#  using_time          :integer          default(0), not null
-#  meta                :jsonb            not null
-#  score               :decimal(, )
-#  sentence_builder    :jsonb
+#  id                          :uuid             not null, primary key
+#  essay                       :text
+#  topic                       :string
+#  status                      :integer          default("pending"), not null
+#  grading                     :jsonb            not null
+#  general_user_id             :uuid             not null
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  essay_assignment_id         :uuid
+#  general_context             :jsonb            not null
+#  using_time                  :integer          default(0), not null
+#  meta                        :jsonb            not null
+#  score                       :decimal(, )
+#  sentence_builder            :jsonb
+#  submission_class_name       :string
+#  submission_class_number     :string
+#  submission_school_id        :uuid
+#  submission_academic_year_id :uuid
 #
 # Indexes
 #
@@ -25,8 +29,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (essay_assignment_id => public.essay_assignments.id)
-#  fk_rails_...  (general_user_id => public.general_users.id)
+#  fk_rails_...  (essay_assignment_id => essay_assignments.id)
+#  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder, :speaking_pronunciation_sentences
@@ -36,8 +40,9 @@ class EssayGrading < ApplicationRecord
 
   # 關聯
   belongs_to :general_user
-  # belongs_to :essay_assignment, optional: true
   belongs_to :essay_assignment, counter_cache: :number_of_submission, optional: true
+  belongs_to :submission_school, class_name: 'School', optional: true
+  belongs_to :submission_academic_year, class_name: 'SchoolAcademicYear', optional: true
   delegate :category, to: :essay_assignment
 
   # 狀態枚舉
@@ -262,23 +267,23 @@ class EssayGrading < ApplicationRecord
     }
 
     if category == 'comprehension'
-      payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
+      payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
     elsif category == 'sentence_builder'
-      payload[:record]["Full Score"] = grading['full_score']
+      payload[:record]['Full Score'] = grading['full_score']
       payload[:record][:Score] = grading['score']
     else
       grading_data = JSON.parse(grading['data']['text'])
-      payload[:record][:Score] = grading_data["Overall Score"]
-      payload[:record]["Full Score"] = grading_data["Full Score"]
-      payload[:record][:Rubric] = essay_assignment.rubric["name"]
+      payload[:record][:Score] = grading_data['Overall Score']
+      payload[:record]['Full Score'] = grading_data['Full Score']
+      payload[:record][:Rubric] = essay_assignment.rubric['name']
       grading_data.each do |key, value|
         next unless key.start_with?('Criterion')
-    
+
         # 遍歷 value，排除 'Full Score' 和 'explanation'
         value.each do |criterion_name, criterion_value|
           next if ['Full Score', 'explanation'].include?(criterion_name)
-    
+
           # 將符合條件的 criterion_name 和 criterion_value 加入到 payload[:record] 中
           payload[:record][criterion_name] = criterion_value
         end
@@ -302,7 +307,7 @@ class EssayGrading < ApplicationRecord
   def test_sentence_builder_example
     ea = essay_assignment
     sbe = SentenceBuilderExampleService.new(ea.general_user_id, ea)
-    examples = sbe.generate_examples
+    sbe.generate_examples
   end
 
   def sentence_builder_for_dify
@@ -374,14 +379,120 @@ class EssayGrading < ApplicationRecord
     }
 
     if category == 'comprehension'
-      payload[:record]["Full Score"] = grading.dig('comprehension', 'full_score')
+      payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
     else
       grading_data = JSON.parse(grading['data']['text'])
-      payload[:record]["Overall Score"] = grading_data["Overall Score"]
-      payload[:record]["Full Score"] = grading_data["Full Score"]
+      payload[:record]['Overall Score'] = grading_data['Overall Score']
+      payload[:record]['Full Score'] = grading_data['Full Score']
     end
 
     payload
+  end
+
+  # 獲取顯示用的學生信息
+  # @return [Hash, nil] 包含用戶信息的哈希，如果無法獲取則返回 nil
+  def display_student_info
+    return nil unless general_user
+
+    # 構建基本用戶信息
+    user_info = {
+      id: general_user.id,
+      nickname: general_user.nickname,
+      email: general_user.email,
+      meta: general_user.meta
+    }
+
+    # 檢查是否有新的 submission 信息
+    if submission_class_name.present? && submission_class_number.present?
+      # 使用新的 submission 信息
+      user_info.merge!(
+        class_name: submission_class_name,
+        class_number: submission_class_number,
+        school_id: submission_school_id,
+        academic_year_id: submission_academic_year_id
+      )
+    else
+      # 向後兼容：使用用戶的備用信息
+      user_info.merge!(
+        class_name: general_user.banbie,
+        class_number: general_user.class_no
+      )
+    end
+
+    user_info
+  end
+
+  private
+
+  # 獲取提交時的學生信息
+  # @return [Hash, nil] 包含提交時學生信息的哈希，如果無法獲取則返回 nil
+  def submission_student_info
+    return nil unless submission_class_name.present? && submission_class_number.present?
+
+    {
+      class_name: submission_class_name,
+      class_number: submission_class_number,
+      school_id: submission_school_id,
+      academic_year_id: submission_academic_year_id
+    }
+  end
+
+  # 獲取當前學生信息
+  # @return [Hash, nil] 包含當前學生信息的哈希，如果無法獲取則返回 nil
+  def current_student_info
+    return nil unless general_user.current_enrollment
+
+    {
+      class_name: general_user.current_enrollment.class_name,
+      class_number: general_user.current_enrollment.class_number,
+      school_id: general_user.current_enrollment.school_academic_year.school_id,
+      academic_year_id: general_user.current_enrollment.school_academic_year_id
+    }
+  end
+
+  # 確保在創建時保存提交時的學生信息
+  before_create :save_submission_info
+
+  # 保存提交時的學生信息
+  # 如果用戶是教師或沒有入學記錄，使用 banbie 和 class_no 作為備用信息
+  def save_submission_info
+    Rails.logger.info "Saving submission info for essay grading #{id}"
+
+    # 確保 general_user 存在
+    unless general_user
+      Rails.logger.error "No general_user found for essay grading #{id}"
+      return
+    end
+
+    # 獲取當前的入學記錄
+    enrollment = general_user.current_enrollment
+
+    if enrollment
+      # 獲取學校學年信息
+      school_academic_year = enrollment.school_academic_year
+      if school_academic_year
+        # 如果有完整的入學記錄，保存所有信息
+        self.submission_class_name = enrollment.class_name
+        self.submission_class_number = general_user.class_no
+        self.submission_school_id = school_academic_year.school_id
+        self.submission_academic_year_id = school_academic_year.id
+        Rails.logger.info "Saved submission info: class_name=#{submission_class_name}, class_no=#{submission_class_number}"
+      else
+        # 如果沒有學校學年信息，使用備用信息
+        Rails.logger.info "No school_academic_year found for enrollment #{enrollment.id}, using fallback info"
+        self.submission_class_name = general_user.banbie
+        self.submission_class_number = general_user.class_no
+        self.submission_school_id = nil
+        self.submission_academic_year_id = nil
+      end
+    else
+      # 如果沒有入學記錄，使用備用信息
+      Rails.logger.info "No current enrollment found for user #{general_user.id}, using fallback info"
+      self.submission_class_name = general_user.banbie
+      self.submission_class_number = general_user.class_no
+      self.submission_school_id = nil
+      self.submission_academic_year_id = nil
+    end
   end
 end

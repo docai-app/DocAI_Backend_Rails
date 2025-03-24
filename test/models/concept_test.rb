@@ -16,7 +16,6 @@
 # Indexes
 #
 #  index_concepts_on_root_node  (root_node)
-#  index_concepts_on_root_node  (root_node)
 #
 require 'test_helper'
 

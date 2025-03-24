@@ -20,7 +20,7 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (link_set_id => public.link_sets.id)
+#  fk_rails_...  (link_set_id => link_sets.id)
 #
 class Link < ApplicationRecord
   store_accessor :meta, :is_required_time_limit, :time_limit

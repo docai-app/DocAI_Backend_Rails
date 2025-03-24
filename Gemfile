@@ -128,3 +128,10 @@ gem 'trestle-jsoneditor'
 gem 'trestle-search'
 
 gem 'opencc-rb'
+
+gem 'rswag-api'
+gem 'rswag-specs'
+gem 'rswag-ui'
+
+gem 'image_processing', '~> 1.2'
+gem 'mini_magick', '~> 4.10'

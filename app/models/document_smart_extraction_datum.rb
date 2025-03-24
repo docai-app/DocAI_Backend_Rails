@@ -18,7 +18,6 @@
 # Indexes
 #
 #  index_smart_extraction_data_on_smart_extraction_schema_id  (smart_extraction_schema_id)
-#  index_smart_extraction_data_on_smart_extraction_schema_id  (smart_extraction_schema_id)
 #
 class DocumentSmartExtractionDatum < ApplicationRecord
   belongs_to :document, class_name: 'Document', foreign_key: 'document_id'

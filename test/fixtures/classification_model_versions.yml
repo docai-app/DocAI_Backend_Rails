@@ -14,8 +14,6 @@
 # Indexes
 #
 #  index_classification_model_versions_on_entity_name          (entity_name)
-#  index_classification_model_versions_on_entity_name          (entity_name)
-#  index_classification_model_versions_on_pervious_version_id  (pervious_version_id)
 #  index_classification_model_versions_on_pervious_version_id  (pervious_version_id)
 #
 

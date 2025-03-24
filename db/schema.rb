@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -10,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_250_115_080_530) do
+ActiveRecord::Schema[7.0].define(version: 20_250_304_084_458) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'pgcrypto'
   enable_extension 'plpgsql'
@@ -349,6 +351,10 @@ ActiveRecord::Schema[7.0].define(version: 20_250_115_080_530) do
     t.jsonb 'meta', default: {}, null: false
     t.decimal 'score'
     t.jsonb 'sentence_builder'
+    t.string 'submission_class_name'
+    t.string 'submission_class_number'
+    t.uuid 'submission_school_id'
+    t.uuid 'submission_academic_year_id'
     t.index ['essay_assignment_id'], name: 'index_essay_gradings_on_essay_assignment_id'
   end
 
@@ -743,6 +749,33 @@ ActiveRecord::Schema[7.0].define(version: 20_250_115_080_530) do
     t.index %w[user_type user_id], name: 'index_scheduled_tasks_on_user'
   end
 
+  create_table 'school_academic_years', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'school_id', null: false
+    t.string 'name', null: false
+    t.date 'start_date', null: false
+    t.date 'end_date', null: false
+    t.integer 'status', default: 0
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['school_id'], name: 'index_school_academic_years_on_school_id'
+  end
+
+  create_table 'schools', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.string 'name', null: false
+    t.string 'code', null: false
+    t.integer 'status', default: 0
+    t.string 'address'
+    t.string 'contact_email'
+    t.string 'contact_phone'
+    t.string 'timezone'
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['code'], name: 'index_schools_on_code', unique: true
+    t.index ['name'], name: 'index_schools_on_name', unique: true
+  end
+
   create_table 'smart_extraction_schemas', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
     t.string 'name', null: false
     t.string 'description'
@@ -793,6 +826,19 @@ ActiveRecord::Schema[7.0].define(version: 20_250_115_080_530) do
     t.datetime 'created_at', null: false
     t.datetime 'updated_at', null: false
     t.index ['user_id'], name: 'index_storyboards_on_user_id'
+  end
+
+  create_table 'student_enrollments', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'general_user_id', null: false
+    t.uuid 'school_academic_year_id', null: false
+    t.string 'class_name'
+    t.string 'class_number'
+    t.integer 'status'
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['general_user_id'], name: 'index_student_enrollments_on_general_user_id'
+    t.index ['school_academic_year_id'], name: 'index_student_enrollments_on_school_academic_year_id'
   end
 
   create_table 'super_admins', force: :cascade do |t|
@@ -851,6 +897,19 @@ ActiveRecord::Schema[7.0].define(version: 20_250_115_080_530) do
     t.jsonb 'meta', default: {}
     t.integer 'smart_extraction_schemas_count', default: 0
     t.index ['name'], name: 'index_tags_on_name', unique: true
+  end
+
+  create_table 'teacher_assignments', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
+    t.uuid 'general_user_id', null: false
+    t.uuid 'school_academic_year_id', null: false
+    t.string 'department'
+    t.string 'position'
+    t.integer 'status'
+    t.jsonb 'meta', default: {}, null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['general_user_id'], name: 'index_teacher_assignments_on_general_user_id'
+    t.index ['school_academic_year_id'], name: 'index_teacher_assignments_on_school_academic_year_id'
   end
 
   create_table 'user_mailboxes', id: :uuid, default: -> { 'gen_random_uuid()' }, force: :cascade do |t|
@@ -956,11 +1015,16 @@ ActiveRecord::Schema[7.0].define(version: 20_250_115_080_530) do
   add_foreign_key 'projects', 'folders'
   add_foreign_key 'projects', 'users'
   add_foreign_key 'purchases', 'marketplace_items'
+  add_foreign_key 'school_academic_years', 'schools'
   add_foreign_key 'storyboard_item_associations', 'storyboard_items'
   add_foreign_key 'storyboard_item_associations', 'storyboards'
   add_foreign_key 'storyboard_items', 'users'
   add_foreign_key 'storyboards', 'users'
+  add_foreign_key 'student_enrollments', 'general_users'
+  add_foreign_key 'student_enrollments', 'school_academic_years'
   add_foreign_key 'taggings', 'tags'
+  add_foreign_key 'teacher_assignments', 'general_users'
+  add_foreign_key 'teacher_assignments', 'school_academic_years'
   add_foreign_key 'user_mailboxes', 'documents'
   add_foreign_key 'user_mailboxes', 'users'
   add_foreign_key 'user_marketplace_items', 'marketplace_items'

@@ -11,7 +11,6 @@
 # Indexes
 #
 #  index_jwt_denylist_on_jti  (jti)
-#  index_jwt_denylist_on_jti  (jti)
 #
 class JwtDenylist < ApplicationRecord
   include Devise::JWT::RevocationStrategies::Denylist
