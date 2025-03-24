@@ -34,6 +34,7 @@ class EssayAssignment < ApplicationRecord
 
   before_create :generate_unique_code
   after_save :check_and_generate_vocab_examples
+  after_save :check_and_post_speaking_pronunciation_sentences
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
@@ -76,5 +77,45 @@ class EssayAssignment < ApplicationRecord
 
     puts 'running gen examples sidekiq job'
     SentenceBuilderExampleJob.perform_async(id)
+  end
+
+  def check_and_post_speaking_pronunciation_sentences
+    # 只針對 speaking_pronunciation 類型處理
+    return unless category == 'speaking_pronunciation'
+    # 先確認 meta 有否異動
+    return unless saved_change_to_meta?
+
+    # 取得 meta 中 speaking_pronunciation_sentences 的前後值
+    meta_previous, meta_current = saved_change_to_meta
+    previous_sentences = meta_previous.is_a?(Hash) ? meta_previous['speaking_pronunciation_sentences'] : nil
+    current_sentences = meta_current.is_a?(Hash) ? meta_current['speaking_pronunciation_sentences'] : nil
+
+    # 檢查 speaking_pronunciation_sentences 是否有改變
+    return unless previous_sentences != current_sentences
+
+    # 確保 speaking_pronunciation_sentences 格式正確
+    return unless current_sentences.is_a?(Array) && current_sentences.all? { |item| item.is_a?(Hash) && item['sentence'].present? }
+
+    # 遍歷每個 sentence 並調用 API
+    current_sentences.each do |sentence_obj|
+      sentence = sentence_obj['sentence']
+      response = Net::HTTP.post(
+        URI('https://pronunciation.m2mda.com/pinyin'),
+        { language: 'en', sentence: sentence }.to_json,
+        "Content-Type" => "application/json"
+      )
+
+      if response.is_a?(Net::HTTPSuccess)
+        result = JSON.parse(response.body)
+        puts "API Response: #{result}"
+        # 更新 sentence_obj 中的字段
+        sentence_obj.merge!(result)
+      else
+        puts "Failed to fetch pronunciation for sentence: #{sentence}"
+      end
+    end
+
+    # 保存更新后的 meta
+    update(meta: meta.merge('speaking_pronunciation_sentences' => current_sentences))
   end
 end
