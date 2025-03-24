@@ -13,7 +13,7 @@ module Schools
                   :timezone, :region,
                   :school_type, :curriculum_type,
                   :academic_system,
-                  :custom_settings
+                  :custom_settings, :logo
 
     validates :name, presence: true
     validate :validate_region, if: -> { region.present? }
@@ -36,6 +36,7 @@ module Schools
 
       ActiveRecord::Base.transaction do
         update_school
+        attach_logo if logo.present?
         true
       rescue StandardError => e
         errors.add(:base, e.message)
@@ -45,6 +46,13 @@ module Schools
     end
 
     private
+
+    # 附加 logo
+    def attach_logo
+      # 如果已經有 logo，先刪除舊的
+      @school.logo.purge if @school.logo.attached?
+      @school.logo.attach(logo)
+    end
 
     # 更新學校記錄
     def update_school

@@ -132,3 +132,5 @@ gem 'opencc-rb'
 gem 'rswag-api'
 gem 'rswag-specs'
 gem 'rswag-ui'
+
+gem 'image_processing'

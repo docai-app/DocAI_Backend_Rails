@@ -410,6 +410,8 @@ Rails.application.routes.draw do
             get 'academic_years/:academic_year_id/teachers', to: 'schools#academic_year_teachers'
             get 'academic_years/:academic_year_id/departments/:department/teachers', to: 'schools#department_teachers'
             get 'multi_year_students', to: 'schools#multi_year_students'
+            put :logo, to: 'school_logos#update'
+            delete :logo, to: 'school_logos#destroy'
           end
 
           collection do

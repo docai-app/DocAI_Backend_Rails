@@ -616,7 +616,7 @@ module Api
             :contact_email, :contact_phone,
             :region, :timezone,
             :school_type, :curriculum_type,
-            :academic_system,
+            :academic_system, :logo,
             custom_settings: {},
             academic_years: %i[name status start_year start_month end_month]
           )
@@ -651,24 +651,32 @@ module Api
             contact_email: school.contact_email,
             contact_phone: school.contact_phone,
             timezone: school.timezone,
-            region: school.meta['region'],
-            school_type: school.meta['school_type'],
-            curriculum_type: school.meta['curriculum_type'],
-            academic_system: school.meta['academic_system'],
-            custom_settings: school.meta['custom_settings'],
-            created_at: school.created_at,
-            updated_at: school.updated_at,
-            academic_years: school.school_academic_years.map do |year|
+            logo: {
+              has_logo: school.logo.attached?,
+              original_url: school.logo_url,
+              thumbnail_url: school.logo_thumbnail_url,
+              small_url: school.logo_small_url,
+              large_url: school.logo_large_url,
+              square_url: school.logo_square_url
+            },
+            meta: {
+              region: school.meta['region'],
+              school_type: school.meta['school_type'],
+              curriculum_type: school.meta['curriculum_type'],
+              academic_system: school.meta['academic_system'],
+              custom_settings: school.meta['custom_settings'] || {}
+            },
+            academic_years: school.school_academic_years.map do |academic_year|
               {
-                id: year.id,
-                name: year.name,
-                status: year.status,
-                start_date: year.start_date,
-                end_date: year.end_date,
-                created_at: year.created_at,
-                updated_at: year.updated_at
+                id: academic_year.id,
+                name: academic_year.name,
+                status: academic_year.status,
+                start_date: academic_year.start_date,
+                end_date: academic_year.end_date
               }
-            end
+            end,
+            created_at: school.created_at,
+            updated_at: school.updated_at
           }
         end
 

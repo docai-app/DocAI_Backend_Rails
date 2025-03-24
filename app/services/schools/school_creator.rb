@@ -13,7 +13,7 @@ module Schools
                   :region, :timezone,
                   :school_type, :curriculum_type,
                   :academic_system,
-                  :academic_years, :custom_settings
+                  :academic_years, :custom_settings, :logo
 
     validates :name, :code, :region, presence: true
     validates :code, format: { with: /\A[A-Z0-9_]+\z/, message: '只能包含大寫字母、數字和下劃線' }
@@ -30,6 +30,7 @@ module Schools
       ActiveRecord::Base.transaction do
         create_school
         create_academic_years
+        attach_logo if logo.present?
         true
       rescue StandardError => e
         errors.add(:base, e.message)
@@ -49,6 +50,11 @@ module Schools
 
       @school.assign_attributes(school_attributes)
       @school.save!
+    end
+
+    # 附加 logo
+    def attach_logo
+      @school.logo.attach(logo)
     end
 
     # 準備學校屬性
