@@ -201,7 +201,23 @@ module Api
                 :user_answer,
                 { options: {} }
               ]
-            ] }
+            ] },
+            {
+              speaking_pronunciation_sentences: [
+                :sentence,
+                :real_transcript,
+                :ipa_transcript,
+                :pronunciation_accuracy,
+                :real_transcripts,
+                :matched_transcripts,
+                :real_transcripts_ipa,
+                :matched_transcripts_ipa,
+                :pair_accuracy_category,
+                :start_time,
+                :end_time,
+                :is_letter_correct_all_words
+              ]
+            }
           ],
           meta: [:newsfeed_id],
           sentence_builder: %i[vocab sentence] # 允许数组中的哈希结构
@@ -272,15 +288,24 @@ module Api
         Prawn::Document.new do |pdf|
           # 加载和注册字体
           font_path = Rails.root.join('app/assets/fonts/')
+          # pdf.font_families.update(
+          #   'NotoSans' => {
+          #     normal: font_path.join('NotoSansTC-Regular.ttf'),
+          #     bold: font_path.join('NotoSansTC-Bold.ttf')
+          #   }
+          # )
+
+          # # 设置默认字体
+          # pdf.font 'NotoSans'
           pdf.font_families.update(
-            'NotoSans' => {
-              normal: font_path.join('NotoSansTC-Regular.ttf'),
-              bold: font_path.join('NotoSansTC-Bold.ttf')
+            'Arial' => {
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
             }
           )
 
           # 设置默认字体
-          pdf.font 'NotoSans'
+          pdf.font 'Arial'
 
           # 开始内容部分
           pdf.move_down 20
@@ -354,16 +379,20 @@ module Api
           pdf.font_families.update(
             'NotoSans' => {
               normal: font_path.join('NotoSansTC-Regular.ttf'),
-              bold: font_path.join('NotoSansTC-Bold.ttf')
+              bold: font_path.join('NotoSansTC-Bold.ttf'),
             },
             'DejaVuSans' => {
               normal: font_path.join('DejaVuSans.ttf')
               # 如果有粗體檔也可以加上 :bold
+            },
+            'Arial' => {
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
             }
           )
 
           # 預設使用 NotoSans
-          pdf.font('NotoSans')
+          pdf.font('Arial')
           # 碰到無法顯示的符號 (如 ❌ / ✅) 時，自動 fallback 到 DejaVuSans
           pdf.fallback_fonts(['DejaVuSans'])
 
@@ -463,9 +492,13 @@ module Api
           'NotoSans' => {
             normal: font_path.join('NotoSansTC-Regular.ttf'),
             bold: font_path.join('NotoSansTC-Bold.ttf')
+          },
+          'Arial' => {
+            normal: font_path.join('ARIAL.ttf'),
+            bold: font_path.join('ARIALBD.ttf')
           }
         )
-        pdf.font 'NotoSans'
+        pdf.font 'Arial'
 
         # 开始内容部分
         pdf.move_down 20
