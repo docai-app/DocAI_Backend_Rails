@@ -203,19 +203,19 @@ module Api
               ]
             ] },
             {
-              speaking_pronunciation_sentences: [
-                :sentence,
-                :real_transcript,
-                :ipa_transcript,
-                :pronunciation_accuracy,
-                :real_transcripts,
-                :matched_transcripts,
-                :real_transcripts_ipa,
-                :matched_transcripts_ipa,
-                :pair_accuracy_category,
-                :start_time,
-                :end_time,
-                :is_letter_correct_all_words
+              speaking_pronunciation_sentences: %i[
+                sentence
+                real_transcript
+                ipa_transcript
+                pronunciation_accuracy
+                real_transcripts
+                matched_transcripts
+                real_transcripts_ipa
+                matched_transcripts_ipa
+                pair_accuracy_category
+                start_time
+                end_time
+                is_letter_correct_all_words
               ]
             }
           ],
@@ -379,7 +379,7 @@ module Api
           pdf.font_families.update(
             'NotoSans' => {
               normal: font_path.join('NotoSansTC-Regular.ttf'),
-              bold: font_path.join('NotoSansTC-Bold.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
               normal: font_path.join('DejaVuSans.ttf')

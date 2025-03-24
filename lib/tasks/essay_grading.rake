@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 namespace :essay_grading do
   desc 'Backfill submission info for existing essay gradings'
   task backfill_submission_info: :environment do
@@ -40,7 +42,7 @@ namespace :essay_grading do
         updated_count += 1
 
         # 每處理 1000 條記錄輸出一次進度
-        puts "已處理 #{processed_count}/#{total_count} 條記錄，更新了 #{updated_count} 條" if processed_count % 1000 == 0
+        puts "已處理 #{processed_count}/#{total_count} 條記錄，更新了 #{updated_count} 條" if (processed_count % 1000).zero?
       end
 
       puts "\n處理完成！"

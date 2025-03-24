@@ -28,7 +28,8 @@
 #
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
-  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples, :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences
+  store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
+                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
 
@@ -94,15 +95,17 @@ class EssayAssignment < ApplicationRecord
     return unless previous_sentences != current_sentences
 
     # 確保 speaking_pronunciation_sentences 格式正確
-    return unless current_sentences.is_a?(Array) && current_sentences.all? { |item| item.is_a?(Hash) && item['sentence'].present? }
+    return unless current_sentences.is_a?(Array) && current_sentences.all? do |item|
+                    item.is_a?(Hash) && item['sentence'].present?
+                  end
 
     # 遍歷每個 sentence 並調用 API
     current_sentences.each do |sentence_obj|
       sentence = sentence_obj['sentence']
       response = Net::HTTP.post(
         URI('https://pronunciation.m2mda.com/pinyin'),
-        { language: 'en', sentence: sentence }.to_json,
-        "Content-Type" => "application/json"
+        { language: 'en', sentence: }.to_json,
+        'Content-Type' => 'application/json'
       )
 
       if response.is_a?(Net::HTTPSuccess)
