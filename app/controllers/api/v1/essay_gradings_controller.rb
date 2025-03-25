@@ -194,20 +194,42 @@ module Api
           :using_time,
           grading: [
             :app_key,
-            { comprehension: [
-              questions: [
-                :question,
-                :answer,
-                :user_answer,
-                { options: {} }
-              ]
-            ] },
             {
-              speaking_pronunciation_sentences: {} # 使用空的哈希来允许任意键
+              comprehension: [
+                questions: [
+                  :question,
+                  :answer,
+                  :user_answer,
+                  { options: [] }  # 如果 options 裡面是陣列
+                ]
+              ]
+            },
+            {
+              speaking_pronunciation_sentences: [
+                :sentence,
+                :ipa_transcript,
+                :score,
+                :transcript_translation,
+                { real_transcript: [] },  # 假設 real_transcript 是陣列中的純量
+                { result: [
+                    :real_transcript,
+                    :ipa_transcript,
+                    :pronunciation_accuracy,
+                    :real_transcripts,
+                    :matched_transcripts,
+                    :real_transcripts_ipa,
+                    :matched_transcripts_ipa,
+                    :pair_accuracy_category,
+                    :start_time,
+                    :end_time,
+                    :is_letter_correct_all_words
+                  ]
+                }
+              ]
             }
           ],
           meta: [:newsfeed_id],
-          sentence_builder: %i[vocab sentence] # 允许数组中的哈希结构
+          sentence_builder: %i[vocab sentence]
         )
       end
 
