@@ -205,6 +205,7 @@ module Api
             {
               speaking_pronunciation_sentences: [
                 :sentence,
+                :audiobase64,
                 :real_transcript,
                 :ipa_transcript,
                 :pronunciation_accuracy,
