@@ -33,7 +33,8 @@
 #  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
-  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder, :speaking_pronunciation_sentences
+  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder,
+                 :speaking_pronunciation_sentences
   store_accessor :general_context, :app_key, :data
 
   store_accessor :meta, :newsfeed_id, :transformed_newsfeed

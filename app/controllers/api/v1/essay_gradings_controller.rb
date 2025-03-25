@@ -380,7 +380,7 @@ module Api
           pdf.font_families.update(
             'NotoSans' => {
               normal: font_path.join('NotoSansTC-Regular.ttf'),
-              bold: font_path.join('NotoSansTC-Bold.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
               normal: font_path.join('DejaVuSans.ttf')
