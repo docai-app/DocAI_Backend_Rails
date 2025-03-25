@@ -355,6 +355,7 @@ Rails.application.routes.draw do
           delete 'me/files/:id', to: 'general_users#destroy_file'
           put 'me/profile', to: 'general_users#update_profile'
           put 'me/password', to: 'general_users#update_password'
+          get 'me/aienglish', to: 'general_users#show_aienglish_profile'
         end
       end
 
