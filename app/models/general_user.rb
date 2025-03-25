@@ -200,7 +200,7 @@ class GeneralUser < ApplicationRecord
   end
 
   def show_in_report_name
-    "#{email}(#{nickname}, #{banbie}, #{class_no})"
+    "#{email} (#{nickname}, #{banbie}, #{class_no})"
   end
 
   # AI English features getter, setter and validator section (aienglish_role, aienglish_features_list, aienglish_user?)

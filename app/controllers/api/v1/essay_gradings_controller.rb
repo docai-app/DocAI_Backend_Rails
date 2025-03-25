@@ -203,21 +203,7 @@ module Api
               ]
             ] },
             {
-              speaking_pronunciation_sentences: [
-                :sentence,
-                :audiobase64,
-                :real_transcript,
-                :ipa_transcript,
-                :pronunciation_accuracy,
-                :real_transcripts,
-                :matched_transcripts,
-                :real_transcripts_ipa,
-                :matched_transcripts_ipa,
-                :pair_accuracy_category,
-                :start_time,
-                :end_time,
-                :is_letter_correct_all_words
-              ]
+              speaking_pronunciation_sentences: {} # 使用空的哈希来允许任意键
             }
           ],
           meta: [:newsfeed_id],
