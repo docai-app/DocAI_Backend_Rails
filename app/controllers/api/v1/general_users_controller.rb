@@ -37,13 +37,7 @@ module Api
               logo_thumbnail_url: @user.school.logo_thumbnail_url,
               logo_small_url: @user.school.logo_small_url,
               logo_large_url: @user.school.logo_large_url,
-              logo_square_url: @user.school.logo_square_url,
-              meta: {
-                school_type: @user.school.meta['school_type'],
-                curriculum_type: @user.school.meta['curriculum_type'],
-                academic_system: @user.school.meta['academic_system'],
-                custom_settings: @user.school.meta['custom_settings']
-              }
+              logo_square_url: @user.school.logo_square_url
             )
           end
 
@@ -58,13 +52,7 @@ module Api
                   logo_thumbnail_url: current_assignment.school_academic_year.school.logo_thumbnail_url,
                   logo_small_url: current_assignment.school_academic_year.school.logo_small_url,
                   logo_large_url: current_assignment.school_academic_year.school.logo_large_url,
-                  logo_square_url: current_assignment.school_academic_year.school.logo_square_url,
-                  meta: {
-                    school_type: current_assignment.school_academic_year.school.meta['school_type'],
-                    curriculum_type: current_assignment.school_academic_year.school.meta['curriculum_type'],
-                    academic_system: current_assignment.school_academic_year.school.meta['academic_system'],
-                    custom_settings: current_assignment.school_academic_year.school.meta['custom_settings']
-                  }
+                  logo_square_url: current_assignment.school_academic_year.school.logo_square_url
                 ),
                 academic_year: current_assignment.school_academic_year.as_json(only: %i[id year name status]),
                 department: current_assignment.department,
@@ -80,13 +68,7 @@ module Api
                     logo_thumbnail_url: assignment.school_academic_year.school.logo_thumbnail_url,
                     logo_small_url: assignment.school_academic_year.school.logo_small_url,
                     logo_large_url: assignment.school_academic_year.school.logo_large_url,
-                    logo_square_url: assignment.school_academic_year.school.logo_square_url,
-                    meta: {
-                      school_type: assignment.school_academic_year.school.meta['school_type'],
-                      curriculum_type: assignment.school_academic_year.school.meta['curriculum_type'],
-                      academic_system: assignment.school_academic_year.school.meta['academic_system'],
-                      custom_settings: assignment.school_academic_year.school.meta['custom_settings']
-                    }
+                    logo_square_url: assignment.school_academic_year.school.logo_square_url
                   ),
                   academic_year: assignment.school_academic_year.as_json(only: %i[id year name status]),
                   department: assignment.department,
@@ -109,13 +91,7 @@ module Api
                   logo_thumbnail_url: current_enroll.school_academic_year.school.logo_thumbnail_url,
                   logo_small_url: current_enroll.school_academic_year.school.logo_small_url,
                   logo_large_url: current_enroll.school_academic_year.school.logo_large_url,
-                  logo_square_url: current_enroll.school_academic_year.school.logo_square_url,
-                  meta: {
-                    school_type: current_enroll.school_academic_year.school.meta['school_type'],
-                    curriculum_type: current_enroll.school_academic_year.school.meta['curriculum_type'],
-                    academic_system: current_enroll.school_academic_year.school.meta['academic_system'],
-                    custom_settings: current_enroll.school_academic_year.school.meta['custom_settings']
-                  }
+                  logo_square_url: current_enroll.school_academic_year.school.logo_square_url
                 ),
                 academic_year: current_enroll.school_academic_year.as_json(only: %i[id year name status]),
                 class_name: current_enroll.class_name,
@@ -131,13 +107,7 @@ module Api
                     logo_thumbnail_url: enrollment.school_academic_year.school.logo_thumbnail_url,
                     logo_small_url: enrollment.school_academic_year.school.logo_small_url,
                     logo_large_url: enrollment.school_academic_year.school.logo_large_url,
-                    logo_square_url: enrollment.school_academic_year.school.logo_square_url,
-                    meta: {
-                      school_type: enrollment.school_academic_year.school.meta['school_type'],
-                      curriculum_type: enrollment.school_academic_year.school.meta['curriculum_type'],
-                      academic_system: enrollment.school_academic_year.school.meta['academic_system'],
-                      custom_settings: enrollment.school_academic_year.school.meta['custom_settings']
-                    }
+                    logo_square_url: enrollment.school_academic_year.school.logo_square_url
                   ),
                   academic_year: enrollment.school_academic_year.as_json(only: %i[id year name status]),
                   class_name: enrollment.class_name,
@@ -272,48 +242,15 @@ module Api
           return render json: { success: false, error: 'User is not an AIEnglish user' }, status: :bad_request
         end
 
-        # 構建基本用戶資料
+        # 構建 AIEnglish 用戶資料，排除 konnecai_tokens
         aienglish_data = @user.as_json(
           except: [:konnecai_tokens]
         )
 
-        # 添加學校資訊（如果有的話）
-        if @user.school.present?
-          aienglish_data['school'] = @user.school.as_json(only: %i[id name code]).merge(
-            logo_url: @user.school.logo_url,
-            logo_thumbnail_url: @user.school.logo_thumbnail_url,
-            logo_small_url: @user.school.logo_small_url,
-            logo_large_url: @user.school.logo_large_url,
-            logo_square_url: @user.school.logo_square_url,
-            meta: {
-              school_type: @user.school.meta['school_type'],
-              curriculum_type: @user.school.meta['curriculum_type'],
-              academic_system: @user.school.meta['academic_system'],
-              custom_settings: @user.school.meta['custom_settings']
-            }
-          )
-        end
-
-        # 初始化角色特定資訊
-        aienglish_data['role_specific'] = {}
-        aienglish_data['history'] = {}
-
+        # 根據角色獲取不同的資訊
         if @user.aienglish_role == 'teacher'
-          # 獲取當前教學資訊
-          current_assignment = @user.current_teaching_assignment
-          if current_assignment
-            aienglish_data['role_specific'].merge!(
-              department: current_assignment.department,
-              position: current_assignment.position
-            )
-          end
-
-          # 獲取教師的學生數量
-          student_ids = KgLinker.where(map_from_id: @user.id, relation: 'has_student').pluck(:map_to_id).uniq
-          aienglish_data['role_specific']['students_count'] = student_ids.count if student_ids.present?
-
-          # 獲取教學歷史
-          aienglish_data['history']['teaching_assignments'] = @user.teacher_assignments.includes(school_academic_year: :school).map do |assignment|
+          # 獲取教師資訊
+          aienglish_data[:teaching_assignments] = @user.teacher_assignments.includes(school_academic_year: :school).map do |assignment|
             {
               id: assignment.id,
               school: assignment.school_academic_year.school.as_json(only: %i[id name code]).merge(
@@ -321,13 +258,7 @@ module Api
                 logo_thumbnail_url: assignment.school_academic_year.school.logo_thumbnail_url,
                 logo_small_url: assignment.school_academic_year.school.logo_small_url,
                 logo_large_url: assignment.school_academic_year.school.logo_large_url,
-                logo_square_url: assignment.school_academic_year.school.logo_square_url,
-                meta: {
-                  school_type: assignment.school_academic_year.school.meta['school_type'],
-                  curriculum_type: assignment.school_academic_year.school.meta['curriculum_type'],
-                  academic_system: assignment.school_academic_year.school.meta['academic_system'],
-                  custom_settings: assignment.school_academic_year.school.meta['custom_settings']
-                }
+                logo_square_url: assignment.school_academic_year.school.logo_square_url
               ),
               academic_year: assignment.school_academic_year.as_json(only: %i[id year name status]),
               department: assignment.department,
@@ -335,22 +266,13 @@ module Api
               created_at: assignment.created_at
             }
           end
+
+          # 獲取教師的學生
+          student_ids = KgLinker.where(map_from_id: @user.id, relation: 'has_student').pluck(:map_to_id).uniq
+          aienglish_data[:students_count] = student_ids.count if student_ids.present?
         else
-          # 獲取當前學籍資訊
-          current_enroll = @user.current_enrollment
-          if current_enroll
-            aienglish_data['role_specific'].merge!(
-              class_name: current_enroll.class_name,
-              class_number: current_enroll.class_number
-            )
-          end
-
-          # 獲取學生的教師
-          teachers = @user.find_teachers_via_students
-          aienglish_data['role_specific']['teachers'] = teachers if teachers.present?
-
-          # 獲取學籍歷史
-          aienglish_data['history']['enrollments'] = @user.student_enrollments.includes(school_academic_year: :school).map do |enrollment|
+          # 獲取學生資訊
+          aienglish_data[:enrollments] = @user.student_enrollments.includes(school_academic_year: :school).map do |enrollment|
             {
               id: enrollment.id,
               school: enrollment.school_academic_year.school.as_json(only: %i[id name code]).merge(
@@ -358,13 +280,7 @@ module Api
                 logo_thumbnail_url: enrollment.school_academic_year.school.logo_thumbnail_url,
                 logo_small_url: enrollment.school_academic_year.school.logo_small_url,
                 logo_large_url: enrollment.school_academic_year.school.logo_large_url,
-                logo_square_url: enrollment.school_academic_year.school.logo_square_url,
-                meta: {
-                  school_type: enrollment.school_academic_year.school.meta['school_type'],
-                  curriculum_type: enrollment.school_academic_year.school.meta['curriculum_type'],
-                  academic_system: enrollment.school_academic_year.school.meta['academic_system'],
-                  custom_settings: enrollment.school_academic_year.school.meta['custom_settings']
-                }
+                logo_square_url: enrollment.school_academic_year.school.logo_square_url
               ),
               academic_year: enrollment.school_academic_year.as_json(only: %i[id year name status]),
               class_name: enrollment.class_name,
@@ -372,6 +288,9 @@ module Api
               created_at: enrollment.created_at
             }
           end
+
+          # 獲取學生的教師
+          aienglish_data[:teachers] = @user.find_teachers_via_students
         end
 
         render json: { success: true, user: aienglish_data }, status: :ok
