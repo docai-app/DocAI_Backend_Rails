@@ -58,25 +58,39 @@ module Api
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
-          essay_gradings: @essay_gradings.sort_by { |eg| eg.class_no.to_i }.map do |eg|
+          essay_gradings: @essay_gradings.sort_by do |eg|
+            eg.class_no.to_i
+          rescue StandardError => e
+            puts "Error converting class_no to integer: #{e.message}"
+            0 # 或者其他默认值
+          end.map do |eg|
             # 解析 grading JSON
-            grading_json = JSON.parse(eg["grading"]["data"]["text"]) rescue {}
-
-            # 提取每個 criterion 的分數和總分
-            scores = grading_json.each_with_object({}) do |(key, value), result|
-              if key.start_with?('Criterion') && value.is_a?(Hash)
-                value.each do |criterion_key, criterion_value|
-                  # 排除不需要的键
-                  unless ['Full Score', 'explanation'].include?(criterion_key)
-                    result[criterion_key] = criterion_value
-                  end
-                end
-              end
+            grading_json = begin
+              JSON.parse(eg['grading']['data']['text'])
+            rescue StandardError
+              {}
             end
 
-            # 提取 Overall Score
-            overall_score = grading_json["Overall Score"]
-            the_full_score = grading_json["Full Score"]
+            if @essay_assignment.sentence_builder?
+              sb_score = eg.calculate_sentence_builder_score
+              the_full_score = sb_score[:full_score]
+              overall_score = sb_score[:score]
+              eg['score'] = overall_score
+            else
+              # 提取每個 criterion 的分數和總分
+              scores = grading_json.each_with_object({}) do |(key, value), result|
+                next unless key.start_with?('Criterion') && value.is_a?(Hash)
+
+                value.each do |criterion_key, criterion_value|
+                  # 排除不需要的键
+                  result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
+                end
+              end
+
+              # 提取 Overall Score
+              overall_score = grading_json['Overall Score']
+              the_full_score = grading_json['Full Score']
+            end
 
             {
               id: eg.id,
@@ -96,9 +110,9 @@ module Api
               questions_count: eg['questions_count'] == 'null' ? nil : eg['questions_count'],
               full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
               score: eg['score'] == 'null' ? nil : eg['score'],
-              scores: scores,
-              overall_score: overall_score,
-              the_full_score: the_full_score
+              scores:,
+              overall_score:,
+              the_full_score:
             }
           end
         }, status: :ok
