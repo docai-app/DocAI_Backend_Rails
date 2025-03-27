@@ -200,7 +200,7 @@ module Api
                   :question,
                   :answer,
                   :user_answer,
-                  { options: [] }  # 如果 options 裡面是陣列
+                  { options: [] } # 如果 options 裡面是陣列
                 ]
               ]
             },
@@ -210,21 +210,20 @@ module Api
                 :ipa_transcript,
                 :score,
                 :transcript_translation,
-                { real_transcript: [] },  # 假設 real_transcript 是陣列中的純量
-                { result: [
-                    :real_transcript,
-                    :ipa_transcript,
-                    :pronunciation_accuracy,
-                    :real_transcripts,
-                    :matched_transcripts,
-                    :real_transcripts_ipa,
-                    :matched_transcripts_ipa,
-                    :pair_accuracy_category,
-                    :start_time,
-                    :end_time,
-                    :is_letter_correct_all_words
-                  ]
-                }
+                { real_transcript: [] }, # 假設 real_transcript 是陣列中的純量
+                { result: %i[
+                  real_transcript
+                  ipa_transcript
+                  pronunciation_accuracy
+                  real_transcripts
+                  matched_transcripts
+                  real_transcripts_ipa
+                  matched_transcripts_ipa
+                  pair_accuracy_category
+                  start_time
+                  end_time
+                  is_letter_correct_all_words
+                ] }
               ]
             }
           ],

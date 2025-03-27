@@ -185,7 +185,7 @@ class EssayGrading < ApplicationRecord
     total_score = 0
 
     # 遍历每个 speaking_pronunciation_sentence
-    grading["speaking_pronunciation_sentences"].each do |sentence_data|
+    grading['speaking_pronunciation_sentences'].each do |sentence_data|
       # 如果 score 大于 threshold，则得1分
       total_score += 1 if sentence_data['score'].to_i >= threshold
     end

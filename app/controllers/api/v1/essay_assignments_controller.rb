@@ -112,14 +112,15 @@ module Api
               score: eg['score'] == 'null' ? nil : eg['score'],
               scores:,
               overall_score:,
-              the_full_score:
+              the_full_score:,
+              submission_class_name: eg.submission_class_name,
+              submission_class_no: eg.submission_class_no
             }
           end
         }, status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
       end
-
 
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
