@@ -45,6 +45,8 @@ module Api
                                       essay_gradings.updated_at,
                                       essay_gradings.status,
                                       essay_gradings.grading,
+                                      essay_gradings.submission_class_name,
+                                      essay_gradings.submission_class_number,
                                       COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion,
                                       general_users.nickname,
                                       general_users.banbie,
@@ -114,7 +116,7 @@ module Api
               overall_score:,
               the_full_score:,
               submission_class_name: eg.submission_class_name,
-              submission_class_no: eg.submission_class_no
+              submission_class_number: eg.submission_class_number
             }
           end
         }, status: :ok
