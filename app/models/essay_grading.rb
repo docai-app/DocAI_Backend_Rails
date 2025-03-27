@@ -51,6 +51,7 @@ class EssayGrading < ApplicationRecord
 
   after_create :run_workflow, if: :need_to_run_workflow?
   after_create :calculate_comprehension_score, if: :is_comprehension?
+  after_create :calculate_speaking_pronunciation_score, if: :is_speaking_pronunciation?
 
   has_one_attached :file, service: :microsoft
 
@@ -76,6 +77,10 @@ class EssayGrading < ApplicationRecord
 
   def is_comprehension?
     category == 'comprehension'
+  end
+
+  def is_speaking_pronunciation?
+    category == 'speaking_pronunciation'
   end
 
   def need_to_run_workflow?
@@ -173,6 +178,22 @@ class EssayGrading < ApplicationRecord
     return unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
+  end
+
+  def calculate_speaking_pronunciation_score
+    threshold = essay_assignment.speaking_pronunciation_pass_score
+    total_score = 0
+
+    # 遍历每个 speaking_pronunciation_sentence
+    grading["speaking_pronunciation_sentences"].each do |sentence_data|
+      # 如果 score 大于 threshold，则得1分
+      total_score += 1 if sentence_data['score'].to_i >= threshold
+    end
+
+    # 设置总分
+    self['score'] = total_score
+    self['status'] = 'graded'
+    save
   end
 
   def calculate_comprehension_score
