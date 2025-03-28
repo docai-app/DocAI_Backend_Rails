@@ -119,7 +119,8 @@ module Api
               data: {
                 total_processed: service.total_processed,
                 assigned_count: service.assigned_count,
-                skipped_count: service.skipped_count
+                skipped_count: service.skipped_count,
+                validation_errors: service.validation_errors
               }
             }
           else
@@ -301,13 +302,18 @@ module Api
             enrollment.class_name = @user.banbie.presence || '未分配'
             enrollment.class_number = @user.class_no.presence || '未分配'
             enrollment.status = :active
-            enrollment.save!
           end
 
-          # 更新該用戶的所有未完成的 EssayGrading 記錄
-          update_essay_gradings(@user, @school, @academic_year, enrollment)
-
-          render json: { success: true, message: '學生分配成功', enrollment: }, status: :ok
+          # 嘗試保存記錄，如果驗證失敗會被rescue捕獲
+          if enrollment.save
+            # 更新該用戶的所有未完成的 EssayGrading 記錄
+            update_essay_gradings(@user, @school, @academic_year, enrollment)
+            render json: { success: true, message: '學生分配成功', enrollment: }, status: :ok
+          else
+            # 直接返回模型驗證錯誤
+            render json: { success: false, error: enrollment.errors.full_messages.join(', ') },
+                   status: :unprocessable_entity
+          end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
@@ -343,10 +349,16 @@ module Api
               class_teacher_of: nil,
               additional_duties: []
             }
-            assignment.save!
           end
 
-          render json: { success: true, message: '教師分配成功', assignment: }, status: :ok
+          # 嘗試保存記錄，如果驗證失敗則直接返回錯誤
+          if assignment.save
+            render json: { success: true, message: '教師分配成功', assignment: }, status: :ok
+          else
+            # 直接返回模型驗證錯誤
+            render json: { success: false, error: assignment.errors.full_messages.join(', ') },
+                   status: :unprocessable_entity
+          end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
@@ -377,13 +389,18 @@ module Api
             enrollment.class_name = @user.banbie.presence || '未分配'
             enrollment.class_number = @user.class_no.presence || '未分配'
             enrollment.status = :active
-            enrollment.save!
           end
 
-          # 更新該用戶的所有未完成的 EssayGrading 記錄
-          update_essay_gradings(@user, @school, @academic_year, enrollment)
-
-          render json: { success: true, message: '學生分配成功', enrollment: }, status: :ok
+          # 嘗試保存記錄，如果驗證失敗會被rescue捕獲
+          if enrollment.save
+            # 更新該用戶的所有未完成的 EssayGrading 記錄
+            update_essay_gradings(@user, @school, @academic_year, enrollment)
+            render json: { success: true, message: '學生分配成功', enrollment: }, status: :ok
+          else
+            # 直接返回模型驗證錯誤
+            render json: { success: false, error: enrollment.errors.full_messages.join(', ') },
+                   status: :unprocessable_entity
+          end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
@@ -419,10 +436,16 @@ module Api
               class_teacher_of: nil,
               additional_duties: []
             }
-            assignment.save!
           end
 
-          render json: { success: true, message: '教師分配成功', assignment: }, status: :ok
+          # 嘗試保存記錄，如果驗證失敗則直接返回錯誤
+          if assignment.save
+            render json: { success: true, message: '教師分配成功', assignment: }, status: :ok
+          else
+            # 直接返回模型驗證錯誤
+            render json: { success: false, error: assignment.errors.full_messages.join(', ') },
+                   status: :unprocessable_entity
+          end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end

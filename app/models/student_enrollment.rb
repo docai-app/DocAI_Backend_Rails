@@ -47,9 +47,53 @@ class StudentEnrollment < ApplicationRecord
     message: '在同一學年中不能重複註冊'
   }
 
+  # 學生不能同時在多個學校有活躍狀態
+  validate :student_not_in_multiple_schools_when_active
+
+  # 學生不能在同一學校有多個活躍學年
+  validate :student_not_in_multiple_active_academic_years_in_same_school
+
   # 獲取指定日期時的班級信息
   scope :at_date, lambda { |date|
     joins(:school_academic_year)
       .where('school_academic_years.start_date <= ? AND school_academic_years.end_date >= ?', date, date)
   }
+
+  private
+
+  # 驗證學生不能同時在多個學校有活躍狀態
+  def student_not_in_multiple_schools_when_active
+    # 只在記錄為活躍狀態時進行驗證
+    return unless active?
+
+    # 查找該學生在其他學校的活躍記錄
+    other_active_enrollments = StudentEnrollment.joins(:school_academic_year)
+                                                .where(general_user_id:)
+                                                .where(status: :active)
+                                                .where.not(id:) # 排除當前記錄
+                                                .where.not(school_academic_years: { school_id: school_academic_year.school_id })
+
+    return unless other_active_enrollments.exists?
+
+    other_school = School.find(other_active_enrollments.first.school_academic_year.school_id)
+    errors.add(:base, "學生已經在學校「#{other_school.name}」有活躍的註冊記錄")
+  end
+
+  # 驗證學生不能在同一學校有多個活躍學年
+  def student_not_in_multiple_active_academic_years_in_same_school
+    # 只在記錄為活躍狀態時進行驗證
+    return unless active?
+
+    # 查找該學生在同一學校的其他活躍學年記錄
+    other_active_years = StudentEnrollment.joins(:school_academic_year)
+                                          .where(general_user_id:)
+                                          .where(status: :active)
+                                          .where.not(id:) # 排除當前記錄
+                                          .where(school_academic_years: { school_id: school_academic_year.school_id })
+
+    return unless other_active_years.exists?
+
+    other_year = other_active_years.first.school_academic_year
+    errors.add(:base, "學生已經在該學校的「#{other_year.name}」學年有活躍的註冊記錄")
+  end
 end
