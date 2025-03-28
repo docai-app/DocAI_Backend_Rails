@@ -404,6 +404,10 @@ Rails.application.routes.draw do
           member do
             post :assign_students
             post :assign_teachers
+            post :assign_student_by_id
+            post :assign_student_by_email
+            post :assign_teacher_by_email
+            post :assign_teacher_by_id
             get :student_stats
             get :teacher_stats
             get 'academic_years/:academic_year_id/students', to: 'schools#academic_year_students'
