@@ -423,6 +423,7 @@ Rails.application.routes.draw do
             post :import_from_csv
             post :bulk_assign_students
             post :bulk_assign_teachers
+            get :statistics
           end
         end
         # 學年管理

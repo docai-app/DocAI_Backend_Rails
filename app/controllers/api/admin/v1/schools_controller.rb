@@ -616,6 +616,34 @@ module Api
           render json: { status: 'error', error: e.message }, status: :internal_server_error
         end
 
+        # GET /admin/v1/schools/statistics
+        # 獲取學校管理系統儀表板統計信息
+        # @param date_range [String] 可選的日期範圍過濾，格式為 "YYYY-MM-DD,YYYY-MM-DD"
+        # @param school_id [Integer] 可選的學校ID過濾
+        # @param academic_year [String] 可選的學年名稱過濾
+        # @return [JSON] 儀表板統計數據
+        def statistics
+          service = Schools::DashboardStatsGenerator.new(
+            date_range: params[:date_range],
+            school_id: params[:school_id],
+            academic_year: params[:academic_year]
+          )
+
+          render json: {
+            status: 'success',
+            code: 200,
+            data: service.generate,
+            meta: {
+              generated_at: Time.current.iso8601,
+              filtered_by: {
+                date_range: params[:date_range],
+                school_id: params[:school_id],
+                academic_year: params[:academic_year]
+              }
+            }
+          }
+        end
+
         private
 
         # 設置當前學校
