@@ -103,22 +103,46 @@ module Schools
     # 生成學生人數趨勢
     # @return [Hash] 學生人數趨勢
     def generate_student_trends
-      # 按學年分組獲取學生人數
-      academic_years = SchoolAcademicYear.order(start_date: :asc).last(3)
+      # 查詢基礎設置
+      schools_scope = filter_schools
 
-      # 篩選學校
-      academic_years = academic_years.where(school_id: @school_id) if @school_id.present?
+      # 找出有學生註冊的學年（有實際數據的學年）
+      active_years_with_students = SchoolAcademicYear
+                                   .select('school_academic_years.*, COUNT(student_enrollments.id) as student_count')
+                                   .joins('LEFT JOIN student_enrollments ON student_enrollments.school_academic_year_id = school_academic_years.id')
+                                   .where(school: schools_scope)
+                                   .group('school_academic_years.id')
+                                   .having('COUNT(student_enrollments.id) > 0')
+                                   .order(start_date: :desc)
+                                   .limit(3)
 
-      # 篩選特定學年
-      academic_years = academic_years.where(name: @academic_year) if @academic_year.present?
+      # 如果沒有找到有學生的學年，回退到使用最近的學年（即使沒有學生）
+      if active_years_with_students.empty?
+        active_years_with_students = SchoolAcademicYear
+                                     .where(school: schools_scope)
+                                     .order(start_date: :desc)
+                                     .distinct
+                                     .limit(3)
+      end
 
-      # 計算每個學年的學生人數
+      # 篩選特定學年（如果指定）
+      active_years_with_students = active_years_with_students.where(name: @academic_year) if @academic_year.present?
+
+      # 計算每個學年的學生人數（使用關聯查詢，一次性獲取所有數據）
+      academic_year_ids = active_years_with_students.map(&:id)
+      student_counts = StudentEnrollment
+                       .where(school_academic_year_id: academic_year_ids)
+                       .group(:school_academic_year_id)
+                       .count
+
+      # 構建數據
+      selected_years = active_years_with_students.to_a.sort_by(&:start_date)
       labels = []
       data = []
 
-      academic_years.each do |year|
+      selected_years.each do |year|
         labels << year.name
-        data << StudentEnrollment.where(school_academic_year: year).count
+        data << (student_counts[year.id] || 0)
       end
 
       # 計算增長率
@@ -135,17 +159,32 @@ module Schools
     # 生成學校列表
     # @return [Array<Hash>] 學校列表
     def generate_schools_list
-      # 篩選學校
+      # 篩選學校，預加載學年關聯
       schools_scope = filter_schools.limit(10) # 限制返回10個學校，避免數據過大
+
+      # 獲取所有相關的學年 ID，用於後續統計
+      all_academic_year_ids = schools_scope.flat_map { |school| school.school_academic_years.map(&:id) }
+
+      # 一次性查詢所有相關學年的學生和教師數量
+      student_counts_by_academic_year = StudentEnrollment
+                                        .where(school_academic_year_id: all_academic_year_ids)
+                                        .group(:school_academic_year_id)
+                                        .count
+
+      teacher_counts_by_academic_year = TeacherAssignment
+                                        .where(school_academic_year_id: all_academic_year_ids)
+                                        .group(:school_academic_year_id)
+                                        .count
 
       schools_scope.map do |school|
         # 獲取該學校的所有學年
         academic_years = school.school_academic_years
         academic_years = filter_academic_years(academic_years)
 
-        # 計算學生和教師數量
-        student_count = count_students(academic_years)
-        teacher_count = count_teachers(academic_years)
+        # 計算該學校所有學年的學生和教師總數
+        academic_year_ids = academic_years.map(&:id)
+        student_count = academic_year_ids.sum { |id| student_counts_by_academic_year[id] || 0 }
+        teacher_count = academic_year_ids.sum { |id| teacher_counts_by_academic_year[id] || 0 }
 
         {
           id: school.id,
@@ -161,7 +200,8 @@ module Schools
     # 篩選學校
     # @return [ActiveRecord::Relation] 學校查詢對象
     def filter_schools
-      scope = School.all
+      # 使用 includes 預加載學年關聯，避免 N+1 查詢問題
+      scope = School.includes(:school_academic_years)
 
       # 按學校ID篩選
       scope = scope.where(id: @school_id) if @school_id.present?

@@ -410,6 +410,7 @@ Rails.application.routes.draw do
             post :assign_teacher_by_id
             get :student_stats
             get :teacher_stats
+            get :academic_years
             get 'academic_years/:academic_year_id/students', to: 'schools#academic_year_students'
             get 'academic_years/:academic_year_id/classes/:class_name/students', to: 'schools#class_students'
             get 'academic_years/:academic_year_id/teachers', to: 'schools#academic_year_teachers'

@@ -9,7 +9,8 @@ module Api
         before_action :set_school, only: %i[show update destroy assign_students
                                             assign_teachers student_stats teacher_stats
                                             academic_year_students class_students
-                                            academic_year_teachers department_teachers]
+                                            academic_year_teachers department_teachers
+                                            academic_years]
 
         # GET /admin/v1/schools
         # 獲取所有學校的列表
@@ -35,6 +36,43 @@ module Api
           render json: {
             status: 'success',
             data: school_serializer(@school)
+          }
+        end
+
+        # GET /admin/v1/schools/:code/academic_years
+        # 獲取特定學校的所有學年列表
+        # @param code [String] 學校代碼
+        # @param status [String] 可選，按狀態過濾學年
+        # @param sort_by [String] 可選，排序字段，默認為 'start_date'
+        # @param sort_direction [String] 可選，排序方向，'asc' 或 'desc'，默認為 'desc'
+        # @return [JSON] 學年列表及相關統計信息
+        def academic_years
+          # 獲取學年列表
+          academic_years = @school.school_academic_years
+
+          # 狀態過濾
+          academic_years = academic_years.where(status: params[:status]) if params[:status].present?
+
+          # 排序
+          sort_by = params[:sort_by].present? ? params[:sort_by].to_sym : :start_date
+          sort_direction = params[:sort_direction] == 'asc' ? :asc : :desc
+          academic_years = academic_years.order(sort_by => sort_direction)
+
+          # 統計數據
+          active_count = @school.school_academic_years.where(status: :active).count
+          archived_count = @school.school_academic_years.where(status: :archived).count
+          preparing_count = @school.school_academic_years.where(status: :preparing).count
+
+          render json: {
+            status: 'success',
+            code: 200,
+            data: academic_years.map { |academic_year| academic_year_serializer(academic_year) },
+            meta: {
+              total_count: academic_years.count,
+              active_count:,
+              archived_count:,
+              preparing_count:
+            }
           }
         end
 
@@ -741,6 +779,26 @@ module Api
             prev_page: collection.prev_page,
             total_pages: collection.total_pages,
             total_count: collection.total_count
+          }
+        end
+
+        # 學年序列化
+        # @param academic_year [SchoolAcademicYear] 學年對象
+        # @return [Hash] 序列化後的學年數據
+        def academic_year_serializer(academic_year)
+          {
+            id: academic_year.id,
+            name: academic_year.name,
+            status: academic_year.status,
+            school_id: academic_year.school_id,
+            school_name: academic_year.school.name,
+            school_code: academic_year.school.code,
+            start_date: academic_year.start_date,
+            end_date: academic_year.end_date,
+            student_count: academic_year.student_enrollments.count,
+            teacher_count: academic_year.teacher_assignments.count,
+            created_at: academic_year.created_at,
+            updated_at: academic_year.updated_at
           }
         end
 
