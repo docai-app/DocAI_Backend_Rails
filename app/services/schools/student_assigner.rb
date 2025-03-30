@@ -6,7 +6,7 @@ module Schools
   class StudentAssigner
     include ActiveModel::Model
 
-    attr_reader :assigned_count, :skipped_count, :total_processed
+    attr_reader :assigned_count, :skipped_count, :total_processed, :validation_errors
     attr_accessor :school, :academic_year_name, :email_patterns
 
     validates :school, :academic_year_name, :email_patterns, presence: true
@@ -19,6 +19,7 @@ module Schools
       @assigned_count = 0
       @skipped_count = 0
       @total_processed = 0
+      @validation_errors = []
 
       # 查找學年
       @academic_year = school.school_academic_years.find_by(name: academic_year_name)
@@ -67,6 +68,7 @@ module Schools
       # 檢查用戶角色
       unless user.aienglish_user?
         @skipped_count += 1
+        @validation_errors << "#{user.email}: 該用戶不是 AI English 用戶"
         return
       end
 
@@ -74,6 +76,7 @@ module Schools
       is_teacher = user.meta['aienglish_role'] == 'teacher'
       if is_teacher
         @skipped_count += 1
+        @validation_errors << "#{user.email}: 該用戶是教師而非學生"
         return # 教師不需要創建學生註冊記錄
       end
 
@@ -88,14 +91,19 @@ module Schools
         enrollment.class_name = user.banbie.presence || '未分配'
         enrollment.class_number = user.class_no.presence || '未分配'
         enrollment.status = :active
-        enrollment.save!
 
-        # 更新該用戶的最近作業記錄
-        update_essay_gradings(user, enrollment)
-
-        @assigned_count += 1
+        begin
+          enrollment.save!
+          # 更新該用戶的最近作業記錄
+          update_essay_gradings(user, enrollment)
+          @assigned_count += 1
+        rescue ActiveRecord::RecordInvalid => e
+          @skipped_count += 1
+          @validation_errors << "#{user.email}: #{e.message}"
+        end
       else
         @skipped_count += 1
+        @validation_errors << "#{user.email}: 該學生已經分配到該學年"
       end
     end
 

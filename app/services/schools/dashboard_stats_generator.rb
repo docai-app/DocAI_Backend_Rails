@@ -189,6 +189,7 @@ module Schools
         {
           id: school.id,
           name: school.name,
+          code: school.code,
           student_count:,
           teacher_count:,
           status: school.status,
