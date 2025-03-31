@@ -23,7 +23,7 @@
 #  fk_rails_...  (school_id => schools.id)
 #
 class SchoolAcademicYear < ApplicationRecord
-  belongs_to :school
+  belongs_to :school, optional: true
   has_many :student_enrollments, dependent: :restrict_with_error
   has_many :teacher_assignments, dependent: :restrict_with_error
   has_many :teachers, through: :teacher_assignments, source: :general_user

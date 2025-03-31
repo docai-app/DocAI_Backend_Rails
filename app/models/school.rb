@@ -27,6 +27,9 @@ class School < ApplicationRecord
   has_many :student_enrollments, through: :school_academic_years
   has_many :teacher_assignments, through: :school_academic_years
 
+  has_many :general_users, through: :student_enrollments
+  has_many :general_users, through: :teacher_assignments
+
   # 附件
   has_one_attached :logo, service: :microsoft
 

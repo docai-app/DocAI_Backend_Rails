@@ -74,7 +74,7 @@ class GeneralUser < ApplicationRecord
   has_many :student_enrollments, dependent: :destroy
   has_many :school_academic_years, through: :student_enrollments
 
-  # 添加學校關聯
+  # 直接關聯到學校，這是可選的，用於學校直接指派的用戶
   belongs_to :school, optional: true
 
   # 添加教師任教記錄關聯
@@ -337,6 +337,50 @@ class GeneralUser < ApplicationRecord
 
     # 保存更改
     save
+  end
+
+  # 添加一個方法來獲取學校，無論用戶是學生還是教師
+  # 只允許 AI English 用戶使用
+  def get_school
+    # 首先檢查是否為 AI English 用戶
+    return nil unless aienglish_user?
+
+    # 如果用戶直接關聯到學校
+    return school if school.present?
+
+    # 如果是學生，通過enrollment獲取學校
+    if aienglish_role != 'teacher' && current_enrollment.present?
+      return current_enrollment.school_academic_year.school
+    # 如果是教師，通過teaching assignment獲取學校
+    elsif aienglish_role == 'teacher' && current_teaching_assignment.present?
+      return current_teaching_assignment.school_academic_year.school
+    end
+
+    # 如果沒有找到學校關聯，返回nil
+    nil
+  end
+
+  # 獲取學校Logo URL的方法
+  # 只允許 AI English 用戶使用
+  def school_logo_url(size = :small)
+    # 首先檢查是否為 AI English 用戶
+    return nil unless aienglish_user?
+
+    school = get_school
+    return nil unless school&.logo&.attached?
+
+    case size
+    when :thumbnail
+      school.logo_thumbnail_url
+    when :small
+      school.logo_small_url
+    when :large
+      school.logo_large_url
+    when :square
+      school.logo_square_url
+    else
+      school.logo_url
+    end
   end
 
   private

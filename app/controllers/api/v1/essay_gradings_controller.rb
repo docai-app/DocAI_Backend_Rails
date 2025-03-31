@@ -292,7 +292,7 @@ module Api
         pdf
       end
 
-      def generate_comprehension_pdf(json_data, essay_grading)
+      def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil)
         Prawn::Document.new do |pdf|
           # 加载和注册字体
           font_path = Rails.root.join('app/assets/fonts/')
@@ -314,6 +314,26 @@ module Api
 
           # 设置默认字体
           pdf.font 'Arial'
+
+          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
+          if school_logo_url.present?
+            # 下載 logo 到臨時文件
+            begin
+              require 'open-uri'
+              logo_tempfile = URI.open(school_logo_url)
+              # 在左上角顯示 logo，寬度為 100 點
+              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 100
+              # 向下移動一定距離，以便文本不會與 logo 重疊
+              pdf.move_down 110
+            rescue StandardError => e
+              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
+              Rails.logger.error("Error loading school logo: #{e.message}")
+              # 不需要移動光標，因為沒有添加 logo
+            end
+          else
+            # 沒有 logo 時正常開始內容
+            pdf.move_down 20
+          end
 
           # 开始内容部分
           pdf.move_down 20
@@ -380,7 +400,7 @@ module Api
         end
       end
 
-      def generate_sentence_builder_pdf(json_data, essay_grading)
+      def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           # 設定主要字型 & DejaVuSans
           font_path = Rails.root.join('app/assets/fonts')
@@ -403,6 +423,26 @@ module Api
           pdf.font('Arial')
           # 碰到無法顯示的符號 (如 ❌ / ✅) 時，自動 fallback 到 DejaVuSans
           pdf.fallback_fonts(['DejaVuSans'])
+
+          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
+          if school_logo_url.present?
+            # 下載 logo 到臨時文件
+            begin
+              require 'open-uri'
+              logo_tempfile = URI.open(school_logo_url)
+              # 在左上角顯示 logo，寬度為 100 點
+              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 100
+              # 向下移動一定距離，以便文本不會與 logo 重疊
+              pdf.move_down 110
+            rescue StandardError => e
+              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
+              Rails.logger.error("Error loading school logo: #{e.message}")
+              # 不需要移動光標，因為沒有添加 logo
+            end
+          else
+            # 沒有 logo 時正常開始內容
+            pdf.move_down 20
+          end
 
           # 开始内容部分
           pdf.move_down 20
@@ -491,7 +531,7 @@ module Api
         end
       end
 
-      def generate_essay_pdf(json_data, essay_grading)
+      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil)
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
 
         # 设置全局样式
@@ -507,6 +547,26 @@ module Api
           }
         )
         pdf.font 'Arial'
+
+        # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
+        if school_logo_url.present?
+          # 下載 logo 到臨時文件
+          begin
+            require 'open-uri'
+            logo_tempfile = URI.open(school_logo_url)
+            # 在左上角顯示 logo，寬度為 100 點
+            pdf.image logo_tempfile, at: [0, pdf.cursor], width: 100
+            # 向下移動一定距離，以便文本不會與 logo 重疊
+            pdf.move_down 110
+          rescue StandardError => e
+            # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
+            Rails.logger.error("Error loading school logo: #{e.message}")
+            # 不需要移動光標，因為沒有添加 logo
+          end
+        else
+          # 沒有 logo 時正常開始內容
+          pdf.move_down 20
+        end
 
         # 开始内容部分
         pdf.move_down 20
@@ -633,12 +693,19 @@ module Api
         assignment = essay_grading.essay_assignment
         raise "Essay assignment not found for grading ID #{essay_grading.id}" if assignment.nil?
 
+        # 獲取用戶
+        user = essay_grading.general_user
+
+        # 只有 AI English 用戶才會有學校 logo
+        school_logo_url = user.aienglish_user? ? user.school_logo_url(:small) : nil
+
+        # 根據不同類型生成不同報告
         if assignment.category == 'comprehension'
-          generate_comprehension_pdf(json_data, essay_grading)
+          generate_comprehension_pdf(json_data, essay_grading, school_logo_url)
         elsif assignment.category.include?('essay')
-          generate_essay_pdf(json_data, essay_grading)
+          generate_essay_pdf(json_data, essay_grading, school_logo_url)
         elsif assignment.category.include?('sentence_builder')
-          generate_sentence_builder_pdf(json_data, essay_grading)
+          generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url)
         else
           generate_pdf_from_json(json_data)
         end

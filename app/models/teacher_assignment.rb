@@ -26,7 +26,7 @@
 #
 class TeacherAssignment < ApplicationRecord
   belongs_to :general_user
-  belongs_to :school_academic_year
+  belongs_to :school_academic_year, optional: true
 
   # 委派學校關聯
   delegate :school, to: :school_academic_year
