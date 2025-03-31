@@ -292,7 +292,7 @@ module Api
         pdf
       end
 
-      def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil)
+      def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         Prawn::Document.new do |pdf|
           # 加载和注册字体
           font_path = Rails.root.join('app/assets/fonts/')
@@ -321,10 +321,10 @@ module Api
             begin
               require 'open-uri'
               logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 100 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 100
+              # 在左上角顯示 logo，寬度為 50 點
+              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
               # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 110
+              pdf.move_down 20
             rescue StandardError => e
               # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
               Rails.logger.error("Error loading school logo: #{e.message}")
@@ -351,7 +351,7 @@ module Api
           pdf.move_down 10
 
           # 學生資訊
-          pdf.text "Account: #{json_data['account']}", size: 14
+          pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
           pdf.move_down 30
 
           # binding.pry
@@ -400,7 +400,7 @@ module Api
         end
       end
 
-      def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil)
+      def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           # 設定主要字型 & DejaVuSans
           font_path = Rails.root.join('app/assets/fonts')
@@ -430,10 +430,10 @@ module Api
             begin
               require 'open-uri'
               logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 100 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 100
+              # 在左上角顯示 logo，寬度為 50 點
+              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
               # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 110
+              pdf.move_down 20
             rescue StandardError => e
               # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
               Rails.logger.error("Error loading school logo: #{e.message}")
@@ -462,7 +462,7 @@ module Api
           end
 
           # 學生資訊
-          pdf.text "Account: #{json_data['account']}", size: 14
+          pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
           pdf.move_down 10
 
           pdf.text "Score: #{essay_grading['grading']['score']} / #{essay_grading['grading']['full_score']}", size: 14
@@ -531,7 +531,7 @@ module Api
         end
       end
 
-      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil)
+      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
 
         # 设置全局样式
@@ -554,10 +554,10 @@ module Api
           begin
             require 'open-uri'
             logo_tempfile = URI.open(school_logo_url)
-            # 在左上角顯示 logo，寬度為 100 點
-            pdf.image logo_tempfile, at: [0, pdf.cursor], width: 100
+            # 在左上角顯示 logo，寬度為 50 點
+            pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
             # 向下移動一定距離，以便文本不會與 logo 重疊
-            pdf.move_down 110
+            pdf.move_down 20
           rescue StandardError => e
             # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
             Rails.logger.error("Error loading school logo: #{e.message}")
@@ -584,7 +584,7 @@ module Api
         pdf.move_down 10
 
         # 学生信息
-        pdf.text "Account: #{json_data['account']}", size: 14
+        pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
         pdf.move_down 30
 
         # 解析 JSON 数据
@@ -699,13 +699,16 @@ module Api
         # 只有 AI English 用戶才會有學校 logo
         school_logo_url = user.aienglish_user? ? user.school_logo_url(:small) : nil
 
+        # 準備用戶顯示資訊（優先使用提交班級資訊）
+        submission_info = prepare_submission_info(essay_grading)
+
         # 根據不同類型生成不同報告
         if assignment.category == 'comprehension'
-          generate_comprehension_pdf(json_data, essay_grading, school_logo_url)
+          generate_comprehension_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('essay')
-          generate_essay_pdf(json_data, essay_grading, school_logo_url)
+          generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('sentence_builder')
-          generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url)
+          generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url, submission_info)
         else
           generate_pdf_from_json(json_data)
         end
@@ -735,6 +738,17 @@ module Api
         end
 
         json_data
+      end
+
+      # 準備提交資訊（優先使用submission的班級資訊）
+      def prepare_submission_info(essay_grading)
+        user = essay_grading.general_user
+
+        # 優先使用submission信息（如果存在）
+        class_name = essay_grading.submission_class_name.presence || user.banbie
+        class_number = essay_grading.submission_class_number.presence || user.class_no
+
+        "#{user.email} (#{user.nickname}, #{class_name}, #{class_number})"
       end
     end
   end
