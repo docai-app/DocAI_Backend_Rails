@@ -56,7 +56,8 @@ module Api
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS score'
                                            )
                                            .includes(:general_user).order('created_at asc')
-
+        
+        # binding.pry
         render json: {
           success: true,
           essay_assignment: @essay_assignment,
@@ -78,6 +79,11 @@ module Api
               the_full_score = sb_score[:full_score]
               overall_score = sb_score[:score]
               eg['score'] = overall_score
+            elsif @essay_assignment.speaking_pronunciation?
+              # sb_score = eg.calculate_speaking_pronunciation_score
+              self['full_score'] = eg['grading']['speaking_pronunciation_sentences'].count
+              # eg['score'] = 1
+              # binding.pry
             else
               # 提取每個 criterion 的分數和總分
               scores = grading_json.each_with_object({}) do |(key, value), result|
@@ -93,6 +99,8 @@ module Api
               overall_score = grading_json['Overall Score']
               the_full_score = grading_json['Full Score']
             end
+
+            
 
             {
               id: eg.id,
@@ -111,7 +119,7 @@ module Api
               number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion'],
               questions_count: eg['questions_count'] == 'null' ? nil : eg['questions_count'],
               full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
-              score: eg['score'] == 'null' ? nil : eg['score'],
+              score: eg['score'] == 'null' ? nil : eg['score'].to_i,
               scores:,
               overall_score:,
               the_full_score:,

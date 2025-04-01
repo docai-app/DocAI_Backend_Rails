@@ -99,6 +99,8 @@ module Api
             essay: @essay_grading.essay,
             using_time: @essay_grading.using_time,
             file: @essay_grading.file.url,
+            submission_class_name: @essay_grading.submission_class_name,
+            submission_class_number: @essay_grading.submission_class_number,
             # transformed_newsfeed: @essay_grading.get_transformed_newsfeed,
             general_user: {
               id: @essay_grading.general_user.id,
