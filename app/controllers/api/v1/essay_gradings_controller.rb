@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'prawn/table'
+
 module Api
   module V1
     class EssayGradingsController < ApiController
@@ -684,6 +686,155 @@ module Api
         pdf
       end
 
+      def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
+        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+          # 設定字體支持 UTF-8 (特別是 IPA 音標字符)
+          font_path = Rails.root.join('app/assets/fonts')
+
+          # 使用 NotoSans 作為主要字體，支持中文和廣泛的 Unicode 字符
+          pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => { # 作為備用字體，特別支持 IPA 字符
+              normal: font_path.join('DejaVuSans.ttf')
+            },
+            'Arial' => { # 保留 Arial 作為兼容選項
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
+            }
+          )
+
+          # 設置主要字體為 NotoSans，以便支持 UTF-8 字符集
+          pdf.font('NotoSans')
+          # 設置後備字體，當 NotoSans 不支持某些字符時使用
+          pdf.fallback_fonts(['DejaVuSans'])
+
+          # 處理學校 Logo
+          if school_logo_url.present?
+            begin
+              require 'open-uri'
+              logo_tempfile = URI.open(school_logo_url)
+              # Logo 尺寸調整為 50 點
+              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
+              pdf.move_down 20
+            rescue StandardError => e
+              Rails.logger.error("Error loading school logo: #{e.message}")
+            end
+          else
+            pdf.move_down 20
+          end
+
+          # 報告標題
+          pdf.move_down 20
+          pdf.text 'Pronunciation Assessment Report', size: 20, style: :bold, align: :center
+          pdf.move_down 10
+
+          # 基本信息區塊
+          if json_data['assignment'].present?
+            pdf.text "Assignment: #{json_data['assignment']}", size: 14
+            pdf.move_down 10
+          end
+
+          if json_data['topic'].present?
+            pdf.text "Topic: #{json_data['topic']}", size: 14
+            pdf.move_down 10
+          end
+
+          # 學生資訊
+          pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
+          pdf.move_down 10
+
+          # 顯示總分
+          if essay_grading['score'].present?
+            pdf.text "Score: #{essay_grading['score']} / #{essay_grading.speaking_pronunciation_sentences&.count || 0}",
+                     size: 14, style: :bold
+            pdf.move_down 20
+          end
+
+          # 顯示每個句子的評估結果
+          pdf.text 'Pronunciation Analysis', size: 18, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 20
+
+          # 獲取 speaking_pronunciation_sentences 數據
+          sentences = essay_grading.grading['speaking_pronunciation_sentences'] || []
+          threshold = essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60
+
+          sentences.each_with_index do |sentence_data, index|
+            # 判斷是否通過閾值
+            sentence_score = sentence_data['score'].to_i
+            passed = sentence_score >= threshold
+            status_symbol = passed ? "<color rgb='008000'>✓</color>" : "<color rgb='FF0000'>✗</color>"
+
+            # 句子區塊標題
+            pdf.text "#{index + 1}. #{status_symbol} Score: #{sentence_score}", size: 16, style: :bold,
+                                                                                inline_format: true
+            pdf.move_down 10
+
+            # 創建表格顯示原始句子和音標
+            pdf.table([
+                        [{ content: 'Target Sentence:', font_style: :bold }, sentence_data['sentence'].to_s],
+                        [{ content: 'IPA Transcript:', font_style: :bold }, sentence_data['ipa_transcript'].to_s]
+                      ], cell_style: { borders: [], padding: [2, 5, 2, 5] }, column_widths: [120, 380])
+
+            pdf.move_down 15
+
+            # 如果有詳細結果數據，顯示更多信息
+            if sentence_data['result'].present?
+              # 用戶發音信息
+              pdf.text 'Your Pronunciation:', size: 14, style: :bold
+              pdf.text sentence_data['result']['real_transcript'].to_s, size: 12
+              pdf.move_down 5
+
+              # 音標比較 - 添加類型檢查
+              if sentence_data['result']['real_transcripts_ipa'].present? &&
+                 sentence_data['result']['matched_transcripts_ipa'].present?
+                pdf.text 'Phonetic Comparison:', size: 14, style: :bold
+
+                # 處理不同類型的數據
+                real_ipa = if sentence_data['result']['real_transcripts_ipa'].is_a?(Array)
+                             sentence_data['result']['real_transcripts_ipa'].join(' ')
+                           else
+                             sentence_data['result']['real_transcripts_ipa'].to_s
+                           end
+
+                matched_ipa = if sentence_data['result']['matched_transcripts_ipa'].is_a?(Array)
+                                sentence_data['result']['matched_transcripts_ipa'].join(' ')
+                              else
+                                sentence_data['result']['matched_transcripts_ipa'].to_s
+                              end
+
+                # 創建表格對比標準與實際音標
+                pdf.table([
+                            [{ content: 'Standard:', font_style: :bold }, matched_ipa],
+                            [{ content: 'Your IPA:', font_style: :bold }, real_ipa]
+                          ], cell_style: { borders: [], padding: [2, 5, 2, 5] }, column_widths: [120, 380])
+              end
+
+              pdf.move_down 10
+            end
+
+            # 添加反饋（如果有）
+            if sentence_data['feedback'].present?
+              pdf.text 'Feedback:', size: 14, style: :bold
+              pdf.text sentence_data['feedback'].to_s, size: 12
+            end
+
+            pdf.move_down 20
+            pdf.stroke_horizontal_rule
+            pdf.move_down 20
+          end
+
+          # 添加頁碼
+          pdf.number_pages '<page> of <total>',
+                           at: [pdf.bounds.right - 50, 0],
+                           align: :right,
+                           size: 12
+        end
+      end
+
       def generate_report(grading)
         grading = EssayGrading.includes(:essay_assignment).find(grading.id) # 确保 essay_assignment 被加载
         json_data = prepare_report_data(grading)
@@ -707,6 +858,8 @@ module Api
         # 根據不同類型生成不同報告
         if assignment.category == 'comprehension'
           generate_comprehension_pdf(json_data, essay_grading, school_logo_url, submission_info)
+        elsif assignment.category == 'speaking_pronunciation' # 新增對 speaking_pronunciation 的專門處理
+          generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('essay')
           generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('sentence_builder')
