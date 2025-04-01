@@ -187,11 +187,14 @@ class EssayGrading < ApplicationRecord
     # 遍历每个 speaking_pronunciation_sentence
     grading['speaking_pronunciation_sentences'].each do |sentence_data|
       # 如果 score 大于 threshold，则得1分
-      total_score += 1 if sentence_data['result']['pronunciation_accuracy'].to_i >= threshold.to_i
+      if sentence_data['result']['pronunciation_accuracy'].to_i >= threshold.to_i
+        total_score += sentence_data['result']['pronunciation_accuracy'].to_i
+      end
     end
 
     # 设置总分
-    self['score'] = total_score
+    
+    self['score'] = ((total_score.to_f / self['grading']['speaking_pronunciation_sentences'].count)).round
     self['status'] = 'graded'
     save
   end

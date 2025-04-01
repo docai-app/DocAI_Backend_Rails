@@ -81,7 +81,7 @@ module Api
               eg['score'] = overall_score
             elsif @essay_assignment.speaking_pronunciation?
               # sb_score = eg.calculate_speaking_pronunciation_score
-              eg['full_score'] = eg['grading']['speaking_pronunciation_sentences'].count
+              eg['full_score'] = 100 #eg['grading']['speaking_pronunciation_sentences'].count
               # eg['score'] = 1
               # binding.pry
             else
