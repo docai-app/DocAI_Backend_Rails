@@ -682,6 +682,143 @@ module Api
           }
         end
 
+        # POST /admin/v1/schools/:code/promote_students
+        # 批量升班
+        # @param code [String] 學校代碼
+        # @param source_academic_year_id [String] 源學年ID
+        # @param target_academic_year_id [String] 目標學年ID
+        # @param promotion_rules [Hash] 升班規則
+        # @param update_existing [Boolean] 是否更新已存在的記錄
+        # @return [JSON] 升班結果
+        def promote_students
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          begin
+            source_year = @school.school_academic_years.find(params[:source_academic_year_id])
+            target_year = @school.school_academic_years.find(params[:target_academic_year_id])
+
+            # 檢查目標學年是否為活躍狀態
+            unless target_year.active?
+              return render json: {
+                success: false,
+                error: '目標學年必須為活躍狀態'
+              }, status: :unprocessable_entity
+            end
+
+            # 確保只傳遞必要的參數
+            service = Schools::BulkClassPromotion.new(
+              @school,
+              source_year,
+              target_year,
+              promotion_rules_params
+            )
+
+            if service.execute
+              render json: {
+                success: true,
+                message: '批量升班成功',
+                data: {
+                  total_processed: service.total_processed,
+                  success_count: service.success_count,
+                  failed_count: service.failed_count,
+                  errors: service.promotion_errors
+                }
+              }
+            else
+              render json: {
+                success: false,
+                error: service.errors.full_messages.join(', ')
+              }, status: :unprocessable_entity
+            end
+          rescue ActiveRecord::RecordNotFound => e
+            render json: { success: false, error: '找不到指定的學年' }, status: :not_found
+          rescue StandardError => e
+            # 添加詳細的錯誤日誌和回溯信息
+            Rails.logger.error("批量升班失敗: #{e.message}")
+            Rails.logger.error(e.backtrace.join("\n"))
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
+        # POST /admin/v1/schools/:code/update_assignments_academic_year
+        # 手動更新作業記錄的學年信息
+        # @param code [String] 學校代碼
+        # @param academic_year_id [String] 學年ID
+        # @param date_range [Hash] 日期範圍
+        # @param class_name [String] 可選的班級名稱過濾
+        # @return [JSON] 更新結果
+        def update_assignments_academic_year
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          begin
+            @academic_year = @school.school_academic_years.find(params[:academic_year_id])
+
+            # 獲取日期範圍
+            date_range = params[:date_range] || {}
+            start_date = date_range[:start_date].present? ? Date.parse(date_range[:start_date]) : 30.days.ago.to_date
+            end_date = date_range[:end_date].present? ? Date.parse(date_range[:end_date]) : Date.today
+
+            # 構建查詢
+            query = EssayGrading.where(
+              created_at: start_date.beginning_of_day..end_date.end_of_day,
+              submission_school_id: @school.id
+            )
+
+            # 如果指定了班級，則添加過濾條件
+            query = query.where(submission_class_name: params[:class_name]) if params[:class_name].present?
+
+            # 更新作業記錄
+            count = query.update_all(
+              submission_academic_year_id: @academic_year.id
+            )
+
+            render json: {
+              success: true,
+              message: "已更新 #{count} 個作業記錄",
+              data: { count: }
+            }
+          rescue ActiveRecord::RecordNotFound
+            render json: { success: false, error: '找不到指定的學年' }, status: :not_found
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
+        # PUT /admin/v1/schools/:code/enrollments/:enrollment_id
+        # 更新學生註冊信息
+        def update_enrollment
+          @school = School.find_by(code: params[:code])
+          return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
+
+          begin
+            enrollment = StudentEnrollment.find(params[:enrollment_id])
+
+            # 確保註冊記錄屬於該學校
+            unless enrollment.school_academic_year.school_id == @school.id
+              return render json: { success: false, error: '該註冊記錄不屬於指定學校' }, status: :forbidden
+            end
+
+            if enrollment.update(enrollment_params)
+              render json: {
+                success: true,
+                message: '成功更新學生註冊信息',
+                data: student_info(enrollment)
+              }
+            else
+              render json: {
+                success: false,
+                error: enrollment.errors.full_messages.join(', ')
+              }, status: :unprocessable_entity
+            end
+          rescue ActiveRecord::RecordNotFound
+            render json: { success: false, error: '找不到指定的註冊記錄' }, status: :not_found
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
         private
 
         # 設置當前學校
@@ -855,6 +992,21 @@ module Api
             created_at: assignment.created_at,
             updated_at: assignment.updated_at
           }
+        end
+
+        # 升班規則參數
+        # @return [ActionController::Parameters] 過濾後的參數
+        def promotion_rules_params
+          params.require(:promotion_rules).permit(
+            class_rules: {},
+            number_rules: {}
+          )
+        end
+
+        # 學生註冊參數
+        # @return [ActionController::Parameters] 過濾後的參數
+        def enrollment_params
+          params.require(:enrollment).permit(:class_name, :class_number, :status)
         end
       end
     end

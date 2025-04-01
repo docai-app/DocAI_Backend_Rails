@@ -418,6 +418,8 @@ Rails.application.routes.draw do
             get 'multi_year_students', to: 'schools#multi_year_students'
             put :logo, to: 'school_logos#update'
             delete :logo, to: 'school_logos#destroy'
+            post :promote_students
+            post :update_assignments_academic_year
           end
 
           collection do

@@ -33,7 +33,8 @@ class StudentEnrollment < ApplicationRecord
     active: 0,        # 在讀
     graduated: 1,     # 畢業
     transferred: 2,   # 轉學
-    withdrawn: 3      # 退學
+    withdrawn: 3,     # 退學
+    promoted: 4       # 升班
   }
 
   # 委派學校關聯
