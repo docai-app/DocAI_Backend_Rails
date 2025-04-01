@@ -51,9 +51,10 @@ module Api
                                       general_users.nickname,
                                       general_users.banbie,
                                       general_users.class_no,
+                                      essay_gradings.score as score, 
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'questions_count\', \'null\') AS questions_count,
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS score'
+                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS comprehension_score'
                                            )
                                            .includes(:general_user).order('created_at asc')
         
@@ -79,6 +80,10 @@ module Api
               the_full_score = sb_score[:full_score]
               overall_score = sb_score[:score]
               eg['score'] = overall_score
+            elsif @essay_assignment.comprehension?
+              # sb_score = eg.calculate_comprehension_score
+              eg['full_score'] = eg['grading']['comprehension']['questions_count']
+              eg['score'] = eg['grading']['comprehension']['score']
             elsif @essay_assignment.speaking_pronunciation?
               # sb_score = eg.calculate_speaking_pronunciation_score
               eg['full_score'] = 100 #eg['grading']['speaking_pronunciation_sentences'].count

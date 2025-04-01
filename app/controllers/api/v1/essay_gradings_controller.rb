@@ -67,6 +67,7 @@ module Api
         # 获取 category 的字符串表示
         EssayAssignment.categories.invert
 
+        # binding.pry
         grading_json = begin
           JSON.parse(@essay_grading.grading['data']['text'])
         rescue StandardError
@@ -81,7 +82,17 @@ module Api
           end
         end
 
-        # binding.pry
+        if @essay_grading.category == 'comprehension'
+          score = @essay_grading.grading.dig('comprehension', 'score'),
+          full_score = @essay_grading.grading.dig('comprehension', 'full_score')
+        elsif @essay_grading.category == 'speaking_pronunciation'
+          score = @essay_grading['score']
+          full_score = 100
+          # binding.pry
+        else
+          score = @essay_grading.grading['score']
+          full_score = @essay_grading.grading['full_score']
+        end
 
         render json: {
           success: true,
@@ -93,8 +104,8 @@ module Api
             status: @essay_grading.status,
             number_of_suggestion: @essay_grading.grading['number_of_suggestion'],
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
-            full_score: @essay_grading.grading.dig('comprehension', 'full_score'),
-            score: @essay_grading.grading.dig('comprehension', 'score'),
+            full_score: full_score,
+            score: score,
             scores:,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
@@ -216,6 +227,7 @@ module Api
                 :transcript_translation,
                 { real_transcript: [] }, # 假設 real_transcript 是陣列中的純量
                 { result: %i[
+                  audiobase64
                   real_transcript
                   ipa_transcript
                   pronunciation_accuracy
