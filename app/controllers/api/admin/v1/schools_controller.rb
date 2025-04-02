@@ -923,6 +923,25 @@ module Api
         # @param academic_year [SchoolAcademicYear] 學年對象
         # @return [Hash] 序列化後的學年數據
         def academic_year_serializer(academic_year)
+          # 獲取學生統計數據
+          student_stats = {
+            total: academic_year.student_enrollments.count,
+            active: academic_year.student_enrollments.where(status: :active).count,
+            graduated: academic_year.student_enrollments.where(status: :graduated).count,
+            transferred: academic_year.student_enrollments.where(status: :transferred).count,
+            withdrawn: academic_year.student_enrollments.where(status: :withdrawn).count,
+            promoted: academic_year.student_enrollments.where(status: :promoted).count
+          }
+
+          # 獲取教師統計數據
+          teacher_stats = {
+            total: academic_year.teacher_assignments.count,
+            active: academic_year.teacher_assignments.where(status: :active).count,
+            resigned: academic_year.teacher_assignments.where(status: :resigned).count,
+            transferred: academic_year.teacher_assignments.where(status: :transferred).count,
+            sabbatical: academic_year.teacher_assignments.where(status: :sabbatical).count
+          }
+
           {
             id: academic_year.id,
             name: academic_year.name,
@@ -932,8 +951,13 @@ module Api
             school_code: academic_year.school.code,
             start_date: academic_year.start_date,
             end_date: academic_year.end_date,
-            student_count: academic_year.student_enrollments.count,
-            teacher_count: academic_year.teacher_assignments.count,
+            # 保留簡單計數以保持向後兼容性
+            student_count: student_stats[:total],
+            teacher_count: teacher_stats[:total],
+            # 添加詳細的學生統計信息
+            student_stats:,
+            # 添加詳細的教師統計信息
+            teacher_stats:,
             created_at: academic_year.created_at,
             updated_at: academic_year.updated_at
           }
