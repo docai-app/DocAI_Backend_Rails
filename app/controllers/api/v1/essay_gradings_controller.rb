@@ -716,8 +716,8 @@ module Api
             }
           )
       
-          pdf.font('NotoSans')
-          pdf.fallback_fonts(['DejaVuSans'])
+          pdf.font('Arial')
+          pdf.fallback_fonts(['NotoSans','DejaVuSans'])
           pdf.fill_color '000000'
       
           # 處理學校 Logo
@@ -749,9 +749,9 @@ module Api
           pdf.move_down 12
       
           info_data = [
-            ['Assignment ID:', json_data['assignment'] || 'N/A'],
-            ['Student Name:', essay_grading.general_user.show_in_report_name || 'N/A'],
-            ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
+            ['Assignment:', json_data['assignment'] || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
             # ['Teacher:', submission_info || 'N/A'],
             # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
             ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
@@ -833,12 +833,12 @@ module Api
           pdf.move_down 30
       
           # Footer
-          pdf.fill_color '555555'
-          pdf.text 'This report was generated automatically from the pronunciation assessment system.', size: 10 #, style: :italic
-          pdf.fill_color '000000'
+          # pdf.fill_color '555555'
+          # pdf.text 'This report was generated automatically from the pronunciation assessment system.', size: 10 #, style: :italic
+          # pdf.fill_color '000000'
       
           # Page Number
-          pdf.number_pages 'Page <page> of <total>', at: [pdf.bounds.right - 100, 0], align: :right, size: 10
+          # pdf.number_pages 'Page <page> of <total>', at: [pdf.bounds.right - 100, 0], align: :right, size: 10
         end
       end
       
