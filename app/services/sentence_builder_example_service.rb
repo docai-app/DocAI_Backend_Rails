@@ -8,7 +8,13 @@ class SentenceBuilderExampleService
 
   def initialize(user_id, essay_assignment)
     @user_id = user_id
-    @app_key = ENV['sentence_builder_example_app_key']
+    
+    if essay_assignment.rubric == 'advanced'
+      @app_key = ENV['sentence_builder_example_app_key_advanced']
+    else
+      @app_key = ENV['sentence_builder_example_app_key']
+    end
+
     @vocabs = essay_assignment.vocabs.map do |vocab|
       "#{vocab['word']}(#{vocab['pos']})"
     end.join(',')
