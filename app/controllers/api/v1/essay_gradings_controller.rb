@@ -84,7 +84,7 @@ module Api
 
         if @essay_grading.category == 'comprehension'
           score = @essay_grading.grading.dig('comprehension', 'score'),
-          full_score = @essay_grading.grading.dig('comprehension', 'full_score')
+                  full_score = @essay_grading.grading.dig('comprehension', 'full_score')
         elsif @essay_grading.category == 'speaking_pronunciation'
           score = @essay_grading['score']
           full_score = 100
@@ -104,8 +104,8 @@ module Api
             status: @essay_grading.status,
             number_of_suggestion: @essay_grading.grading['number_of_suggestion'],
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
-            full_score: full_score,
-            score: score,
+            full_score:,
+            score:,
             scores:,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
@@ -353,7 +353,7 @@ module Api
 
           # 开始内容部分
           pdf.move_down 20
-          pdf.text "Grading Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
+          pdf.text "Assessment Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
 
           # 话题
@@ -462,7 +462,7 @@ module Api
 
           # 开始内容部分
           pdf.move_down 20
-          pdf.text "Grading Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
+          pdf.text "Assessment Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
           pdf.move_down 10
 
           # 顯示 Assignment (若有)
@@ -586,7 +586,7 @@ module Api
 
         # 开始内容部分
         pdf.move_down 20
-        pdf.text "Grading Report(#{essay_grading.essay_assignment.category})", size: 20, style: :bold, align: :center
+        pdf.text "Assessment Report(#{essay_grading.essay_assignment.category})", size: 20, style: :bold, align: :center
         pdf.move_down 10
 
         # 话题
@@ -698,10 +698,10 @@ module Api
         pdf
       end
 
-      def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
+      def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
-      
+
           pdf.font_families.update(
             'NotoSans' => {
               normal: font_path.join('NotoSansTC-Regular.ttf'),
@@ -715,11 +715,11 @@ module Api
               bold: font_path.join('ARIALBD.ttf')
             }
           )
-      
+
           pdf.font('Arial')
-          pdf.fallback_fonts(['NotoSans','DejaVuSans'])
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-      
+
           # 處理學校 Logo
           if school_logo_url.present?
             begin
@@ -734,20 +734,20 @@ module Api
           else
             pdf.move_down 20
           end
-      
+
           # Title
           pdf.move_down 10
           pdf.text 'PRONUNCIATION ASSESSMENT REPORT', size: 20, style: :bold, align: :center
           pdf.stroke_color '444444'
           # pdf.stroke_horizontal_rule
           pdf.move_down 25
-      
+
           # Section Title
           pdf.text 'Assignment Information', size: 15, style: :bold
           pdf.stroke_color '444444'
           pdf.stroke_horizontal_rule
           pdf.move_down 12
-      
+
           info_data = [
             ['Assignment:', json_data['assignment'] || 'N/A'],
             ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
@@ -756,7 +756,7 @@ module Api
             # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
             ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
           ]
-      
+
           info_data.each do |label, value|
             pdf.formatted_text [
               { text: label, styles: [:bold], size: 12 },
@@ -765,19 +765,19 @@ module Api
             pdf.move_down 4
           end
           pdf.move_down 25
-      
+
           # Overview
           pdf.text 'Assessment Overview', size: 15, style: :bold
           pdf.stroke_horizontal_rule
           pdf.move_down 12
-      
+
           threshold = essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60
           sentences = essay_grading.grading['speaking_pronunciation_sentences'] || []
-      
+
           sentences.each_with_index do |data, idx|
             pdf.text "Question #{idx + 1}", style: :bold, size: 13
             pdf.move_down 6
-      
+
             details = [
               ['Expected:', data['sentence'] || ''],
               ['Student:', data.dig('result', 'real_transcript') || ''],
@@ -785,7 +785,7 @@ module Api
               ['Student IPA:', "/#{Array(data.dig('result', 'real_transcripts_ipa')).join(' ')}/"],
               ['Score:', "#{data['score'].to_i}%"]
             ]
-      
+
             details.each do |label, value|
               pdf.formatted_text [
                 { text: label, styles: [:bold], size: 11 },
@@ -793,26 +793,26 @@ module Api
               ]
               pdf.move_down 3
             end
-      
+
             # Score bar
             score = data['score'].to_i
             bar_width = 400
             bar_height = 14
             filled_width = bar_width * score / 100.0
-      
+
             pdf.move_down 6
             pdf.fill_color 'eeeeee'
             pdf.rounded_rectangle([pdf.bounds.left, pdf.cursor], bar_width, bar_height, 7)
             pdf.fill
-      
+
             pdf.fill_color '333333'
             pdf.rounded_rectangle([pdf.bounds.left, pdf.cursor], filled_width, bar_height, 7)
             pdf.fill
-      
+
             pdf.fill_color 'ffffff'
             pdf.draw_text "#{score}%", at: [pdf.bounds.left + 5, pdf.cursor + 2], size: 10
             pdf.fill_color '000000'
-      
+
             pdf.move_down 25
             pdf.stroke_color 'aaaaaa'
             pdf.dash(1, space: 2)
@@ -821,7 +821,7 @@ module Api
             pdf.stroke_color '000000'
             pdf.move_down 25
           end
-      
+
           # Final Result
           pdf.text 'Final Result', size: 15, style: :bold
           pdf.stroke_horizontal_rule
@@ -831,20 +831,17 @@ module Api
             { text: " #{essay_grading['score'].to_i}%", size: 12 }
           ]
           pdf.move_down 30
-      
+
           # Footer
           # pdf.fill_color '555555'
           # pdf.text 'This report was generated automatically from the pronunciation assessment system.', size: 10 #, style: :italic
           # pdf.fill_color '000000'
-      
+
           # Page Number
           # pdf.number_pages 'Page <page> of <total>', at: [pdf.bounds.right - 100, 0], align: :right, size: 10
         end
       end
-      
-      
-      
-      
+
       # def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
       #   Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
       #     # 設定字體支持 UTF-8 (特別是 IPA 音標字符)

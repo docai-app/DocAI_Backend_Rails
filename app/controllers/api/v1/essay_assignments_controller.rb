@@ -51,13 +51,13 @@ module Api
                                       general_users.nickname,
                                       general_users.banbie,
                                       general_users.class_no,
-                                      essay_gradings.score as score, 
+                                      essay_gradings.score as score,
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'questions_count\', \'null\') AS questions_count,
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score,
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS comprehension_score'
                                            )
                                            .includes(:general_user).order('created_at asc')
-        
+
         # binding.pry
         render json: {
           success: true,
@@ -86,7 +86,7 @@ module Api
               eg['score'] = eg['grading']['comprehension']['score']
             elsif @essay_assignment.speaking_pronunciation?
               # sb_score = eg.calculate_speaking_pronunciation_score
-              eg['full_score'] = 100 #eg['grading']['speaking_pronunciation_sentences'].count
+              eg['full_score'] = 100 # eg['grading']['speaking_pronunciation_sentences'].count
               # eg['score'] = 1
               # binding.pry
             else
@@ -104,8 +104,6 @@ module Api
               overall_score = grading_json['Overall Score']
               the_full_score = grading_json['Full Score']
             end
-
-            
 
             {
               id: eg.id,

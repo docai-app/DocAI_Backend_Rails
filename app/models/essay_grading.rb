@@ -193,7 +193,7 @@ class EssayGrading < ApplicationRecord
     end
 
     # 设置总分
-    
+
     self['score'] = ((total_score.to_f / self['grading']['speaking_pronunciation_sentences'].count)).round
     self['status'] = 'graded'
     save
