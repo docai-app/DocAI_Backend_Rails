@@ -34,7 +34,7 @@
 #
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder,
-                 :speaking_pronunciation_sentences
+                 :speaking_pronunciation_sentences, :supplement_practice
   store_accessor :general_context, :app_key, :data
 
   store_accessor :meta, :newsfeed_id, :transformed_newsfeed
