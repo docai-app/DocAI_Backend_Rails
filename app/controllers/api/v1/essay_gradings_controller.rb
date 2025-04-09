@@ -70,7 +70,6 @@ module Api
           # Section Title
           pdf.text 'Assignment Information', size: 15, style: :bold
           pdf.stroke_color '444444'
-          pdf.move_down 12
           pdf.stroke_horizontal_rule
           pdf.move_down 12
 
@@ -89,6 +88,8 @@ module Api
           pdf.move_down 12
           pdf.stroke_horizontal_rule
 
+          # 在 HTML 中添加样式以设置文字大小
+          html_content = "<div style='font-size: 20px;'>#{html_content}</div>"
           # 使用 prawn-html 渲染 HTML 到 PDF
           PrawnHtml.append_html(pdf, html_content)
         end
