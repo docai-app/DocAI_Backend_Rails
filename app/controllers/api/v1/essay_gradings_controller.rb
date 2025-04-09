@@ -5,7 +5,7 @@ require 'prawn/table'
 module Api
   module V1
     class EssayGradingsController < ApiController
-      # before_action :authenticate_general_user!, except: [:download_report]
+      before_action :authenticate_general_user!, except: [:download_report]
 
       def download_report
         set_essay_grading
