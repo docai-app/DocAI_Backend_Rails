@@ -298,7 +298,7 @@ module Api
                   :question,
                   :answer,
                   :user_answer,
-                  { options: [] } # 如果 options 裡面是陣列
+                  { options: {} }
                 ]
               ]
             },
@@ -631,6 +631,9 @@ module Api
         end
       end
 
+      # def generate_speaking_conversation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
+        
+
       def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
 
@@ -740,7 +743,11 @@ module Api
 
         pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
         pdf.move_down 20
-        pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
+        if json_data['general_context'].present?
+          pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
+        else
+          pdf.text (sentences['Overall coherence']).to_s, size: 12, leading: 5
+        end
         pdf.move_down 20
 
         if @role == 'teacher' && essay_grading.essay_assignment.category == 'essay'
@@ -957,6 +964,8 @@ module Api
           generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('sentence_builder')
           generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url, submission_info)
+        elsif assignment.category.include?('speaking_conversation')
+          generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info)
         else
           generate_pdf_from_json(json_data)
         end
@@ -972,12 +981,13 @@ module Api
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
+          binding.pry
           newsfeed = essay_grading.get_news_feed
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
             json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
           end
-        elsif assignment.category.include?('essay')
+        elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
           if essay_grading.general_context['data'].present?
             general_context = JSON.parse(essay_grading.general_context['data']['text'])
