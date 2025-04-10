@@ -981,7 +981,6 @@ module Api
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
-          binding.pry
           newsfeed = essay_grading.get_news_feed
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
