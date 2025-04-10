@@ -697,10 +697,12 @@ module Api
         pdf.text 'Part I: Grammar', size: 18, style: :bold, align: :left
         pdf.move_down 20
 
+        # binding.pry
+
         # 缩进 sentences 部分
         pdf.indent(20) do
           sentences.each do |key, value|
-            next unless key.start_with?('Sentence')
+            next unless key.start_with?('Sentence') || key.start_with?('sentence')
 
             # 句子标题
             pdf.text "#{key}:", size: 14, style: :bold, color: '003366'
