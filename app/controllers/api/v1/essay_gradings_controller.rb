@@ -85,7 +85,11 @@ module Api
             ]
             pdf.move_down 4
           end
+
+          # Section Title
           pdf.move_down 12
+          pdf.text 'Exercises', size: 15, style: :bold
+          pdf.stroke_color '444444'
           pdf.stroke_horizontal_rule
 
           # 在 HTML 中添加样式以设置文字大小
