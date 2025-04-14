@@ -397,27 +397,26 @@ module Api
       end
 
       def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
-        Prawn::Document.new do |pdf|
-          # 加载和注册字体
-          font_path = Rails.root.join('app/assets/fonts/')
-          # pdf.font_families.update(
-          #   'NotoSans' => {
-          #     normal: font_path.join('NotoSansTC-Regular.ttf'),
-          #     bold: font_path.join('NotoSansTC-Bold.ttf')
-          #   }
-          # )
+        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+          font_path = Rails.root.join('app/assets/fonts')
 
-          # # 设置默认字体
-          # pdf.font 'NotoSans'
           pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf')
+            },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
               bold: font_path.join('ARIALBD.ttf')
             }
           )
 
-          # 设置默认字体
-          pdf.font 'Arial'
+          pdf.font('Arial')
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
+          pdf.fill_color '000000'
 
           # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
           if school_logo_url.present?
@@ -440,33 +439,50 @@ module Api
           end
 
           # 开始内容部分
-          pdf.move_down 20
-          pdf.text "Assessment Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
-          pdf.move_down 10
+          # pdf.move_down 10
+          pdf.text "Assessment Report (#{essay_grading.category.humanize})", size: 20, style: :bold, align: :center
+          pdf.stroke_color '444444'
+          pdf.move_down 25
 
-          # 话题
-          if json_data['assignment'].present?
-            pdf.text "Assignment: #{json_data['assignment']}", size: 14 # , style: :bold
-            pdf.move_down 10
+          # Section Title
+          pdf.text 'Assignment Information', size: 15, style: :bold
+          pdf.stroke_color '444444'
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
+
+          info_data = [
+            ['Assignment:', json_data['assignment'] || 'N/A'],
+            ['Topic:', json_data['topic'] || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
+            # ['Teacher:', submission_info || 'N/A'],
+            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
+            # ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
+          ]
+
+          info_data.each do |label, value|
+            pdf.formatted_text [
+              { text: label, styles: [:bold], size: 12 },
+              { text: " #{value}", size: 12 }
+            ]
+            pdf.move_down 4
           end
-
-          # 话题
-          pdf.text "Topic: #{json_data['topic']}", size: 14 # , style: :bold
-          pdf.move_down 10
-
-          # 學生資訊
-          pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
-          pdf.move_down 30
+          pdf.move_down 25
 
           # binding.pry
           comprehension = json_data['comprehension']
 
-          # 在页面底部显示分数
-          pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold,
-                                                                                                align: :center
-          pdf.move_down 10
+          # Overview
+          pdf.text 'Assessment Overview', size: 15, style: :bold
           pdf.stroke_horizontal_rule
-          pdf.move_down 20
+          pdf.move_down 12
+
+          # # 在页面底部显示分数
+          # pdf.text "Overall Score: #{comprehension['score']} / #{comprehension['full_score']}", size: 14, style: :bold,
+          #                                                                                       align: :center
+          # pdf.move_down 10
+          # pdf.stroke_horizontal_rule
+          # pdf.move_down 20
           # binding.pry
 
           # 文章内容
@@ -499,15 +515,25 @@ module Api
             pdf.move_down 15
           end
 
+          # Final Result
+          pdf.text 'Final Result', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 10
+          pdf.formatted_text [
+            { text: 'Overall Score: ', styles: [:bold], size: 12 },
+            { text: "#{comprehension['score']} / #{comprehension['full_score']}", size: 12 }
+          ]
+          pdf.move_down 30
+
           # 页脚页码
-          pdf.number_pages '<page> of <total>', at: [pdf.bounds.right - 50, 0], align: :right, size: 12
+          # pdf.number_pages '<page> of <total>', at: [pdf.bounds.right - 50, 0], align: :right, size: 12
         end
       end
 
       def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
-          # 設定主要字型 & DejaVuSans
           font_path = Rails.root.join('app/assets/fonts')
+
           pdf.font_families.update(
             'NotoSans' => {
               normal: font_path.join('NotoSansTC-Regular.ttf'),
@@ -515,7 +541,6 @@ module Api
             },
             'DejaVuSans' => {
               normal: font_path.join('DejaVuSans.ttf')
-              # 如果有粗體檔也可以加上 :bold
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
@@ -523,10 +548,9 @@ module Api
             }
           )
 
-          # 預設使用 NotoSans
           pdf.font('Arial')
-          # 碰到無法顯示的符號 (如 ❌ / ✅) 時，自動 fallback 到 DejaVuSans
-          pdf.fallback_fonts(['DejaVuSans'])
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
+          pdf.fill_color '000000'
 
           # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
           if school_logo_url.present?
@@ -549,29 +573,40 @@ module Api
           end
 
           # 开始内容部分
-          pdf.move_down 20
-          pdf.text "Assessment Report(#{essay_grading.category})", size: 20, style: :bold, align: :center
-          pdf.move_down 10
+          # pdf.move_down 20
+          pdf.text "Assessment Report (#{essay_grading.category.humanize})", size: 20, style: :bold, align: :center
+          pdf.stroke_color '444444'
+          pdf.move_down 25
 
-          # 显示 Assignment (若有)
-          if json_data['assignment'].present?
-            pdf.text "Assignment: #{json_data['assignment']}", size: 14
-            pdf.move_down 10
+          # Section Title
+          pdf.text 'Assignment Information', size: 15, style: :bold
+          pdf.stroke_color '444444'
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
+
+          info_data = [
+            ['Assignment:', json_data['assignment'] || 'N/A'],
+            ['Topic:', json_data['topic'] || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
+            # ['Teacher:', submission_info || 'N/A'],
+            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
+            # ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
+          ]
+
+          info_data.each do |label, value|
+            pdf.formatted_text [
+              { text: label, styles: [:bold], size: 12 },
+              { text: " #{value}", size: 12 }
+            ]
+            pdf.move_down 4
           end
+          pdf.move_down 25
 
-          # 显示 Topic
-          if json_data['topic'].present?
-            pdf.text "Topic: #{json_data['topic']}", size: 14
-            pdf.move_down 10
-          end
-
-          # 學生資訊
-          pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
-          pdf.move_down 10
-
-          pdf.text "Score: #{essay_grading['grading']['score']} / #{essay_grading['grading']['full_score']}", size: 14
-          # binding.pry
-          pdf.move_down 30
+          # Overview
+          pdf.text 'Assessment Overview', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
 
           # 解析批改結果
           response = JSON.parse(essay_grading.grading['data']['text'])
@@ -627,11 +662,21 @@ module Api
             pdf.move_down 20
           end
 
-          # 頁腳頁碼
-          pdf.number_pages '<page> of <total>',
-                           at: [pdf.bounds.right - 50, 0],
-                           align: :right,
-                           size: 12
+          # Final Result
+          pdf.text 'Final Result', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 10
+          pdf.formatted_text [
+            { text: 'Overall Score: ', styles: [:bold], size: 12 },
+            { text: "#{essay_grading['grading']['score']} / #{essay_grading['grading']['full_score']}", size: 12 }
+          ]
+          pdf.move_down 30
+
+          # # 頁腳頁碼
+          # pdf.number_pages '<page> of <total>',
+          #                  at: [pdf.bounds.right - 50, 0],
+          #                  align: :right,
+          #                  size: 12
         end
       end
 
@@ -639,166 +684,196 @@ module Api
         
 
       def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
-        pdf = Prawn::Document.new(page_size: 'A4', margin: 40)
+        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+          font_path = Rails.root.join('app/assets/fonts')
 
-        # 设置全局样式
-        font_path = Rails.root.join('app/assets/fonts/')
-        pdf.font_families.update(
-          'NotoSans' => {
-            normal: font_path.join('NotoSansTC-Regular.ttf'),
-            bold: font_path.join('NotoSansTC-Bold.ttf')
-          },
-          'Arial' => {
-            normal: font_path.join('ARIAL.ttf'),
-            bold: font_path.join('ARIALBD.ttf')
-          }
-        )
-        pdf.font 'Arial'
+          pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf')
+            },
+            'Arial' => {
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
+            }
+          )
 
-        # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
-        if school_logo_url.present?
-          # 下載 logo 到臨時文件
-          begin
-            require 'open-uri'
-            logo_tempfile = URI.open(school_logo_url)
-            # 在左上角顯示 logo，寬度為 50 點
-            pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-            # 向下移動一定距離，以便文本不會與 logo 重疊
+          pdf.font('Arial')
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
+          pdf.fill_color '000000'
+
+          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
+          if school_logo_url.present?
+            # 下載 logo 到臨時文件
+            begin
+              require 'open-uri'
+              logo_tempfile = URI.open(school_logo_url)
+              # 在左上角顯示 logo，寬度為 50 點
+              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
+              # 向下移動一定距離，以便文本不會與 logo 重疊
+              pdf.move_down 20
+            rescue StandardError => e
+              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
+              Rails.logger.error("Error loading school logo: #{e.message}")
+              # 不需要移動光標，因為沒有添加 logo
+            end
+          else
+            # 沒有 logo 時正常開始內容
             pdf.move_down 20
-          rescue StandardError => e
-            # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-            Rails.logger.error("Error loading school logo: #{e.message}")
-            # 不需要移動光標，因為沒有添加 logo
           end
-        else
-          # 沒有 logo 時正常開始內容
-          pdf.move_down 20
-        end
 
-        # 开始内容部分
-        pdf.move_down 20
-        pdf.text "Assessment Report(#{essay_grading.essay_assignment.category})", size: 20, style: :bold, align: :center
-        pdf.move_down 10
+          # 开始内容部分
+          pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold, align: :center
+          pdf.stroke_color '444444'
+          pdf.move_down 25
+          
+          # Section Title
+          pdf.text 'Assignment Information', size: 15, style: :bold
+          pdf.stroke_color '444444'
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
 
-        # 话题
-        if json_data['assignment'].present?
-          pdf.text "Assignment: #{json_data['assignment']}", size: 14
-          pdf.move_down 10
-        end
+          info_data = [
+            ['Assignment:', json_data['assignment'] || 'N/A'],
+            ['Topic:', json_data['topic'] || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
+            # ['Teacher:', submission_info || 'N/A'],
+            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
+            # ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
+          ]
 
-        # 话题
-        pdf.text "Topic: #{json_data['topic']}", size: 14
-        pdf.move_down 10
+          info_data.each do |label, value|
+            pdf.formatted_text [
+              { text: label, styles: [:bold], size: 12 },
+              { text: " #{value}", size: 12 }
+            ]
+            pdf.move_down 4
+          end
+          pdf.move_down 25
 
-        # 学生信息
-        pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
-        pdf.move_down 10
+          # 解析 JSON 数据
+          sentences = JSON.parse(json_data['data']['text'])
 
-        # 解析 JSON 数据
-        sentences = JSON.parse(json_data['data']['text'])
-
-        # 分數
-        pdf.text "Score: #{sentences['Overall Score']} / #{sentences['Full Score']}", size: 14
-        pdf.move_down 30
+          # # 分數
+          # pdf.text "Score: #{sentences['Overall Score']} / #{sentences['Full Score']}", size: 14
+          # pdf.move_down 30
 
         
+          # Overview
+          pdf.text 'Assessment Overview', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
 
-        # 添加 Part I 标题
-        pdf.text 'Part I: Grammar', size: 18, style: :bold, align: :left
-        pdf.move_down 20
+          # 添加 Part I 标题
+          pdf.text 'Part I: Grammar', size: 18, style: :bold, align: :left
+          pdf.move_down 20
 
-        # binding.pry
+          # binding.pry
 
-        # 缩进 sentences 部分
-        pdf.indent(20) do
-          sentences.each do |key, value|
-            next unless key.start_with?('Sentence') || key.start_with?('sentence')
+          # 缩进 sentences 部分
+          pdf.indent(20) do
+            sentences.each do |key, value|
+              next unless key.start_with?('Sentence') || key.start_with?('sentence')
 
-            # 句子标题
-            pdf.text "#{key}:", size: 14, style: :bold, color: '003366'
-            pdf.move_down 5
+              # 句子标题
+              pdf.text "#{key}:", size: 14, style: :bold, color: '003366'
+              pdf.move_down 5
 
-            # 句子内容（带错误单词高亮）
-            sentence_text = value['sentence']
-            errors = value['errors']
+              # 句子内容（带错误单词高亮）
+              sentence_text = value['sentence']
+              errors = value['errors']
 
-            formatted_text = sentence_text
+              formatted_text = sentence_text
 
-            errors.each_value do |error_value|
-              error_word = error_value['word']
-              formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
-                "<color rgb='FF0000'>#{match}</color>"
-              end
-            end
-
-            pdf.text formatted_text, size: 12, inline_format: true
-            pdf.move_down 10
-
-            if errors.any?
-              pdf.indent(20) do
-                errors.each_value do |error_value|
-                  category = error_value['category']
-                  error_word = error_value['word']
-                  explanation = error_value['explanation']
-
-                  pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
-                           size: 10, inline_format: true
-                  pdf.move_down 5
+              errors.each_value do |error_value|
+                error_word = error_value['word']
+                formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
+                  "<color rgb='FF0000'>#{match}</color>"
                 end
               end
+
+              pdf.text formatted_text, size: 12, inline_format: true
               pdf.move_down 10
-            end
 
-            pdf.move_down 15
-          end
-        end
+              if errors.any?
+                pdf.indent(20) do
+                  errors.each_value do |error_value|
+                    category = error_value['category']
+                    error_word = error_value['word']
+                    explanation = error_value['explanation']
 
-        pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
-        pdf.move_down 20
-        if json_data['general_context'].present?
-          pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
-        else
-          pdf.text (sentences['Overall coherence']).to_s, size: 12, leading: 5
-        end
-        pdf.move_down 20
-
-        if @role == 'teacher' && essay_grading.essay_assignment.category == 'essay'
-          pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
-          pdf.move_down 20
-          if sentences['Overall Score']
-            pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold,
-                                                                                               color: '003366', align: :center
-
-            sentences.each do |key, value|
-              next unless key.start_with?('Criterion')
-
-              value.each do |criterion_name, criterion_value|
-                next if ['Full Score', 'explanation'].include?(criterion_name)
-
-                pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
-                pdf.move_down 5
-
-                full_score = value['Full Score'] || 'N/A'
-                score = criterion_value
-
-                pdf.text "Score: #{score} / #{full_score}", size: 12
-                pdf.move_down 10
-
-                if value['explanation']
-                  pdf.indent(20) do
-                    pdf.text value['explanation'], size: 10
-                    pdf.move_down 15
+                    pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
+                            size: 10, inline_format: true
+                    pdf.move_down 5
                   end
                 end
+                pdf.move_down 10
+              end
 
-                pdf.stroke_horizontal_rule
-                pdf.move_down 15
+              pdf.move_down 15
+            end
+          end
+
+          pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
+          pdf.move_down 20
+          if json_data['general_context'].present?
+            pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
+          else
+            pdf.text (sentences['Overall coherence']).to_s, size: 12, leading: 5
+          end
+          pdf.move_down 20
+
+          if @role == 'teacher' && essay_grading.essay_assignment.category == 'essay'
+            pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
+            pdf.move_down 20
+            if sentences['Overall Score']
+              pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold,
+                                                                                                color: '003366', align: :center
+
+              sentences.each do |key, value|
+                next unless key.start_with?('Criterion')
+
+                value.each do |criterion_name, criterion_value|
+                  next if ['Full Score', 'explanation'].include?(criterion_name)
+
+                  pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
+                  pdf.move_down 5
+
+                  full_score = value['Full Score'] || 'N/A'
+                  score = criterion_value
+
+                  pdf.text "Score: #{score} / #{full_score}", size: 12
+                  pdf.move_down 10
+
+                  if value['explanation']
+                    pdf.indent(20) do
+                      pdf.text value['explanation'], size: 10
+                      pdf.move_down 15
+                    end
+                  end
+
+                  pdf.stroke_horizontal_rule
+                  pdf.move_down 15
+                end
               end
             end
           end
-        end
 
-        pdf
+          # Final Result
+          pdf.text 'Final Result', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 10
+          pdf.formatted_text [
+            { text: 'Overall Score: ', styles: [:bold], size: 12 },
+            { text: "#{sentences['Overall Score']}", size: 12 }
+          ]
+          pdf.move_down 30
+
+        end
       end
 
       def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
@@ -839,8 +914,8 @@ module Api
           end
 
           # Title
-          pdf.move_down 10
-          pdf.text 'PRONUNCIATION ASSESSMENT REPORT', size: 20, style: :bold, align: :center
+          # pdf.move_down 10
+          pdf.text 'Assessment Report (Pronunciation)', size: 20, style: :bold, align: :center
           pdf.stroke_color '444444'
           # pdf.stroke_horizontal_rule
           pdf.move_down 25
@@ -930,8 +1005,8 @@ module Api
           pdf.stroke_horizontal_rule
           pdf.move_down 10
           pdf.formatted_text [
-            { text: 'Overall Score:', styles: [:bold], size: 12 },
-            { text: " #{essay_grading['score'].to_i}%", size: 12 }
+            { text: 'Overall Score: ', styles: [:bold], size: 12 },
+            { text: "#{essay_grading['score'].to_i}%", size: 12 }
           ]
           pdf.move_down 30
 
