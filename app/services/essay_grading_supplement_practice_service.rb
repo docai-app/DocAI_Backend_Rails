@@ -25,7 +25,7 @@ class EssayGradingSupplementPracticeService
       method: :post,
       url: API_URL,
       payload:,
-      headers: headers,
+      headers:,
       timeout: TIMEOUT,
       open_timeout: 100
     )
