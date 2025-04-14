@@ -692,10 +692,16 @@ module Api
 
         # 学生信息
         pdf.text "Account: #{submission_info || essay_grading.general_user.show_in_report_name}", size: 14
-        pdf.move_down 30
+        pdf.move_down 10
 
         # 解析 JSON 数据
         sentences = JSON.parse(json_data['data']['text'])
+
+        # 分數
+        pdf.text "Score: #{sentences['Overall Score']} / #{sentences['Full Score']}", size: 14
+        pdf.move_down 30
+
+        
 
         # 添加 Part I 标题
         pdf.text 'Part I: Grammar', size: 18, style: :bold, align: :left
