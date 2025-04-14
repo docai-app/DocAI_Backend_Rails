@@ -491,24 +491,40 @@ module Api
         # GET /admin/v1/schools/:code/academic_years/:academic_year_id/students
         # 獲取指定學年的所有學生
         # @param code [String] 學校代碼
-        # @param academic_year_id [String] 學年ID
+        # @param academic_year_id [Integer] 學年ID
+        # @param page [Integer] 可選，頁碼
+        # @param per_page [Integer] 可選，每頁數量
+        # @param q [String] 可選，搜尋關鍵字 (姓名或Email)
         # @return [JSON] 學生列表
         def academic_year_students
           # 查找指定學年
-          academic_year = @school.school_academic_years.find(params[:academic_year_id])
+          academic_year = @school.school_academic_years.find_by(id: params[:academic_year_id])
 
-          # 獲取學生列表（帶分頁）
-          # 1. 只獲取 AI English 學生（排除教師）
-          # 2. 按班級名稱和班號排序
-          # 3. 預加載關聯數據以提高性能
-          @enrollments = academic_year.student_enrollments
-                                      .includes(:general_user)
-                                      .joins(:general_user)
-                                      .where("general_users.meta->>'aienglish_role' != 'teacher'")
-                                      .order('student_enrollments.class_name ASC NULLS LAST, student_enrollments.class_number ASC NULLS LAST')
+          unless academic_year
+            return render json: { status: 'error', errors: ["找不到學年ID: #{params[:academic_year_id]}"] },
+                          status: :not_found
+          end
+
+          # 基礎查詢: 獲取學生註冊記錄，預載入用戶，並排除教師
+          enrollments_query = academic_year.student_enrollments
+                                           .includes(:general_user)
+                                           .joins(:general_user)
+                                           .where("general_users.meta->>'aienglish_role' != 'teacher'")
+
+          # 搜尋功能 (姓名或Email)
+          if params[:q].present?
+            search_term = "%#{params[:q].downcase}%"
+            enrollments_query = enrollments_query.where(
+              'LOWER(general_users.nickname) LIKE :search OR LOWER(general_users.email) LIKE :search',
+              search: search_term
+            )
+          end
+
+          # 排序
+          enrollments_query = enrollments_query.order('student_enrollments.class_name ASC NULLS LAST, student_enrollments.class_number ASC NULLS LAST')
 
           # 分頁處理
-          @enrollments = @enrollments.page(params[:page] || 1).per(params[:per_page] || 20)
+          @enrollments = enrollments_query.page(params[:page] || 1).per(params[:per_page] || 20)
 
           render json: {
             status: 'success',
@@ -522,10 +538,11 @@ module Api
               meta: pagination_meta(@enrollments)
             }
           }
-        rescue ActiveRecord::RecordNotFound
-          render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
+        # 捕捉可能的其他錯誤
         rescue StandardError => e
-          render json: { status: 'error', error: e.message }, status: :internal_server_error
+          Rails.logger.error("Error fetching academic year students: #{e.message}")
+          Rails.logger.error(e.backtrace.join("\n"))
+          render json: { status: 'error', errors: ['處理請求時發生內部錯誤'] }, status: :internal_server_error
         end
 
         # GET /admin/v1/schools/:code/academic_years/:academic_year_id/classes/:class_name/students
@@ -574,24 +591,40 @@ module Api
         # GET /admin/v1/schools/:code/academic_years/:academic_year_id/teachers
         # 獲取指定學年的所有教師
         # @param code [String] 學校代碼
-        # @param academic_year_id [String] 學年ID
+        # @param academic_year_id [Integer] 學年ID
+        # @param page [Integer] 可選，頁碼
+        # @param per_page [Integer] 可選，每頁數量
+        # @param q [String] 可選，搜尋關鍵字 (姓名或Email)
         # @return [JSON] 教師列表
         def academic_year_teachers
           # 查找指定學年
-          academic_year = @school.school_academic_years.find(params[:academic_year_id])
+          academic_year = @school.school_academic_years.find_by(id: params[:academic_year_id])
 
-          # 獲取教師列表（帶分頁）
-          # 1. 只獲取 AI English 教師
-          # 2. 按部門和職位排序
-          # 3. 預加載關聯數據以提高性能
-          @assignments = academic_year.teacher_assignments
-                                      .includes(:general_user)
-                                      .joins(:general_user)
-                                      .where("general_users.meta->>'aienglish_role' = 'teacher'")
-                                      .order('teacher_assignments.department ASC NULLS LAST, teacher_assignments.position ASC NULLS LAST')
+          unless academic_year
+            return render json: { status: 'error', errors: ["找不到學年ID: #{params[:academic_year_id]}"] },
+                          status: :not_found
+          end
+
+          # 基礎查詢: 獲取教師分配記錄，預載入用戶，並篩選教師角色
+          assignments_query = academic_year.teacher_assignments
+                                           .includes(:general_user)
+                                           .joins(:general_user)
+                                           .where("general_users.meta->>'aienglish_role' = 'teacher'")
+
+          # 搜尋功能 (姓名或Email)
+          if params[:q].present?
+            search_term = "%#{params[:q].downcase}%"
+            assignments_query = assignments_query.where(
+              'LOWER(general_users.nickname) LIKE :search OR LOWER(general_users.email) LIKE :search',
+              search: search_term
+            )
+          end
+
+          # 排序
+          assignments_query = assignments_query.order('teacher_assignments.department ASC NULLS LAST, teacher_assignments.position ASC NULLS LAST')
 
           # 分頁處理
-          @assignments = @assignments.page(params[:page] || 1).per(params[:per_page] || 20)
+          @assignments = assignments_query.page(params[:page] || 1).per(params[:per_page] || 20)
 
           render json: {
             status: 'success',
@@ -606,9 +639,12 @@ module Api
             }
           }
         rescue ActiveRecord::RecordNotFound
-          render json: { status: 'error', error: '找不到指定的學年' }, status: :not_found
+          # 如果 find_by 返回 nil，上面的檢查會處理。這裡捕捉 find (如果未來改用 find)
+          render json: { status: 'error', errors: ["找不到學年ID: #{params[:academic_year_id]}"] }, status: :not_found
         rescue StandardError => e
-          render json: { status: 'error', error: e.message }, status: :internal_server_error
+          Rails.logger.error("Error fetching academic year teachers: #{e.message}")
+          Rails.logger.error(e.backtrace.join("\n"))
+          render json: { status: 'error', errors: ['處理請求時發生內部錯誤'] }, status: :internal_server_error
         end
 
         # GET /admin/v1/schools/:code/academic_years/:academic_year_id/departments/:department/teachers

@@ -92,8 +92,8 @@ gem 'rubocop', require: false
 
 gem 'matrix'
 gem 'prawn'
-gem 'prawn-table'
 gem 'prawn-html'
+gem 'prawn-table'
 
 gem 'pdfkit'
 gem 'wkhtmltopdf-binary'
