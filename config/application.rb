@@ -51,9 +51,9 @@ module DocaiApi
     config.action_cable.mount_path = '/cable'
 
     # 使用 vips（如果已安裝）
-    config.active_storage.variant_processor = :vips
+    # config.active_storage.variant_processor = :vips
 
     # 或使用 mini_magick（如果 vips 無法安裝）
-    # config.active_storage.variant_processor = :mini_magick
+    config.active_storage.variant_processor = :mini_magick
   end
 end
