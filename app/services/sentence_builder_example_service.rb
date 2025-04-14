@@ -9,7 +9,7 @@ class SentenceBuilderExampleService
   def initialize(user_id, essay_assignment)
     @user_id = user_id
 
-    @app_key = if essay_assignment.rubric['name'] == 'Sentence Builder Advanced'
+    @app_key = if essay_assignment.rubric['name'] == 'Sentence Builder (Advanced)'
                  ENV['sentence_builder_example_app_key_advanced']
                else
                  ENV['sentence_builder_example_app_key']
