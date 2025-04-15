@@ -5,7 +5,7 @@ require 'prawn/table'
 module Api
   module V1
     class EssayGradingsController < ApiController
-      before_action :authenticate_general_user!, except: [:download_report, :download_supplement_practice]
+      before_action :authenticate_general_user!, except: %i[download_report download_supplement_practice]
 
       def download_report
         set_essay_grading
@@ -28,7 +28,9 @@ module Api
         supplement_text = supplement_text.gsub(/(\d+\.)/, "\n\\1")
 
         # 使用 Redcarpet 将 Markdown 转换为 HTML
-        markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML, extensions = { tables: true, autolink: true, fenced_code_blocks: true, strikethrough: true, underline: true, highlight: true, quote: true, footnotes: true })
+        markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML,
+                                           extensions = { tables: true, autolink: true, fenced_code_blocks: true, strikethrough: true, underline: true,
+                                                          highlight: true, quote: true, footnotes: true })
         html_content = markdown.render(supplement_text)
 
         # 生成 PDF
@@ -99,7 +101,8 @@ module Api
         end
 
         # 发送 PDF 文件
-        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}_supplement_practice.pdf", type: 'application/pdf', disposition: 'inline'
+        send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}_supplement_practice.pdf",
+                              type: 'application/pdf', disposition: 'inline'
       end
 
       def index
@@ -681,7 +684,6 @@ module Api
       end
 
       # def generate_speaking_conversation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
-        
 
       def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
@@ -1020,8 +1022,6 @@ module Api
         end
       end
 
-
-
       def generate_report(grading)
         grading = EssayGrading.includes(:essay_assignment).find(grading.id) # 确保 essay_assignment 被加载
         json_data = prepare_report_data(grading)
@@ -1094,7 +1094,6 @@ module Api
 
         "#{user.email} (#{user.nickname}, #{class_name}, #{class_number})"
       end
-
     end
   end
 end
