@@ -767,7 +767,7 @@ module Api
                 error: service.errors.full_messages.join(', ')
               }, status: :unprocessable_entity
             end
-          rescue ActiveRecord::RecordNotFound => e
+          rescue ActiveRecord::RecordNotFound
             render json: { success: false, error: '找不到指定的學年' }, status: :not_found
           rescue StandardError => e
             # 添加詳細的錯誤日誌和回溯信息
