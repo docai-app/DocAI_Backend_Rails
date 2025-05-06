@@ -83,9 +83,9 @@ class EssayAssignment < ApplicationRecord
   def force_generate_vocab_examples
     return unless category == 'sentence_builder'
 
-    if meta[:vocab_examples].nil?
-      SentenceBuilderExampleJob.perform_async(id)
-    end
+    return unless meta[:vocab_examples].nil?
+
+    SentenceBuilderExampleJob.perform_async(id)
   end
 
   def check_and_post_speaking_pronunciation_sentences

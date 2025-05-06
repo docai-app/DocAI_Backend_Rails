@@ -147,7 +147,9 @@ module Schools
 
       # 計算增長率
       growth_percentage = 0
-      growth_percentage = ((data.last - data[-2]) / data[-2].to_f * 100).round(1) if data.length >= 2 && data[-2] > 0
+      if data.length >= 2 && (data[-2]).positive?
+        growth_percentage = ((data.last - data[-2]) / data[-2].to_f * 100).round(1)
+      end
 
       {
         labels:,

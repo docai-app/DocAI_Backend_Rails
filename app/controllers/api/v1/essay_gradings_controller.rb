@@ -29,8 +29,8 @@ module Api
 
         # 使用 Redcarpet 将 Markdown 转换为 HTML
         markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML,
-                                           extensions = { tables: true, autolink: true, fenced_code_blocks: true, strikethrough: true, underline: true,
-                                                          highlight: true, quote: true, footnotes: true })
+                                           { tables: true, autolink: true, fenced_code_blocks: true, strikethrough: true, underline: true,
+                                             highlight: true, quote: true, footnotes: true })
         html_content = markdown.render(supplement_text)
 
         # 生成 PDF
@@ -399,7 +399,7 @@ module Api
         pdf
       end
 
-      def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
+      def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
@@ -456,7 +456,7 @@ module Api
           info_data = [
             ['Assignment:', json_data['assignment'] || 'N/A'],
             ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A']
             # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
             # ['Teacher:', submission_info || 'N/A'],
             # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
@@ -533,7 +533,7 @@ module Api
         end
       end
 
-      def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
+      def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
@@ -590,7 +590,7 @@ module Api
           info_data = [
             ['Assignment:', json_data['assignment'] || 'N/A'],
             ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A']
             # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
             # ['Teacher:', submission_info || 'N/A'],
             # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
@@ -685,7 +685,7 @@ module Api
 
       # def generate_speaking_conversation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
 
-      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
+      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
@@ -728,10 +728,11 @@ module Api
           end
 
           # 开始内容部分
-          pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold, align: :center
+          pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold,
+                                                                                              align: :center
           pdf.stroke_color '444444'
           pdf.move_down 25
-          
+
           # Section Title
           pdf.text 'Assignment Information', size: 15, style: :bold
           pdf.stroke_color '444444'
@@ -741,7 +742,7 @@ module Api
           info_data = [
             ['Assignment:', json_data['assignment'] || 'N/A'],
             ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A']
             # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
             # ['Teacher:', submission_info || 'N/A'],
             # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
@@ -764,7 +765,6 @@ module Api
           # pdf.text "Score: #{sentences['Overall Score']} / #{sentences['Full Score']}", size: 14
           # pdf.move_down 30
 
-        
           # Overview
           pdf.text 'Assessment Overview', size: 15, style: :bold
           pdf.stroke_horizontal_rule
@@ -809,7 +809,7 @@ module Api
                     explanation = error_value['explanation']
 
                     pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
-                            size: 10, inline_format: true
+                             size: 10, inline_format: true
                     pdf.move_down 5
                   end
                 end
@@ -834,7 +834,7 @@ module Api
             pdf.move_down 20
             if sentences['Overall Score']
               pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold,
-                                                                                                color: '003366', align: :center
+                                                                                                 color: '003366', align: :center
 
               sentences.each do |key, value|
                 next unless key.start_with?('Criterion')
@@ -871,10 +871,9 @@ module Api
           pdf.move_down 10
           pdf.formatted_text [
             { text: 'Overall Score: ', styles: [:bold], size: 12 },
-            { text: "#{sentences['Overall Score']}", size: 12 }
+            { text: (sentences['Overall Score']).to_s, size: 12 }
           ]
           pdf.move_down 30
-
         end
       end
 
@@ -951,7 +950,7 @@ module Api
           pdf.stroke_horizontal_rule
           pdf.move_down 12
 
-          threshold = essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60
+          essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60
           sentences = essay_grading.grading['speaking_pronunciation_sentences'] || []
 
           sentences.each_with_index do |data, idx|

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class AdminApiController < ActionController::Base
-  before_action :set_paper_trail_whodunnit
+  before_action :set_paper_trail_whodunnit, :switch_public_tenant # 切換到公共租戶
   skip_before_action :verify_authenticity_token
   respond_to :json
 
@@ -13,6 +13,10 @@ class AdminApiController < ActionController::Base
 
   #   return :user_not_authorized
   # end
+
+  def switch_public_tenant
+    Apartment::Tenant.switch!('public')
+  end
 
   def render_error(exception = nil)
     @status_code = params[:code] || 400 # ActionDispatch::ExceptionWrapper.new(env, exception).status_code
