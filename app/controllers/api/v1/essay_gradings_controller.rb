@@ -829,7 +829,7 @@ module Api
           end
           pdf.move_down 20
 
-          if @role == 'teacher' && essay_grading.essay_assignment.category == 'essay'
+          if params[:role] == 'teacher' && essay_grading.essay_assignment.category == 'essay'
             pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
             pdf.move_down 20
             if sentences['Overall Score']
