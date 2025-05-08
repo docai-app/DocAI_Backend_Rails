@@ -29,6 +29,9 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      # 後備Email確認
+      get 'recovery_email_confirmations/show'
+
       # ********** Essay grading ********
       resources :essay_assignments, only: %i[index show create update destroy] do
         resources :essay_gradings, only: [:create]
@@ -372,6 +375,17 @@ Rails.application.routes.draw do
 
       # ********** Scheduled Task API ***********
       resources :scheduled_tasks, only: %i[index show create update destroy]
+
+      # 後備Email確認
+      resource :recovery_email_confirmation, only: [:show], controller: 'recovery_email_confirmations' do
+        # 如果用 GET /api/v1/recovery_email_confirmations?token=TOKEN
+        # 則 index or show action on a collection-like resource
+        # 或者，更簡單直接的：
+        # get 'recovery_email_confirmations', to: 'recovery_email_confirmations#show'
+        # 為了保持控制器名稱的複數形式和RESTful風格，我們使用 collection do get :show end
+        # 但考慮到這是一個特定的動作，直接定義一個 get 路由可能更清晰
+      end
+      get 'recovery_email_confirmation', to: 'recovery_email_confirmations#show' # 簡化版本
     end
 
     namespace :admin do
