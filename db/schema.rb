@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -12,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 20_250_304_084_458) do
+ActiveRecord::Schema[7.0].define(version: 20_250_508_110_745) do
   # These are extensions that must be enabled in order to support this database
   enable_extension 'pgcrypto'
   enable_extension 'plpgsql'
@@ -466,7 +464,10 @@ ActiveRecord::Schema[7.0].define(version: 20_250_304_084_458) do
     t.datetime 'locked_at'
     t.jsonb 'meta', default: {}, null: false
     t.jsonb 'konnecai_tokens', default: {}, null: false
+    t.string 'recovery_email'
+    t.datetime 'recovery_email_confirmed_at'
     t.index ['email'], name: 'index_general_users_on_email', unique: true
+    t.index ['recovery_email'], name: 'index_general_users_on_recovery_email'
   end
 
   create_table 'general_users_roles', id: false, force: :cascade do |t|

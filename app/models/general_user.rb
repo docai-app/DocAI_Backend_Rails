@@ -383,6 +383,51 @@ class GeneralUser < ApplicationRecord
     end
   end
 
+  # Validations for recovery_email
+  validates :recovery_email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_nil: true
+  # recovery_email 應該在已確認的用戶中是唯一的，但允許不同用戶擁有相同的未確認recovery_email
+  # validates :recovery_email, uniqueness: { scope: :recovery_email_confirmed_at, case_sensitive: false }, allow_nil: true, if: :recovery_email_confirmed_at?
+  # 上述 uniqueness scope 可能過於複雜，先簡化處理，如果 recovery_email 存在就要求唯一。
+  # 但更好的做法是確認後才要求唯一，或者在特定情境下（例如，確認時）檢查唯一性。
+  # 暫時我們先只做格式和存在性（allow_nil）的驗證，唯一性可以在服務層或特定操作中處理。
+
+  # --- Recovery Email Logic ---
+  def send_recovery_email_confirmation_instructions
+    # 確保 recovery_email 存在且尚未確認，或者已更改
+    # (這裡的邏輯可能需要根據具體的token生成策略來調整)
+    if recovery_email.present? && (recovery_email_changed? || recovery_email_confirmed_at.nil?)
+      # 生成確認 token (這部分通常 Devise 有內建機制，但我們是為自訂欄位做)
+      # 這裡我們假設會有一個 token 生成和存儲的機制，例如類似 Devise 的 confirmable
+      # 暫時先不實現 token 生成，僅示意調用 Mailer
+      # TODO: Implement token generation and storage for recovery_email confirmation
+      # 例如: self.recovery_confirmation_token = Devise.friendly_token
+      # self.recovery_confirmation_sent_at = Time.now.utc
+      # save(validate: false) # 跳過驗證，因為可能正在更新過程中
+
+      RecoveryEmailMailer.confirmation_instructions(self, 'faketoken').deliver_later # 'faketoken' 應替換為真實token
+      true
+    else
+      false
+    end
+  end
+
+  # 確認後備Email
+  def confirm_recovery_email!
+    self.recovery_email_confirmed_at = Time.now.utc
+    # self.recovery_confirmation_token = nil # 清除token
+    save(validate: false) # 跳過其他驗證，只保存確認狀態
+  end
+
+  # 後備Email是否已確認？
+  def recovery_email_confirmed?
+    !!recovery_email_confirmed_at
+  end
+
+  # 是否應該發送確認郵件（例如，email更改了或從未確認過）
+  def pending_recovery_email_confirmation?
+    recovery_email.present? && !recovery_email_confirmed? && recovery_email_changed?
+  end
+
   private
 
   def aienglish_features_must_be_valid
