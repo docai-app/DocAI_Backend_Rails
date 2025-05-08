@@ -1,0 +1,144 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# AI ENGLISH 項目 - 自定義詞彙表：統一術語理解
+
+## 1. 引言
+
+本文檔定義了「AI ENGLISH」項目中使用的關鍵術語、縮寫和核心概念，旨在幫助團隊成員（尤其是新加入的工程師）快速理解項目背景和技術細節，確保溝通的一致性，並為未來的代碼維護和重構提供支持。
+
+**核心標識說明**:
+*   `[核心]`：表示該術語是 AI English 核心功能的直接組成部分。
+*   `[輔助]`：表示該術語是支持 AI English 功能的技術組件或通用概念。
+*   `[遺留?]`：表示該術語可能與舊有功能相關，目前與 AI English 核心業務關聯度較低或無直接關聯，需進一步評估。
+
+---
+
+## 2. AI English 核心概念與模型術語
+
+### 2.1 主要模型 (Core Models)
+
+*   **GeneralUser** `[核心]`
+    *   **定義**: 代表系統中的用戶實體。
+    *   **上下文**: 包含用戶基本信息。其 `meta` 字段尤為重要，用於存儲 AI English 相關的特定配置。參考 `[app/models/general_user.rb](mdc:app/models/general_user.rb)`。
+    *   **關鍵字段/概念**:
+        *   `meta -> aienglish_role`: (字符串) 標識用戶在 AI English 功能中的角色 (例如 'student', 'teacher', 'admin')。
+        *   `meta -> aienglish_features_list`: (數組) 存儲用戶有權訪問的 AI English 功能列表 (見 `VALID_AI_ENGLISH_FEATURES`)。
+        *   `VALID_AI_ENGLISH_FEATURES`: (`GeneralUser` 模型中的常量) 定義了所有有效的 AI English 功能模塊字符串，如 `essay`, `comprehension`, `speaking_essay`, `speaking_conversation`, `sentence_builder`, `speaking_pronunciation`。
+
+*   **EssayAssignment** `[核心]`
+    *   **定義**: AI English 各項學習功能的載體，代表一個具體的練習任務或作業。參考 `[app/models/essay_assignment.rb](mdc:app/models/essay_assignment.rb)`。
+    *   **上下文**: 包含作業的標題、題目、提示、評分標準等。
+    *   **關鍵字段/概念**:
+        *   `category`: (枚舉) 核心字段，標識作業的類型，直接對應 `VALID_AI_ENGLISH_FEATURES` 中的某個功能。
+        *   `topic`: (文本) 作業的主題或題目。
+        *   `assignment`: (文本) 作業的具體內容或要求。
+        *   `rubric`: (JSON) 存儲評分標準，其結構可能因 `category` 不同而異。
+        *   `meta`: (JSON) 存儲特定類型作業的額外配置信息，例如 `speaking_pronunciation_sentences` (發音練習的句子列表) 或 `vocabs` (句子構建的詞彙列表)。
+        *   `code`: (字符串) 作業的唯一識別碼，常用於 API 請求。
+
+*   **EssayGrading** `[核心]`
+    *   **定義**: 記錄用戶對某個 `EssayAssignment` 的提交和 AI 的評分結果。參考 `[app/models/essay_grading.rb](mdc:app/models/essay_grading.rb)`。
+    *   **上下文**: 每次學生提交作業時創建。
+    *   **關鍵字段/概念**:
+        *   `essay`: (文本/JSON) 用戶提交的內容。對於不同類型的作業，其格式可能不同 (例如，作文是文本，口說可能是音頻文件引用或轉錄文本的JSON)。
+        *   `grading`: (JSON) 核心字段，存儲 AI 返回的詳細評分數據。其內部結構隨 `EssayAssignment` 的 `category` 而變化，可能包含 `overall_score`, `feedback`, `comprehension_questions_and_answers`, `speaking_pronunciation_sentences_scores`, `supplement_practice` 等。
+        *   `status`: (字符串/枚舉) 標識評分狀態 (例如 'pending', 'processing', 'completed', 'error')。
+
+### 2.2 輔助模型與概念 (Supporting Models & Concepts)
+
+*   **School, SchoolAcademicYear, StudentEnrollment, TeacherAssignment** `[核心]`
+    *   **定義**: 支持教育機構場景的模型，用於管理學校、學年、學生註冊和教師指派。
+    *   **上下文**: `GeneralUser` 可以關聯到這些模型，實現對機構用戶的組織化管理，其 AI English 數據和作業可按學校或班級維度進行管理和分析。
+
+---
+
+## 3. AI English 核心服務與流程術語
+
+*   **AI 自動評分 (AI Auto-Grading Process)** `[核心]`
+    *   **定義**: 指學生提交 `EssayGrading` 後，系統自動調用外部 AI 服務對其進行評分，並將結果存回 `grading` 字段的過程。
+    *   **上下文**: 這是 AI English 的核心業務流程之一。通常異步執行（通過 Sidekiq Job）。
+
+*   **Dify Workflow** `[核心]`
+    *   **定義**: 在 Dify LLMOps 平台 (`https://aienglish-dify.docai.net`) 上配置的自動化工作流程。
+    *   **上下文**: AI English 項目依賴這些 Workflow 實現多種 AI 功能，如作文批改、閱讀理解題目生成與評分、句子構建示例生成、口說練習評估等。通過 `[app/services/dify_service.rb](mdc:app/services/dify_service.rb)` 進行調用。
+
+*   **發音評測 API (Pronunciation Assessment API)** `[核心]`
+    *   **定義**: 特指項目集成的外部 API (`https://pronunciation.m2mda.com/pinyin`)，用於評估 `speaking_pronunciation` 類型作業的發音準確度。
+    *   **上下文**: 通常由特定的服務或 Job 針對發音練習調用。
+
+*   **服務對象 (Service Objects)** `[核心]`
+    *   **定義**: 存放在 `[app/services/](mdc:app/services)` 目錄下的類，用於封裝複雜的業務邏輯、與外部服務的交互、或跨多個模型的操作。遵循「瘦控制器，胖模型/服務」原則。
+    *   **示例與作用**:
+        *   `DifyService`: (`[app/services/dify_service.rb](mdc:app/services/dify_service.rb)`) 封裝與 Dify Platform API 的所有交互。
+        *   `OpenAIService` / `AIService`: (`[app/services/open_ai_service.rb](mdc:app/services/open_ai_service.rb)`, `[app/services/ai_service.rb](mdc:app/services/ai_service.rb)`) 可能用於封裝與其他通用 AI 模型（如 OpenAI GPT 系列）的交互。
+        *   `EssayGradingService`: (`[app/services/essay_grading_service.rb](mdc:app/services/essay_grading_service.rb)`) 可能用於協調整個 `EssayGrading` 的創建、觸發評分、結果處理等流程。
+        *   `EssayGradingSupplementPracticeService`: (`[app/services/essay_grading_supplement_practice_service.rb](mdc:app/services/essay_grading_supplement_practice_service.rb)`) 負責根據 `EssayGrading` 的結果生成補充練習建議。
+        *   `SentenceBuilderExampleService`: (`[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)`) 為 `sentence_builder` 類型的 `EssayAssignment` 生成例句。
+        *   `VocabCsvParserService`: (`[app/services/vocab_csv_parser_service.rb](mdc:app/services/vocab_csv_parser_service.rb)`) 解析上傳的詞彙 CSV 文件以批量創建 `EssayAssignment`。
+
+*   **補充練習 (Supplement Practice)** `[核心]`
+    *   **定義**: 根據學生的練習結果 (`EssayGrading`)，由 AI 生成的額外練習建議，旨在幫助學生鞏固薄弱環節。
+    *   **上下文**: 通常作為 `grading` JSON 數據的一部分返回，可能由 `EssayGradingSupplementPracticeService` 調用 Dify Workflow 生成。
+
+---
+
+## 4. 通用技術棧術語在 AI English 中的應用
+
+*   **Sidekiq** `[輔助]`
+    *   **定義**: Ruby 的後台異步任務處理框架。
+    *   **AI English 應用**: 大量用於異步執行耗時操作，如調用 Dify Workflow 進行 AI 評分、調用發音評測 API、生成報告等，以避免阻塞用戶請求，提高系統響應性。例如 `SentenceBuilderExampleJob` (參考 `[app/jobs/sentence_builder_example_job.rb](mdc:app/jobs/sentence_builder_example_job.rb)` 或 `app/sidekiq/` 下的文件)。
+
+*   **Apartment (Multi-tenancy)** `[輔助]`
+    *   **定義**: `ros-apartment` Gem (`[Gemfile](mdc:Gemfile)`) 提供的多租戶解決方案，允許不同租戶（如不同學校）的數據在數據庫層面隔離。
+    *   **AI English 應用**: 確保不同學校的 AI English 學習數據（用戶、作業、成績等）互相獨立，保障數據安全和隱私。開發時需注意租戶上下文的切換，並使用 `rake apartment:migrate` 進行租戶數據庫遷移。
+
+*   **Devise / Devise-JWT** `[輔助]`
+    *   **定義**: 用於用戶認證的 Gem。`devise-jwt` 提供了基於 JSON Web Tokens (JWT) 的 API 認證機制。
+    *   **AI English 應用**: 保護 API 端點，確保只有合法的、經過認證的用戶才能訪問 AI English 的功能和數據。通常在 `ApiController` 或具體業務控制器中使用 `authenticate_general_user!`。
+
+*   **RSwag (Swagger/OpenAPI)** `[輔助]`
+    *   **定義**: 用於生成和展示 API 文檔的 Gem。API 文檔通常編寫在 `spec/requests/` 目錄下。
+    *   **AI English 應用**: 為 AI English 的 API 提供標準化文檔，方便前後端協作和第三方集成。API 文檔掛載在 `/api-docs` 路徑。
+
+*   **Strong Parameters** `[輔助]`
+    *   **定義**: Rails 的一種安全機制，用於在控制器層過濾和允許傳入的參數。
+    *   **AI English 應用**: 在所有接收外部輸入的 Controller Action 中嚴格使用 (例如 `essay_assignment_params` 方法)，以防止惡意數據注入。
+
+*   **JSONB 字段** `[輔助]`
+    *   **定義**: PostgreSQL 提供的 JSON 二進制存儲類型。
+    *   **AI English 應用**: 廣泛應用於 `GeneralUser` (`meta`)、`EssayAssignment` (`meta`, `rubric`)、`EssayGrading` (`grading`) 等模型中，用於存儲結構靈活、可動態擴展的數據。通過 Rails 的 `store_accessor` 可以方便地訪問這些字段的內部鍵。
+
+---
+
+## 5. 潛在的遺留功能術語 (待識別與確認)
+
+以下術語主要通過 `[config/routes.rb](mdc:config/routes.rb)` 和項目早期結構發現，它們與當前 AI English 核心業務（基於 `EssayAssignment` 和 `EssayGrading`）的直接關聯性較低，可能是待清理的舊功能。新工程師在開發 AI English 核心功能時，應優先關注上述核心術語。
+
+*   **Documents, DocumentTags, Tags** `[遺留?]`
+    *   **可能指向**: 通用的文檔管理、標籤系統。
+
+*   **Storage, StorageContainer, StorageFile** `[遺留?]`
+    *   **可能指向**: 自定義的文件存儲管理系統。
+
+*   **FormSchema, FormDatum** `[遺留?]`
+    *   **可能指向**: 動態表單生成和數據收集功能。
+
+*   **Projects** `[遺留?]`
+    *   **可能指向**: 通用的項目管理模塊。
+
+*   **Chatbots, ChatbotHistories, ChatbotUserConversations** `[遺留?]`
+    *   **可能指向**: 獨立的聊天機器人功能模塊。
+
+*   **Legacy API Versions (e.g., `/api/v0/`)** `[遺留?]`
+    *   **可能指向**: 早期版本的 API，可能已被廢棄或替換。
+
+**處理建議**: 在進行新的 AI English 功能開發時，應避免與這些遺留術語相關的模塊產生新的耦合。在未來的代碼重構過程中，應仔細評估這些模塊的實際使用情況和依賴關係，制定計劃逐步剝離。
+
+---
+
+## 6. 結語
+
+本詞彙表會隨著項目的發展而持續更新。鼓勵團隊成員在遇到新的或有歧義的術語時，及時補充和完善本文檔。

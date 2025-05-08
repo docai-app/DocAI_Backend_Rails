@@ -1,0 +1,123 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 「AI ENGLISH」項目概述
+
+本文檔旨在為新加入的後端工程師提供「AI ENGLISH」項目的整體概覽，幫助快速理解其核心功能、技術架構和關鍵業務流程。
+
+## 1. 項目核心定位
+
+「AI ENGLISH」項目是一個專注於英語學習的平台，其核心功能是通過多種類型的互動練習和 AI 自動評分，幫助用戶提升英語技能。項目特別強調與外部 AI 服務的整合，以提供智能化的學習體驗。
+
+## 2. 核心功能模塊
+
+該項目的功能主要圍繞以下幾個核心概念展開：
+
+### `GeneralUser` (用戶)
+-   **文件**: `[app/models/general_user.rb](mdc:app/models/general_user.rb)`
+-   系統區分普通用戶和具有特定權限的「AI English 用戶」。
+-   通過用戶模型中的 `meta` 字段（可能是 JSON 或 HStore 類型），其中包含 `aienglish_role` 和 `aienglish_features_list` 來標識和管理用戶對 AI English 功能的訪問權限。
+-   AI English 的功能特性 (`VALID_AI_ENGLISH_FEATURES` 常量中定義) 包括：
+    -   `essay` (作文練習)
+    -   `comprehension` (閱讀理解練習)
+    -   `speaking_essay` (口說短文練習)
+    -   `speaking_conversation` (口說對話練習)
+    -   `sentence_builder` (句子構建練習)
+    -   `speaking_pronunciation` (發音練習)
+-   用戶可以關聯到 `School` (學校) 和 `SchoolAcademicYear` (學年)，並有 `StudentEnrollment` (學生註冊) 和 `TeacherAssignment` (教師指派) 記錄，表明項目也支持教育機構場景。
+
+### `EssayAssignment` (作業/練習任務)
+-   **文件**: `[app/models/essay_assignment.rb](mdc:app/models/essay_assignment.rb)`
+-   這是 AI English 各項學習功能的載體。
+-   每個 `EssayAssignment` 有一個 `category` 枚舉字段，對應上述一種 AI English 功能特性。
+-   包含作業的標題、題目 (`topic`, `assignment`)、提示 (`hints`)、評分標準 (`rubric`) 等。
+-   可以通過上傳 CSV (`parse_vocab_csv` API 端點，調用 `[app/services/vocab_csv_parser_service.rb](mdc:app/services/vocab_csv_parser_service.rb)`) 來批量創建詞彙相關的作業。
+-   `meta` 字段儲存特定類型作業的額外信息，例如 `speaking_pronunciation_sentences` (發音練習的句子列表) 或 `vocabs` (句子構建的詞彙)。
+-   有後台任務 (例如 `SentenceBuilderExampleJob`，調用 `[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)`) 來為 `sentence_builder` 類型的作業異步生成例句。
+-   針對 `speaking_pronunciation` 類型，會調用外部 API (`https://pronunciation.m2mda.com/pinyin`) 處理發音句子。
+
+### `EssayGrading` (評分/練習記錄)
+-   **文件**: `[app/models/essay_grading.rb](mdc:app/models/essay_grading.rb)`
+-   記錄用戶對某個 `EssayAssignment` 的提交和 AI 的評分結果。
+-   包含用戶提交的內容 (`essay`) 以及 AI 返回的詳細評分數據 (`grading`，通常是 JSON 格式)。
+-   `grading` 字段內可能包含如 `overall_score`, `comprehension` (閱讀理解的詳細問題和答案), `speaking_pronunciation_sentences` (發音練習每句的得分和轉錄), `supplement_practice` (補充練習建議) 等。
+-   可以生成 PDF 格式的學習報告 (`download_report`, `download_reports` API 端點)。
+-   部分評分過程以及補充練習的生成，依賴於外部的 Dify Workflow API。
+
+## 3. 主要業務流程
+
+1.  **用戶管理**：
+    *   管理員或系統可以創建 `GeneralUser` 並將其標記為 AI English 用戶，分配相應的功能權限 (`aienglish_features_list`)。
+    *   用戶可以隸屬於學校，並按學年、班級進行管理。
+2.  **作業創建與管理 (教師/管理員)**：
+    *   教師或管理員創建 `EssayAssignment`，選擇作業類型，設置題目、提示、詞彙表等。
+3.  **學生完成作業與提交**：
+    *   學生查看分配的作業，完成後提交，系統創建一個 `EssayGrading` 記錄。
+4.  **AI 自動評分**：
+    *   `EssayGrading` 記錄創建後，根據作業類型 (`category`)：
+        *   作文、口說、句子構建等，觸發 `AIService` 或 `OpenAIService`，進而調用 Dify Workflow (例如通過 `[app/services/essay_grading_supplement_practice_service.rb](mdc:app/services/essay_grading_supplement_practice_service.rb)` 或 `[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)`)。
+        *   發音練習，調用發音評測 API。
+        *   AI 返回評分結果，存儲在 `EssayGrading` 的 `grading` 字段中。
+5.  **結果反饋與報告**：
+    *   學生和教師可以查看 `EssayGrading` 的結果。
+    *   系統可以生成 PDF 格式的詳細報告。
+
+## 4. 關鍵技術組件與外部依賴
+
+-   **核心框架**: Ruby on Rails
+-   **關鍵內部服務** (主要位於 `[app/services/](mdc:app/services)`):
+    -   `OpenAIService`: `[app/services/open_ai_service.rb](mdc:app/services/open_ai_service.rb)` - 封裝與 OpenAI 模型的交互。
+    -   `AIService`: `[app/services/ai_service.rb](mdc:app/services/ai_service.rb)` - 更通用的 AI 服務封裝。
+    -   `DifyService`: `[app/services/dify_service.rb](mdc:app/services/dify_service.rb)` - 封裝與 Dify LLMOps 平台的交互。
+    -   `EssayGradingService`: `[app/services/essay_grading_service.rb](mdc:app/services/essay_grading_service.rb)` - 可能協調作文批改流程。
+    -   `EssayGradingSupplementPracticeService`: `[app/services/essay_grading_supplement_practice_service.rb](mdc:app/services/essay_grading_supplement_practice_service.rb)` - 生成作文補充練習。
+    -   `SentenceBuilderExampleService`: `[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)` - 為句子構建作業生成例句。
+    -   `VocabCsvParserService`: `[app/services/vocab_csv_parser_service.rb](mdc:app/services/vocab_csv_parser_service.rb)` - 解析詞彙 CSV。
+    -   學校/用戶管理相關服務: `StudentAssigner`, `TeacherAssigner`, `SchoolCreator` (位於 `[app/services/schools/](mdc:app/services/schools)` 等路徑)。
+-   **主要外部依賴**：
+    -   **Dify Platform API**: `https://aienglish-dify.docai.net/v1/workflows/run` (核心 AI 功能實現)
+    -   **發音評測 API**: `https://pronunciation.m2mda.com/pinyin` (發音練習評分)
+-   **數據庫與數據存儲**：
+    -   使用 PostgreSQL (典型 Rails 應用) 或類似關聯式數據庫。
+    -   廣泛使用 JSON/JSONB 類型字段存儲靈活的結構化數據 (如模型的 `meta`, `grading`, `rubric` 字段)。
+
+## 5. 主要 API 端點
+
+API 路由定義在 `[config/routes.rb](mdc:config/routes.rb)`。核心 AI English 功能的 API 位於 `api/v1/` 命名空間下：
+
+-   **作業管理 (`[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)`)**:
+    -   `POST /api/v1/essay_assignments`: 創建新作業。
+    -   `GET /api/v1/essay_assignments`: 獲取作業列表。
+    -   `GET /api/v1/essay_assignments/:id`: 獲取特定作業詳情。
+    -   `POST /api/v1/essay_assignments/parse_vocab_csv`: 上傳詞彙表創建作業。
+-   **評分管理 (`[app/controllers/api/v1/essay_gradings_controller.rb](mdc:app/controllers/api/v1/essay_gradings_controller.rb)`)**:
+    -   `POST /api/v1/essay_assignments/:essay_assignment_id/essay_gradings`: 提交作業並創建評分記錄。
+    -   `GET /api/v1/essay_gradings/:id`: 獲取評分詳情。
+    -   `GET /api/v1/essay_gradings/:id/download_report`: 下載單個評分報告。
+    -   `GET /api/v1/essay_assignments/:id/download_reports`: 下載指定作業下所有評分的報告。
+-   **AI English 用戶管理 (Admin - `[app/controllers/api/admin/v1/general_users_controller.rb](mdc:app/controllers/api/admin/v1/general_users_controller.rb)`)**:
+    -   提供如 `aienglish/create`, `aienglish/batch`, `:id/aienglish/update` 等端點管理 AI English 用戶。
+
+## 6. 關於遺留代碼的識別與處理建議
+
+項目中存在大量與 "Documents", "Tags", "Storage", "FormSchema", "FormDatum", "Projects", "Chatbots" 等主題相關的路由和代碼，這些很可能是待清理的舊功能。
+
+-   **識別來源**：主要通過 `[config/routes.rb](mdc:config/routes.rb)` 和 `app/` 目錄下的相關控制器、模型、服務進行識別。
+-   **處理建議**：
+    -   明確這些模塊與 AI English 核心功能之間是否有必要依賴。
+    -   對於無關代碼，制定計劃逐步從路由、控制器、模型、服務、視圖、數據庫表等方面進行剝離。
+    -   移除過程中務必進行充分測試，確保 AI English 核心功能不受影響。
+
+## 7. 對新後端工程師的上手建議
+
+-   **從核心模型入手**：
+    -   `[app/models/general_user.rb](mdc:app/models/general_user.rb)` (特別是 `meta` 字段)
+    -   `[app/models/essay_assignment.rb](mdc:app/models/essay_assignment.rb)` (特別是 `category` 和 `meta` 字段)
+    -   `[app/models/essay_grading.rb](mdc:app/models/essay_grading.rb)` (特別是 `grading` 字段)
+-   **跟蹤 API 請求**：選擇一個核心功能（如提交作文並獲取評分），從 API 入口跟蹤其在後端的完整處理流程。
+-   **理解 Service Objects**：`app/services/` 目錄下的服務類是理解核心業務邏輯和外部集成點的關鍵。
+-   **查閱 Dify Workflow**：如果可能，了解項目在 Dify 平台上配置的 Workflow。
+-   **關注權限控制**：留意代碼中類似 `aienglish_user?` 和 `aienglish_access` 的權限檢查邏輯。
+-   **利用日誌和調試工具**：如 Rails console, `binding.pry` 或 `byebug`。

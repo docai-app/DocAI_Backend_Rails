@@ -1,0 +1,142 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 「AI ENGLISH」項目 - Ruby on Rails 開發指南
+
+## 1. 引言
+
+本文檔為「AI ENGLISH」項目的後端開發團隊提供 Ruby on Rails (Rails) 框架的使用指南和最佳實踐。它旨在統一開發標準，提高代碼質量、可維護性，並幫助新成員快速融入項目。本指南基於對項目現有代碼的分析，並結合了 Rails 社區的通用約定和推薦做法。
+
+## 2. 核心 Rails 約定在項目中的體現
+
+項目總體上遵循 Rails 的核心約定，為開發提供了一個堅實的基礎。
+
+*   **MVC (Model-View-Controller)**：
+    *   **模型 (Models)**：位於 `app/models/`。使用 Active Record 進行數據庫交互、關聯、驗證和回調。項目中廣泛使用 `store_accessor` 處理 JSONB 字段，並使用 `enum` 定義枚舉。
+    *   **視圖 (Views)**：由於項目主要提供 API，視圖層主要體現在 JSON 響應的構建上。目前多數控制器手動構建 JSON 哈希，`jbuilder` Gem 已引入，推薦在複雜響應中使用。
+    *   **控制器 (Controllers)**：位於 `app/controllers/api/v1/`。繼承自 `ApiController` (一個良好的實踐，用於封裝通用 API 邏輯)。使用 `before_action` 進行認證、資源加載和權限檢查。嚴格使用 `Strong Parameters`。
+        *   **指南**：保持控制器輕量 (Skinny Controllers)。複雜的業務邏輯應移至服務對象 (Service Objects)。
+*   **RESTful API 設計**:
+    *   路由 (`[config/routes.rb](mdc:config/routes.rb)`) 大量使用 `resources` 和命名空間 (`Api::V1`) 來定義 RESTful 端點。
+    *   **指南**：繼續遵循 RESTful 原則。所有新的 API 端點都應有清晰的資源定義和恰當的 HTTP 動詞。
+*   **約定優於配置 (Convention over Configuration)**：
+    *   項目在文件命名、目錄結構、數據庫表命名等方面基本遵循 Rails 的約定。
+    *   **指南**：繼續發揚 Rails 的這一核心理念，以減少不必要的配置和提高開發效率。
+
+## 3. 關鍵 Gems 及其在項目中的角色與配置指導
+
+項目依賴一系列成熟的 Gems 來擴展功能。理解這些 Gems 的作用和配置至關重要。
+
+*   **Devise & Devise-JWT (`devise`, `devise-jwt`)**:
+    *   **角色**: 處理用戶註冊、登錄、會話管理以及 API 的 JWT 認證。
+    *   **配置與使用**:
+        *   `GeneralUser` 模型 (`[app/models/general_user.rb](mdc:app/models/general_user.rb)`)應已配置 `devise` 模塊。
+        *   `devise-jwt` 的配置通常在 `config/initializers/devise.rb` 和 JWT 吊銷策略相關模型中。
+        *   `authenticate_general_user!` (在控制器中) 是 Devise 提供的或基於其封裝的認證方法。
+    *   **指南**: 熟悉 Devise 的配置選項和提供的輔助方法。了解 JWT 的簽發、驗證和吊銷流程。
+*   **RSwag (`rswag-api`, `rswag-specs`, `rswag-ui`)**:
+    *   **角色**: 基於 OpenAPI (Swagger) 標準，用於 API 文檔的生成、展示和測試。
+    *   **配置與使用**:
+        *   路由 (`[config/routes.rb](mdc:config/routes.rb)`)已掛載 RSwag 引擎 (`/api-docs`)。
+        *   API 文檔通常編寫在 `spec/requests/` 目錄下的測試文件中，使用 RSwag 的 DSL。
+    *   **指南**: **高度重視** API 文檔的編寫和維護。所有 API 端點都應有對應的 RSwag 文檔，描述請求參數、響應格式、狀態碼等。在 API 發生變更時，務必同步更新文檔。
+*   **Sidekiq (`sidekiq`, `sidekiq-scheduler`)**:
+    *   **角色**: 強大的後台任務處理框架，用於異步執行耗時操作 (如調用外部 AI 服務、生成報告、發送郵件)。`sidekiq-scheduler` 支持定時任務。
+    *   **配置與使用**:
+        *   Worker 類應放在 `app/sidekiq/` 或 `app/jobs/` 目錄下 (根據項目約定)。
+        *   `[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)` 中調用的 `SentenceBuilderExampleJob` 是項目中使用 Sidekiq 的一個例子。
+        *   配置可能在 `config/sidekiq.yml` 和 `config/initializers/sidekiq.rb`。
+    *   **指南**: 積極將耗時操作異步化。合理設計隊列和重試策略。注意 Sidekiq 任務在多租戶環境下的上下文 (見 `ros-apartment-sidekiq`)。
+*   **Apartment (`ros-apartment`, `ros-apartment-sidekiq`)**:
+    *   **角色**: 實現數據庫多租戶 (Database per Tenant 模式或 Schema per Tenant 模式)。這意味著不同租戶 (如不同學校) 的數據在數據庫層面是隔離的。
+    *   **配置與使用**:
+        *   配置通常在 `config/initializers/apartment.rb`。
+        *   租戶切換邏輯 (Elevators) 可能基於子域名、請求頭或路徑來確定當前租戶。
+    *   **指南**: **極其重要**！
+        *   所有開發人員必須理解多租戶的工作原理及其對數據訪問、數據庫遷移和後台任務的影響。
+        *   熟悉如何在請求處理流程中、Rails Console 中以及 Sidekiq Worker 中正確設置和切換租戶上下文。
+        *   數據庫遷移時，需區分 `rake db:migrate` (針對 public schema) 和 `rake apartment:migrate` (針對所有租戶 schemas)。
+        *   明確哪些模型是租戶特定的，哪些是全局共享的。
+*   **Kaminari & API-Pagination (`kaminari`, `api-pagination`)**:
+    *   **角色**: 實現數據分頁，`api-pagination` 針對 API 響應進行了優化。
+    *   **指南**: 在返回列表數據的 API 端點中，應始終使用分頁，並在響應中包含分頁元數據 (如總頁數、當前頁、每頁數量)。
+*   **Prawn / PDFKit (`prawn`, `pdfkit`, etc.)**:
+    *   **角色**: 用於生成 PDF 文檔，如 `EssayGrading` (`[app/models/essay_grading.rb](mdc:app/models/essay_grading.rb)`) 的報告。
+    *   **指南**: 封裝 PDF 生成邏輯，避免控制器過於臃腫。注意字體文件和資源路徑的配置。
+*   **Azure Storage (`azure-storage-blob`)**:
+    *   **角色**: 可能用於 Active Storage 的後端，存儲用戶上傳的文件或生成的報告。
+    *   **指南**: 熟悉 Active Storage 的配置和用法，特別是在 Azure 環境下的憑證管理。
+*   **Trestle (`trestle`, `trestle-auth`, etc.)**:
+    *   **角色**: Rails Admin 框架，可能用於構建項目的管理後台。
+    *   **指南**: 如果使用，應了解 Trestle 的資源定義、自定義表單和頁面、以及權限配置。
+
+## 4. API 設計與開發
+
+*   **版本控制**: 堅持使用 `Api::V1` 這樣的命名空間。當 API 發生不兼容變更時，應考慮升級版本號。
+*   **請求與響應格式**:
+    *   API 應接受 JSON 格式的請求體，並返回 JSON 格式的響應。
+    *   成功的響應 (2xx) 應包含 `success: true` 和數據。
+    *   錯誤的響應 (4xx, 5xx) 應包含 `success: false` 和描述性的錯誤信息 (如 `error: "Message"` 或 `errors: [...]`)。
+*   **狀態碼**: 嚴格使用標準的 HTTP 狀態碼來表示請求的結果。
+*   **認證與授權**:
+    *   所有需要保護的 API 端點都應通過 `authenticate_general_user!` (或類似方法) 進行 JWT 認證。
+    *   細粒度的權限控制應通過 `aienglish_access` (`[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)`中的例子) 這類 `before_action` 或更通用的授權機制 (如 Rolify 結合自定義邏輯，或 Pundit/CanCanCan) 實現。
+
+## 5. 數據庫與 Active Record 實踐
+
+*   **數據遷移 (Migrations)**:
+    *   遷移文件應保持可逆 (`change` 方法，或同時提供 `up` 和 `down`)。
+    *   避免在遷移文件中直接操作數據或調用模型方法，除非是數據遷移本身。對於複雜的數據變更，考慮使用 Rails Runner 或 Rake task。
+    *   **特別注意**：在多租戶 (Apartment) 環境下，`rake apartment:migrate` 會對所有租戶執行遷移。對於只應影響 public schema 或特定租戶的遷移，需要謹慎處理。
+*   **查詢優化**:
+    *   使用 `Bullet` Gem (`[Gemfile](mdc:Gemfile)`) 檢測並修復 N+1 查詢。
+    *   複雜查詢應封裝在 Model Scopes 或 Query Objects 中，而不是直接寫在控制器裡。
+    *   對於頻繁查詢的字段，確保數據庫有適當的索引。
+*   **JSONB 字段**:
+    *   `store_accessor` 是訪問 JSONB 字段內數據的便捷方式。
+    *   對於 JSONB 字段的查詢，可以使用 PostgreSQL 的 JSON 操作符，但應注意其性能。
+*   **模型驗證**: 在模型中使用 Active Record Validations (`validates ...`) 來確保數據的完整性和一致性。
+
+## 6. 後台處理 (Sidekiq)
+
+*   **異步執行**: 將所有耗時的、非阻塞用戶請求的操作（如外部 API 調用、郵件發送、報告生成、複雜計算）放入 Sidekiq 後台任務。
+*   **Worker 設計**: Sidekiq Worker 應保持冪等性，即多次執行同一個任務（帶相同參數）應產生相同的結果或無副作用。
+*   **租戶上下文**: 使用 `ros-apartment-sidekiq` Gem (`[Gemfile](mdc:Gemfile)`) 來確保 Sidekiq 任務在正確的租戶上下文中執行。
+
+## 7. 配置與環境管理
+
+*   **環境變量**: 所有環境特定配置（數據庫憑證、API Keys、第三方服務地址等）必須通過環境變量管理。使用 `dotenv` Gem (`[Gemfile](mdc:Gemfile)`) 在本地加載 `.env` 文件。
+*   **Initializers (`config/initializers/`)**: 用於配置 Gems 和框架的全局行為。
+*   **`[config/application.rb](mdc:config/application.rb)`**: 應用級別的配置。
+*   **`config/environments/*.rb`**: 環境特定的配置。
+
+## 8. 安全實踐
+
+*   **輸入驗證**: 始終使用 Strong Parameters 過濾控制器接收的參數。在模型層進行數據驗證。
+*   **身份認證**: 確保 Devise 和 Devise-JWT 配置正確，JWT 安全存儲和傳輸。
+*   **授權**: 對所有資源和操作實施恰當的權限檢查。
+*   **CORS**: 正確配置 `rack-cors` (`[Gemfile](mdc:Gemfile)`) 以允許必要的跨域請求，避免過於寬鬆的策略。
+*   **日誌**: 避免在日誌中記錄敏感信息 (如密碼、Token)。
+
+## 9. 測試
+
+*   (假設項目使用 Minitest 或 RSpec)
+*   **單元測試**: 針對模型、服務對象、輔助方法等獨立單元編寫測試。
+*   **集成測試**: 測試控制器 Action、API 端點的請求和響應，以及組件間的交互。
+*   **測試覆蓋率**: 鼓勵提高核心業務邏輯的測試覆蓋率。
+*   **測試數據**: 使用 Fixtures 或 FactoryBot (推薦) 生成一致且可維護的測試數據。
+*   **RSwag**: RSwag 也可用於編寫請求級別的測試。
+
+## 10. 目錄結構與約定
+
+*   遵循 Rails 的標準目錄結構。
+*   服務對象可以放在 `[app/services/](mdc:app/services)`。
+*   Query Objects (如果使用) 可以放在 `app/queries/`。
+*   Presenters/Decorators (如果使用) 可以放在 `app/presenters/` 或 `app/decorators/`。
+*   Sidekiq Workers 建議放在 `app/sidekiq/` 或 `app/jobs/`。
+
+## 11. 文檔的持續更新
+
+本開發指南是一個動態文檔，應隨著項目的發展和技術棧的演進而定期審查和更新。

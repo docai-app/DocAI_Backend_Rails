@@ -1,0 +1,137 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 「AI ENGLISH」項目 - 編碼風格規範定義
+
+## 1. 引言與目的
+
+本文檔旨在為「AI ENGLISH」項目（以下簡稱"項目"）的 Ruby on Rails 後端開發團隊定義一套統一的編碼風格規範。遵循此規範有助於：
+
+*   **提高代碼可讀性**：使團隊成員更容易理解彼此的代碼。
+*   **增強代碼可維護性**：簡化未來的功能迭代、重構和故障排查。
+*   **提升團隊協作效率**：減少因風格差異引起的不必要討論和衝突。
+*   **確保項目長期健康發展**：構建一個高質量的、易於傳承的代碼庫。
+
+本文檔的建議基於對項目現有「AI ENGLISH」相關代碼的分析，並融合了 Ruby 和 Rails 社區公認的最佳實踐。
+
+## 2. 通用原則
+
+*   **清晰性 (Clarity)**：代碼首先是寫給人看的，其次才是給機器執行的。力求代碼意圖清晰明了。
+*   **簡潔性 (Simplicity)**：避免不必要的複雜性。選擇簡單直接的解決方案。 "Keep It Simple, Stupid" (KISS)。
+*   **一致性 (Consistency)**：在整個項目中遵循相同的編碼風格和模式。
+*   **YAGNI (You Ain't Gonna Need It)**：不要編寫當前不需要的代碼或過度設計。
+*   **DRY (Don't Repeat Yourself)**：避免重複的代碼，通過方法、類、模塊等進行抽象。
+
+## 3. 建議工具
+
+*   **RuboCop**: 強烈建議引入並配置 RuboCop 作為主要的靜態代碼分析和風格檢查工具。
+    *   初始配置可以相對寬鬆，逐步根據團隊習慣和本文檔精神進行調整和收緊。
+    *   目標是讓 RuboCop 的檢查成為 CI/CD 流程的一部分，並鼓勵開發者在本地提交前運行檢查。
+
+## 4. 命名約定 (Naming Conventions)
+
+*   **文件夾和文件名**：使用小寫蛇形命名 (`snake_case`)。例如：`app/services/user_authenticator.rb`。
+*   **類和模塊名**：使用駝峰式命名 (`CamelCase`)。例如：`EssayAssignment`, `Api::V1::AssignmentsController`。
+    *   服務對象建議以 `Service` 結尾，例如 `PaymentProcessingService`。
+    *   Query Objects 建議以 `Query` 結尾，例如 `PublishedArticlesQuery`。
+    *   表單對象 (Form Objects) 建議以 `Form` 結尾，例如 `RegistrationForm`。
+*   **方法名**：使用小寫蛇形命名 (`snake_case`)。例如：`calculate_total_score`。
+    *   查詢類型的方法 (返回布爾值) 應以問號結尾，例如：`user.admin?`, `record.valid?`。
+    *   有潛在危險或執行重要修改的方法 (例如，修改自身或數據庫記錄並可能引發異常) 可以感嘆號結尾 (慎用)，例如：`user.save!`, `obj.destroy!`。
+*   **變量名**：使用小寫蛇形命名 (`snake_case`)。例如：`current_user`, `total_amount`。
+*   **常量名**：使用全大寫蛇形命名 (`SCREAMING_SNAKE_CASE`)。例如：`DEFAULT_TIMEOUT = 30`。
+*   **數據庫表名**：使用複數形式的小寫蛇形命名。例如：`essay_assignments`。
+*   **數據庫列名**：使用單數形式的小寫蛇形命名。例如：`user_id`, `created_at`。
+
+## 5. 格式化 (Formatting)
+
+*   **縮進**：使用 **2個空格** 進行縮進，不要使用製表符 (Tab)。
+*   **行長度**：建議每行不超過 **120個字符**。對於過長的行，應在邏輯斷點處進行換行。
+*   **空格**：
+    *   在二元操作符 (`+`, `-`, `*`, `/`, `=`, `==`, `!=`, `<`, `>`, `&&`, `||` 等) 兩側使用空格。
+    *   在逗號 `,`、分號 `;`、哈希的冒號 `:` 後使用空格。
+    *   在塊的 `{` 前和 `}` 後使用空格 (對於單行塊)。
+    *   方法定義的括號 `()` 與方法名之間不應有空格。調用方法時，如果無參數，通常省略括號。
+*   **垂直空白 (空行)**：
+    *   在方法定義之間使用一個空行。
+    *   在類/模塊定義內部，邏輯相關的代碼塊之間可以使用一個空行以提高可讀性。
+    *   避免連續的多個空行。
+*   **塊 (Blocks)**：
+    *   對於單行塊，優先使用 `{ ... }`。
+    *   對於多行塊，優先使用 `do ... end`。
+    *   避免在 `do ... end` 塊後鏈式調用。
+*   **哈希 (Hashes)**：
+    *   優先使用 Ruby 1.9+ 的語法：`{ key: value }`。
+    *   當鍵是字符串或非符號時，使用舊式語法：`{ 'string-key' => value }`。
+*   **字符串 (Strings)**：
+    *   優先使用單引號 `''` 定義靜態字符串。
+    *   當需要字符串插值 (`#{expression}`) 或包含特殊字符 (如 `\\n`) 時，使用雙引號 `""`。
+*   **`# frozen_string_literal: true`**: 應在所有 `.rb` 文件的頂部添加此魔法註釋。
+
+## 6. 註釋 (Comments)
+
+*   **語言**：推薦統一使用 **英文** 編寫註釋，以方便潛在的國際合作和更廣泛的社區工具支持。
+*   **目的**：註釋應解釋代碼的"為什麼"而不是"做什麼"，除非代碼的"做什麼"非常複雜難懂。
+*   **風格**：
+    *   使用 `#` 進行單行註釋。
+    *   對於公共 API (類、模塊、公共方法)，建議使用 YARDoc 格式的註釋，以便生成文檔。
+*   **清理**：
+    *   提交代碼前，應移除所有調試性註釋 (如 `puts`, `p`, `# binding.pry`) 和不再有用的被註釋掉的代碼塊。
+    *   避免無意義的註釋，如：`@count += 1 # Increment count`。
+*   **Schema Information**: 繼續使用 `annotate_models` gem 在模型頂部生成數據庫表結構信息。
+
+## 7. Ruby 最佳實踐
+
+*   **Guard Clauses**: 廣泛使用防衛語句 (`return unless condition`, `raise if condition`) 來處理邊界條件和提前退出，以減少方法體的嵌套層級。
+*   **迭代器**: 優先使用 `each`, `map`, `select`, `reject`, `reduce` 等枚舉方法，而不是 `for` 循環。
+*   **謂詞方法 (Predicate Methods)**: 返回布爾值的方法應以 `?` 結尾。
+*   **避免不必要的 `self`**: 在實例方法中調用同類的其他實例方法或訪問屬性時，通常不需要顯式使用 `self`。
+*   **條件賦值**: 適當使用 `||=` 或 `&&=`。
+*   **異常處理**:
+    *   使用 `begin ... rescue ... else ... ensure ... end` 結構處理可能發生的異常。
+    *   捕獲盡可能精確的異常類型，而不是直接 `rescue StandardError` 或 `rescue Exception` (除非確實需要)。
+    *   在 `rescue` 塊中，可以使用 `Rails.logger` 記錄錯誤信息。
+*   **日誌記錄**: 使用 `Rails.logger` (如 `Rails.logger.info`, `Rails.logger.warn`, `Rails.logger.error`) 進行日誌記錄，而不是 `puts`。日誌信息應包含足夠的上下文。
+
+## 8. Rails 最佳實踐
+
+*   **瘦控制器，胖模型/服務 (Skinny Controllers, Fat Models/Services)**：
+    *   **控制器 (Controllers)**：應保持輕量，主要職責是：
+        1.  接收請求和參數。
+        2.  調用適當的服務對象或查詢對象來處理業務邏輯。
+        3.  準備數據並渲染視圖或返回 JSON 響應。
+        4.  處理認證和授權。
+    *   **模型 (Models)**：負責數據持久化、數據驗證、關聯、簡單的數據查詢 (Scopes)。避免在模型中包含過於複雜的業務邏輯或與外部服務的直接交互 (特別是同步的)。
+    *   **服務對象 (Service Objects)**：將複雜的業務邏輯、涉及多個模型或外部服務調用的操作封裝到服務對象中。每個服務對象應遵循單一職責原則。
+        *   **建議**：對於項目中 `[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)` 中 `#show` 這類包含大量數據處理和條件邏輯的 action，應將其核心邏輯提取到一個或多個服務對象中。
+*   **查詢對象 (Query Objects)**：對於複雜的數據庫查詢，尤其是那些在多個地方使用或包含複雜 `JOIN`、`GROUP BY`、`HAVING` 子句的查詢，應將其封裝到查詢對象中，以提高可讀性和可重用性。
+    *   **建議**：`[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)` 中的長 SQL `select` 語句是引入 Query Object 的一個好例子。
+*   **表單對象 (Form Objects)**：當表單提交涉及多個模型或需要複雜驗證邏輯時，可以考慮使用表單對象來處理表單數據的接收、驗證和持久化。
+*   **展示器/裝飾器 (Presenters/Decorators)**：對於視圖層或 API 響應中複雜的數據格式化邏輯，應使用 Presenter 或 Decorator 模式 (如使用 Draper gem 或自定義)。
+    *   **建議**：考慮為 API JSON 響應引入 Jbuilder 或 Active Model Serializers (AMS) 來標準化和簡化 JSON 的構造，而不是在控制器中手動拼接哈希。
+*   **Strong Parameters**: 嚴格使用，確保只接收預期的參數。
+*   **Rails 回調 (Callbacks)**：謹慎使用。雖然方便，但過多的回調會使模型的生命週期難以理解和測試。
+    *   **建議**：對於模型回調中涉及的耗時操作或外部 API 調用 (如 `[app/models/essay_assignment.rb](mdc:app/models/essay_assignment.rb)` 中的 `#check_and_post_speaking_pronunciation_sentences`)，應改為 **異步後台任務** (如使用 Sidekiq Job)。`[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)` (通過 `SentenceBuilderExampleJob`) 的模式是個好例子，應推廣。
+*   **API 設計**:
+    *   遵循 RESTful 原則設計 API 端點。
+    *   錯誤響應應使用 **準確的 HTTP 狀態碼** (例如：200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 422 Unprocessable Entity, 500 Internal Server Error)。
+    *   錯誤響應體應包含有意義的錯誤信息，便於客戶端調試。
+*   **路由 (Routing)**：保持 `[config/routes.rb](mdc:config/routes.rb)` 的清晰和組織性。對於大量路由，可以考慮按功能或模塊進行分組。
+*   **數據庫遷移 (Migrations)**：
+    *   遷移文件應是可逆的 (`change` 方法，或同時提供 `up` 和 `down` 方法)。
+    *   避免在遷移文件中直接操作數據 (除非是數據遷移本身) 或調用模型方法。
+*   **國際化 (I18n)**：對於用戶可見的字符串，應考慮使用 Rails I18n 機制。
+
+## 9. 測試 (Testing)
+
+*   (雖然本次未深入分析測試代碼，但規範應包含此部分)
+*   為核心業務邏輯編寫清晰、有效的測試。
+*   遵循測試金字塔原則，重點編寫單元測試和集成測試。
+*   測試文件名和描述應清晰表達測試的目的和場景。
+*   保持測試的獨立性和可重複性。
+
+## 10. 文檔的持續更新
+
+本編碼風格規範是一個動態文檔，應隨著項目發展和團隊經驗的積累而定期回顧和更新。鼓勵團隊成員提出改進建議。

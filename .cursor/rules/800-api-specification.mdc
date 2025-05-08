@@ -1,0 +1,379 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# API規範文檔：定義接口標準
+
+## 1. 引言
+
+### 1.1 目的
+
+本文檔旨在為「AI ENGLISH」項目（以下簡稱「項目」）的後端開發團隊定義一套統一、清晰的API設計和開發標準。遵循此規範有助於：
+
+*   **提高API質量與一致性**：確保所有API在結構、行為和風格上保持一致。
+*   **增強可維護性與可擴展性**：簡化API的迭代、重構和長期維護。
+*   **提升團隊協作效率**：減少因API設計差異引起的誤解和溝通成本。
+*   **方便新成員上手**：為新加入的工程師提供清晰的API設計指導。
+*   **支持外部集成**：構建易於被前端或其他第三方服務理解和集成的API。
+
+### 1.2 範圍
+
+本規範適用於「AI ENGLISH」項目所有後端API的設計、開發、文檔化和測試。重點關注項目核心業務（AI English相關功能）的API，但也為項目中其他潛在API提供通用指導。
+
+### 1.3 目標讀者
+
+*   項目後端開發工程師
+*   與後端API交互的前端開發工程師
+*   測試工程師
+*   任何需要理解項目API設計的相關人員
+
+### 1.4 核心API設計原則
+
+*   **RESTful架構風格**: 以資源為中心，正確使用HTTP動詞。
+*   **一致性 (Consistency)**: URL、請求/響應格式、狀態碼、錯誤處理等保持一致。
+*   **可預測性 (Predictability)**: API行為符合開發者直覺。
+*   **安全性 (Security)**: 包含認證、授權、輸入驗證等。
+*   **清晰的文檔化 (Clear Documentation)**: 使用RSwag確保API文檔的完整和準確。
+*   **易於測試 (Testability)**: API設計應便於自動化測試。
+*   **演進性與版本控制 (Evolvability & Versioning)**: 考慮未來擴展，並使用清晰的版本策略。
+*   **關注點分離 (Separation of Concerns)**: API接口專注數據交互，業務邏輯在服務層處理。
+
+---
+
+## 2. URL設計 (URL Design)
+
+### 2.1 命名空間與版本控制
+
+*   所有API端點必須位於 `/api/` 命名空間下。
+*   API版本控制通過路徑實現，當前版本為 `v1`。例如：`/api/v1/resource_name`。
+*   當引入不兼容的API變更時，應考慮升級版本號 (e.g., `/api/v2/`)，以保證對舊版本客戶端的兼容性。
+*   參考：項目已統一使用 `[config/routes.rb](mdc:config/routes.rb)` 中的 `namespace :api { namespace :v1 { ... } }` 結構。
+
+### 2.2 資源命名
+
+*   URL中的資源名應使用 **小寫蛇形命名法 (snake_case)**。
+*   資源名應使用 **名詞複數** 形式。例如：
+    *   `GET /api/v1/essay_assignments` (獲取作業列表)
+    *   `GET /api/v1/essay_assignments/:id` (獲取單個作業)
+
+### 2.3 路徑層級與嵌套資源
+
+*   對於具有明確父子關係的資源，可以使用嵌套路徑來表示，層級不宜過深（建議最多一層嵌套）。
+    *   示例：獲取某個 `EssayAssignment` 下的所有 `EssayGrading` 記錄：
+        `GET /api/v1/essay_assignments/:essay_assignment_id/essay_gradings`
+*   避免不必要的路徑深度，優先考慮通過查詢參數進行過濾。
+
+### 2.4 非CRUD操作的URL
+
+*   對於非標準CRUD（創建、讀取、更新、刪除）的操作，應仔細設計其路由。
+*   如果操作作用於整個資源集合，可以使用 `collection` 路由。動詞應儘可能表意。
+    *   示例：批量解析詞彙CSV文件以創建作業：
+        `POST /api/v1/essay_assignments/parse_vocab_csv`
+*   如果操作作用於特定資源實例，可以使用 `member` 路由。
+    *   示例：下載特定評分報告：
+        `GET /api/v1/essay_gradings/:id/download_report`
+*   優先使用標準HTTP動詞。如果確實無法對應，POST可用作一個通用的操作動詞，但URL應清晰描述該操作。
+
+---
+
+## 3. HTTP動詞 (HTTP Verbs)
+
+嚴格按照HTTP動詞的標準語義使用它們：
+
+*   **`GET`**: 用於安全且冪等地讀取（檢索）資源表示。不應產生副作用。
+*   **`POST`**: 用於創建新資源，或觸發一個控制器操作（如示例中的 `parse_vocab_csv`）。非冪等。
+*   **`PUT`**: 用於完整替換（更新）一個已存在的資源。客戶端需提供資源的完整表示。冪等。
+*   **`PATCH`**: 用於部分更新一個已存在的資源。客戶端只需提供需要變更的字段。冪等。項目中推薦優先使用 `PATCH` 進行更新操作，除非明確需要完整替換。
+*   **`DELETE`**: 用於刪除一個已存在的資源。冪等。
+
+---
+
+## 4. 請求格式 (Request Format)
+
+### 4.1 Content-Type
+
+*   對於需要發送請求體的 `POST`, `PUT`, `PATCH` 請求，客戶端必須將 `Content-Type` HTTP頭設置為 `application/json`。
+*   服務器端應驗證 `Content-Type`，對於不支持的類型可返回 `415 Unsupported Media Type` 狀態碼。
+
+### 4.2 請求體 (Request Body)
+
+*   請求體內容必須是格式正確的JSON字符串。
+*   JSON對象的鍵名（key）統一使用 **小寫蛇形命名法 (snake_case)**，與Rails模型屬性保持一致。
+    ```json
+    // 示例：創建 EssayAssignment 的請求體
+    {
+      "topic": "My First Essay Topic",
+      "assignment": "Write an essay about your summer vacation.",
+      "category": "essay",
+      "general_user_id": 123 // 假設需要傳遞用戶ID
+    }
+    ```
+
+### 4.3 參數傳遞
+
+*   **路徑參數 (Path Parameters)**: 用於唯一標識要操作的資源實例。例如 `/:id` 中的 `id`。
+*   **查詢參數 (Query Parameters)**: URL中 `?`之後的部分，用於對資源集合進行過濾、排序、分頁等。例如 `/essay_assignments?category=essay&status=pending`。
+*   **請求體參數 (Request Body Parameters)**: 對於 `POST`, `PUT`, `PATCH` 請求，用於傳遞資源的數據。
+
+---
+
+## 5. 響應格式 (Response Format)
+
+### 5.1 Content-Type
+
+*   所有API的響應體均使用 `application/json` 格式。
+*   服務器應始終在響應中包含 `Content-Type: application/json` HTTP頭。
+
+### 5.2 成功響應 (Successful Responses)
+
+*   **統一結構**: 為了便於客戶端處理，所有成功的響應應遵循統一的JSON結構。
+*   **基本結構**: 包含一個布爾型的 `success` 字段和一個 `data` 字段。
+    ```json
+    {
+      "success": true,
+      "data": { /* 具體數據內容 */ }
+    }
+    ```
+*   **單個資源響應**: `data` 字段的值為一個JSON對象，代表該資源。
+    ```json
+    // GET /api/v1/essay_assignments/:id
+    {
+      "success": true,
+      "data": {
+        "id": 1,
+        "code": "ASMT-001",
+        "topic": "My Essay",
+        "category": "essay",
+        // ... 其他字段 ...
+        "created_at": "2023-10-27T10:00:00.000Z"
+      }
+    }
+    ```
+*   **資源列表響應 (帶分頁)**: `data` 字段的值為一個JSON數組，代表資源列表。同時，應包含一個 `meta` 字段來存放分頁信息。
+    ```json
+    // GET /api/v1/essay_assignments
+    {
+      "success": true,
+      "data": [
+        { "id": 1, "topic": "Essay 1", ... },
+        { "id": 2, "topic": "Essay 2", ... }
+      ],
+      "meta": {
+        "pagination": {
+          "current_page": 1,
+          "next_page": 2,
+          "prev_page": null,
+          "total_pages": 5,
+          "total_count": 48,
+          "per_page": 10 // 由 api-pagination gem 生成
+        }
+      }
+    }
+    ```
+*   **無內容響應 (`204 No Content`)**: 對於某些操作（如成功的 `DELETE` 請求），如果服務器不需要返回任何內容，則響應體應為空，並使用 `204 No Content` 狀態碼。
+*   **鍵名**: JSON對象的鍵名統一使用 **小寫蛇形命名法 (snake_case)**。
+
+### 5.3 錯誤響應 (Error Responses)
+
+*   **統一結構**: 錯誤響應也應遵循統一的JSON結構。
+*   **基本結構**: 包含一個布爾型的 `success` 字段 (值為 `false`) 和一個 `error` 對象 (或針對驗證錯誤的 `errors` 對象)。
+    ```json
+    // 通用錯誤結構
+    {
+      "success": false,
+      "error": {
+        "code": "ERROR_CODE_STRING", // 可選的、應用程序特定的錯誤碼
+        "message": "A human-readable description of the error."
+        // "details": { ... } // 可選，提供更詳細的錯誤信息
+      }
+    }
+    ```
+*   **驗證錯誤 (Validation Errors - `422 Unprocessable Entity`)**: 當資源驗證失敗時，推薦返回包含字段級錯誤信息的結構。
+    ```json
+    // app/models/essay_assignment.rb 校驗失敗時
+    {
+      "success": false,
+      "errors": {
+        "topic": ["can't be blank"],
+        "category": ["is not included in the list"]
+      }
+    }
+    ```
+    這種格式與Rails默認的 `record.errors.messages` 兼容，方便客戶端處理。
+*   **避免敏感信息**: 錯誤響應中不應包含服務器端的敏感信息，如原始異常堆棧、源碼路徑等。
+
+---
+
+## 6. HTTP狀態碼 (HTTP Status Codes)
+
+準確使用HTTP狀態碼是RESTful API設計的關鍵部分。以下為項目中推薦使用的主要狀態碼：
+
+*   **`2xx` - 成功 (Success)**
+    *   `200 OK`: GET、PUT、PATCH請求成功，或DELETE請求成功並返回了消息體。
+    *   `201 Created`: POST請求成功創建了新資源。響應中應包含新創建資源的表示，並在 `Location` 頭中提供該資源的URL。
+    *   `204 No Content`: 請求成功處理，但響應體中沒有內容（常用於成功的DELETE請求，或某些PUT/PATCH請求）。
+
+*   **`4xx` - 客戶端錯誤 (Client Errors)**
+    *   `400 Bad Request`: 請求無效。服務器無法理解請求，通常因為請求語法錯誤、參數無效或請求體格式錯誤。錯誤響應中應包含具體原因。
+    *   `401 Unauthorized`: 請求需要用戶認證。客戶端未提供有效的認證憑證（如JWT Token），或憑證已過期/無效。
+    *   `403 Forbidden`: 服務器理解請求，但客戶端沒有權限訪問所請求的資源。即使提供了有效認證，也禁止訪問。
+    *   `404 Not Found`: 請求的資源不存在。URL無法匹配到任何資源。
+    *   `422 Unprocessable Entity`: 請求格式正確，但由於包含語義錯誤，服務器無法處理。通常用於表單驗證失敗。
+    *   `429 Too Many Requests`: 客戶端在給定時間內發送的請求過多，觸發了速率限制。
+
+*   **`5xx` - 服務器錯誤 (Server Errors)**
+    *   `500 Internal Server Error`: 服務器內部發生了意外錯誤，導致無法完成請求。這是一個通用的服務器端錯誤響應，應盡量避免，並在錯誤響應中提供一個追蹤ID（如果可能），同時在服務器端記錄詳細日誌。
+
+---
+
+## 7. 數據分頁、過濾與排序
+
+### 7.1 分頁 (Pagination)
+
+*   對於返回資源列表的API端點 (通常是 `index` action)，必須實現分頁機制，以避免一次性返回過多數據導致性能問題。
+*   **查詢參數**: 使用標準查詢參數：
+    *   `page`: 指定請求的頁碼 (從1開始)。
+    *   `per_page`: 指定每頁返回的記錄數量。
+*   **默認值與限制**: 應為 `page` 和 `per_page` 設置合理的默認值 (例如 `page=1`, `per_page=25`)。同時，`per_page` 應有一個最大值限制（例如100），以防止客戶端請求過大的數據量。
+*   **響應元數據**: 響應體中應包含清晰的分頁元數據，如前述「成功響應」部分的示例所示。項目已使用 `api-pagination` Gem，它會自動在響應頭和/或響應體（取決於配置）中添加分頁信息。
+
+### 7.2 過濾 (Filtering)
+
+*   允許客戶端通過查詢參數對資源列表進行過濾。
+*   過濾參數的命名應清晰、直觀，並與資源的屬性相對應。例如：
+    `GET /api/v1/essay_assignments?category=essay&status=pending`
+*   對於複雜的過濾條件，應謹慎設計，避免過於複雜的查詢邏輯直接暴露在API層面。可以考慮使用服務對象或查詢對象封裝複雜查詢。
+
+### 7.3 排序 (Sorting)
+
+*   允許客戶端通過查詢參數指定資源列表的排序方式。
+*   **查詢參數**: 推薦使用類似以下的參數：
+    *   `sort_by`: 指定排序的字段名 (e.g., `created_at`, `topic`)。
+    *   `sort_direction`: 指定排序方向 (`asc` 表示升序, `desc` 表示降序)。
+    *   示例: `GET /api/v1/essay_assignments?sort_by=created_at&sort_direction=desc`
+*   應明確哪些字段允許排序，並對無效的排序字段進行處理。
+
+---
+
+## 8. 認證與授權 (Authentication & Authorization)
+
+### 8.1 認證 (Authentication)
+
+*   項目API使用 **JSON Web Tokens (JWT)** 進行無狀態認證。
+*   客戶端在登錄成功後獲取JWT Token。
+*   對於需要認證的API請求，客戶端必須在 `Authorization` HTTP頭中攜帶JWT Token，格式為 `Bearer <your_jwt_token>`。
+    `Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...`
+*   服務器端通過 `Devise-JWT` Gem (`[Gemfile](mdc:Gemfile)`) 驗證Token的有效性。控制器中使用 `authenticate_general_user!` (或類似的 `before_action`) 執行認證。
+*   如果Token無效、缺失或過期，服務器應返回 `401 Unauthorized` 狀態碼。
+*   **Token安全**: Token應通過HTTPS傳輸。客戶端應安全存儲Token。
+
+### 8.2 授權 (Authorization)
+
+*   認證解決了「你是誰」的問題，授權解決了「你能做什麼」的問題。
+*   在確認用戶身份後，還需要檢查用戶是否有權限執行請求的操作或訪問請求的資源。
+*   項目中（如 `[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)`）使用了基於 `current_general_user.aienglish_features_list` 和作業 `category` 的自定義權限檢查邏輯 (例如 `aienglish_access` `before_action`)。
+*   **規範**: 應確保所有需要細粒度權限控制的端點都有相應的授權檢查。
+*   如果授權失敗，服務器應返回 `403 Forbidden` 狀態碼。
+*   考慮引入更通用的授權Gem（如Pundit或CanCanCan）來標準化授權邏輯，特別是當權限規則變得複雜時。
+
+---
+
+## 9. 輸入驗證 (Input Validation - Strong Parameters)
+
+*   所有接收客戶端輸入數據的API端點（尤其是 `POST`, `PUT`, `PATCH`）必須使用Rails的 **Strong Parameters** 機制進行嚴格的輸入驗證和過濾。
+*   在控制器中定義私有的 `*_params` 方法，明確 `require` 頂層參數鍵，並 `permit` 允許傳入的屬性及其類型（包括嵌套屬性和數組）。
+*   **目的**: 防止惡意用戶通過請求注入未預期的參數，從而避免潛在的安全漏洞（如Mass Assignment）。
+*   **示例** (參考 `[.cursor/rules/600-code-examples.mdc](mdc:.cursor/rules/600-code-examples.mdc)` 中的控制器 `create` action 示例)：
+    ```ruby
+    private
+    def essay_assignment_params
+      params.require(:essay_assignment).permit(
+        :topic, :assignment, :title, :category,
+        # 允許嵌套的 rubric 參數
+        rubric: [:name, { app_key: %i[grading general_context] }],
+        # 允許 meta JSON 字段中的特定鍵和結構
+        meta: [:newsfeed_id, { vocabs: [:word, :pos, :definition] }]
+      )
+    end
+    ```
+*   除了Strong Parameters層面的過濾，還應結合模型層的數據驗證 (Active Record Validations) 來確保數據的完整性和業務規則的符合性。
+
+---
+
+## 10. API文檔 (API Documentation with RSwag)
+
+*   項目使用 `RSwag` (`rswag-api`, `rswag-specs`, `rswag-ui`) Gem基於OpenAPI (Swagger) 標準生成API文檔。API文檔位於 `/api-docs` 路徑。
+*   **強制性**: 所有公開的API端點都 **必須** 編寫完整、準確且最新的RSwag文檔。
+*   **文檔位置**: RSwag文檔DSL通常編寫在 `spec/requests/` 目錄下的對應測試文件中。
+*   **文檔內容要求**:
+    *   **總體描述 (Path/Operation Summary & Description)**: 清晰說明端點的用途和功能。
+    *   **標籤 (Tags)**: 合理使用標籤對API進行分組 (e.g., "EssayAssignments", "EssayGradings")。
+    *   **參數 (Parameters)**: 詳細描述所有路徑參數、查詢參數和請求體參數：
+        *   `name`: 參數名。
+        *   `in`: 參數位置 (path, query, header, body/formData)。
+        *   `description`: 清晰的參數描述。
+        *   `required`: 是否必需。
+        *   `type` / `schema`: 參數的數據類型或JSON Schema。
+        *   `example`: 示例值。
+    *   **請求體 (Request Body)**: (針對POST/PUT/PATCH) 詳細描述請求體的結構和每個字段。
+    *   **響應 (Responses)**: 描述所有可能的HTTP狀態碼及其對應的響應：
+        *   `description`: 響應描述。
+        *   `schema`: 響應體的JSON Schema。
+        *   `examples`: 響應示例 (JSON)。
+    *   **安全性定義 (Security Definitions)**: 明確指出哪些端點需要JWT Bearer Token認證。
+        ```ruby
+        # 在 RSwag DSL 中
+        security [Bearer: {}]
+        ```
+*   **維護責任**: API的開發者同時負責編寫和維護其對應的RSwag文檔。**API代碼變更時，必須同步更新API文檔**。文檔應被視為代碼庫的一部分，接受Code Review。
+*   **目標**: 確保API文檔始終是開發者理解和使用API的權威、可靠來源。
+
+---
+
+## 11. 錯誤處理最佳實踐 (Error Handling Best Practices)
+
+*   **統一入口**: 建議在 `ApiController` (或其他API基類控制器) 中使用 `rescue_from` 來捕獲常見的異常類型，並將其轉換為標準化的錯誤響應。這樣可以避免在每個控制器動作中重複編寫錯誤處理邏輯。
+    ```ruby
+    # app/controllers/api_controller.rb (示例)
+    class ApiController < ActionController::API
+      include ActionController::HttpAuthentication::Token::ControllerMethods # For Devise JWT
+
+      rescue_from ActiveRecord::RecordNotFound, with: :render_not_found_response
+      rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable_entity_response
+      # rescue_from Pundit::NotAuthorizedError, with: :render_forbidden_response # 如果使用Pundit
+
+      private
+
+      def render_not_found_response(exception)
+        render json: { success: false, error: { message: exception.message } }, status: :not_found
+      end
+
+      def render_unprocessable_entity_response(exception)
+        render json: { success: false, errors: exception.record.errors.messages }, status: :unprocessable_entity
+      end
+
+      # def render_forbidden_response(exception)
+      #   render json: { success: false, error: { message: "You are not authorized to perform this action." } }, status: :forbidden
+      # end
+    end
+    ```
+*   **日誌記錄**: 對於所有未預期的服務器錯誤 (`500 Internal Server Error`)，應在服務器端記錄詳細的錯誤信息、堆棧跟踪以及相關的請求上下文（如用戶ID、請求參數等），以便於問題排查。但注意不要在日誌中記錄密碼、Token等敏感信息。
+*   **用戶友好**: 返回給客戶端的錯誤信息應儘可能清晰、易懂，避免直接暴露內部實現細節或原始異常信息。
+
+---
+
+## 12. 遺留API與AI English核心API的區分
+
+*   項目中可能存在一些早期開發的、與當前「AI ENGLISH」核心業務（主要圍繞 `EssayAssignment` 和 `EssayGrading` 模型）不直接相關的API端點。這些遺留API可能定義在 `[config/routes.rb](mdc:config/routes.rb)` 的其他命名空間下，或服務於已廢棄的功能模塊 (參考 `[.cursor/rules/700-ai-english-glossary.mdc](mdc:.cursor/rules/700-ai-english-glossary.mdc)` 中「潛在的遺留功能術語」部分)。
+*   **識別**: 新工程師在開發時，應主要關注 `/api/v1/` 命名空間下與AI English核心模型相關的API。
+*   **處理**: 對於遺留API，應：
+    *   避免在新的AI English功能開發中與其產生不必要的耦合。
+    *   在未來的代碼重構計劃中，逐步評估這些API的實際使用情況。
+    *   對於確認不再使用且無任何依賴的遺留API，應考慮按照規範的流程進行廢棄和移除，以簡化代碼庫。
+
+---
+
+## 13. 總結
+
+本API規範文檔旨在為「AI ENGLISH」項目提供一套標準化、一致性的API設計和開發指南。所有團隊成員都應熟悉並遵循本規範。本規範是一個動態文檔，會隨著項目發展和技術演進而適時更新。歡迎團隊成員提出改進建議。
