@@ -91,7 +91,7 @@ module Api
       private
 
       def recovery_email_params
-        params.require(:recovery_email_details).permit(:recovery_email) # 假設請求體是 { "recovery_email_details": { "recovery_email": "..." } }
+        params.permit(:recovery_email) # 假設請求體是 { "recovery_email_details": { "recovery_email": "..." } }
         # 或者更簡單 params.permit(:recovery_email) 如果請求體直接是 { "recovery_email": "..." }
         # 根據您的前端請求結構調整
         # 暫定為 params.permit(:recovery_email)
