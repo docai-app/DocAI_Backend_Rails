@@ -360,6 +360,10 @@ Rails.application.routes.draw do
           put 'me/profile', to: 'general_users#update_profile'
           put 'me/password', to: 'general_users#update_password'
           get 'me/aienglish', to: 'general_users#show_aienglish_profile'
+          # 管理當前用戶的後備Email
+          put 'me/recovery_email', to: 'user_recovery_emails#update'
+          delete 'me/recovery_email', to: 'user_recovery_emails#destroy'
+          post 'me/recovery_email/resend_confirmation', to: 'user_recovery_emails#resend_confirmation'
         end
       end
 
@@ -386,6 +390,15 @@ Rails.application.routes.draw do
         # 但考慮到這是一個特定的動作，直接定義一個 get 路由可能更清晰
       end
       get 'recovery_email_confirmation', to: 'recovery_email_confirmations#show' # 簡化版本
+
+      namespace :me do # 代表 /api/v1/me/
+        resource :recovery_email, # maps to Api::V1::UserRecoveryEmailsController
+                 only: %i[update destroy],
+                 controller: 'user_recovery_emails'
+
+        post 'recovery_email/resend_confirmation',
+             to: 'user_recovery_emails#resend_confirmation'
+      end
     end
 
     namespace :admin do

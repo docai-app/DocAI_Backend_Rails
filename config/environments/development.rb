@@ -88,4 +88,34 @@ Rails.application.configure do
   config.time_zone = 'Asia/Taipei'
 
   # Redis.exists_returns_integer = true
+
+  # Gmail SMTP configuration
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: ENV.fetch('SMTP_ADDRESS', 'smtp.gmail.com'),
+    port: ENV.fetch('SMTP_PORT', 587),
+    domain: ENV.fetch('SMTP_DOMAIN', 'gmail.com'), # 您的域名，或者gmail.com
+    user_name: ENV.fetch('SMTP_USERNAME'),
+    password: ENV.fetch('SMTP_PASSWORD'),
+    authentication: ENV.fetch('SMTP_AUTHENTICATION', 'plain'), # 'plain', 'login', 'cram_md5'
+    enable_starttls_auto: ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_ENABLE_STARTTLS_AUTO', true)), # 確保是布爾值
+    openssl_verify_mode: 'peer' # 對於Gmail和許多現代SMTP服務器，推薦設置
+  }
+
+  # 確保在開發中能看到郵件發送錯誤
+  config.action_mailer.raise_delivery_errors = true
+  # 預覽郵件 (可選，但推薦在開發中使用)
+  config.action_mailer.show_previews = true
+
+  # 設置默認的URL選項，這對於郵件中的連結生成很重要
+  config.action_mailer.default_url_options = { host: ENV.fetch('MAILER_DEFAULT_HOST', 'localhost'),
+                                               port: ENV.fetch('MAILER_DEFAULT_PORT', 3000) }
+
+  # 設置默認的發件人地址 (也可以在 ApplicationMailer 中設置)
+  # ActionMailer::Base.default from: ENV.fetch('MAILER_SENDER', '"AI English Support" <aienglish-support@docai.net>')
+  # 或者在 ApplicationMailer 中設置:
+  # class ApplicationMailer < ActionMailer::Base
+  #   default from: ENV.fetch('MAILER_SENDER', '"AI English Support" <aienglish-support@docai.net>')
+  #   layout "mailer"
+  # end
 end
