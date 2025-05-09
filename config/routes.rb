@@ -21,7 +21,8 @@ Rails.application.routes.draw do
 
   devise_for :general_users, controllers: {
     sessions: 'general_users/sessions',
-    registrations: 'general_users/registrations'
+    registrations: 'general_users/registrations',
+    passwords: 'general_users/passwords'
   }
 
   # Defines the root path route ("/")

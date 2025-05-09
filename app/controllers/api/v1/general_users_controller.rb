@@ -131,6 +131,12 @@ module Api
           end
         end
 
+        user_data[:recovery_email] = @user.recovery_email
+        user_data[:recovery_email_confirmed] = @user.recovery_email_confirmed?
+        user_data[:aienglish_role] = @user.aienglish_role
+        user_data[:aienglish_features_list] = @user.aienglish_features_list
+        user_data[:school_logo_url] = @user.school_logo_url
+
         render json: { success: true, user: user_data }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
