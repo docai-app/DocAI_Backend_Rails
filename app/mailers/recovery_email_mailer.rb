@@ -24,7 +24,7 @@ class RecoveryEmailMailer < ApplicationMailer
     # 確保 user.recovery_email 存在且有效
     if @user&.recovery_email.present?
       mail(to: @user.recovery_email,
-           from: ENV.fetch('DEFAULT_MAILER_SENDER', 'aienglish-support@docai.net'), # 從環境變量獲取發件人
+           from: ENV.fetch('MAILER_FROM', '"AI English Support" <aienglish-support@docai.net>'), # 從環境變量獲取發件人，與devise.rb一致
            subject: 'Confirm your Recovery Email for AI ENGLISH')
     else
       # 如果 recovery_email 無效或不存在，記錄錯誤並且不發送郵件
