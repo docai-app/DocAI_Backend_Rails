@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 「AI ENGLISH」項目 - 項目架構說明：幫助AI理解代碼組織
+
+## 1. 引言
+
+本文檔旨在提供「AI ENGLISH」項目後端系統的架構概覽，重點闡述其代碼組織方式、核心組件及其交互關係、數據流動模式，以及針對 AI English 功能的特定設計考量。理解本架構有助於新成員快速上手，提升團隊協作效率，並為未來的代碼重構和功能迭代提供清晰的藍圖。
+
+## 2. 整體架構風格
+
+「AI ENGLISH」項目主要是一個基於 **Ruby on Rails 7** 的單體 (Monolithic) Web 應用程序，但其內部通過 **服務對象 (Service Objects)** 和 **後台任務 (Sidekiq)** 實現了一定程度的模塊化和關注點分離。架構設計上遵循 Rails 的 **MVC (Model-View-Controller)** 模式，並深度集成了多個外部 AI 服務。項目同時採用了 **多租戶 (Multi-tenancy)** 架構來支持不同學校的數據隔離。
+
+## 3. 核心目錄結構與 AI English 重點
+
+項目遵循標準的 Rails 目錄結構。對於 AI English 功能，以下目錄尤為關鍵：
+
+*   **`app/`**: 應用程序的核心代碼。
+    *   **`app/models/`**: 存放 Active Record 模型。
+        *   **AI English 核心**: `[general_user.rb](mdc:app/models/general_user.rb)`, `[essay_assignment.rb](mdc:app/models/essay_assignment.rb)`, `[essay_grading.rb](mdc:app/models/essay_grading.rb)` 以及與學校、學年、學生註冊相關的模型。
+    *   **`app/controllers/api/v1/`**: API 接口的控制器。
+        *   **AI English 核心**: `[essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)`, `[essay_gradings_controller.rb](mdc:app/controllers/api/v1/essay_gradings_controller.rb)`, 以及管理 AI English 用戶的 `[api/admin/v1/general_users_controller.rb](mdc:app/controllers/api/admin/v1/general_users_controller.rb)`。
+        *   所有 API 控制器繼承自 `[app/controllers/api_controller.rb](mdc:app/controllers/api_controller.rb)` (假設存在)，用於處理通用的 API 邏輯，如認證、錯誤處理等。
+    *   **`app/services/`**: 存放服務對象，封裝核心業務邏輯。
+        *   **AI English 核心**: `[open_ai_service.rb](mdc:app/services/open_ai_service.rb)`, `[ai_service.rb](mdc:app/services/ai_service.rb)`, `[dify_service.rb](mdc:app/services/dify_service.rb)`, `[essay_grading_service.rb](mdc:app/services/essay_grading_service.rb)`, `[essay_grading_supplement_practice_service.rb](mdc:app/services/essay_grading_supplement_practice_service.rb)`, `[sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)`, `[vocab_csv_parser_service.rb](mdc:app/services/vocab_csv_parser_service.rb)` 以及學校管理相關服務。
+    *   **`app/sidekiq/`** (或 `app/jobs/`)**: 存放 Sidekiq 後台任務處理類。
+        *   **AI English 示例**: `SentenceBuilderExampleJob` (由 `[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)` 間接觸發)。
+    *   **`app/views/`**: 主要用於 API 響應的 JSON 構造 (如果使用 Jbuilder) 或管理後台 (Trestle) 的視圖。
+*   **`config/`**: 應用程序的配置文件。
+    *   `[routes.rb](mdc:config/routes.rb)`: 定義所有 API 端點，AI English 相關路由集中在 `api/v1` 命名空間下。
+    *   `initializers/`: 存放初始化腳本，如 `devise.rb`, `sidekiq.rb`, `apartment.rb` (多租戶配置)。
+    *   `application.rb`, `environments/`: 應用和環境級別的配置。
+*   **`Gemfile`**: 定義項目依賴的 Gems，是理解技術棧和擴展功能的關鍵。
+*   **`lib/tasks/`**: Rake 任務，例如 `[lib/tasks/school_management.rake](mdc:lib/tasks/school_management.rake)` 中包含與 AI English 用戶和學校管理相關的任務。
+*   **`spec/`** (或 `test/`)**: 測試代碼。
+    *   `spec/requests/`: 可能包含 RSwag API 文檔和測試。
+
+## 4. AI English 核心組件及其職責
+
+*   **數據層 (Models - `app/models/`)**:
+    *   `GeneralUser`: 管理用戶信息，通過 `meta` 字段標識 AI English 角色和功能權限。
+    *   `EssayAssignment`: 定義 AI English 的各種練習任務（作文、閱讀、口說、發音等），包含題目、類型 (`category`)、提示、評分標準等。
+    *   `EssayGrading`: 存儲學生對作業的提交內容和 AI 的詳細評分結果 (`grading` JSON 字段)。
+    *   使用 Active Record 進行數據持久化、驗證、關聯和回調。JSONB 字段被廣泛用於存儲靈活的結構化數據。
+*   **API 層 (Controllers - `app/controllers/api/v1/`)**:
+    *   負責接收客戶端請求，進行身份驗證 (Devise JWT) 和初步的參數處理 (Strong Parameters)。
+    *   調用服務對象處理核心業務邏輯。
+    *   準備並返回 JSON 格式的 API 響應。
+    *   遵循 RESTful 設計原則。
+*   **業務邏輯層 (Services - `app/services/`)**:
+    *   封裝複雜的業務流程、與外部 AI 服務的交互邏輯、數據轉換等。
+    *   例如，`EssayGradingService` 可能協調整個評分流程，`DifyService` 負責與 Dify 平台通信，`SentenceBuilderExampleService` 處理例句生成。
+    *   這是實現「瘦控制器」的關鍵。
+*   **異步處理層 (Background Jobs - `app/sidekiq/` 或 `app/jobs/`)**:
+    *   使用 Sidekiq 處理耗時的、非阻塞用戶請求的操作，如調用外部 AI 服務進行評分、生成例句、發送通知等。
+    *   提高了系統的響應速度和吞吐量。
+*   **外部服務集成 (主要在 Services 中實現)**:
+    *   **Dify Platform API**: 核心 AI 功能（作文批改、句子示例、補充練習等）的實現依賴於此。
+    *   **發音評測 API**: 專用於發音練習的評分。
+    *   **OpenAI API**: 可能通過 `OpenAIService` 直接調用。
+
+## 5. 關鍵功能的數據流示例 (以「學生提交作文並獲取評分」為例)
+
+1.  **請求發起**: 學生客戶端提交作文內容到 `POST /api/v1/essay_assignments/:essay_assignment_id/essay_gradings`。
+2.  **路由與認證**: `[config/routes.rb](mdc:config/routes.rb)` 將請求路由到 `[app/controllers/api/v1/essay_gradings_controller.rb](mdc:app/controllers/api/v1/essay_gradings_controller.rb)` 的 `create` action。Devise JWT 進行用戶認證。
+3.  **控制器處理**: 控制器驗證參數，創建一個 `EssayGrading` 記錄的初始狀態，並將用戶提交的作文內容存入。
+4.  **觸發評分 (同步或異步)**:
+    *   **異步 (推薦)**: `EssayGrading` 模型的回調 (`after_create` 或類似機制) 或控制器直接調用一個服務，該服務觸發一個 Sidekiq Job (例如 `EssayGradingJob`)。
+    *   **同步 (現有部分可能模式)**: 控制器或模型回調直接調用 `EssayGradingService` 或 `DifyService`。
+5.  **服務對象執行**:
+    *   `EssayGradingJob` (或同步調用的服務) 準備好調用 Dify Workflow 的參數（如作文內容、用戶ID、作業ID等）。
+    *   調用 `[app/services/dify_service.rb](mdc:app/services/dify_service.rb)` (或類似服務) 向 Dify API (`https://aienglish-dify.docai.net/v1/workflows/run`) 發送請求。
+6.  **外部 AI 處理**: Dify 平台執行預設的作文批改 Workflow。
+7.  **結果返回與存儲**: Dify API 返回評分結果。Sidekiq Job (或服務) 接收結果，解析後更新對應 `EssayGrading` 記錄的 `grading` 字段，並可能更新其 `status`。
+8.  **通知與反饋 (可選)**: 系統可能通過 WebSocket 或其他方式通知用戶評分完成。用戶後續請求評分詳情時，從 `EssayGrading` 記錄中讀取。
+
+## 6. 架構上的重要考量
+
+*   **多租戶 (`ros-apartment` Gem)**:
+    *   項目採用了基於 Schema (或數據庫) 的多租戶架構，確保不同學校/機構的數據隔離。
+    *   所有開發者必須理解其對數據訪問、數據庫遷移 (`rake db:migrate` vs `rake apartment:migrate`) 和後台任務 (`ros-apartment-sidekiq` 確保租戶上下文) 的影響。
+*   **Admin 管理後台 (`trestle` Gem)**:
+    *   項目使用 Trestle 快速搭建管理界面，用於管理核心數據，如用戶、作業、學校等。
+*   **API 文檔 (`rswag` Gem)**:
+    *   使用 RSwag (Swagger/OpenAPI) 生成和維護 API 文檔，對於團隊協作和第三方集成至關重要。
+*   **安全性**:
+    *   通過 Devise JWT 進行 API 認證。
+    *   使用 Strong Parameters 防止惡意輸入。
+    *   通過 `aienglish_access` 等機制實現細粒度權限控制。
+    *   `rack-cors` 處理跨域請求。
+
+## 7. 遺留模塊的識別與管理
+
+如先前分析，項目中存在大量與 "Documents", "Tags", "Storage", "FormSchema", "FormDatum", "Projects", "Chatbots" 等主題相關的路由和代碼 (`[config/routes.rb](mdc:config/routes.rb)` 是主要識別來源)。這些模塊與 AI English 核心業務（基於 `EssayAssignment` 和 `EssayGrading`）的關聯性較低，很可能是待清理的舊功能。
+
+*   **策略**:
+    *   **隔離**: 在邏輯和代碼層面盡可能將 AI English 核心模塊與這些遺留模塊解耦。
+    *   **分析依賴**: 仔細檢查是否有 AI English 功能間接依賴於這些舊模塊的某些組件。
+    *   **逐步移除**: 制定計劃，從路由開始，逐步移除不再需要的控制器、模型、服務、視圖、數據庫表和相關的 Gem 依賴。
+    *   **文檔化**: 清晰標註哪些是 AI English 的活躍組件，哪些是待處理的遺留組件。
+
+## 8. 架構演進建議
+
+*   **持續強化服務層**: 繼續將複雜的業務邏輯和跨多個模型的操作封裝到服務對象中。
+*   **引入查詢對象 (Query Objects)**: 對於複雜的數據庫查詢（如 `[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)` 中的長 SQL），應使用查詢對象進行封裝，提高可讀性和可重用性。
+*   **標準化 API 響應**: 考慮全面使用 Jbuilder 或 Active Model Serializers (AMS) 來標準化 API JSON 響應的構造，減少控制器中的手動拼接。
+*   **前端架構 (如適用)**: (本文檔主要關注後端) 如果有配套前端，需考慮前後端接口的清晰度和 BFF (Backend For Frontend) 模式的適用性。
+*   **微服務考量 (遠期)**: 如果 AI English 業務規模和複雜度持續高速增長，且單體應用遇到瓶頸，未來可以考慮將某些高度獨立的功能模塊（例如，通用的評分引擎、用戶管理）拆分為微服務。但現階段，優化現有單體架構應是首要任務。
+
+## 9. 總結
+
+「AI ENGLISH」項目採用了標準的 Ruby on Rails 架構，並通過引入服務對象、後台任務和多租戶等模式來應對業務複雜性。其核心優勢在於快速開發和 Rails 生態的成熟。未來的挑戰主要在於如何有效地管理和剝離潛在的遺留代碼，同時持續優化核心 AI English 功能的架構，確保其可擴展性、可維護性和高性能。

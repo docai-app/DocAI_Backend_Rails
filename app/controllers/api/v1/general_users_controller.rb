@@ -244,7 +244,7 @@ module Api
 
         # 構建 AIEnglish 用戶資料，排除 konnecai_tokens
         aienglish_data = @user.as_json(
-          except: [:konnecai_tokens]
+          except: %i[konnecai_tokens recovery_confirmation_token recovery_confirmation_sent_at]
         )
 
         # 根據角色獲取不同的資訊
@@ -293,7 +293,14 @@ module Api
           aienglish_data[:teachers] = @user.find_teachers_via_students
         end
 
-        render json: { success: true, user: aienglish_data }, status: :ok
+        render json: {
+          success: true,
+          data: aienglish_data.merge({
+                                       recovery_email: @user.recovery_email,
+                                       is_recovery_email_confirmed: @user.recovery_email_confirmed?,
+                                       recovery_email_confirmed_at: @user.recovery_email_confirmed_at
+                                     })
+        }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end

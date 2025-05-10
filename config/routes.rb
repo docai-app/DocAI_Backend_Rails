@@ -21,7 +21,8 @@ Rails.application.routes.draw do
 
   devise_for :general_users, controllers: {
     sessions: 'general_users/sessions',
-    registrations: 'general_users/registrations'
+    registrations: 'general_users/registrations',
+    passwords: 'general_users/passwords'
   }
 
   # Defines the root path route ("/")
@@ -29,6 +30,9 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      # 後備Email確認
+      get 'recovery_email_confirmations/show'
+
       # ********** Essay grading ********
       resources :essay_assignments, only: %i[index show create update destroy] do
         resources :essay_gradings, only: [:create]
@@ -357,6 +361,11 @@ Rails.application.routes.draw do
           put 'me/profile', to: 'general_users#update_profile'
           put 'me/password', to: 'general_users#update_password'
           get 'me/aienglish', to: 'general_users#show_aienglish_profile'
+          # 管理當前用戶的後備Email
+          put 'me/recovery_email', to: 'user_recovery_emails#update'
+          delete 'me/recovery_email', to: 'user_recovery_emails#destroy'
+          post 'me/recovery_email/resend_confirmation', to: 'user_recovery_emails#resend_confirmation'
+          get 'me/recovery_email_confirmation', to: 'recovery_email_confirmations#show'
         end
       end
 
@@ -372,6 +381,15 @@ Rails.application.routes.draw do
 
       # ********** Scheduled Task API ***********
       resources :scheduled_tasks, only: %i[index show create update destroy]
+
+      namespace :me do # 代表 /api/v1/me/
+        resource :recovery_email, # maps to Api::V1::UserRecoveryEmailsController
+                 only: %i[update destroy],
+                 controller: 'user_recovery_emails'
+
+        post 'recovery_email/resend_confirmation',
+             to: 'user_recovery_emails#resend_confirmation'
+      end
     end
 
     namespace :admin do

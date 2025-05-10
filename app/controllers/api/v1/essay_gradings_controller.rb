@@ -827,6 +827,15 @@ module Api
           else
             pdf.text (sentences['Overall coherence']).to_s, size: 12, leading: 5
           end
+          if json_data['overall_comment'].present?
+            pdf.text 'Overall Comment:', size: 14, style: :bold, color: '003366'
+            pdf.text (json_data['overall_comment']).to_s, size: 12, leading: 5
+            pdf.move_down 20
+          end
+          if json_data['detailedFeedback'].present?
+            pdf.text 'Detailed Feedback and Suggestions:', size: 14, style: :bold, color: '003366'
+            pdf.text (json_data['detailedFeedback']).to_s, size: 12, leading: 5
+          end
           pdf.move_down 20
 
           if params[:role] == 'teacher' && essay_grading.essay_assignment.category == 'essay'
@@ -1077,6 +1086,10 @@ module Api
           if essay_grading.general_context['data'].present?
             general_context = JSON.parse(essay_grading.general_context['data']['text'])
             json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
+            
+            # 2025-05-11 新增以下
+            json_data['overall_comment'] = general_context['studentFeedback']["overall"] if general_context['studentFeedback'].present?
+            json_data['detailedFeedback'] = general_context['studentFeedback']["detailedFeedback"] if general_context['studentFeedback'].present?
           end
         end
 

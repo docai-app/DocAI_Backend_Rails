@@ -1,0 +1,380 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# AI ENGLISH 項目 - 代碼示例庫：提供標準實現參考
+
+**1. 引言**
+
+本文檔旨在為「AI ENGLISH」項目的後端開發團隊提供常見任務和模式的標準代碼實現示例。通過參考這些示例，可以幫助團隊成員（尤其是新加入者）更快地理解和遵循項目已建立的編碼風格 (`[.cursor/rules/200-coding-style.mdc](mdc:.cursor/rules/200-coding-style.mdc)`)、Rails 開發實踐 (`[.cursor/rules/300-rails-development-guide.mdc](mdc:.cursor/rules/300-rails-development-guide.mdc)`) 和架構原則 (`[.cursor/rules/400-architecture.mdc](mdc:.cursor/rules/400-architecture.mdc)`)，從而提高代碼質量和開發效率。
+
+**2. 通用原則參考**
+
+所有示例都應遵循以下核心原則：
+
+*   **清晰性、簡潔性、一致性**: 代碼易於閱讀和理解。
+*   **DRY**: 避免重複。
+*   **遵循規範**: 嚴格遵守已定義的命名約定、格式化規則和最佳實踐。
+*   **測試覆蓋**: 標準實現應伴隨相應的測試（儘管本文檔不直接展示測試代碼）。
+
+**3. 示例分類**
+
+---
+
+### **3.1 控制器 (Controllers)**
+
+**示例 1：標準的 `create` Action 結構**
+
+*   **目的**: 展示一個符合 RESTful 的 `create` action 的標準實現，包括參數過濾、資源創建、成功/失敗響應。
+*   **文件**: `[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)` (略作修改以突出模式)
+
+```ruby
+# frozen_string_literal: true
+
+module Api
+  module V1
+    class EssayAssignmentsController < ApiController
+      # Assume authenticate_general_user! is handled in ApiController or a higher level before_action
+      # Assume set_essay_assignment is defined for update/destroy
+
+      # POST /api/v1/essay_assignments
+      def create
+        # 1. 使用 Strong Parameters 過濾參數
+        assignment_params = essay_assignment_params
+
+        # 2. 創建資源實例，並關聯當前用戶
+        @essay_assignment = EssayAssignment.new(assignment_params)
+        @essay_assignment.general_user = current_general_user # Assuming current_general_user is available
+
+        # 3. 嘗試保存資源
+        if @essay_assignment.save
+          # 4. 成功：返回 201 Created 狀態碼和創建的資源 JSON
+          render json: { success: true, essay_assignment: @essay_assignment }, status: :created
+        else
+          # 5. 失敗：返回 422 Unprocessable Entity 狀態碼和錯誤信息
+          render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
+      private
+
+      # 使用 Strong Parameters 定義允許的參數
+      def essay_assignment_params
+        params.require(:essay_assignment).permit(
+          :topic,
+          :assignment,
+          :title,
+          :category,
+          # ... 其他允許的字段 ...
+          rubric: [ # 嵌套參數
+            :name,
+            { app_key: %i[grading general_context] }
+          ],
+          meta: [ # 允許 JSON 字段中的特定鍵
+             :newsfeed_id,
+             { vocabs: [:word, :pos, :definition] }
+          ]
+        )
+      end
+    end
+  end
+end
+```
+
+*   **說明**:
+    *   **職責清晰**: 控制器負責接收請求、過濾參數、調用模型創建資源、返回標準格式的 JSON 響應和正確的 HTTP 狀態碼。
+    *   **Strong Parameters**: 強制使用 `require` 和 `permit` 來定義允許的參數，防止惡意輸入。
+    *   **關聯用戶**: 將新創建的資源與當前登錄用戶關聯。
+    *   **狀態碼**: 成功創建返回 `201 Created`，驗證失敗返回 `422 Unprocessable Entity`。
+    *   **響應格式**: 返回包含 `success` 標誌和數據 (`essay_assignment`) 或錯誤信息 (`errors`) 的 JSON。
+
+**示例 2：權限檢查 `before_action`**
+
+*   **目的**: 展示如何使用 `before_action` 實現特定功能的訪問權限控制。
+*   **文件**: `[app/controllers/api/v1/essay_assignments_controller.rb](mdc:app/controllers/api/v1/essay_assignments_controller.rb)`
+
+```ruby
+# ... (within Api::V1::EssayAssignmentsController) ...
+      # Assuming set_essay_assignment_by_code loads @essay_assignment based on params[:id] (which is a code)
+      before_action :set_essay_assignment_by_code, only: %i[show_only]
+      before_action :authorize_aienglish_access!, only: %i[show_only] # Renamed for clarity
+
+      def show_only
+        render json: { success: true, essay_assignment: @essay_assignment }
+      end
+
+      private
+
+      def set_essay_assignment_by_code
+        @essay_assignment = EssayAssignment.find_by!(code: params[:id])
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found # Use 404
+      end
+
+      #權限檢查方法
+      def authorize_aienglish_access!
+        # 確保 @essay_assignment 已被加載
+        return unless @essay_assignment
+
+        # 檢查當前用戶是否有權限訪問此類型的作業
+        unless current_general_user.aienglish_features_list.include?(@essay_assignment.category)
+          # 如果無權限，返回 403 Forbidden
+          render json: { success: false, error: 'Access denied. You do not have permission to access this assignment category.' }, status: :forbidden
+        end
+        # 如果有權限，方法正常返回，請求繼續
+      end
+# ...
+```
+
+*   **說明**:
+    *   **`before_action`**: 使用 `before_action` 在執行 `show_only` action 之前調用權限檢查方法。
+    *   **依賴加載**: 權限檢查依賴於 `@essay_assignment` 已被正確加載。
+    *   **清晰的邏輯**: 權限檢查邏輯（`current_general_user.aienglish_features_list.include?(@essay_assignment.category)`）封裝在私有方法中。
+    *   **正確的狀態碼**:
+        *   資源未找到時，`set_essay_assignment_by_code` 返回 `404 Not Found`。
+        *   權限不足時，`authorize_aienglish_access!` 返回 `403 Forbidden`。
+    *   **提前返回**: 如果檢查失敗，`render` 會終止請求鏈，不會執行後續的 action。
+
+---
+
+### **3.2 服務對象 (Service Objects)**
+
+**示例 3：標準的服務對象結構**
+
+*   **目的**: 展示一個典型的服務對象結構，用於封裝單一業務邏輯，提高可測試性和代碼組織性。
+*   **文件**: `[app/services/sentence_builder_example_service.rb](mdc:app/services/sentence_builder_example_service.rb)` (結構示例)
+
+```ruby
+# frozen_string_literal: true
+
+require 'rest-client' # 假設需要調用外部 API
+
+# Service to generate example sentences for vocabulary words using an external API.
+class SentenceBuilderExampleService
+  # Consider using a Struct or a dedicated class for structured results
+  Result = Struct.new(:success?, :examples, :error_message, keyword_init: true)
+
+  # Constants for external API details
+  API_URL = 'https://aienglish-dify.docai.net/v1/workflows/run'.freeze
+  TIMEOUT = 300 # seconds
+
+  # Initialize with necessary dependencies
+  def initialize(user_id, essay_assignment)
+    @user_id = user_id
+    @essay_assignment = essay_assignment
+    @app_key = determine_app_key
+    @vocabs_string = format_vocabs
+    @logger = Rails.logger # Inject or use Rails.logger
+  end
+
+  # Public interface method for the service
+  def call
+    response = execute_request
+    process_response(response)
+  rescue StandardError => e
+    # Log unexpected errors during the process
+    @logger.error("[SentenceBuilderExampleService] Unexpected error for user #{@user_id}, assignment #{@essay_assignment.id}: #{e.message}\n#{e.backtrace.join("\n")}")
+    Result.new(success?: false, error_message: 'An unexpected error occurred.')
+  end
+
+  private
+
+  # Determines the correct API key based on assignment rubric
+  def determine_app_key
+    if @essay_assignment.rubric['name'] == 'Sentence Builder (Advanced)' # Use ['key'] for hash access
+      ENV.fetch('SENTENCE_BUILDER_EXAMPLE_APP_KEY_ADVANCED', nil) # Use fetch for ENV vars
+    else
+      ENV.fetch('SENTENCE_BUILDER_EXAMPLE_APP_KEY', nil)
+    end
+    # Consider raising an error if app_key is nil
+  end
+
+  # Formats vocabulary words for the API request
+  def format_vocabs
+    (@essay_assignment.vocabs || []).map do |vocab|
+      "#{vocab['word']}(#{vocab['pos']})" # Use ['key'] for hash access
+    end.join(',')
+  end
+
+  # Executes the HTTP request to the external API
+  def execute_request
+    api_key = @app_key
+    unless api_key
+      @logger.error("[SentenceBuilderExampleService] Missing API key for assignment #{@essay_assignment.id}")
+      return nil # Or raise an error
+    end
+
+    RestClient::Request.execute(
+      method: :post,
+      url: API_URL,
+      payload: request_payload.to_json,
+      headers: request_headers(api_key),
+      timeout: TIMEOUT,
+      open_timeout: 10 # Shorter open timeout
+    )
+  rescue RestClient::ExceptionWithResponse => e
+    @logger.error("[SentenceBuilderExampleService] API request failed for user #{@user_id}, assignment #{@essay_assignment.id}: #{e.response}")
+    nil # Indicates API communication failure
+  rescue RestClient::Exceptions::Timeout, Errno::ECONNREFUSED => e
+    @logger.error("[SentenceBuilderExampleService] API connection/timeout error for user #{@user_id}, assignment #{@essay_assignment.id}: #{e.message}")
+    nil
+  end
+
+  # Processes the API response
+  def process_response(response)
+    unless response && response.code == 200
+      return Result.new(success?: false, error_message: 'Failed to communicate with the examples API.')
+    end
+
+    begin
+      api_result = JSON.parse(response.body)
+      # Assuming the structure is {'data' => {'outputs' => {'text' => '{"examples": [...] }'}}}
+      examples_json_string = api_result.dig('data', 'outputs', 'text')
+      examples = JSON.parse(examples_json_string)['examples']
+      Result.new(success?: true, examples: examples)
+    rescue JSON::ParserError => e
+      @logger.error("[SentenceBuilderExampleService] Failed to parse API response for assignment #{@essay_assignment.id}: #{e.message}. Response body: #{response.body}")
+      Result.new(success?: false, error_message: 'Invalid response format from the examples API.')
+    end
+  end
+
+  # Constructs the payload for the API request
+  def request_payload
+    {
+      inputs: { vocabs: @vocabs_string },
+      response_mode: 'blocking', # Or 'streaming' if applicable
+      user: @user_id # Important for Dify tracking/logging
+    }
+  end
+
+  # Constructs the headers for the API request
+  def request_headers(api_key)
+    {
+      'Authorization' => "Bearer #{api_key}",
+      'Content-Type' => 'application/json'
+    }
+  end
+end
+
+# --- How to call the service (e.g., from a Job or Controller) ---
+# service = SentenceBuilderExampleService.new(user_id, essay_assignment)
+# result = service.call
+#
+# if result.success?
+#   examples = result.examples
+#   # Update the essay_assignment or related model with examples
+#   essay_assignment.update(meta: essay_assignment.meta.merge(vocab_examples: examples))
+# else
+#   # Handle failure, maybe log or notify
+#   Rails.logger.warn("Failed to generate vocab examples for assignment #{essay_assignment.id}: #{result.error_message}")
+# end
+```
+
+*   **說明**:
+    *   **單一職責**: 類只負責生成詞彙例句這一件事。
+    *   **依賴注入**: 通過 `initialize` 方法接收所需的數據（`user_id`, `essay_assignment`）。
+    *   **公共接口**: 提供一個清晰的公共方法 (`call`) 來執行服務。
+    *   **私有方法**: 內部實現細節封裝在 `private` 方法中。
+    *   **明確的返回值**: 使用 `Struct` 或自定義類 (`Result`) 返回結構化的結果，清晰地標識成功/失敗狀態以及數據或錯誤信息，比直接返回 `nil` 更健壯。
+    *   **錯誤處理**:
+        *   捕獲特定異常 (`RestClient::ExceptionWithResponse`, `JSON::ParserError`, `Timeout`, `StandardError`)。
+        *   使用 `Rails.logger` 記錄詳細的錯誤信息，包含上下文（如用戶ID、作業ID）。
+        *   處理了 API Key 缺失的情況。
+    *   **常量**: API URL 和超時時間定義為常量。
+    *   **環境變量**: 使用 `ENV.fetch` 獲取環境變量，並提供默認值或處理缺失情況。
+    *   **調用示例**: 文檔末尾添加了如何調用此服務的示例。
+
+---
+
+### **3.3 後台任務 (Background Jobs)**
+
+**示例 4：標準的 Sidekiq Job 結構**
+
+*   **目的**: 展示一個典型的 Sidekiq Job 結構，用於異步執行服務對象或其他耗時任務。
+*   **文件**: `app/jobs/sentence_builder_example_job.rb` (或 `app/sidekiq/...`)
+
+```ruby
+# frozen_string_literal: true
+
+class SentenceBuilderExampleJob
+  include Sidekiq::Job
+  sidekiq_options queue: :ai_processing, retry: 3 # Example options: specify queue and retry attempts
+
+  # The perform method is the entry point for the job
+  # Arguments should be simple types (IDs, strings, numbers) that can be easily serialized to JSON
+  def perform(essay_assignment_id)
+    # 1. Find the necessary database record(s)
+    essay_assignment = EssayAssignment.find_by(id: essay_assignment_id)
+
+    unless essay_assignment
+      Rails.logger.warn("[SentenceBuilderExampleJob] EssayAssignment with ID #{essay_assignment_id} not found. Skipping job.")
+      return # Exit gracefully if the record doesn't exist
+    end
+
+    # Ensure the assignment still needs examples (optional, depends on logic)
+    # unless essay_assignment.meta['vocab_examples'].nil?
+    #   Rails.logger.info("[SentenceBuilderExampleJob] EssayAssignment #{essay_assignment_id} already has examples. Skipping.")
+    #   return
+    # end
+
+    # 2. Instantiate the corresponding Service Object
+    #    Note: We need the user ID if the service requires it.
+    #    If the user context is crucial, it might need to be passed as an argument to perform.
+    #    Let's assume the service needs user_id which might be essay_assignment.general_user_id
+    user_id = essay_assignment.general_user_id
+    unless user_id
+       Rails.logger.error("[SentenceBuilderExampleJob] Missing general_user_id for EssayAssignment #{essay_assignment_id}. Cannot proceed.")
+       return # Or raise a specific error if this shouldn't happen
+    end
+
+    service = SentenceBuilderExampleService.new(user_id, essay_assignment)
+
+    # 3. Call the service object to perform the actual work
+    result = service.call
+
+    # 4. Handle the result from the service
+    if result.success?
+      examples = result.examples
+      # Update the essay_assignment or related model with examples
+      # Use a safe update method, perhaps touching updated_at if appropriate
+      essay_assignment.update(meta: essay_assignment.meta.merge('vocab_examples' => examples))
+      Rails.logger.info("[SentenceBuilderExampleJob] Successfully generated vocab examples for EssayAssignment #{essay_assignment_id}.")
+    else
+      # Log the error from the service for debugging
+      Rails.logger.error("[SentenceBuilderExampleJob] Failed to generate vocab examples for EssayAssignment #{essay_assignment_id}: #{result.error_message}")
+      # Depending on the error, Sidekiq's retry mechanism might handle it.
+      # If it's a non-retriable error, you might need specific logic here.
+      # Consider raising a specific error if retries should stop:
+      # raise NonRetriableError, "Failed after service call: #{result.error_message}" if some_condition
+    end
+
+  # Rescue specific exceptions if needed at the job level, though often handled in the service
+  # rescue SomeSpecificError => e
+  #   Rails.logger.error("[SentenceBuilderExampleJob] Specific error caught: #{e.message}")
+  #   # Maybe notify administrators or take other action
+  end
+end
+
+# --- How to enqueue the job (e.g., from a model callback or controller) ---
+# SentenceBuilderExampleJob.perform_async(essay_assignment.id)
+```
+
+*   **說明**:
+    *   **`include Sidekiq::Job`**: 標識這是一個 Sidekiq Job。
+    *   **`sidekiq_options`**: 配置 Job 的選項，如隊列 (`queue`) 和重試次數 (`retry`)。使用不同的隊列可以隔離不同優先級或資源消耗的任務。
+    *   **`perform` 方法**: Job 的執行入口。
+    *   **簡單參數**: `perform` 方法的參數應為簡單可序列化的類型（如 ID、字符串、數字），而不是複雜的對象（如 Active Record 實例）。Job 內部根據 ID 重新查找記錄。
+    *   **查找與檢查**: Job 開始時應查找所需記錄，並處理記錄不存在的情況。
+    *   **調用服務對象**: Job 的主要職責是協調，它實例化並調用相應的服務對象來執行實際的業務邏輯。
+    *   **結果處理**: 根據服務對象返回的結果（成功或失敗）執行後續操作，如更新數據庫記錄、記錄日誌。
+    *   **冪等性**: 盡量設計 Job 為冪等的，即多次執行（例如由於重試）產生相同的最終結果。
+    *   **錯誤處理**: 記錄詳細的錯誤日誌。利用 Sidekiq 的重試機制處理臨時性錯誤。對於不可重試的錯誤，可以考慮記錄後不再拋出異常，或拋出特定異常來停止重試。
+
+---
+
+*（可以根據需要繼續添加更多示例，例如模型 Scopes、外部 API 調用細節、JSONB 字段操作等）*
+
+**4. 總結**
+
+本示例庫旨在提供一個起點。鼓勵團隊成員在遇到類似開發任務時參考這些示例，並在發現更優或更通用的模式時，積極貢獻和更新本文檔。保持代碼庫的一致性和高質量是團隊共同的責任。

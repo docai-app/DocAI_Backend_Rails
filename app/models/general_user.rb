@@ -383,6 +383,65 @@ class GeneralUser < ApplicationRecord
     end
   end
 
+  # Validations for recovery_email
+  validates :recovery_email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_nil: true
+  # recovery_email 應該在已確認的用戶中是唯一的，但允許不同用戶擁有相同的未確認recovery_email
+  # validates :recovery_email, uniqueness: { scope: :recovery_email_confirmed_at, case_sensitive: false }, allow_nil: true, if: :recovery_email_confirmed_at?
+  # 上述 uniqueness scope 可能過於複雜，先簡化處理，如果 recovery_email 存在就要求唯一。
+  # 但更好的做法是確認後才要求唯一，或者在特定情境下（例如，確認時）檢查唯一性。
+  # 暫時我們先只做格式和存在性（allow_nil）的驗證，唯一性可以在服務層或特定操作中處理。
+
+  # --- Recovery Email Logic ---
+  def send_recovery_email_confirmation_instructions
+    if recovery_email.present? && (recovery_email_changed? || !recovery_email_confirmed?)
+      generate_recovery_confirmation_token!
+      # self.recovery_email_confirmed_at = nil # 如果是更改Email，可能需要先將之前的確認狀態清除或作其他處理
+      # save(validate: false)
+      RecoveryEmailMailer.confirmation_instructions(self, recovery_confirmation_token).deliver_later
+      true
+    else
+      false
+    end
+  end
+
+  # 確認後備Email - 通常由用戶點擊郵件中的連結觸發，控制器會調用此方法
+  # @param token [String] 用戶提供的確認token
+  # @return [Boolean] 是否成功確認
+  def confirm_recovery_email_by_token(token)
+    # 確保 token 匹配且未過期 (過期檢查邏輯可以在此處或調用方處理)
+    # Devise confirmable 通常有類似 `confirm_by_token` 的方法
+    # 這裡我們簡化，假設控制器已經根據token找到用戶實例
+    if recovery_confirmation_token == token # && !recovery_confirmation_token_expired?
+      self.recovery_email_confirmed_at = Time.now.utc
+      self.recovery_confirmation_token = nil # 清除token，使其不能被再次使用
+      self.recovery_confirmation_sent_at = nil # 也可以清除發送時間
+      return save(validate: false) # 跳過其他驗證，只保存確認狀態
+    end
+    false
+  end
+
+  # 後備Email是否已確認？
+  def recovery_email_confirmed?
+    !!recovery_email_confirmed_at
+  end
+
+  # 是否應該發送確認郵件（例如，email更改了或從未確認過）
+  # 這個方法的邏輯可能需要根據實際場景調整，例如是否允許重複發送未確認的郵件
+  def pending_recovery_email_confirmation?
+    recovery_email.present? && !recovery_email_confirmed?
+  end
+
+  # 檢查 recovery_confirmation_token 是否已過期
+  # Devise::Models::Confirmable::ClassMethods.confirm_within 定義了有效期
+  # 這裡我們可以參考，假設有效期為，例如，3天
+  def recovery_confirmation_token_expired?
+    return true if recovery_confirmation_sent_at.nil?
+
+    # 假設有效期為3天，可以配置化
+    expiry_period = 3.days
+    recovery_confirmation_sent_at < expiry_period.ago
+  end
+
   private
 
   def aienglish_features_must_be_valid
@@ -391,5 +450,17 @@ class GeneralUser < ApplicationRecord
     return if invalid_features.empty?
 
     errors.add(:aienglish_features, "Can only include allowed features: #{invalid_features.join(', ')}")
+  end
+
+  # 生成並保存唯一的後備Email確認Token
+  def generate_recovery_confirmation_token!
+    loop do
+      # Devise.friendly_token 會生成一個隨機的字符串
+      self.recovery_confirmation_token = Devise.friendly_token
+      # 確保生成的token是唯一的
+      break unless GeneralUser.exists?(recovery_confirmation_token:)
+    end
+    self.recovery_confirmation_sent_at = Time.now.utc
+    save(validate: false) # 保存token和發送時間，跳過常規驗證以避免循環或不必要的錯誤
   end
 end
