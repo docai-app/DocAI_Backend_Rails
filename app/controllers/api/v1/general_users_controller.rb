@@ -295,7 +295,7 @@ module Api
 
         render json: {
           success: true,
-          data: aienglish_data.merge({
+          user: aienglish_data.merge({
                                        recovery_email: @user.recovery_email,
                                        is_recovery_email_confirmed: @user.recovery_email_confirmed?,
                                        recovery_email_confirmed_at: @user.recovery_email_confirmed_at
