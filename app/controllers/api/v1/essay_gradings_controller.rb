@@ -35,13 +35,25 @@ module Api
 
         # 生成 PDF
         pdf = Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+          font_path = Rails.root.join('app/assets/fonts')
+
           pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf')
+            },
             'Arial' => {
-              normal: Rails.root.join('app/assets/fonts/ARIAL.ttf'),
-              bold: Rails.root.join('app/assets/fonts/ARIALBD.ttf')
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
             }
           )
-          pdf.font 'Arial'
+
+          pdf.font('Arial')
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
+          pdf.fill_color '000000'
 
           # school_logo_url = @essay_grading.
           user = @essay_grading.general_user
