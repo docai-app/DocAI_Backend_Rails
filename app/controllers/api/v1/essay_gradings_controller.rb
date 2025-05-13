@@ -5,7 +5,7 @@ require 'prawn/table'
 module Api
   module V1
     class EssayGradingsController < ApiController
-      before_action :authenticate_general_user!, except: %i[download_report download_supplement_practice]
+      before_action :authenticate_general_user!, except: %i[download_reports download_report download_supplement_practice]
 
       def download_report
         set_essay_grading
@@ -279,6 +279,7 @@ module Api
 
         zip_data = Zip::OutputStream.write_buffer do |zip|
           essay_gradings.each_with_index do |grading, index|
+            puts "Generating report for grading: #{grading.id}, #{index}"
             report = generate_report(grading)
             # 使用 index 确保文件名唯一
             zip.put_next_entry("report_#{grading.general_user.nickname}_#{index + 1}.pdf")
@@ -772,7 +773,6 @@ module Api
 
           # 解析 JSON 数据
           sentences = JSON.parse(json_data['data']['text'])
-
           # # 分數
           # pdf.text "Score: #{sentences['Overall Score']} / #{sentences['Full Score']}", size: 14
           # pdf.move_down 30
@@ -785,8 +785,6 @@ module Api
           # 添加 Part I 标题
           pdf.text 'Part I: Grammar', size: 18, style: :bold, align: :left
           pdf.move_down 20
-
-          # binding.pry
 
           # 缩进 sentences 部分
           pdf.indent(20) do
@@ -803,7 +801,22 @@ module Api
 
               formatted_text = sentence_text
 
-              errors.each_value do |error_value|
+              # 标准化 errors 格式
+              normalized_errors = {}
+              
+              # 检查 errors 的格式并进行标准化处理
+              if errors.is_a?(Hash) && !errors.empty?
+                if errors.keys.first.to_s.start_with?('error')
+                  # 正常格式: {"error1" => {...}, "error2" => {...}}
+                  normalized_errors = errors
+                else
+                  # 非标准格式: {"word" => ..., "corr" => ..., ...}
+                  # 将其转换为标准格式
+                  normalized_errors = {"error1" => errors}
+                end
+              end
+
+              normalized_errors.each_value do |error_value|
                 error_word = error_value['word']
                 formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
                   "<color rgb='FF0000'>#{match}</color>"
@@ -813,9 +826,11 @@ module Api
               pdf.text formatted_text, size: 12, inline_format: true
               pdf.move_down 10
 
-              if errors.any?
+              
+
+              if normalized_errors.any?
                 pdf.indent(20) do
-                  errors.each_value do |error_value|
+                  normalized_errors.each_value do |error_value|
                     category = error_value['category']
                     error_word = error_value['word']
                     explanation = error_value['explanation']
@@ -1052,7 +1067,6 @@ module Api
       def generate_pdf(json_data, essay_grading)
         assignment = essay_grading.essay_assignment
         raise "Essay assignment not found for grading ID #{essay_grading.id}" if assignment.nil?
-
         # 獲取用戶
         user = essay_grading.general_user
 
