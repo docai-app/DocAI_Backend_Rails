@@ -834,9 +834,33 @@ module Api
                     category = error_value['category']
                     error_word = error_value['word']
                     explanation = error_value['explanation']
+                    correction = error_value['corr']
+                    
+                    # 从 corr 中提取正确的词
+                    correct_word = nil
+                    if correction.present?
+                      # 尝试从 "modernised -> modern" 格式中提取
+                      if correction.include?('->')
+                        correct_word = correction.split('->').last.strip
+                      end
+                    end
+                    
+                    # 显示新格式的错误信息
+                    category_display = convert_category(essay_grading.essay_assignment.category, category)
+                    if correct_word.present?
+                      pdf.text "<b>Mistake: #{error_word} -> #{correct_word} <color rgb='0000FF'>(#{category_display})</color></b>", 
+                              size: 11, inline_format: true
+                    else
+                      pdf.text "<b>Mistake: #{error_word} <color rgb='0000FF'>(#{category_display})</color></b>", 
+                              size: 11, inline_format: true
+                    end
+                    
+                    # 显示解释
+                    pdf.text explanation, size: 10
+                    pdf.move_down 8
 
-                    pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
-                             size: 10, inline_format: true
+                    # pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
+                    #          size: 10, inline_format: true
                     pdf.move_down 5
                   end
                 end
@@ -902,14 +926,14 @@ module Api
           end
 
           # Final Result
-          pdf.text 'Final Result', size: 15, style: :bold
-          pdf.stroke_horizontal_rule
-          pdf.move_down 10
-          pdf.formatted_text [
-            { text: 'Overall Score: ', styles: [:bold], size: 12 },
-            { text: (sentences['Overall Score']).to_s, size: 12 }
-          ]
-          pdf.move_down 30
+          # pdf.text 'Final Result', size: 15, style: :bold
+          # pdf.stroke_horizontal_rule
+          # pdf.move_down 10
+          # pdf.formatted_text [
+          #   { text: 'Overall Score: ', styles: [:bold], size: 12 },
+          #   { text: (sentences['Overall Score']).to_s, size: 12 }
+          # ]
+          # pdf.move_down 30
         end
       end
 
