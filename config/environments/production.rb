@@ -91,4 +91,7 @@ Rails.application.configure do
   config.active_storage.service = :microsoft
 
   config.time_zone = 'Asia/Taipei'
+
+  # Configure default URL options for the mailer
+  config.action_mailer.default_url_options = { host: ENV.fetch('FRONTEND_URL', 'http://localhost:3000') }
 end

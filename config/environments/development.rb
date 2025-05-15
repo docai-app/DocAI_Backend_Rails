@@ -108,8 +108,7 @@ Rails.application.configure do
   config.action_mailer.show_previews = true
 
   # 設置默認的URL選項，這對於郵件中的連結生成很重要
-  config.action_mailer.default_url_options = { host: ENV.fetch('MAILER_DEFAULT_HOST', 'localhost'),
-                                               port: ENV.fetch('MAILER_DEFAULT_PORT', 3000) }
+  config.action_mailer.default_url_options = { host: ENV.fetch('FRONTEND_URL', 'http://localhost:3000') }
 
   # 設置默認的發件人地址 (也可以在 ApplicationMailer 中設置)
   # ActionMailer::Base.default from: ENV.fetch('MAILER_SENDER', '"AI English Support" <aienglish-support@docai.net>')

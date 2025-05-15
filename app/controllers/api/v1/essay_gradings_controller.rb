@@ -1136,10 +1136,16 @@ module Api
           if essay_grading.general_context['data'].present?
             general_context = JSON.parse(essay_grading.general_context['data']['text'])
             json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
-            
+
             # 2025-05-11 新增以下
-            json_data['overall_comment'] = general_context['studentFeedback']["overall"] if general_context['studentFeedback'].present?
-            json_data['detailedFeedback'] = general_context['studentFeedback']["detailedFeedback"] if general_context['studentFeedback'].present?
+            if general_context['studentFeedback'].present?
+              json_data['overall_comment'] =
+                general_context['studentFeedback']['overall']
+            end
+            if general_context['studentFeedback'].present?
+              json_data['detailedFeedback'] =
+                general_context['studentFeedback']['detailedFeedback']
+            end
           end
         end
 
