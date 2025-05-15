@@ -29,11 +29,12 @@
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
-                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences
+                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
 
   before_create :generate_unique_code
+  before_save :normalize_level
   after_save :check_and_generate_vocab_examples
   after_save :check_and_post_speaking_pronunciation_sentences
 
@@ -53,6 +54,24 @@ class EssayAssignment < ApplicationRecord
     return unless response.is_a?(Net::HTTPSuccess)
 
     JSON.parse(response.body)
+  end
+
+  def normalize_level
+    return unless meta.is_a?(Hash) && meta["level"].present?
+
+    # 定义转换映射
+    level_mapping = {
+      'level1' => 'CEFR A2',
+      'level2' => 'CEFR B2',
+      'level3' => 'CEFR C2',
+      'Beginner' => 'CEFR A2',
+      'Intermediate' => 'CEFR B2',
+      'Advanced' => 'CEFR C2'
+    }
+    # 进行转换
+    if level_mapping.key?(meta["level"])
+      meta["level"] = level_mapping[meta["level"]]
+    end
   end
 
   def generate_unique_code

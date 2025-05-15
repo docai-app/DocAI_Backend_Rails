@@ -347,7 +347,7 @@ module Api
               ]
             }
           ],
-          meta: [:newsfeed_id],
+          meta: %i[:newsfeed_id],
           sentence_builder: %i[vocab sentence]
         )
       end
