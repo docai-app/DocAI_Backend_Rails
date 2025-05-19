@@ -17,6 +17,8 @@ module GeneralUsers
                             'unknown'
                           end
 
+          ahoy.authenticate(resource) if resource.persisted?
+
           ahoy.track 'GeneralUser Signed In', { strategy: strategy_name }
           Rails.logger.info "[SessionsController] Tracked 'GeneralUser Signed In' for general_user ID: #{resource.id}, strategy: #{strategy_name}"
         end
