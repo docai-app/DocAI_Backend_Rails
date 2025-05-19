@@ -4,11 +4,9 @@ class Ahoy::Store < Ahoy::DatabaseStore
   def general_user
     # 在 API 模式下，controller 可能通過 request.env['action_controller.instance'] 獲取
     # 或者，如果您的 ApiController 混入了 Ahoy::Controller，可以直接使用 controller.current_general_user
-    if controller.respond_to?(:current_general_user, true) # 第二個參數 true 表示也檢查私有方法
-      controller.send(:current_general_user) # 使用 send 以調用可能的私有方法
-    else
-      nil
-    end
+    return unless controller.respond_to?(:current_general_user, true) # 第二個參數 true 表示也檢查私有方法
+
+    controller.send(:current_general_user) # 使用 send 以調用可能的私有方法
   end
 
   # 可選：如果您的應用程序在負載均衡器或反向代理後面，
@@ -33,9 +31,9 @@ Ahoy.server_side_visits = :when_needed
 
 # 異步處理 Visit 和 Event 記錄
 # 將數據庫寫入操作放到後台隊列，以避免阻塞主請求。
-Ahoy.track_visits_immediately = false
-# Ahoy 5.x 默認 track_events_immediately = true, 所以如果想異步，需要明確設置為 false
-# Ahoy.track_events_immediately = false # 取決於您Ahoy的版本，先不加，如果事件處理慢再考慮
+# Ahoy 5.x 默認 track_events_immediately = true (同步處理事件)。
+# 如果希望事件也異步處理，可以取消下面這行的註釋：
+# Ahoy.track_events_immediately = false
 
 # 後台任務隊列名稱 (確保您的 Sidekiq 監聽此隊列)
 Ahoy.job_queue = :ahoy # 您可以根據項目的隊列策略命名，例如 :default, :background_jobs
@@ -47,8 +45,8 @@ Ahoy.quiet = Rails.env.production?
 
 # 地理位置 (可選，如果需要)
 # Ahoy.geocode = :async # :async 表示異步地理編碼 (推薦)
-                     # false 表示禁用地理編碼
-                     # true 表示同步地理編碼 (不推薦，可能阻塞請求)
+# false 表示禁用地理編碼
+# true 表示同步地理編碼 (不推薦，可能阻塞請求)
 # 如果啟用了地理編碼 (非 false)，您需要在 config/initializers/geocoder.rb 中配置 Geocoder。
 # 例如，使用本地 MaxMind GeoLite2 數據庫：
 # Geocoder.configure(
@@ -65,4 +63,4 @@ Ahoy.quiet = Rails.env.production?
 # Ahoy.visit_token_header = "Ahoy-Visit"     # 用於 API 的 Visit token header
 # Ahoy.cookie_domain = :all # Cookie 作用域
 # Ahoy.cookies = true # API Only 模式下，如果客戶端是瀏覽器，仍然可以依賴 Cookie；
-                    # 如果是非瀏覽器客戶端，則需要客戶端在 Header 中傳遞 tokens。
+# 如果是非瀏覽器客戶端，則需要客戶端在 Header 中傳遞 tokens。
