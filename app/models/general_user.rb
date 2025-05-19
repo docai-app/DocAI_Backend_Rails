@@ -81,6 +81,10 @@ class GeneralUser < ApplicationRecord
   has_many :teacher_assignments, dependent: :destroy
   has_many :teaching_academic_years, through: :teacher_assignments, source: :school_academic_year
 
+  # Ahoy Vísits and Events associations
+  has_many :visits, class_name: "Ahoy::Visit", dependent: :nullify # 或 :destroy，取決於您的數據保留策略
+  has_many :events, class_name: "Ahoy::Event", dependent: :nullify # 或 :destroy
+
   scope :search_query, lambda { |query|
     return nil if query.blank?
 
