@@ -8,7 +8,7 @@ class CreateAhoyVisitsAndEvents < ActiveRecord::Migration[7.0]
       # simply remove any you don't want
 
       # user
-      t.references :user
+      t.column :user_id, :uuid
 
       # standard
       t.string :ip
@@ -49,7 +49,7 @@ class CreateAhoyVisitsAndEvents < ActiveRecord::Migration[7.0]
 
     create_table :ahoy_events do |t|
       t.references :visit
-      t.references :user
+      t.column :user_id, :uuid
 
       t.string :name
       t.jsonb :properties

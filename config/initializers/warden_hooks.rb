@@ -30,14 +30,14 @@ Warden::Manager.after_authentication do |general_user, auth, opts|
       if request.present?
         # 嘗試獲取或創建一個 Ahoy Tracker 實例
         # Ahoy 中間件通常會將 tracker 存儲在 request.env['ahoy']
-        tracker = request.env['ahoy'] || Ahoy::Tracker.new(request: request)
+        tracker = request.env['ahoy'] || Ahoy::Tracker.new(request:)
 
         # 將當前登入用戶與 tracker 關聯
         # 這會確保 visit 和 event 能正確記錄 user_id
         tracker.authenticate(general_user)
 
         # 使用 tracker 實例來追蹤事件
-        event_name = "GeneralUser Signed In"
+        event_name = 'GeneralUser Signed In'
         properties = { strategy: opts[:strategy].to_s, scope: opts[:scope].to_s }
         tracker.track(event_name, properties)
 
