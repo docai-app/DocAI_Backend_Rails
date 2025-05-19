@@ -46,9 +46,13 @@ class GeneralUsers::PasswordsController < Devise::PasswordsController
       # 檢查密碼是否已成功更新 (resource.errors.empty? 是一個好指標)
       # 並且 resource (用戶) 確實存在且可操作
       if resource.errors.empty? && resource.persisted?
-        # 使用 ahoy.track 方法而不是 Ahoy.track 類方法
-        # 明確指定用戶對象作為選項
-        ahoy.track 'Password Changed', { time: Time.current, user: resource }
+        # 手動將當前 tracker 實例與 resource (GeneralUser) 關聯
+        # 這樣可以確保 visit 和後續的 event 都與正確的用戶綁定
+        ahoy.authenticate(resource)
+
+        # 現在 tracker 已經知道了用戶，所以 track 方法不需要再顯式傳遞 user
+        # 屬性可以只包含事件特定的信息
+        ahoy.track 'Password Changed', { time: Time.current }
 
         Rails.logger.info "[PasswordsController] Tracked 'Password Changed' for general_user ID: #{resource.id}"
 

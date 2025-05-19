@@ -265,7 +265,7 @@ module Api
             assignment_category: @essay_assignment.category,
             grading_id: @essay_grading.id,
             user: current_general_user # user 作為選項
-          }
+          }, user: current_general_user
 
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
