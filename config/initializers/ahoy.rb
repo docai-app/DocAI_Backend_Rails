@@ -1,12 +1,24 @@
+# frozen_string_literal: true
+
 class Ahoy::Store < Ahoy::DatabaseStore
   # 自定義 Ahoy 如何找到當前用戶
   # 假設您的 Devise 用戶模型是 GeneralUser，並且控制器中有 current_general_user 方法
-  def general_user
-    # 在 API 模式下，controller 可能通過 request.env['action_controller.instance'] 獲取
-    # 或者，如果您的 ApiController 混入了 Ahoy::Controller，可以直接使用 controller.current_general_user
-    return unless controller.respond_to?(:current_general_user, true) # 第二個參數 true 表示也檢查私有方法
+  def user
+    controller.current_general_user if controller.respond_to?(:current_general_user)
+  end
 
-    controller.send(:current_general_user) # 使用 send 以調用可能的私有方法
+  # 添加自定義訪問存儲方法，以確保正確處理用戶記錄
+  def authenticate(data)
+    # 這裡實現自定義的用戶認證邏輯
+    # data[:user_id] = controller.current_general_user.id if controller.respond_to?(:current_general_user) && controller.current_general_user
+    super(data)
+  end
+
+  # 可選：添加更多上下文信息到訪問記錄
+  def track_visit(data)
+    # 可以在這裡添加更多請求相關信息
+    # data[:custom_field] = request.headers["X-Custom-Header"]
+    super(data)
   end
 
   # 可選：如果您的應用程序在負載均衡器或反向代理後面，
@@ -27,7 +39,7 @@ Ahoy.api_only = true
 # Visit 追蹤
 # :when_needed - 僅在需要時（例如追蹤事件或用戶登錄時）創建 Visit。推薦用於 API。
 # :immediately - 每個請求都嘗試創建或更新 Visit（可能會更頻繁地寫入數據庫）。
-Ahoy.server_side_visits = :when_needed
+Ahoy.server_side_visits = true
 
 # 異步處理 Visit 和 Event 記錄
 # 將數據庫寫入操作放到後台隊列，以避免阻塞主請求。
@@ -41,7 +53,27 @@ Ahoy.job_queue = :ahoy # 您可以根據項目的隊列策略命名，例如 :de
 # 開發環境日誌
 # 在開發模式下，設置為 false 可以看到 Ahoy 的調試日誌，有助於排查問題。
 # 生產環境下通常設為 true。
-Ahoy.quiet = Rails.env.production?
+Ahoy.quiet = !Rails.env.development?
+
+# 追蹤機器人（可以根據需要禁用）
+Ahoy.track_bots = true
+
+# 默認的訪問持續時間（4小時）
+# Ahoy.visit_duration = 4.hours
+
+# 可以自定義訪客的持續時間
+# Ahoy.visitor_duration = 2.years
+
+# 啟用IP掩碼化以提高隱私保護
+# Ahoy.mask_ips = true
+
+# 設置Cookie選項，比如跨域支持
+# Ahoy.cookie_domain = :all
+
+# 為了便於測試和開發，我們可以在開發環境中禁用某些安全措施
+# if Rails.env.development?
+#   Ahoy.cookie_options = {same_site: :lax}
+# end
 
 # 地理位置 (可選，如果需要)
 # Ahoy.geocode = :async # :async 表示異步地理編碼 (推薦)
@@ -64,3 +96,8 @@ Ahoy.quiet = Rails.env.production?
 # Ahoy.cookie_domain = :all # Cookie 作用域
 # Ahoy.cookies = true # API Only 模式下，如果客戶端是瀏覽器，仍然可以依賴 Cookie；
 # 如果是非瀏覽器客戶端，則需要客戶端在 Header 中傳遞 tokens。
+
+# set to true for geocoding (and add the geocoder gem to your Gemfile)
+# we recommend configuring local geocoding as well
+# see https://github.com/ankane/ahoy#geocoding
+Ahoy.geocode = false

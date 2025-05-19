@@ -33,6 +33,9 @@
 require_dependency 'has_kg_linker'
 
 class GeneralUser < ApplicationRecord
+  # Include Ahoy::Model for tracking events related to the user
+  include Ahoy::Model
+
   self.primary_key = 'id'
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder

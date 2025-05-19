@@ -257,6 +257,14 @@ module Api
         end
 
         if @essay_grading.save
+          # 使用 ahoy.track 方法追蹤用戶提交作業的事件
+          ahoy.track 'Assignment Submitted', {
+            assignment_id: @essay_assignment.id,
+            assignment_code: @essay_assignment.code,
+            assignment_category: @essay_assignment.category,
+            grading_id: @essay_grading.id
+          }
+
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
