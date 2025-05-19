@@ -72,6 +72,7 @@ ActiveRecord::Schema[7.0].define(version: 20_250_519_082_109) do
     t.datetime 'time'
     t.index %w[name time], name: 'index_ahoy_events_on_name_and_time'
     t.index ['properties'], name: 'index_ahoy_events_on_properties', opclass: :jsonb_path_ops, using: :gin
+    t.index ['user_id'], name: 'index_ahoy_events_on_user_id'
     t.index ['visit_id'], name: 'index_ahoy_events_on_visit_id'
   end
 
@@ -101,6 +102,7 @@ ActiveRecord::Schema[7.0].define(version: 20_250_519_082_109) do
     t.string 'os_version'
     t.string 'platform'
     t.datetime 'started_at'
+    t.index ['user_id'], name: 'index_ahoy_visits_on_user_id'
     t.index ['visit_token'], name: 'index_ahoy_visits_on_visit_token', unique: true
     t.index %w[visitor_token started_at], name: 'index_ahoy_visits_on_visitor_token_and_started_at'
   end
@@ -1034,6 +1036,8 @@ ActiveRecord::Schema[7.0].define(version: 20_250_519_082_109) do
   add_foreign_key 'active_storage_variant_records', 'active_storage_blobs', column: 'blob_id'
   add_foreign_key 'agent_use_tools', 'agent_tools'
   add_foreign_key 'agent_use_tools', 'assistant_agents'
+  add_foreign_key 'ahoy_events', 'general_users', column: 'user_id', name: 'fk_ahoy_events_on_user_id'
+  add_foreign_key 'ahoy_visits', 'general_users', column: 'user_id', name: 'fk_ahoy_visits_on_user_id'
   add_foreign_key 'dag_runs', 'users'
   add_foreign_key 'dags', 'users'
   add_foreign_key 'documents', 'folders'

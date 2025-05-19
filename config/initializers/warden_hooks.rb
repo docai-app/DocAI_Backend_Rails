@@ -11,37 +11,36 @@ Warden::Manager.after_authentication do |general_user, auth, opts|
       # 但 request 對象應該是可用的
       request = auth.request
 
-      # 實例化 Ahoy::Tracker
-      # 注意：如果 controller 為 nil，Ahoy::Tracker 仍然可以工作，
-      # 它會嘗試從 request 中獲取必要信息。
-      # Ahoy 的 general_user 方法 (在 config/initializers/ahoy.rb 中定義的) 仍然會被調用
-      # 並且因為我們在 Ahoy::Store 中定義了 general_user 方法依賴 controller.current_general_user，
-      # 所以我們需要確保在一個有 controller 上下文的地方調用。
-      # 一個更可靠的方法是，如果你的 ApiController 混入了 Ahoy::Controller (通常會自動發生)，
-      # 並且 current_general_user 已經被設置。
-
-      # 考慮到 after_authentication hook 可能在控制器實例完全建立前觸發，
-      # 或者在非控制器上下文中 (理論上 warden 也可以用於其他 rack app)，
-      # 一個更安全的方式可能是直接使用 general_user 對象來 track，
-      # 依賴於 Ahoy::Store 中定義的 general_user 方法來將 event 關聯到正確的 visit。
-      # Ahoy 會嘗試從 Thread.current[:ahoy] 獲取 tracker，
-      # 如果中間件正確設置了它。
-
       if request.present?
         # 嘗試獲取或創建一個 Ahoy Tracker 實例
         # Ahoy 中間件通常會將 tracker 存儲在 request.env['ahoy']
         tracker = request.env['ahoy'] || Ahoy::Tracker.new(request:)
 
-        # 將當前登入用戶與 tracker 關聯
-        # 這會確保 visit 和 event 能正確記錄 user_id
-        tracker.authenticate(general_user)
+        Rails.logger.info "[WardenHook] Before authenticate, visit_token: #{tracker.visit_token}, visit.user_id: #{tracker.visit&.user_id}, visit.id: #{tracker.visit&.id}"
+        Rails.logger.info "[WardenHook] Authenticating with general_user ID: #{general_user.id}"
 
-        # 使用 tracker 實例來追蹤事件
+        tracker.authenticate(general_user) # 關鍵步驟，將 visit 與 user 關聯
+
+        # 在 authenticate 之後，重新從 tracker 獲取 visit，因為 authenticate 可能會修改它或其關聯
+        # 或者直接從資料庫查詢最新的 visit 狀態
+        current_visit_from_tracker = tracker.visit
+        Rails.logger.info "[WardenHook] After authenticate, visit_token from tracker: #{current_visit_from_tracker&.visit_token}, visit.user_id from tracker: #{current_visit_from_tracker&.user_id}, visit.id from tracker: #{current_visit_from_tracker&.id}"
+
+        # 為了更確定，可以嘗試從資料庫直接讀取 visit
+        if current_visit_from_tracker&.visit_token
+          db_visit = Ahoy::Visit.find_by(visit_token: current_visit_from_tracker.visit_token)
+          Rails.logger.info "[WardenHook] After authenticate, visit user_id from DB query: #{db_visit&.user_id}"
+        end
+
         event_name = 'GeneralUser Signed In'
-        properties = { strategy: opts[:strategy].to_s, scope: opts[:scope].to_s }
-        tracker.track(event_name, properties)
+        # 屬性中不包含 user，讓 Ahoy 從已 authenticate 的 visit 中獲取 user 關聯
+        event_properties = {
+          strategy: opts[:strategy].to_s,
+          scope: opts[:scope].to_s
+        }
+        tracker.track(event_name, event_properties)
 
-        Rails.logger.info "[WardenHook] Tracked '#{event_name}' for #{general_user.email} with properties: #{properties.inspect}"
+        Rails.logger.info "[WardenHook] Tracked '#{event_name}' for #{general_user.email} with properties: #{event_properties.inspect}"
       else
         Rails.logger.warn "[WardenHook] Could not track 'GeneralUser Signed In' for #{general_user.email} due to missing request object in auth proxy."
       end

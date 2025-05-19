@@ -1,32 +1,20 @@
 # frozen_string_literal: true
 
+# 基本的 Ahoy::Store 定義，繼承自預設的 DatabaseStore。
+# 這樣 Ahoy::Tracker 就能找到 Ahoy::Store 類別。
+# 如果不需要自訂 user 方法或 authenticate 方法，可以將其內部留空或移除。
 class Ahoy::Store < Ahoy::DatabaseStore
-  # 自定義 Ahoy 如何找到當前用戶
-  # 假設您的 Devise 用戶模型是 GeneralUser，並且控制器中有 current_general_user 方法
-  def user
-    controller.current_general_user if controller.respond_to?(:current_general_user)
-  end
+  # 目前將內部留空，以使用 Ahoy::DatabaseStore 的預設行為。
 
-  # 添加自定義訪問存儲方法，以確保正確處理用戶記錄
-  def authenticate(data)
-    # 這裡實現自定義的用戶認證邏輯
-    # data[:user_id] = controller.current_general_user.id if controller.respond_to?(:current_general_user) && controller.current_general_user
-    super(data)
-  end
+  # 如果需要自訂 user 方法，可以取消註解以下程式碼：
+  # def user
+  #   controller.current_general_user if controller && controller.respond_to?(:current_general_user, true)
+  # end
 
-  # 可選：添加更多上下文信息到訪問記錄
-  def track_visit(data)
-    # 可以在這裡添加更多請求相關信息
-    # data[:custom_field] = request.headers["X-Custom-Header"]
-    super(data)
-  end
-
-  # 可選：如果您的應用程序在負載均衡器或反向代理後面，
-  # 您可能需要自定義如何獲取真實的用戶 IP 地址。
-  # def visit_properties
-  #   super.merge(ip: request.remote_ip) # 這是 Rails 的標準方式
-  #   # 或者，如果 IP 在特定的 header 中，例如：
-  #   # super.merge(ip: request.headers["X-Forwarded-For"]&.split(',')&.first&.strip)
+  # authenticate 方法通常不需要在這裡自訂，
+  # 因為 Ahoy::DatabaseStore 的父類行為已經處理了使用者關聯。
+  # def authenticate(data)
+  #   super(data)
   # end
 end
 
@@ -100,4 +88,4 @@ Ahoy.track_bots = true
 # set to true for geocoding (and add the geocoder gem to your Gemfile)
 # we recommend configuring local geocoding as well
 # see https://github.com/ankane/ahoy#geocoding
-Ahoy.geocode = false
+Ahoy.geocode = true

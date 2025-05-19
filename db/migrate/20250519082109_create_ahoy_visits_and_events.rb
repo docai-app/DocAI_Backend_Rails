@@ -8,7 +8,8 @@ class CreateAhoyVisitsAndEvents < ActiveRecord::Migration[7.0]
       # simply remove any you don't want
 
       # user
-      t.column :user_id, :uuid
+      t.references :user, type: :uuid, foreign_key: { to_table: :general_users, name: 'fk_ahoy_visits_on_user_id' },
+                          index: { name: 'index_ahoy_visits_on_user_id' }
 
       # standard
       t.string :ip
@@ -49,7 +50,8 @@ class CreateAhoyVisitsAndEvents < ActiveRecord::Migration[7.0]
 
     create_table :ahoy_events do |t|
       t.references :visit
-      t.column :user_id, :uuid
+      t.references :user, type: :uuid, foreign_key: { to_table: :general_users, name: 'fk_ahoy_events_on_user_id' },
+                          index: { name: 'index_ahoy_events_on_user_id' }
 
       t.string :name
       t.jsonb :properties
