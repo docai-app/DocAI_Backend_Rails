@@ -257,16 +257,11 @@ module Api
         end
 
         if @essay_grading.save
-          # 使用 ahoy.track 方法追蹤用戶提交作業的事件
-          # 明確指定用戶對象作為選項
-          ahoy.track 'Assignment Submitted', {
-            assignment_id: @essay_assignment.id,
-            assignment_code: @essay_assignment.code,
-            assignment_category: @essay_assignment.category,
-            grading_id: @essay_grading.id,
-            user: current_general_user # user 作為選項
-          }, user: current_general_user
-
+          # Track assignment submission
+          # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
+          ahoy.authenticate(current_general_user) if current_general_user
+          ahoy.track 'Assignment Submitted',
+                     { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
