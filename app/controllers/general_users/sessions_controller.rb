@@ -5,24 +5,40 @@ module GeneralUsers
     respond_to :json
 
     def create
-      self.resource = warden.authenticate!(auth_options)
-      set_flash_message!(:notice, :signed_in)
-      sign_in(resource_name, resource)
-      yield resource if block_given?
-      respond_with resource, location: after_sign_in_path_for(resource)
+      self.resource = warden.authenticate(auth_options)
+
+      if resource && warden.authenticated?(resource_name)
+        sign_in(resource_name, resource)
+
+        if resource.persisted?
+          strategy_name = if warden.winning_strategy
+                            warden.winning_strategy.class.name.demodulize.underscore.sub(/_authenticatable$/, '')
+                          else
+                            'unknown'
+                          end
+
+          ahoy.track 'GeneralUser Signed In', { strategy: strategy_name }
+          Rails.logger.info "[SessionsController] Tracked 'GeneralUser Signed In' for general_user ID: #{resource.id}, strategy: #{strategy_name}"
+        end
+
+        respond_with resource, location: after_sign_in_path_for(resource)
+      else
+        login_failed
+      end
     end
 
     private
 
     def respond_with(resource, _opts = {})
-      puts "current tenant: #{Apartment::Tenant.current}"
-      puts "resource: #{resource.inspect}"
-      resource.persisted? ? login_success : login_failed
-      # render json: { success: true, message: "Logged.", user: resource }, status: :ok
+      resource && resource.persisted? ? login_success : login_failed
     end
 
     def respond_to_on_destroy
-      current_user ? log_out_success : log_out_failure
+      if warden.authenticated?(resource_name)
+        log_out_failure
+      else
+        log_out_success
+      end
     end
 
     def log_out_success
@@ -34,11 +50,14 @@ module GeneralUsers
     end
 
     def login_success
-      render json: { success: true, message: 'Logged.' }, status: :ok
+      render json: {
+        success: true,
+        message: 'Logged in successfully.'
+      }, status: :ok
     end
 
     def login_failed
-      render json: { success: false, message: 'Logged in failure.' }, status: :unauthorized
+      render json: { success: false, error: 'Invalid email or password.' }, status: :unauthorized
     end
   end
 end

@@ -32,20 +32,13 @@ Warden::Manager.after_authentication do |general_user, auth, opts|
           Rails.logger.info "[WardenHook] After authenticate, visit user_id from DB query: #{db_visit&.user_id}"
         end
 
-        event_name = 'GeneralUser Signed In'
-        # 屬性中不包含 user，讓 Ahoy 從已 authenticate 的 visit 中獲取 user 關聯
-        event_properties = {
-          strategy: opts[:strategy].to_s,
-          scope: opts[:scope].to_s
-        }
-        tracker.track(event_name, event_properties)
-
-        Rails.logger.info "[WardenHook] Tracked '#{event_name}' for #{general_user.email} with properties: #{event_properties.inspect}"
+        # 不再由 warden_hooks.rb 記錄 "GeneralUser Signed In" 事件
+        # Rails.logger.info "[WardenHook] 'GeneralUser Signed In' event tracking is now handled by SessionsController."
       else
-        Rails.logger.warn "[WardenHook] Could not track 'GeneralUser Signed In' for #{general_user.email} due to missing request object in auth proxy."
+        Rails.logger.warn "[WardenHook] Could not process Ahoy authentication for #{general_user.email} due to missing request object in auth proxy."
       end
     rescue StandardError => e
-      Rails.logger.error "[WardenHook] Error tracking 'GeneralUser Signed In' for #{general_user.email}: #{e.message}"
+      Rails.logger.error "[WardenHook] Error during Ahoy authentication for #{general_user.email}: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
     end
   end
