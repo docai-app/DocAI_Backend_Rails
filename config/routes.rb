@@ -411,6 +411,7 @@ Rails.application.routes.draw do
             post 'batch', to: 'general_users#batch_create'
             post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
             post 'student/email', to: 'general_users#add_students_relation_by_emails'
+            get ':id/activity_logs', to: 'activity_logs#show_by_general_user'
           end
           collection do
             post 'aienglish/create', to: 'general_users#create_aienglish_user'
@@ -418,7 +419,6 @@ Rails.application.routes.draw do
             put ':id/aienglish/update', to: 'general_users#update_aienglish_user'
             put 'aienglish/batch/update', to: 'general_users#batch_update_aienglish_user'
           end
-          resources :activity_logs, only: [:index], controller: 'activity_logs' # Route to the same controller
         end
         resources :schools, param: :code do
           member do

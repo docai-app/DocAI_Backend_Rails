@@ -19,7 +19,7 @@ module Api
 
         # GET /api/admin/v1/general_users/:general_user_id/activity_logs
         def show_by_general_user
-          @events = Ahoy::Event.where(user_id: params[:general_user_id]).order(time: :desc)
+          @events = Ahoy::Event.where(user_id: params[:id]).order(time: :desc)
           @events = @events.page(params[:page] || 1)
 
           render json: { success: true, events: @events, meta: pagination_meta(@events) }, status: :ok
