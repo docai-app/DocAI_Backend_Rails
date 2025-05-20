@@ -38,16 +38,47 @@ class GeneralUsers::PasswordsController < Devise::PasswordsController
   # PUT /resource/password
   # (即 PUT /general_users/password)
   # 這個方法用於用戶提交新密碼時
-  # Devise 的默認 JSON 響應可能已經足夠，但如果需要也可以覆寫以統一格式
-  # def update
-  #   super do |resource|
-  #     if resource.errors.empty?
-  #       render json: { success: true, message: find_message(:updated_not_active, {}) }, status: :ok
-  #       return
-  #     else
-  #       render json: { success: false, errors: resource.errors.full_messages }, status: :unprocessable_entity
-  #       return
-  #     end
-  #   end
-  # end
+  def update
+    # 調用 Devise 的標準 update 方法
+    # self.resource 會被 Devise 的 super 方法設置為當前 GeneralUser 實例
+    super do |resource|
+      # resource 是 Devise PasswordsController 嘗試更新的 GeneralUser 實例
+      # 檢查密碼是否已成功更新 (resource.errors.empty? 是一個好指標)
+      # 並且 resource (用戶) 確實存在且可操作
+      if resource.errors.empty? && resource.persisted?
+        # 手動將當前 tracker 實例與 resource (GeneralUser) 關聯
+        # 這樣可以確保 visit 和後續的 event 都與正確的用戶綁定
+        ahoy.authenticate(resource)
+
+        # 現在 tracker 已經知道了用戶，所以 track 方法不需要再顯式傳遞 user
+        # 屬性可以只包含事件特定的信息
+        ahoy.track 'Password Changed', { time: Time.current }
+
+        Rails.logger.info "[PasswordsController] Tracked 'Password Changed' for general_user ID: #{resource.id}"
+
+        # Devise 的默認成功響應處理 (如果 Devise.sign_in_after_reset_password 為 true，用戶會被登入)
+        # find_message(:updated_not_active) -> "Your password has been changed successfully."
+        # find_message(:updated) -> "Your password has been changed successfully. You are now signed in."
+        # 我們可以根據是否自動登入返回不同的消息，或者統一返回 "updated_not_active"
+        # 以符合 API 行為（通常重設密碼後不一定立即返回包含 session 的用戶對象）
+        render json: { success: true, message: find_message(:updated_not_active, {}) }, status: :ok
+        return # 確保後續 Devise 默認的 respond_with 不會再次執行
+      else
+        # 如果 resource.errors 不為空，表示更新失敗
+        render json: { success: false, errors: resource.errors.full_messages }, status: :unprocessable_entity
+        return # 同上
+      end
+    end
+    # 如果 super 沒有調用 block (例如 Devise 內部邏輯直接 render 或 redirect 了，雖然對於 API 模式較少見)
+    # 則這裡的代碼可能不會執行。但 Devise::PasswordsController#update 通常會 yield resource。
+    # 如果 resource 在 super 調用後沒有被賦值或者 block 未執行，需要檢查 Devise 版本和行為。
+    # 通常, 如果 block 沒被執行，意味著 Devise 已經處理了響應 (例如 token 無效時)。
+    # 此時 self.resource 可能未被正確設置，或者已經被渲染。
+    # 檢查 self.resource 是否有效以及是否已經執行過渲染
+    return if performed? || self.resource.nil?
+
+    # 這種情況通常是 token 無效等 Devise 內部處理的錯誤
+    # Devise 會設置 resource.errors
+    render json: { success: false, errors: self.resource.errors.full_messages }, status: :unprocessable_entity
+  end
 end
