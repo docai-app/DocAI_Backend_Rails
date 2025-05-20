@@ -418,6 +418,7 @@ Rails.application.routes.draw do
             put ':id/aienglish/update', to: 'general_users#update_aienglish_user'
             put 'aienglish/batch/update', to: 'general_users#batch_update_aienglish_user'
           end
+          resources :activity_logs, only: [:index], controller: 'activity_logs' # Route to the same controller
         end
         resources :schools, param: :code do
           member do
@@ -450,6 +451,9 @@ Rails.application.routes.draw do
         end
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
+
+        # Activity Logs for Admin
+        resources :activity_logs, only: [:index]
       end
     end
 
