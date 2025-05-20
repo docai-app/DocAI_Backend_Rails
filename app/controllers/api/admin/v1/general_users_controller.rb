@@ -11,7 +11,47 @@ module Api
 
         def index
           @users = GeneralUser.all
+
+          # 現有的關鍵字搜尋
           @users = @users.search_query(params[:keyword]) if params[:keyword].present?
+
+          # 修正：基於學校ID篩選
+          if params[:school_id].present?
+            school_id = params[:school_id]
+            # 分別獲取兩組用戶ID並合併
+            school_users_ids = GeneralUser.where(school_id:).pluck(:id)
+            enrolled_users_ids = GeneralUser.joins(student_enrollments: :school_academic_year)
+                                            .where(school_academic_years: { school_id: })
+                                            .pluck(:id)
+            # 合併ID並篩選原始查詢
+            @users = @users.where(id: (school_users_ids + enrolled_users_ids).uniq)
+          end
+
+          # 修正：基於班級學號篩選
+          if params[:class_no].present?
+            class_no = params[:class_no]
+            # 分別獲取兩組用戶ID並合併
+            direct_users_ids = GeneralUser.where(class_no:).pluck(:id)
+            enrolled_class_users_ids = GeneralUser.joins(:student_enrollments)
+                                                  .where(student_enrollments: { class_number: class_no })
+                                                  .pluck(:id)
+            # 合併ID並篩選原始查詢
+            @users = @users.where(id: (direct_users_ids + enrolled_class_users_ids).uniq)
+          end
+
+          # 修正：基於班級名稱篩選
+          if params[:class_name].present?
+            class_name = params[:class_name]
+            # 分別獲取兩組用戶ID並合併
+            direct_class_users_ids = GeneralUser.where(banbie: class_name).pluck(:id)
+            enrolled_name_users_ids = GeneralUser.joins(:student_enrollments)
+                                                 .where(student_enrollments: { class_name: })
+                                                 .pluck(:id)
+            # 合併ID並篩選原始查詢
+            @users = @users.where(id: (direct_class_users_ids + enrolled_name_users_ids).uniq)
+          end
+
+          # 排序和格式化
           @users = @users.order(created_at: :desc).as_json(methods: [:locked_at])
           @users = Kaminari.paginate_array(@users).page(params[:page])
 
@@ -217,7 +257,7 @@ module Api
               # 收集 AI English features 数据
               if row['aienglish_features'].present?
                 features = begin
-                  JSON.parse(row['aienglish_features'].gsub(/[“”]/, '"'))
+                  JSON.parse(row['aienglish_features'].gsub(/[""]/, '"'))
                 rescue JSON::ParserError
                   []
                 end
@@ -316,7 +356,7 @@ module Api
               # 收集 AI English features 並保存到 meta 欄位
               if row['aienglish_features'].present?
                 features = begin
-                  JSON.parse(row['aienglish_features'].gsub(/[“”]/, '"'))
+                  JSON.parse(row['aienglish_features'].gsub(/[""]/, '"'))
                 rescue StandardError
                   []
                 end
@@ -377,7 +417,7 @@ module Api
               # 更新 aienglish_features_list 到 meta 欄位
               if row['aienglish_features'].present?
                 features = begin
-                  JSON.parse(row['aienglish_features'].gsub(/[“”]/, '"'))
+                  JSON.parse(row['aienglish_features'].gsub(/[""]/, '"'))
                 rescue JSON::ParserError
                   []
                 end
