@@ -18,13 +18,19 @@ module Api
           # 修正：基於學校ID篩選
           if params[:school_id].present?
             school_id = params[:school_id]
-            # 分別獲取兩組用戶ID並合併
-            school_users_ids = GeneralUser.where(school_id:).pluck(:id)
-            enrolled_users_ids = GeneralUser.joins(student_enrollments: :school_academic_year)
-                                            .where(school_academic_years: { school_id: })
-                                            .pluck(:id)
-            # 合併ID並篩選原始查詢
-            @users = @users.where(id: (school_users_ids + enrolled_users_ids).uniq)
+
+            # 通過學生註冊關聯獲取用戶ID
+            student_ids = GeneralUser.joins(student_enrollments: :school_academic_year)
+                                     .where(school_academic_years: { school_id: })
+                                     .pluck(:id)
+
+            # 通過教師任教關聯獲取用戶ID
+            teacher_ids = GeneralUser.joins(teacher_assignments: :school_academic_year)
+                                     .where(school_academic_years: { school_id: })
+                                     .pluck(:id)
+
+            # 合併兩組ID（去重）並篩選原始查詢
+            @users = @users.where(id: (student_ids + teacher_ids).uniq)
           end
 
           # 修正：基於班級學號篩選
