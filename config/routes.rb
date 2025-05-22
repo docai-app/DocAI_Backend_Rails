@@ -411,6 +411,7 @@ Rails.application.routes.draw do
             post 'batch', to: 'general_users#batch_create'
             post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
             post 'student/email', to: 'general_users#add_students_relation_by_emails'
+            get ':id/activity_logs', to: 'activity_logs#show_by_general_user'
           end
           collection do
             post 'aienglish/create', to: 'general_users#create_aienglish_user'
@@ -450,6 +451,9 @@ Rails.application.routes.draw do
         end
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
+
+        # Activity Logs for Admin
+        resources :activity_logs, only: [:index]
       end
     end
 

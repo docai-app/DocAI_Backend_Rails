@@ -33,6 +33,9 @@
 require_dependency 'has_kg_linker'
 
 class GeneralUser < ApplicationRecord
+  # Include Ahoy::Model for tracking events related to the user
+  include Ahoy::Model
+
   self.primary_key = 'id'
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder
@@ -80,6 +83,10 @@ class GeneralUser < ApplicationRecord
   # 添加教師任教記錄關聯
   has_many :teacher_assignments, dependent: :destroy
   has_many :teaching_academic_years, through: :teacher_assignments, source: :school_academic_year
+
+  # Ahoy Vísits and Events associations
+  has_many :visits, class_name: 'Ahoy::Visit', dependent: :nullify # 或 :destroy，取決於您的數據保留策略
+  has_many :events, class_name: 'Ahoy::Event', dependent: :nullify # 或 :destroy
 
   scope :search_query, lambda { |query|
     return nil if query.blank?

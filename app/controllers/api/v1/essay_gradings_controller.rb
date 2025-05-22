@@ -5,7 +5,8 @@ require 'prawn/table'
 module Api
   module V1
     class EssayGradingsController < ApiController
-      before_action :authenticate_general_user!, except: %i[download_reports download_report download_supplement_practice]
+      before_action :authenticate_general_user!,
+                    except: %i[download_reports download_report download_supplement_practice]
 
       def download_report
         set_essay_grading
@@ -256,6 +257,11 @@ module Api
         end
 
         if @essay_grading.save
+          # Track assignment submission
+          # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
+          ahoy.authenticate(current_general_user) if current_general_user
+          ahoy.track 'Assignment Submitted',
+                     { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
@@ -347,7 +353,7 @@ module Api
               ]
             }
           ],
-          meta: %i[:newsfeed_id],
+          meta: %i[newsfeed_id],
           sentence_builder: %i[vocab sentence]
         )
       end
@@ -803,17 +809,17 @@ module Api
 
               # 标准化 errors 格式
               normalized_errors = {}
-              
+
               # 检查 errors 的格式并进行标准化处理
               if errors.is_a?(Hash) && !errors.empty?
-                if errors.keys.first.to_s.start_with?('error')
-                  # 正常格式: {"error1" => {...}, "error2" => {...}}
-                  normalized_errors = errors
-                else
-                  # 非标准格式: {"word" => ..., "corr" => ..., ...}
-                  # 将其转换为标准格式
-                  normalized_errors = {"error1" => errors}
-                end
+                normalized_errors = if errors.keys.first.to_s.start_with?('error')
+                                      # 正常格式: {"error1" => {...}, "error2" => {...}}
+                                      errors
+                                    else
+                                      # 非标准格式: {"word" => ..., "corr" => ..., ...}
+                                      # 将其转换为标准格式
+                                      { 'error1' => errors }
+                                    end
               end
 
               normalized_errors.each_value do |error_value|
@@ -826,8 +832,6 @@ module Api
               pdf.text formatted_text, size: 12, inline_format: true
               pdf.move_down 10
 
-              
-
               if normalized_errors.any?
                 pdf.indent(20) do
                   normalized_errors.each_value do |error_value|
@@ -835,26 +839,24 @@ module Api
                     error_word = error_value['word']
                     explanation = error_value['explanation']
                     correction = error_value['corr']
-                    
+
                     # 从 corr 中提取正确的词
                     correct_word = nil
-                    if correction.present?
+                    if correction.present? && correction.include?('->')
                       # 尝试从 "modernised -> modern" 格式中提取
-                      if correction.include?('->')
-                        correct_word = correction.split('->').last.strip
-                      end
+                      correct_word = correction.split('->').last.strip
                     end
-                    
+
                     # 显示新格式的错误信息
                     category_display = convert_category(essay_grading.essay_assignment.category, category)
                     if correct_word.present?
-                      pdf.text "<b>Mistake: #{error_word} -> #{correct_word} <color rgb='0000FF'>(#{category_display})</color></b>", 
-                              size: 11, inline_format: true
+                      pdf.text "<b>Mistake: #{error_word} -> #{correct_word} <color rgb='0000FF'>(#{category_display})</color></b>",
+                               size: 11, inline_format: true
                     else
-                      pdf.text "<b>Mistake: #{error_word} <color rgb='0000FF'>(#{category_display})</color></b>", 
-                              size: 11, inline_format: true
+                      pdf.text "<b>Mistake: #{error_word} <color rgb='0000FF'>(#{category_display})</color></b>",
+                               size: 11, inline_format: true
                     end
-                    
+
                     # 显示解释
                     pdf.text explanation, size: 10
                     pdf.move_down 8
@@ -1091,6 +1093,7 @@ module Api
       def generate_pdf(json_data, essay_grading)
         assignment = essay_grading.essay_assignment
         raise "Essay assignment not found for grading ID #{essay_grading.id}" if assignment.nil?
+
         # 獲取用戶
         user = essay_grading.general_user
 

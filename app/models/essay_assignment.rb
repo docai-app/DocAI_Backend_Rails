@@ -66,7 +66,7 @@ class EssayAssignment < ApplicationRecord
   end
 
   def normalize_level
-    return unless meta.is_a?(Hash) && meta["level"].present?
+    return unless meta.is_a?(Hash) && meta['level'].present?
 
     # 定义转换映射
     level_mapping = {
@@ -78,9 +78,9 @@ class EssayAssignment < ApplicationRecord
       'Advanced' => 'CEFR C2'
     }
     # 进行转换
-    if level_mapping.key?(meta["level"])
-      meta["level"] = level_mapping[meta["level"]]
-    end
+    return unless level_mapping.key?(meta['level'])
+
+    meta['level'] = level_mapping[meta['level']]
   end
 
   def generate_unique_code

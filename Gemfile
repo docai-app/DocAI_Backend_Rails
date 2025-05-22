@@ -137,3 +137,6 @@ gem 'rswag-ui'
 
 gem 'image_processing', '~> 1.2'
 gem 'mini_magick', '~> 4.10'
+
+gem 'ahoy_matey'
+gem 'geocoder'
