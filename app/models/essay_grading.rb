@@ -172,7 +172,7 @@ class EssayGrading < ApplicationRecord
 
     return nil if self['meta']['newsfeed_id'].nil?
 
-    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
+    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}/form.json")
     
     # 检查 essay_assignment 和 meta.level 是否存在
     if essay_assignment&.meta&.key?(:level) && essay_assignment.meta[:level].present?
