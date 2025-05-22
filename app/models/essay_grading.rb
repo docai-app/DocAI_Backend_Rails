@@ -173,6 +173,14 @@ class EssayGrading < ApplicationRecord
     return nil if self['meta']['newsfeed_id'].nil?
 
     uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
+    
+    # 检查 essay_assignment 和 meta.level 是否存在
+    if essay_assignment&.meta&.key?(:level) && essay_assignment.meta[:level].present?
+      query_params = URI.decode_www_form(uri.query || '').to_h
+      query_params['level'] = essay_assignment.meta[:level]
+      uri.query = URI.encode_www_form(query_params)
+    end
+    
     response = Net::HTTP.get_response(uri)
 
     return unless response.is_a?(Net::HTTPSuccess)

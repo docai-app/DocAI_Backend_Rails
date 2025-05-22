@@ -47,8 +47,17 @@ class EssayAssignment < ApplicationRecord
 
     # 否則通過 newsfeed_id 請求外部 API
     return nil if meta['newsfeed_id'].nil?
+    
 
-    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
+    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}/form.json")
+
+    # 检查 essay_assignment 和 meta.level 是否存在
+    if meta&.key?("level") && meta["level"].present?
+      query_params = URI.decode_www_form(uri.query || '').to_h
+      query_params['level'] = meta["level"]
+      uri.query = URI.encode_www_form(query_params)
+    end
+
     response = Net::HTTP.get_response(uri)
 
     return unless response.is_a?(Net::HTTPSuccess)
