@@ -29,7 +29,7 @@
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
-                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level
+                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level, :sample_essay
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
 
@@ -41,20 +41,36 @@ class EssayAssignment < ApplicationRecord
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
 
+  # 檔案附件 - 為IELTS看圖作文添加圖片上傳功能
+  has_one_attached :graph_image, service: :microsoft
+
+  # 驗證
+  validates :topic, presence: true
+  validates :assignment, presence: true
+  validates :category, presence: true
+  validates :title, presence: true
+  validates :rubric, presence: true
+
+  # IELTS看圖作文的圖片格式驗證
+  validates :graph_image, content_type: { in: ['image/jpeg'],
+                                          message: 'must be a JPEG image' },
+                          size: { less_than: 10.megabytes,
+                                  message: 'must be less than 10MB' },
+                          allow_blank: true
+
   def get_news_feed
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
     return meta['self_upload_newsfeed'] if meta['self_upload_newsfeed'].present?
 
     # 否則通過 newsfeed_id 請求外部 API
     return nil if meta['newsfeed_id'].nil?
-    
 
     uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}/form.json")
 
     # 检查 essay_assignment 和 meta.level 是否存在
-    if meta&.key?("level") && meta["level"].present?
+    if meta&.key?('level') && meta['level'].present?
       query_params = URI.decode_www_form(uri.query || '').to_h
-      query_params['level'] = meta["level"]
+      query_params['level'] = meta['level']
       uri.query = URI.encode_www_form(query_params)
     end
 

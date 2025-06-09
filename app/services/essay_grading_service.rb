@@ -65,6 +65,12 @@ class EssayGradingService
                { Essay: @essay_grading.essay, essaytopic: @essay_grading.topic }
              end
 
+    # IELTS看圖作文功能：如果assignment有圖片附件，添加圖片URL到inputs
+    if @essay_grading.essay_assignment.graph_image.attached?
+      inputs[:graph_image_url] = @essay_grading.essay_assignment.graph_image.url
+      Rails.logger.info("[EssayGradingService] Including graph image URL for grading assignment #{@essay_grading.essay_assignment.id}")
+    end
+
     {
       inputs:,
       response_mode: 'blocking',
@@ -73,11 +79,19 @@ class EssayGradingService
   end
 
   def general_context_request_payload
+    inputs = {
+      Essay: @essay_grading.essay, # 假设 general_context 使用相同的 Essay 字段，如果不同则修改
+      essaytopic: @essay_grading.topic # 同样假设 topic 字段相同，如果不同则修改
+    }
+
+    # IELTS看圖作文功能：如果assignment有圖片附件，添加圖片URL到inputs
+    if @essay_grading.essay_assignment.graph_image.attached?
+      inputs[:graph_image_url] = @essay_grading.essay_assignment.graph_image.url
+      Rails.logger.info("[EssayGradingService] Including graph image URL for general context assignment #{@essay_grading.essay_assignment.id}")
+    end
+
     {
-      inputs: {
-        Essay: @essay_grading.essay, # 假设 general_context 使用相同的 Essay 字段，如果不同则修改
-        essaytopic: @essay_grading.topic # 同样假设 topic 字段相同，如果不同则修改
-      },
+      inputs:,
       response_mode: 'blocking',
       user: @user_id
     }.to_json

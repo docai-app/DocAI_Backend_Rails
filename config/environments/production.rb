@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "active_support/core_ext/integer/time"
+require 'active_support/core_ext/integer/time'
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -23,7 +23,7 @@ Rails.application.configure do
 
   # Disable serving static files from the `/public` folder by default since
   # Apache or NGINX already handles this.
-  config.public_file_server.enabled = ENV["RAILS_SERVE_STATIC_FILES"].present?
+  config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present?
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
@@ -37,7 +37,7 @@ Rails.application.configure do
 
   # Mount Action Cable outside main process or domain.
   config.action_cable.disable_request_forgery_protection = true
-  config.action_cable.url = ENV.fetch("ACTION_CABLE_URL", "wss://docai.m2mda.com/cable")
+  config.action_cable.url = ENV.fetch('ACTION_CABLE_URL', 'wss://docai.m2mda.com/cable')
   # config.action_cable.mount_path = nil
   # config.action_cable.url = "wss://example.com/cable"
   # config.action_cable.allowed_request_origins = [ "http://example.com", /http:\/\/example.*/ ]
@@ -79,7 +79,7 @@ Rails.application.configure do
   # require "syslog/logger"
   # config.logger = ActiveSupport::TaggedLogging.new(Syslog::Logger.new "app-name")
 
-  if ENV["RAILS_LOG_TO_STDOUT"].present?
+  if ENV['RAILS_LOG_TO_STDOUT'].present?
     logger = ActiveSupport::Logger.new($stdout)
     logger.formatter = config.log_formatter
     config.logger = ActiveSupport::TaggedLogging.new(logger)
@@ -90,23 +90,23 @@ Rails.application.configure do
 
   config.active_storage.service = :microsoft
 
-  config.time_zone = "Asia/Taipei"
+  config.time_zone = 'Asia/Taipei'
 
   # Configure default URL options for the mailer (for links in emails)
   config.action_mailer.default_url_options = {
-    host: ENV.fetch("FRONTEND_URL", "https://aienglish.docai.net"),
+    host: ENV.fetch('FRONTEND_URL', 'https://aienglish.docai.net')
   }
 
   # Production SMTP settings
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.smtp_settings = {
-    address: ENV.fetch("SMTP_ADDRESS"),
-    port: ENV.fetch("SMTP_PORT", 587),
-    domain: ENV.fetch("SMTP_DOMAIN"),
-    user_name: ENV.fetch("SMTP_USERNAME"),
-    password: ENV.fetch("SMTP_PASSWORD"),
-    authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain"),
-    enable_starttls_auto: ActiveModel::Type::Boolean.new.cast(ENV.fetch("SMTP_ENABLE_STARTTLS_AUTO", true)),
-    openssl_verify_mode: ENV.fetch("SMTP_OPENSSL_VERIFY_MODE", "peer"),
+    address: ENV.fetch('SMTP_ADDRESS'),
+    port: ENV.fetch('SMTP_PORT', 587),
+    domain: ENV.fetch('SMTP_DOMAIN'),
+    user_name: ENV.fetch('SMTP_USERNAME'),
+    password: ENV.fetch('SMTP_PASSWORD'),
+    authentication: ENV.fetch('SMTP_AUTHENTICATION', 'plain'),
+    enable_starttls_auto: ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_ENABLE_STARTTLS_AUTO', true)),
+    openssl_verify_mode: ENV.fetch('SMTP_OPENSSL_VERIFY_MODE', 'peer')
   }
 end

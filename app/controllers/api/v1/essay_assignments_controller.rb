@@ -21,7 +21,20 @@ module Api
       end
 
       def show_only
-        render json: { success: true, essay_assignment: @essay_assignment }
+        # 構建基本響應數據
+        assignment_data = @essay_assignment.as_json
+
+        # 添加圖片URL（如果有附件）- IELTS看圖作文功能
+        if @essay_assignment.graph_image.attached?
+          assignment_data['graph_image_url'] = @essay_assignment.graph_image.url
+        end
+
+        # 添加Sample Essay（只在IELTS Task 1且已生成時）- IELTS功能
+        if @essay_assignment.name == 'IELTS Task 1' && @essay_assignment.sample_essay.present?
+          assignment_data['sample_essay'] = @essay_assignment.sample_essay
+        end
+
+        render json: { success: true, essay_assignment: assignment_data }
       end
 
       def read
@@ -182,6 +195,49 @@ module Api
         }, status: :internal_server_error
       end
 
+      # 為IELTS作業生成Sample Essay
+      def generate_sample_essay
+        @essay_assignment = EssayAssignment.find(params[:id])
+
+        # 檢查權限 - 只有作業創建者可以生成Sample Essay
+        unless @essay_assignment.general_user_id == current_general_user.id
+          render json: { success: false, error: 'Access denied' }, status: :forbidden
+          return
+        end
+
+        # 檢查是否為IELTS Task 1作業
+        unless @essay_assignment.name == 'IELTS Task 1'
+          render json: { success: false, error: 'Sample essay generation is only available for IELTS Task 1 assignments' },
+                 status: :unprocessable_entity
+          return
+        end
+
+        service = SampleEssayGenerationService.new(@essay_assignment)
+        result = service.call
+
+        if result.success?
+          # 將生成的Sample Essay保存到meta欄位
+          @essay_assignment.update(
+            meta: @essay_assignment.meta.merge('sample_essay' => result.sample_essay)
+          )
+
+          render json: {
+            success: true,
+            sample_essay: result.sample_essay
+          }, status: :ok
+        else
+          render json: {
+            success: false,
+            error: result.error_message
+          }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: {
+          success: false,
+          error: "Failed to generate sample essay: #{e.message}"
+        }, status: :internal_server_error
+      end
+
       def create_essay_grading
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
 
@@ -250,6 +306,7 @@ module Api
           :hints,
           :category,
           :answer_visible,
+          :graph_image,
           rubric: [
             :name,
             { app_key: %i[grading general_context] }
@@ -258,6 +315,7 @@ module Api
             :newsfeed_id,
             :level,
             :speaking_pronunciation_pass_score,
+            :sample_essay,
             { speaking_pronunciation_sentences: [:sentence] },
             { self_upload_newsfeed: {}, vocabs: [:word, :pos, :definition, { array: true }] }
           ]

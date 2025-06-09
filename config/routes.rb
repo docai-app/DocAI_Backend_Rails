@@ -40,6 +40,7 @@ Rails.application.routes.draw do
           get 'read'
           get 'show_only'
           get 'download_reports', to: 'essay_gradings#download_reports'
+          post 'generate_sample_essay'
         end
         collection do
           post :parse_vocab_csv
