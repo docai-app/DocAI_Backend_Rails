@@ -233,9 +233,26 @@ module Api
               answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
               meta: @essay_grading.essay_assignment.meta,
+              rubric: @essay_grading.essay_assignment.rubric, # 添加完整rubric信息
+              graph_image_url: @essay_grading.essay_assignment.graph_image_url, # 添加圖片URL
               created_at: @essay_grading.essay_assignment.created_at,
               updated_at: @essay_grading.essay_assignment.updated_at
-            }
+            }.tap do |assignment_data|
+              # 記錄IELTS Task 1功能的使用情況
+              if @essay_grading.essay_assignment.rubric&.dig('name') == 'IELTS Task 1'
+                Rails.logger.info "[EssayGradings#show] IELTS Task 1 assignment viewed: #{@essay_grading.essay_assignment.id}"
+
+                if assignment_data[:graph_image_url]
+                  Rails.logger.info '[EssayGradings#show] Graph image available for IELTS assignment'
+                else
+                  Rails.logger.info '[EssayGradings#show] No graph image for IELTS assignment'
+                end
+
+                if assignment_data[:meta]&.dig('sample_essay')
+                  Rails.logger.info '[EssayGradings#show] Sample essay available for IELTS assignment'
+                end
+              end
+            end
           }
         }, status: :ok
       end
