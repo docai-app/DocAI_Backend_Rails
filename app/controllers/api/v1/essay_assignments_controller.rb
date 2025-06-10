@@ -25,8 +25,12 @@ module Api
         assignment_data = @essay_assignment.as_json
 
         # 添加圖片URL（如果有附件）- IELTS看圖作文功能
-        if @essay_assignment.graph_image.attached?
-          assignment_data['graph_image_url'] = @essay_assignment.graph_image.url
+        graph_image_url = @essay_assignment.graph_image_url
+        if graph_image_url
+          assignment_data['graph_image_url'] = graph_image_url
+          Rails.logger.info "[EssayAssignments#show_only] Graph image URL generated for assignment #{@essay_assignment.id}"
+        else
+          Rails.logger.info "[EssayAssignments#show_only] No graph image URL for assignment #{@essay_assignment.id} (attached: #{@essay_assignment.graph_image.attached?})"
         end
 
         # 添加Sample Essay（只在IELTS Task 1且已生成時）- IELTS功能

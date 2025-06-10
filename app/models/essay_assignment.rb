@@ -58,6 +58,18 @@ class EssayAssignment < ApplicationRecord
                                   message: 'must be less than 10MB' },
                           allow_blank: true
 
+  # 返回圖片的完整URL - 參考School模型的logo_url實現
+  def graph_image_url
+    return nil unless graph_image.attached?
+
+    begin
+      graph_image.url
+    rescue StandardError => e
+      Rails.logger.error "[EssayAssignment#graph_image_url] Failed to generate URL for assignment #{id}: #{e.message}"
+      nil
+    end
+  end
+
   def get_news_feed
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
     return meta['self_upload_newsfeed'] if meta['self_upload_newsfeed'].present?
