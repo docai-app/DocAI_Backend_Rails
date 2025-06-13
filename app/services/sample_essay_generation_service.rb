@@ -83,16 +83,11 @@ class SampleEssayGenerationService
 
   # 構建API請求的payload
   def request_payload
-    inputs = {
-      essaytopic: @essay_assignment.topic || @essay_assignment.title,
-      assignment_details: @essay_assignment.assignment
-    }
-
-    # 如果有圖片附件，添加圖片URL - 這是IELTS看圖作文的關鍵功能
-    if @essay_assignment.graph_image.attached?
-      inputs[:graph_image_url] = @essay_assignment.graph_image.url
-      @logger.info("[SampleEssayGenerationService] Including graph image URL for assignment #{@essay_assignment.id}")
-    end
+    inputs = if is_ielts_task_1?
+               build_ielts_task_1_inputs
+             else
+               build_standard_inputs
+             end
 
     {
       inputs:,
@@ -107,5 +102,86 @@ class SampleEssayGenerationService
       'Authorization' => "Bearer #{@app_key}",
       'Content-Type' => 'application/json'
     }
+  end
+
+  # 判斷是否為 IELTS Task 1 作業
+  def is_ielts_task_1?
+    @essay_assignment.rubric&.dig('name') == 'IELTS Task 1'
+  end
+
+  # 構建 IELTS Task 1 專用的 inputs 格式
+  def build_ielts_task_1_inputs
+    # 先上傳圖片到 Dify 獲取 upload_file_id
+    graph_input = build_ielts_graph_input
+
+    inputs = {
+      graph: graph_input,
+      Essay: 'Sample Essay Content', # Sample Essay 不需要實際作文內容
+      essay_topic: @essay_assignment.topic || @essay_assignment.title
+    }
+
+    @logger.info("[SampleEssayGenerationService] Building IELTS Task 1 inputs for assignment #{@essay_assignment.id}")
+    @logger.info("[SampleEssayGenerationService] Graph input: #{graph_input}")
+    @logger.info("[SampleEssayGenerationService] Topic: #{inputs[:essay_topic]}")
+
+    inputs
+  end
+
+  # 構建 IELTS Task 1 圖片輸入格式
+  def build_ielts_graph_input
+    return nil unless @essay_assignment.graph_image.attached?
+
+    graph_url = @essay_assignment.graph_image.url
+
+    # 使用 Dify 文件上傳服務
+    upload_service = DifyFileUploadService.new(@app_key, @user_id)
+    upload_result = upload_service.upload_from_url(graph_url, 'image')
+
+    if upload_result.success?
+      @logger.info("[SampleEssayGenerationService] Successfully uploaded graph to Dify, upload_file_id: #{upload_result.upload_file_id}")
+
+      # 返回 Dify 期望的文件數組格式
+      [{
+        transfer_method: 'local_file',
+        upload_file_id: upload_result.upload_file_id,
+        type: 'image'
+      }]
+    else
+      @logger.error("[SampleEssayGenerationService] Failed to upload graph to Dify: #{upload_result.error_message}")
+      @logger.warn('[SampleEssayGenerationService] Falling back to direct URL for graph')
+
+      # 如果上傳失敗，回退到直接使用 URL（向後兼容）
+      [{
+        transfer_method: 'remote_url',
+        url: graph_url,
+        type: 'image'
+      }]
+    end
+  rescue StandardError => e
+    @logger.error("[SampleEssayGenerationService] Error building graph input: #{e.message}")
+    @logger.warn('[SampleEssayGenerationService] Falling back to direct URL for graph')
+
+    # 發生錯誤時回退到直接使用 URL
+    [{
+      transfer_method: 'remote_url',
+      url: graph_url,
+      type: 'image'
+    }]
+  end
+
+  # 構建標準 inputs 格式（向後兼容）
+  def build_standard_inputs
+    inputs = {
+      essaytopic: @essay_assignment.topic || @essay_assignment.title,
+      assignment_details: @essay_assignment.assignment
+    }
+
+    # 向後兼容：非IELTS Task 1 的圖片處理保持原有邏輯
+    if @essay_assignment.graph_image.attached?
+      inputs[:graph_image_url] = @essay_assignment.graph_image.url
+      @logger.info("[SampleEssayGenerationService] Including graph image URL for assignment #{@essay_assignment.id}")
+    end
+
+    inputs
   end
 end
