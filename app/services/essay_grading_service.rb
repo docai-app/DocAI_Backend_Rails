@@ -62,7 +62,7 @@ class EssayGradingService
     inputs = if @essay_grading.essay_assignment.category == 'sentence_builder'
                { sentence_builder: @essay_grading.sentence_builder_for_dify.to_json }
              elsif is_ielts_task_1?
-               build_ielts_task_1_inputs
+               build_ielts_task_1_inputs('grading')
              else
                { Essay: @essay_grading.essay, essaytopic: @essay_grading.topic }
              end
@@ -80,14 +80,14 @@ class EssayGradingService
     }
 
     # 記錄完整的請求載荷以便調試
-    Rails.logger.info("[EssayGradingService] Full request payload: #{payload.to_json}")
+    Rails.logger.info("[EssayGradingService] Full grading request payload: #{payload.to_json}")
 
     payload.to_json
   end
 
   def general_context_request_payload
     inputs = if is_ielts_task_1?
-               build_ielts_task_1_inputs
+               build_ielts_task_1_inputs('general_context')
              else
                {
                  Essay: @essay_grading.essay,
@@ -219,58 +219,81 @@ class EssayGradingService
   end
 
   # 構建 IELTS Task 1 專用的 inputs 格式
-  def build_ielts_task_1_inputs
-    # 先上傳圖片到 Dify 獲取 upload_file_id
-    graph_input = build_ielts_graph_input
+  def build_ielts_task_1_inputs(workflow_type)
+    # 根據 workflow 類型選擇正確的 app_key 來上傳圖片
+    graph_input = build_ielts_graph_input(workflow_type)
 
-    inputs = {
-      graph: graph_input,
-      Essay: @essay_grading.essay,
-      essay_topic: @essay_grading.topic
-    }
+    # 根據 workflow 類型使用不同的參數格式
+    inputs = if workflow_type == 'general_context'
+               # general_context workflow 使用標準參數格式
+               {
+                 graph: graph_input,
+                 Essay: @essay_grading.essay,
+                 essaytopic: @essay_grading.topic
+               }
+             else
+               # grading workflow 使用 IELTS 特殊參數格式
+               {
+                 graph: graph_input,
+                 essay: @essay_grading.essay,
+                 essay_topic: @essay_grading.topic
+               }
+             end
 
-    Rails.logger.info("[EssayGradingService] Building IELTS Task 1 inputs for assignment #{@essay_grading.essay_assignment.id}")
+    Rails.logger.info("[EssayGradingService] Building IELTS Task 1 inputs for #{workflow_type} workflow, assignment #{@essay_grading.essay_assignment.id}")
     Rails.logger.info("[EssayGradingService] Graph input: #{graph_input}")
-    Rails.logger.info("[EssayGradingService] Essay length: #{inputs[:Essay]&.length}")
-    Rails.logger.info("[EssayGradingService] Topic: #{inputs[:essay_topic]}")
+    Rails.logger.info("[EssayGradingService] Essay length: #{inputs[:essay] || inputs[:Essay]&.length}")
+    Rails.logger.info("[EssayGradingService] Topic: #{inputs[:essay_topic] || inputs[:essaytopic]}")
 
     inputs
   end
 
   # 構建 IELTS Task 1 圖片輸入格式
-  def build_ielts_graph_input
+  def build_ielts_graph_input(workflow_type)
     return nil unless @essay_grading.essay_assignment.graph_image.attached?
 
     graph_url = @essay_grading.essay_assignment.graph_image.url
 
+    # 根據 workflow 類型選擇正確的 app_key
+    app_key = case workflow_type
+              when 'grading'
+                @grading_app_key
+              when 'general_context'
+                @general_context_app_key
+              else
+                @grading_app_key # 默認使用 grading app_key
+              end
+
+    Rails.logger.info("[EssayGradingService] Using app_key for #{workflow_type}: #{app_key&.first(10)}...")
+
     # 使用 Dify 文件上傳服務
-    upload_service = DifyFileUploadService.new(@grading_app_key, @user_id)
+    upload_service = DifyFileUploadService.new(app_key, @user_id)
     upload_result = upload_service.upload_from_url(graph_url, 'image')
 
     if upload_result.success?
-      Rails.logger.info("[EssayGradingService] Successfully uploaded graph to Dify, upload_file_id: #{upload_result.upload_file_id}")
+      Rails.logger.info("[EssayGradingService] Successfully uploaded graph to Dify for #{workflow_type}, upload_file_id: #{upload_result.upload_file_id}")
 
-      # 返回 Dify 期望的文件數組格式 - 嘗試不同的格式
+      # 返回 Dify 期望的文件數組格式
       file_input = {
         'transfer_method' => 'local_file',
         'upload_file_id' => upload_result.upload_file_id,
         'type' => 'image'
       }
 
-      Rails.logger.info("[EssayGradingService] File input format: #{file_input}")
+      Rails.logger.info("[EssayGradingService] File input format for #{workflow_type}: #{file_input}")
 
-      # 嘗試返回數組格式，使用字符串鍵
+      # 返回數組格式，使用字符串鍵
       [file_input]
     else
-      Rails.logger.error("[EssayGradingService] Failed to upload graph to Dify: #{upload_result.error_message}")
-      Rails.logger.warn('[EssayGradingService] Falling back to direct URL for graph')
+      Rails.logger.error("[EssayGradingService] Failed to upload graph to Dify for #{workflow_type}: #{upload_result.error_message}")
+      Rails.logger.warn("[EssayGradingService] Falling back to direct URL for graph in #{workflow_type}")
 
       # 如果上傳失敗，回退到直接使用 URL（向後兼容）
       graph_url
     end
   rescue StandardError => e
-    Rails.logger.error("[EssayGradingService] Error building graph input: #{e.message}")
-    Rails.logger.warn('[EssayGradingService] Falling back to direct URL for graph')
+    Rails.logger.error("[EssayGradingService] Error building graph input for #{workflow_type}: #{e.message}")
+    Rails.logger.warn("[EssayGradingService] Falling back to direct URL for graph in #{workflow_type}")
 
     # 發生錯誤時回退到直接使用 URL
     graph_url

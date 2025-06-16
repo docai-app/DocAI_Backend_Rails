@@ -302,28 +302,48 @@ module Api
       end
 
       def essay_assignment_params
-        params.require(:essay_assignment).permit(
+        # 首先獲取基本的 permitted parameters（不包括meta，我們稍後單獨處理）
+        permitted_params = params.require(:essay_assignment).permit(
           :topic,
           :assignment,
           :title,
-          :remark,
           :hints,
           :category,
           :answer_visible,
+          :remark,
           :graph_image,
           rubric: [
             :name,
             { app_key: %i[grading general_context] }
-          ],
-          meta: [
-            :newsfeed_id,
-            :level,
-            :speaking_pronunciation_pass_score,
-            :sample_essay,
-            { speaking_pronunciation_sentences: [:sentence] },
-            { self_upload_newsfeed: {}, vocabs: [:word, :pos, :definition, { array: true }] }
           ]
-        )
+        ).to_h
+
+        # 單獨處理meta參數的不同格式
+        if params[:essay_assignment][:meta].present?
+          meta_param = params[:essay_assignment][:meta]
+
+          if meta_param.is_a?(String)
+            # 如果meta是JSON字符串，解析它
+            begin
+              parsed_meta = JSON.parse(meta_param)
+              permitted_params[:meta] = parsed_meta
+              Rails.logger.info('[EssayAssignmentsController] Successfully parsed meta JSON string')
+            rescue JSON::ParserError => e
+              Rails.logger.warn("[EssayAssignmentsController] Failed to parse meta JSON: #{e.message}")
+              # 如果JSON解析失敗，保持原始字符串
+              permitted_params[:meta] = meta_param
+            end
+          elsif meta_param.is_a?(ActionController::Parameters)
+            # 如果meta是嵌套參數，允許所有鍵通過
+            permitted_params[:meta] = meta_param.permit!.to_h
+            Rails.logger.info('[EssayAssignmentsController] Successfully processed nested meta parameters')
+          else
+            # 其他情況，直接使用原值
+            permitted_params[:meta] = meta_param
+          end
+        end
+
+        permitted_params
       end
 
       def pagination_meta(object)

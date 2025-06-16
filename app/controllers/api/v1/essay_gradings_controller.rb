@@ -370,7 +370,7 @@ module Api
               ]
             }
           ],
-          meta: %i[newsfeed_id],
+          meta: %i[newsfeed_id sample_essay],
           sentence_builder: %i[vocab sentence]
         )
       end
