@@ -35,7 +35,11 @@ Rails.application.routes.draw do
 
       # ********** Essay grading ********
       resources :essay_assignments, only: %i[index show create update destroy] do
-        resources :essay_gradings, only: [:create]
+        resources :essay_gradings, only: [:create] do
+          collection do
+            post :batch_upload_pdfs
+          end
+        end
         member do
           get 'read'
           get 'show_only'

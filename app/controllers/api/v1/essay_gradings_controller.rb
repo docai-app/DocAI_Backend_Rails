@@ -285,6 +285,84 @@ module Api
         end
       end
 
+      # 批量上传PDF文件并创建作业评分
+      # POST /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/batch_upload_pdfs
+      def batch_upload_pdfs
+        # set_essay_assignment_by_code
+        essay_assignment = EssayAssignment.find(params[:essay_assignment_id])
+        
+        # 检查权限：只有教师或管理员可以批量上传
+        unless current_general_user.aienglish_user? && 
+               (current_general_user.aienglish_role == 'teacher' || current_general_user.aienglish_role == 'admin')
+          render json: { success: false, error: 'Only teachers and admins can batch upload PDFs' }, status: :forbidden
+          return
+        end
+
+        # 验证PDF文件参数
+        pdf_files = params[:pdf_files]
+        if pdf_files.blank?
+          render json: { success: false, error: 'No PDF files provided' }, status: :bad_request
+          return
+        end
+
+        # 验证文件类型和大小
+        pdf_files.each do |file|
+          unless file.content_type == 'application/pdf'
+            render json: { success: false, error: "File #{file.original_filename} is not a PDF" }, status: :bad_request
+            return
+          end
+          
+          # 检查文件大小（建议不超过10MB）
+          if file.size > 10.megabytes
+            render json: { success: false, error: "File #{file.original_filename} is too large (max 10MB)" }, status: :bad_request
+            return
+          end
+        end
+
+        # 调用服务处理批量上传
+        service = BatchPdfEssayService.new(essay_assignment.id, current_general_user.id)
+        result = service.process_pdfs(pdf_files)
+
+        if result.success?
+          render json: {
+            success: true,
+            message: "Successfully processed #{result.processed_count} PDF files",
+            processed_count: result.processed_count,
+            successful_gradings: result.successful_gradings.map do |grading|
+              {
+                id: grading.id,
+                student_email: grading.general_user.email,
+                student_name: grading.general_user.nickname,
+                status: grading.status,
+                created_at: grading.created_at
+              }
+            end,
+            not_found_emails: result.not_found_emails
+          }, status: :created
+        else
+          render json: {
+            success: false,
+            error: "Failed to process some PDF files",
+            processed_count: result.processed_count,
+            errors: result.errors,
+            successful_gradings: result.successful_gradings.map do |grading|
+              {
+                id: grading.id,
+                student_email: grading.general_user.email,
+                student_name: grading.general_user.nickname,
+                status: grading.status,
+                created_at: grading.created_at
+              }
+            end,
+            not_found_emails: result.not_found_emails
+          }, status: :unprocessable_entity
+        end
+
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradingsController#batch_upload_pdfs] Error: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { success: false, error: "Internal server error: #{e.message}" }, status: :internal_server_error
+      end
+
       def update
         @user = current_general_user
         if @user.update(user_params)
