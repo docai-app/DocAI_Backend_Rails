@@ -870,7 +870,29 @@ module Api
             ]
             pdf.move_down 4
           end
-          pdf.move_down 25
+          pdf.move_down 15
+
+          # 如果有graph_image_url， 
+          if essay_grading.essay_assignment.graph_image_url.present?
+            # 下載 logo 到臨時文件
+            begin
+                pdf.text 'Reference Chart/Graph:', size: 15, style: :bold
+                pdf.stroke_color '444444'
+                pdf.stroke_horizontal_rule
+                pdf.move_down 4
+                require 'open-uri'
+                logo_tempfile = URI.open(essay_grading.essay_assignment.graph_image_url)
+                # 在左上角顯示 logo，寬度為 50 點
+                image_info = pdf.image logo_tempfile, at: [0, pdf.cursor], width: pdf.bounds.width
+                # 向下移動一定距離，以便文本不會與 logo 重疊
+                pdf.move_down image_info.height
+            rescue StandardError => e
+                # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
+                Rails.logger.error("Error loading school logo: #{e.message}")
+                # 不需要移動光標，因為沒有添加 logo
+            end
+        end
+        pdf.move_down 10
 
           # 解析 JSON 数据
           sentences = JSON.parse(json_data['data']['text'])

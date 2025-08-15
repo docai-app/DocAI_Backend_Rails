@@ -42,8 +42,10 @@ module Api
       end
 
       def read
-        @essay_assignment = EssayAssignment.find(params[:id])
-        render json: { success: true, essay_assignment: @essay_assignment }
+        set_essay_assignment
+        essay_assignment_data = @essay_assignment.as_json
+        essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
+        render json: { success: true, essay_assignment: essay_assignment_data }
       end
 
       def show
