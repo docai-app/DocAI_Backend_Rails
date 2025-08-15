@@ -80,10 +80,17 @@ class BatchPdfEssayService
     # end
 
     # 提取PDF内容
-    essay_content = extract_pdf_content(pdf_file)
+    # essay_content = extract_pdf_content(pdf_file)
     # puts "essay_content: #{essay_content}"
-    # essay_content = "test pdf content"
-    
+    # essay_content = "test pdf content" 
+    storage_url = AzureService.upload(pdf_file) if pdf_file.present?
+    ocrRes = RestClient.post "#{ENV['DOCAI_ALPHA_URL']}/alpha/ocr", { document_url: storage_url }
+    essay_content = JSON.parse(ocrRes)['result']
+    # puts "essay_content: #{essay_content}" 
+
+    # @errors << "Could not extract content from PDF for student: #{student_email}"
+    # return
+
     if essay_content.blank?
       @errors << "Could not extract content from PDF for student: #{student_email}"
       return
