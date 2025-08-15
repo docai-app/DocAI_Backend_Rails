@@ -70,7 +70,7 @@ class BatchPdfEssayService
     
     if student.nil?
       @not_found_emails << student_email
-      Rails.logger.warn("[BatchPdfEssayService] Student not found for email: #{student_email}")
+      Rails.logger.warn("[BatchPdfEssayService] Student not found for nickname: #{student_email}")
       return
     end
 
