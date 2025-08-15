@@ -65,7 +65,8 @@ class BatchPdfEssayService
     student_email = extract_email_from_filename(pdf_file.original_filename)
     
     # 查找学生用户
-    student = find_student_by_email(student_email)
+    student = find_student_by_nickname(student_email)
+    # student = find_student_by_email(student_email)
     
     if student.nil?
       @not_found_emails << student_email
@@ -117,8 +118,12 @@ class BatchPdfEssayService
     filename.gsub(/\.pdf$/i, '').strip
   end
 
-  def find_student_by_email(email)
+  def find_student_by_email(email) 
     GeneralUser.find_by(email: email)
+  end
+
+  def find_student_by_nickname(nickname)
+    GeneralUser.find_by(nickname: nickname) 
   end
 
   def student_has_existing_grading?(student_id)
