@@ -213,6 +213,7 @@ module Api
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
+            meta: @essay_grading.meta,
             using_time: @essay_grading.using_time,
             file: @essay_grading.file.url,
             submission_class_name: @essay_grading.submission_class_name,
@@ -448,7 +449,7 @@ module Api
               ]
             }
           ],
-          meta: %i[newsfeed_id sample_essay],
+          meta: %i[newsfeed_id sample_essay audiobase64s],
           sentence_builder: %i[vocab sentence]
         )
       end
