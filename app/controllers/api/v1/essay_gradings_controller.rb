@@ -449,7 +449,7 @@ module Api
               ]
             }
           ],
-          meta: %i[newsfeed_id sample_essay audiobase64s],
+          meta: %i[newsfeed_id sample_essay audiobase64s files],
           sentence_builder: %i[vocab sentence]
         )
       end
