@@ -38,6 +38,7 @@ Rails.application.routes.draw do
         resources :essay_gradings, only: [:create] do
           collection do
             post :batch_upload_pdfs
+            post :batch_create
           end
         end
         member do

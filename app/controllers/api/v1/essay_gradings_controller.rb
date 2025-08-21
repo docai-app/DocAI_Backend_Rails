@@ -364,6 +364,110 @@ module Api
         render json: { success: false, error: "Internal server error: #{e.message}" }, status: :internal_server_error
       end
 
+      # 批量创建作业评分（JSON）
+      # 支持两种请求体：
+      # 1) 顶层数组：[{ nickname, meta: { files: [...] }, essay: "..." }, ...]
+      # 2) 包在 gradings 键：{ gradings: [ ...同上... ] }
+      # POST /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/batch_create
+      def batch_create
+        essay_assignment = EssayAssignment.find_by(id: params[:essay_assignment_id]) ||
+                           EssayAssignment.find_by(code: params[:essay_assignment_id])
+
+        unless essay_assignment
+          render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+          return
+        end
+
+        # unless current_general_user.aienglish_user? &&
+        #        %w[teacher admin].include?(current_general_user.aienglish_role)
+        #   render json: { success: false, error: 'Only teachers and admins can batch create' }, status: :forbidden
+        #   return
+        # end
+
+        items = params[:gradings] || params[:_json]
+        unless items.is_a?(Array) && items.present?
+          render json: { success: false, error: 'Invalid payload: expect an array' }, status: :bad_request
+          return
+        end
+
+        successful_gradings = []
+        invalid_items = []
+        not_found_nicknames = []
+        processed_count = 0
+
+        items.each do |item|
+          nickname = item[:nickname] || item['nickname']
+          if nickname.blank?
+            invalid_items << { nickname: nil, errors: ['Missing nickname'] }
+            next
+          end
+
+          student = GeneralUser.find_by(nickname: nickname) ||
+                    GeneralUser.where('LOWER(nickname) = ?', nickname.to_s.downcase).first
+          unless student
+            not_found_nicknames << nickname
+            next
+          end
+
+          grading_attrs = { essay: item[:essay] || item['essay'] }
+          meta_input = item[:meta] || item['meta']
+        #   puts "meta_input #{meta_input}"
+          if meta_input.present?
+            meta_hash =
+              if defined?(ActionController::Parameters) && meta_input.is_a?(ActionController::Parameters)
+                meta_input.to_unsafe_h
+              else
+                meta_input
+              end
+            allowed_meta_keys = %w[newsfeed_id sample_essay audiobase64s files]
+            grading_attrs[:meta] = (grading_attrs[:meta] || {}).merge(meta_hash.slice(*allowed_meta_keys))
+          end
+
+          grading = essay_assignment.essay_gradings.new(grading_attrs)
+          grading.general_user = student
+          grading.topic = essay_assignment.topic
+
+          if essay_assignment.rubric.present? && essay_assignment.rubric['app_key'].present?
+            grading.grading ||= {}
+            grading.grading['app_key'] = essay_assignment.rubric['app_key']['grading']
+            grading.general_context ||= {}
+            grading.general_context['app_key'] = essay_assignment.rubric['app_key']['general_context']
+          end
+
+          if grading.save
+            successful_gradings << grading
+            processed_count += 1
+          else
+            invalid_items << { nickname: nickname, errors: grading.errors.full_messages }
+          end
+        end
+
+        if invalid_items.empty? && not_found_nicknames.empty?
+          render json: {
+            success: true,
+            message: "Successfully created #{processed_count} gradings",
+            processed_count: processed_count,
+            successful_gradings: successful_gradings.map { |g|
+              { id: g.id, student_nickname: g.general_user.nickname, status: g.status, created_at: g.created_at }
+            }
+          }, status: :created
+        else
+          render json: {
+            success: false,
+            error: 'Some items failed',
+            processed_count: processed_count,
+            successful_gradings: successful_gradings.map { |g|
+              { id: g.id, student_nickname: g.general_user.nickname, status: g.status, created_at: g.created_at }
+            },
+            not_found_nicknames: not_found_nicknames,
+            invalid_items: invalid_items
+          }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradingsController#batch_create] Error: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { success: false, error: "Internal server error: #{e.message}" }, status: :internal_server_error
+      end
+
       def update
         @user = current_general_user
         if @user.update(user_params)
