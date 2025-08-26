@@ -49,6 +49,7 @@ Rails.application.routes.draw do
         end
         collection do
           post :parse_vocab_csv
+          get 'by_community/:community_id', to: 'essay_assignments#by_community'
         end
       end
       resources :essay_gradings, only: %i[index show update destroy] do
@@ -63,6 +64,20 @@ Rails.application.routes.draw do
         member do
           post 'add_students'
           post 'remove_students'
+        end
+      end
+
+      # ********** Community API *********
+      resources :communities do
+        member do
+          delete 'leave'
+          get 'members'
+          get 'stats'
+          get 'essay_assignments'
+        end
+        collection do
+          post 'join_by_code'
+          get 'search_by_code'
         end
       end
 

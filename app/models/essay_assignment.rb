@@ -40,6 +40,7 @@ class EssayAssignment < ApplicationRecord
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
+  belongs_to :community, optional: true
 
   # 檔案附件 - 為IELTS看圖作文添加圖片上傳功能
   has_one_attached :graph_image, service: :microsoft
