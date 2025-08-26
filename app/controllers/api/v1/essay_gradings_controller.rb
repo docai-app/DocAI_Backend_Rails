@@ -213,6 +213,7 @@ module Api
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             essay: @essay_grading.essay,
+            meta: @essay_grading.meta,
             using_time: @essay_grading.using_time,
             file: @essay_grading.file.url,
             submission_class_name: @essay_grading.submission_class_name,
@@ -233,9 +234,26 @@ module Api
               answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
               meta: @essay_grading.essay_assignment.meta,
+              rubric: @essay_grading.essay_assignment.rubric, # 添加完整rubric信息
+              graph_image_url: @essay_grading.essay_assignment.graph_image_url, # 添加圖片URL
               created_at: @essay_grading.essay_assignment.created_at,
               updated_at: @essay_grading.essay_assignment.updated_at
-            }
+            }.tap do |assignment_data|
+              # 記錄IELTS Task 1功能的使用情況
+              if @essay_grading.essay_assignment.rubric&.dig('name') == 'IELTS Task 1'
+                Rails.logger.info "[EssayGradings#show] IELTS Task 1 assignment viewed: #{@essay_grading.essay_assignment.id}"
+
+                if assignment_data[:graph_image_url]
+                  Rails.logger.info '[EssayGradings#show] Graph image available for IELTS assignment'
+                else
+                  Rails.logger.info '[EssayGradings#show] No graph image for IELTS assignment'
+                end
+
+                if assignment_data[:meta]&.dig('sample_essay')
+                  Rails.logger.info '[EssayGradings#show] Sample essay available for IELTS assignment'
+                end
+              end
+            end
           }
         }, status: :ok
       end
@@ -266,6 +284,188 @@ module Api
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      # 批量上传PDF文件并创建作业评分
+      # POST /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/batch_upload_pdfs
+      def batch_upload_pdfs
+        # set_essay_assignment_by_code
+        essay_assignment = EssayAssignment.find(params[:essay_assignment_id])
+        
+        # 检查权限：只有教师或管理员可以批量上传
+        unless current_general_user.aienglish_user? && 
+               (current_general_user.aienglish_role == 'teacher' || current_general_user.aienglish_role == 'admin')
+          render json: { success: false, error: 'Only teachers and admins can batch upload PDFs' }, status: :forbidden
+          return
+        end
+
+        # 验证PDF文件参数
+        pdf_files = params[:pdf_files]
+        if pdf_files.blank?
+          render json: { success: false, error: 'No PDF files provided' }, status: :bad_request
+          return
+        end
+
+        # 验证文件类型和大小
+        pdf_files.each do |file|
+          unless file.content_type == 'application/pdf'
+            render json: { success: false, error: "File #{file.original_filename} is not a PDF" }, status: :bad_request
+            return
+          end
+          
+          # 检查文件大小（建议不超过10MB）
+          if file.size > 10.megabytes
+            render json: { success: false, error: "File #{file.original_filename} is too large (max 10MB)" }, status: :bad_request
+            return
+          end
+        end
+
+        # 调用服务处理批量上传
+        service = BatchPdfEssayService.new(essay_assignment.id, current_general_user.id)
+        result = service.process_pdfs(pdf_files)
+
+        if result.success?
+          render json: {
+            success: true,
+            message: "Successfully processed #{result.processed_count} PDF files",
+            processed_count: result.processed_count,
+            successful_gradings: result.successful_gradings.map do |grading|
+              {
+                id: grading.id,
+                student_email: grading.general_user.email,
+                student_name: grading.general_user.nickname,
+                status: grading.status,
+                created_at: grading.created_at
+              }
+            end,
+            not_found_emails: result.not_found_emails
+          }, status: :created
+        else
+          render json: {
+            success: false,
+            error: "Failed to process some PDF files",
+            processed_count: result.processed_count,
+            errors: result.errors,
+            successful_gradings: result.successful_gradings.map do |grading|
+              {
+                id: grading.id,
+                student_email: grading.general_user.email,
+                student_name: grading.general_user.nickname,
+                status: grading.status,
+                created_at: grading.created_at
+              }
+            end,
+            not_found_emails: result.not_found_emails
+          }, status: :unprocessable_entity
+        end
+
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradingsController#batch_upload_pdfs] Error: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { success: false, error: "Internal server error: #{e.message}" }, status: :internal_server_error
+      end
+
+      # 批量创建作业评分（JSON）
+      # 支持两种请求体：
+      # 1) 顶层数组：[{ nickname, meta: { files: [...] }, essay: "..." }, ...]
+      # 2) 包在 gradings 键：{ gradings: [ ...同上... ] }
+      # POST /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/batch_create
+      def batch_create
+        essay_assignment = EssayAssignment.find_by(id: params[:essay_assignment_id]) ||
+                           EssayAssignment.find_by(code: params[:essay_assignment_id])
+
+        unless essay_assignment
+          render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+          return
+        end
+
+        # unless current_general_user.aienglish_user? &&
+        #        %w[teacher admin].include?(current_general_user.aienglish_role)
+        #   render json: { success: false, error: 'Only teachers and admins can batch create' }, status: :forbidden
+        #   return
+        # end
+
+        items = params[:gradings] || params[:_json]
+        unless items.is_a?(Array) && items.present?
+          render json: { success: false, error: 'Invalid payload: expect an array' }, status: :bad_request
+          return
+        end
+
+        successful_gradings = []
+        invalid_items = []
+        not_found_nicknames = []
+        processed_count = 0
+
+        items.each do |item|
+          nickname = item[:nickname] || item['nickname']
+          if nickname.blank?
+            invalid_items << { nickname: nil, errors: ['Missing nickname'] }
+            next
+          end
+
+          student = GeneralUser.find_by(nickname: nickname) ||
+                    GeneralUser.where('LOWER(nickname) = ?', nickname.to_s.downcase).first
+          unless student
+            not_found_nicknames << nickname
+            next
+          end
+
+          grading_attrs = { essay: item[:essay] || item['essay'] }
+          meta_input = item[:meta] || item['meta']
+        #   puts "meta_input #{meta_input}"
+          if meta_input.present?
+            meta_hash =
+              if defined?(ActionController::Parameters) && meta_input.is_a?(ActionController::Parameters)
+                meta_input.to_unsafe_h
+              else
+                meta_input
+              end
+            allowed_meta_keys = %w[newsfeed_id sample_essay audiobase64s files]
+            grading_attrs[:meta] = (grading_attrs[:meta] || {}).merge(meta_hash.slice(*allowed_meta_keys))
+          end
+
+          grading = essay_assignment.essay_gradings.new(grading_attrs)
+          grading.general_user = student
+          grading.topic = essay_assignment.topic
+
+          if essay_assignment.rubric.present? && essay_assignment.rubric['app_key'].present?
+            grading.grading ||= {}
+            grading.grading['app_key'] = essay_assignment.rubric['app_key']['grading']
+            grading.general_context ||= {}
+            grading.general_context['app_key'] = essay_assignment.rubric['app_key']['general_context']
+          end
+
+          if grading.save
+            successful_gradings << grading
+            processed_count += 1
+          else
+            invalid_items << { nickname: nickname, errors: grading.errors.full_messages }
+          end
+        end
+
+        if invalid_items.empty? && not_found_nicknames.empty?
+          render json: {
+            success: true,
+            message: "Successfully created #{processed_count} gradings",
+            processed_count: processed_count,
+            successful_gradings: successful_gradings.map { |g|
+              { id: g.id, student_nickname: g.general_user.nickname, status: g.status, created_at: g.created_at }
+            }
+          }, status: :created
+        else
+          render json: {
+            success: false,
+            error: 'Some items failed',
+            processed_count: processed_count,
+            successful_gradings: successful_gradings.map { |g|
+              { id: g.id, student_nickname: g.general_user.nickname, status: g.status, created_at: g.created_at }
+            },
+            not_found_nicknames: not_found_nicknames,
+            invalid_items: invalid_items
+          }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradingsController#batch_create] Error: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { success: false, error: "Internal server error: #{e.message}" }, status: :internal_server_error
       end
 
       def update
@@ -353,7 +553,7 @@ module Api
               ]
             }
           ],
-          meta: %i[newsfeed_id],
+          meta: %i[newsfeed_id sample_essay audiobase64s files],
           sentence_builder: %i[vocab sentence]
         )
       end
@@ -775,7 +975,29 @@ module Api
             ]
             pdf.move_down 4
           end
-          pdf.move_down 25
+          pdf.move_down 15
+
+          # 如果有graph_image_url， 
+          if essay_grading.essay_assignment.graph_image_url.present?
+            # 下載 logo 到臨時文件
+            begin
+                pdf.text 'Reference Chart/Graph:', size: 15, style: :bold
+                pdf.stroke_color '444444'
+                pdf.stroke_horizontal_rule
+                pdf.move_down 4
+                require 'open-uri'
+                logo_tempfile = URI.open(essay_grading.essay_assignment.graph_image_url)
+                # 在左上角顯示 logo，寬度為 50 點
+                image_info = pdf.image logo_tempfile, at: [0, pdf.cursor], width: pdf.bounds.width
+                # 向下移動一定距離，以便文本不會與 logo 重疊
+                pdf.move_down image_info.height
+            rescue StandardError => e
+                # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
+                Rails.logger.error("Error loading school logo: #{e.message}")
+                # 不需要移動光標，因為沒有添加 logo
+            end
+        end
+        pdf.move_down 10
 
           # 解析 JSON 数据
           sentences = JSON.parse(json_data['data']['text'])

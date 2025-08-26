@@ -35,14 +35,21 @@ Rails.application.routes.draw do
 
       # ********** Essay grading ********
       resources :essay_assignments, only: %i[index show create update destroy] do
-        resources :essay_gradings, only: [:create]
+        resources :essay_gradings, only: [:create] do
+          collection do
+            post :batch_upload_pdfs
+            post :batch_create
+          end
+        end
         member do
           get 'read'
           get 'show_only'
           get 'download_reports', to: 'essay_gradings#download_reports'
+          post 'generate_sample_essay'
         end
         collection do
           post :parse_vocab_csv
+          get 'by_community/:community_id', to: 'essay_assignments#by_community'
         end
       end
       resources :essay_gradings, only: %i[index show update destroy] do
@@ -57,6 +64,20 @@ Rails.application.routes.draw do
         member do
           post 'add_students'
           post 'remove_students'
+        end
+      end
+
+      # ********** Community API *********
+      resources :communities do
+        member do
+          delete 'leave'
+          get 'members'
+          get 'stats'
+          get 'essay_assignments'
+        end
+        collection do
+          post 'join_by_code'
+          get 'search_by_code'
         end
       end
 
