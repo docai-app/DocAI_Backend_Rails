@@ -433,6 +433,9 @@ module Api
               # 更新 role 到 meta 欄位
               user.aienglish_role = row['role'] if row['role'].present?
 
+              user.banbie = row['banbie'] if row['banbie'].present?
+              user.class_no = row['class_no'] if row['class_no'].present?
+
               if user.save
                 updated_users << user
               else
