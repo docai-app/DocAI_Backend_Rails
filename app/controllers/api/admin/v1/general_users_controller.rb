@@ -432,6 +432,7 @@ module Api
 
               # 更新 role 到 meta 欄位
               user.aienglish_role = row['role'] if row['role'].present?
+              user.nickname = row['nickname'] if row['nickname'].present?
 
               user.banbie = row['class_name'] if row['class_name'].present?
               user.class_no = row['class_no'] if row['class_no'].present?
