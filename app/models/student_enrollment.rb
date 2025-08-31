@@ -49,10 +49,10 @@ class StudentEnrollment < ApplicationRecord
   }
 
   # 學生不能同時在多個學校有活躍狀態
-  validate :student_not_in_multiple_schools_when_active
+  # validate :student_not_in_multiple_schools_when_active
 
   # 學生不能在同一學校有多個活躍學年
-  validate :student_not_in_multiple_active_academic_years_in_same_school
+  # validate :student_not_in_multiple_active_academic_years_in_same_school
 
   # 獲取指定日期時的班級信息
   scope :at_date, lambda { |date|
