@@ -48,7 +48,7 @@ class TeacherAssignment < ApplicationRecord
   }
 
   # 教師不能同時在多個學校有活躍狀態
-  validate :teacher_not_in_multiple_schools_when_active
+  # validate :teacher_not_in_multiple_schools_when_active
 
   # 教師不能在同一學校有多個活躍學年
   # validate :teacher_not_in_multiple_active_academic_years_in_same_school
