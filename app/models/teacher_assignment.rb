@@ -51,7 +51,7 @@ class TeacherAssignment < ApplicationRecord
   validate :teacher_not_in_multiple_schools_when_active
 
   # 教師不能在同一學校有多個活躍學年
-  validate :teacher_not_in_multiple_active_academic_years_in_same_school
+  # validate :teacher_not_in_multiple_active_academic_years_in_same_school
 
   # 獲取指定日期時的任教信息
   scope :at_date, lambda { |date|
