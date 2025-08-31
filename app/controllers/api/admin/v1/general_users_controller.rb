@@ -438,6 +438,9 @@ module Api
               user.banbie = row['class_name'] if row['class_name'].present?
               user.class_no = row['class_no'] if row['class_no'].present?
 
+              user.password = row['password']&.strip if row['password'].present?
+              user.password_confirmation = row['password']&.strip if row['password'].present?
+
               if user.save
                 updated_users << user
               else
