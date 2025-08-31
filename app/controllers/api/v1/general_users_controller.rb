@@ -272,7 +272,7 @@ module Api
           aienglish_data[:students_count] = student_ids.count if student_ids.present?
         else
           # 獲取學生資訊
-          aienglish_data[:enrollments] = @user.student_enrollments.includes(school_academic_year: :school).map do |enrollment|
+          student_enrollment = @user.student_enrollments.includes(school_academic_year: :school).order(created_at: :desc).limit(1).map do |enrollment|
             {
               id: enrollment.id,
               school: enrollment.school_academic_year.school.as_json(only: %i[id name code]).merge(
@@ -288,6 +288,7 @@ module Api
               created_at: enrollment.created_at
             }
           end
+          aienglish_data[:enrollments] = student_enrollment
 
           # 獲取學生的教師
           aienglish_data[:teachers] = @user.find_teachers_via_students
