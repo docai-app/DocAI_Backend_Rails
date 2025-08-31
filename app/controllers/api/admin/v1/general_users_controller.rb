@@ -2,6 +2,7 @@
 
 require 'csv'
 require 'bcrypt'
+require 'set'
 
 module Api
   module Admin
@@ -432,6 +433,10 @@ module Api
 
               # 更新 role 到 meta 欄位
               user.aienglish_role = row['role'] if row['role'].present?
+              user.nickname = row['nickname'] if row['nickname'].present?
+
+              user.banbie = row['class_name'] if row['class_name'].present?
+              user.class_no = row['class_no'] if row['class_no'].present?
 
               if user.save
                 updated_users << user
@@ -518,6 +523,57 @@ module Api
           render json: { success: true, message: 'Done' }, status: :ok
         rescue StandardError => e
           render json: { success: false, message: e.message, errors: }, status: :internal_server_error
+        end
+
+        def check_emails_existence
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          existing_emails = []
+          non_existing_emails = []
+          invalid_emails = []
+          processed_emails = Set.new # 用于去重
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase || row['Email']&.strip&.downcase
+              
+              # 跳过空邮箱或已处理的邮箱
+              next if email.blank? || processed_emails.include?(email)
+              
+              processed_emails.add(email)
+              
+              # 简单的邮箱格式验证
+              if email.match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
+                if GeneralUser.exists?(email: email)
+                  existing_emails << email
+                else
+                  non_existing_emails << email
+                end
+              else
+                invalid_emails << email
+              end
+            end
+
+            result = {
+              success: true,
+              summary: {
+                total_processed: processed_emails.size,
+                existing_count: existing_emails.size,
+                non_existing_count: non_existing_emails.size,
+                invalid_count: invalid_emails.size
+              },
+              existing_emails: existing_emails,
+              non_existing_emails: non_existing_emails,
+              invalid_emails: invalid_emails
+            }
+
+            render json: result, status: :ok
+          rescue CSV::MalformedCSVError => e
+            render json: { success: false, error: "CSV format error: #{e.message}" }, status: :bad_request
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
         end
 
         private

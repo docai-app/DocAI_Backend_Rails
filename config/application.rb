@@ -35,6 +35,7 @@ module DocaiApi
     # config.eager_load_paths << Rails.root.join("extras")
     config.autoload_paths << Rails.root.join('lib')
     config.autoload_paths += %W[#{config.root}/app/constants]
+    config.autoload_paths += %W[#{config.root}/app/validators]
 
     config.eager_load = true
     config.autoloader = :classic

@@ -12,21 +12,73 @@ module Api
       def index
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
-        @essay_assignments = @essay_assignments.select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
-                                                       :topic, :created_at, :updated_at, :code, :assignment).order('created_at desc')
+        
+        # 添加按Community筛选
+        if params[:community_id].present?
+          community = Community.find_by(id: params[:community_id])
+          
+          unless community
+            return render json: { success: false, error: 'Community not found' }, status: :not_found
+          end
+          
+          # 检查用户权限
+          unless community.creator?(current_general_user) || community.member?(current_general_user)
+            return render json: { success: false, error: 'Access denied to this community' }, status: :forbidden
+          end
+          
+          @essay_assignments = @essay_assignments.where(community_id: params[:community_id])
+        end
+        
+        @essay_assignments = @essay_assignments.includes(:community)
+                                               .select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
+                                                      :topic, :created_at, :updated_at, :code, :assignment, :community_id)
+                                               .order('created_at desc')
 
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
-        render json: { success: true, essay_assignments: @essay_assignments, meta: pagination_meta(@essay_assignments) },
+        
+        # 添加Community信息到响应
+        assignments_with_community = @essay_assignments.map do |assignment|
+          assignment_data = assignment.as_json
+          if assignment.community
+            assignment_data['community'] = {
+              id: assignment.community.id,
+              name: assignment.community.name,
+              code: assignment.community.code
+            }
+          end
+          assignment_data
+        end
+        
+        render json: { success: true, essay_assignments: assignments_with_community, meta: pagination_meta(@essay_assignments) },
                status: :ok
       end
 
       def show_only
-        render json: { success: true, essay_assignment: @essay_assignment }
+        # 構建基本響應數據
+        assignment_data = @essay_assignment.as_json
+
+        # 添加圖片URL（如果有附件）- IELTS看圖作文功能
+        graph_image_url = @essay_assignment.graph_image_url
+        if graph_image_url
+          assignment_data['graph_image_url'] = graph_image_url
+          Rails.logger.info "[EssayAssignments#show_only] Graph image URL generated for assignment #{@essay_assignment.id}"
+        else
+          Rails.logger.info "[EssayAssignments#show_only] No graph image URL for assignment #{@essay_assignment.id} (attached: #{@essay_assignment.graph_image.attached?})"
+        end
+
+        # 添加Sample Essay（只在IELTS Task 1且已生成時）- IELTS功能
+        if @essay_assignment.name == 'IELTS Task 1' && @essay_assignment.sample_essay.present?
+          assignment_data['sample_essay'] = @essay_assignment.sample_essay
+        end
+
+        render json: { success: true, essay_assignment: assignment_data }
       end
 
       def read
-        @essay_assignment = EssayAssignment.find(params[:id])
-        render json: { success: true, essay_assignment: @essay_assignment }
+        set_essay_assignment
+        essay_assignment_data = @essay_assignment.as_json
+        essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
+        render json: { success: true, essay_assignment: essay_assignment_data }
       end
 
       def show
@@ -138,8 +190,33 @@ module Api
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
         @essay_assignment.general_user_id = current_general_user.id
+        
+        # 如果指定了Community，需要验证用户权限
+        if @essay_assignment.community_id.present?
+          community = Community.find_by(id: @essay_assignment.community_id)
+          
+          unless community
+            return render json: { success: false, error: 'Community not found' }, status: :not_found
+          end
+          
+          # 检查用户是否为Community的创建者或成员
+          unless community.creator?(current_general_user) || community.member?(current_general_user)
+            return render json: { success: false, error: 'Access denied. You must be a member or creator of this community' }, 
+                          status: :forbidden
+          end
+        end
+        
         if @essay_assignment.save
-          render json: { success: true, essay_assignment: @essay_assignment }, status: :created
+          # 返回包含Community信息的响应
+          assignment_data = @essay_assignment.as_json
+          if @essay_assignment.community
+            assignment_data['community'] = {
+              id: @essay_assignment.community.id,
+              name: @essay_assignment.community.name,
+              code: @essay_assignment.community.code
+            }
+          end
+          render json: { success: true, essay_assignment: assignment_data }, status: :created
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
@@ -156,6 +233,66 @@ module Api
       def destroy
         @essay_assignment.destroy
         render json: { success: true, message: 'EssayAssignment deleted successfully' }, status: :ok
+      end
+
+      # 通过Community ID获取所有EssayAssignment
+      def by_community
+        community_id = params[:community_id]
+        
+        unless community_id.present?
+          return render json: { success: false, error: 'Community ID is required' }, status: :bad_request
+        end
+        
+        community = Community.find_by(id: community_id)
+        unless community
+          return render json: { success: false, error: 'Community not found' }, status: :not_found
+        end
+        
+        # 检查用户权限
+        unless community.creator?(current_general_user) || community.member?(current_general_user)
+          return render json: { success: false, error: 'Access denied to this community' }, status: :forbidden
+        end
+        
+        @essay_assignments = community.essay_assignments
+                                      .includes(:general_user)
+                                      .select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
+                                             :topic, :created_at, :updated_at, :code, :assignment, :general_user_id)
+                                      .order('created_at desc')
+        
+        # 添加分类筛选
+        if params[:category].present?
+          @essay_assignments = @essay_assignments.where(category: params[:category])
+        end
+        
+        @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
+        
+        # 构建响应数据
+        assignments_with_creator = @essay_assignments.map do |assignment|
+          assignment_data = assignment.as_json
+          assignment_data['creator'] = {
+            id: assignment.general_user.id,
+            nickname: assignment.general_user.nickname,
+            email: assignment.general_user.email
+          }
+          assignment_data['community'] = {
+            id: community.id,
+            name: community.name,
+            code: community.code
+          }
+          assignment_data
+        end
+        
+        render json: { 
+          success: true, 
+          community: {
+            id: community.id,
+            name: community.name,
+            code: community.code,
+            description: community.description
+          },
+          essay_assignments: assignments_with_creator, 
+          meta: pagination_meta(@essay_assignments) 
+        }, status: :ok
       end
 
       def parse_vocab_csv
@@ -179,6 +316,49 @@ module Api
         render json: {
           success: false,
           error: e.message
+        }, status: :internal_server_error
+      end
+
+      # 為IELTS作業生成Sample Essay
+      def generate_sample_essay
+        @essay_assignment = EssayAssignment.find(params[:id])
+
+        # 檢查權限 - 只有作業創建者可以生成Sample Essay
+        unless @essay_assignment.general_user_id == current_general_user.id
+          render json: { success: false, error: 'Access denied' }, status: :forbidden
+          return
+        end
+
+        # 檢查是否為IELTS Task 1作業
+        unless @essay_assignment.name == 'IELTS Task 1'
+          render json: { success: false, error: 'Sample essay generation is only available for IELTS Task 1 assignments' },
+                 status: :unprocessable_entity
+          return
+        end
+
+        service = SampleEssayGenerationService.new(@essay_assignment)
+        result = service.call
+
+        if result.success?
+          # 將生成的Sample Essay保存到meta欄位
+          @essay_assignment.update(
+            meta: @essay_assignment.meta.merge('sample_essay' => result.sample_essay)
+          )
+
+          render json: {
+            success: true,
+            sample_essay: result.sample_essay
+          }, status: :ok
+        else
+          render json: {
+            success: false,
+            error: result.error_message
+          }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: {
+          success: false,
+          error: "Failed to generate sample essay: #{e.message}"
         }, status: :internal_server_error
       end
 
@@ -242,26 +422,49 @@ module Api
       end
 
       def essay_assignment_params
-        params.require(:essay_assignment).permit(
+        # 首先獲取基本的 permitted parameters（不包括meta，我們稍後單獨處理）
+        permitted_params = params.require(:essay_assignment).permit(
           :topic,
           :assignment,
           :title,
-          :remark,
           :hints,
           :category,
           :answer_visible,
+          :remark,
+          :graph_image,
+          :community_id,  # 新增 community_id 支持
           rubric: [
             :name,
             { app_key: %i[grading general_context] }
-          ],
-          meta: [
-            :newsfeed_id,
-            :level,
-            :speaking_pronunciation_pass_score,
-            { speaking_pronunciation_sentences: [:sentence] },
-            { self_upload_newsfeed: {}, vocabs: [:word, :pos, :definition, { array: true }] }
           ]
-        )
+        ).to_h
+
+        # 單獨處理meta參數的不同格式
+        if params[:essay_assignment][:meta].present?
+          meta_param = params[:essay_assignment][:meta]
+
+          if meta_param.is_a?(String)
+            # 如果meta是JSON字符串，解析它
+            begin
+              parsed_meta = JSON.parse(meta_param)
+              permitted_params[:meta] = parsed_meta
+              Rails.logger.info('[EssayAssignmentsController] Successfully parsed meta JSON string')
+            rescue JSON::ParserError => e
+              Rails.logger.warn("[EssayAssignmentsController] Failed to parse meta JSON: #{e.message}")
+              # 如果JSON解析失敗，保持原始字符串
+              permitted_params[:meta] = meta_param
+            end
+          elsif meta_param.is_a?(ActionController::Parameters)
+            # 如果meta是嵌套參數，允許所有鍵通過
+            permitted_params[:meta] = meta_param.permit!.to_h
+            Rails.logger.info('[EssayAssignmentsController] Successfully processed nested meta parameters')
+          else
+            # 其他情況，直接使用原值
+            permitted_params[:meta] = meta_param
+          end
+        end
+
+        permitted_params
       end
 
       def pagination_meta(object)
