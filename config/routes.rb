@@ -440,6 +440,7 @@ Rails.application.routes.draw do
             put ':id/aienglish/update', to: 'general_users#update_aienglish_user'
             put 'aienglish/batch/update', to: 'general_users#batch_update_aienglish_user'
             post 'check_emails_existence', to: 'general_users#check_emails_existence'
+            get 'aienglish/statistics', to: 'general_users#aienglish_statistics'
           end
         end
         resources :schools, param: :code do
