@@ -59,6 +59,17 @@ class EssayAssignment < ApplicationRecord
                                   message: 'must be less than 10MB' },
                           allow_blank: true
 
+  # 將 essay_gradings 中的 app_key 重新獲取一次
+  # @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
+  # @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+  def update_essay_gradings_app_key
+    essay_gradings.each do |essay_grading|
+      essay_grading.grading['app_key'] = rubric['app_key']['grading']
+      essay_grading.general_context['app_key'] = rubric['app_key']['general_context']
+      essay_grading.save!
+    end
+  end
+
   # 返回圖片的完整URL - 參考School模型的logo_url實現
   def graph_image_url
     return nil unless graph_image.attached?
