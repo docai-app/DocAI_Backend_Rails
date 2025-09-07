@@ -475,6 +475,18 @@ Rails.application.routes.draw do
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
 
+        # Essay Assignments Management for Admin
+        resources :essay_assignments, only: %i[index show update] do
+          member do
+            get :submissions
+          end
+          collection do
+            get :overview
+            get :categories
+            get :creators
+          end
+        end
+        
         # Activity Logs for Admin
         resources :activity_logs, only: [:index]
       end
