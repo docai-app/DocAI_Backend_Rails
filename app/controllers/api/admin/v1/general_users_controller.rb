@@ -732,6 +732,116 @@ module Api
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
+        # 批量锁定用户 - 从CSV文件中读取邮箱并锁定对应用户
+        def batch_lock_users
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          locked_users = []
+          failed_emails = []
+          errors = []
+          processed_emails = Set.new
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              
+              # 跳过空邮箱或已处理的邮箱
+              next if email.blank? || processed_emails.include?(email)
+              processed_emails.add(email)
+              
+              # 查找用户
+              user = GeneralUser.find_by(email: email)
+              if user.nil?
+                failed_emails << email
+                errors << { email: email, error: 'User not found' }
+                next
+              end
+              
+              # 锁定用户
+              if user.update(locked_at: Time.current)
+                locked_users << { id: user.id, email: user.email }
+              else
+                failed_emails << email
+                errors << { email: email, error: 'Failed to lock user' }
+              end
+            end
+
+            result = {
+              success: true,
+              summary: {
+                total_processed: processed_emails.size,
+                locked_count: locked_users.size,
+                failed_count: failed_emails.size
+              },
+              locked_users: locked_users,
+              failed_emails: failed_emails,
+              errors: errors
+            }
+
+            render json: result, status: :ok
+          rescue CSV::MalformedCSVError => e
+            render json: { success: false, error: "CSV format error: #{e.message}" }, status: :bad_request
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
+        # 批量解锁用户 - 从CSV文件中读取邮箱并解锁对应用户
+        def batch_unlock_users
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          unlocked_users = []
+          failed_emails = []
+          errors = []
+          processed_emails = Set.new
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              
+              # 跳过空邮箱或已处理的邮箱
+              next if email.blank? || processed_emails.include?(email)
+              processed_emails.add(email)
+              
+              # 查找用户
+              user = GeneralUser.find_by(email: email)
+              if user.nil?
+                failed_emails << email
+                errors << { email: email, error: 'User not found' }
+                next
+              end
+              
+              # 解锁用户
+              if user.update(locked_at: nil, failed_attempts: 0, unlock_token: nil)
+                unlocked_users << { id: user.id, email: user.email }
+              else
+                failed_emails << email
+                errors << { email: email, error: 'Failed to unlock user' }
+              end
+            end
+
+            result = {
+              success: true,
+              summary: {
+                total_processed: processed_emails.size,
+                unlocked_count: unlocked_users.size,
+                failed_count: failed_emails.size
+              },
+              unlocked_users: unlocked_users,
+              failed_emails: failed_emails,
+              errors: errors
+            }
+
+            render json: result, status: :ok
+          rescue CSV::MalformedCSVError => e
+            render json: { success: false, error: "CSV format error: #{e.message}" }, status: :bad_request
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
         def add_students_relation_by_emails
           @teacher = GeneralUser.find_by(email: params[:teacher_email])
           @students = GeneralUser.where(email: params[:student_emails])
