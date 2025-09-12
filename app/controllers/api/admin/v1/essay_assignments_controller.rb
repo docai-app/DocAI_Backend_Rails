@@ -23,7 +23,7 @@ module Api
           end
           
           # 最近30天创建的作业数量
-          recent_assignments = EssayAssignment.where('created_at >= ?', 30.days.ago).count
+          recent_assignments = EssayAssignment.where('essay_assignments.created_at >= ?', 30.days.ago).count
           
           # 总提交数量
           total_submissions = EssayGrading.count
@@ -94,11 +94,11 @@ module Api
           
           # 日期范围过滤
           if params[:start_date].present?
-            @essay_assignments = @essay_assignments.where('created_at >= ?', Date.parse(params[:start_date]))
+            @essay_assignments = @essay_assignments.where('essay_assignments.created_at >= ?', Date.parse(params[:start_date]))
           end
           
           if params[:end_date].present?
-            @essay_assignments = @essay_assignments.where('created_at <= ?', Date.parse(params[:end_date]).end_of_day)
+            @essay_assignments = @essay_assignments.where('essay_assignments.created_at <= ?', Date.parse(params[:end_date]).end_of_day)
           end
           
           # 排序
@@ -114,7 +114,14 @@ module Api
             @essay_assignments = @essay_assignments.joins(:general_user)
                                                   .order("general_users.nickname #{sort_order}")
           else
-            @essay_assignments = @essay_assignments.order("#{sort_by} #{sort_order}")
+            # 明确指定表名以避免字段歧义
+            table_prefix = case sort_by
+                          when 'created_at', 'updated_at'
+                            'essay_assignments.'
+                          else
+                            ''
+                          end
+            @essay_assignments = @essay_assignments.order("#{table_prefix}#{sort_by} #{sort_order}")
           end
           
           # 分页
@@ -176,7 +183,7 @@ module Api
           # 最近提交记录
           recent_submissions = @essay_assignment.essay_gradings
                                                .includes(:general_user)
-                                               .order(created_at: :desc)
+                                               .order('essay_gradings.created_at DESC')
                                                .limit(10)
                                                .map do |grading|
                                                  {
@@ -195,8 +202,8 @@ module Api
           
           # 按日期统计提交量（最近30天）
           daily_submissions = @essay_assignment.essay_gradings
-                                              .where('created_at >= ?', 30.days.ago)
-                                              .group("DATE(created_at)")
+                                              .where('essay_gradings.created_at >= ?', 30.days.ago)
+                                              .group("DATE(essay_gradings.created_at)")
                                               .count
           
           assignment_data = {
@@ -260,11 +267,11 @@ module Api
           
           # 日期范围过滤
           if params[:start_date].present?
-            @submissions = @submissions.where('created_at >= ?', Date.parse(params[:start_date]))
+            @submissions = @submissions.where('essay_gradings.created_at >= ?', Date.parse(params[:start_date]))
           end
           
           if params[:end_date].present?
-            @submissions = @submissions.where('created_at <= ?', Date.parse(params[:end_date]).end_of_day)
+            @submissions = @submissions.where('essay_gradings.created_at <= ?', Date.parse(params[:end_date]).end_of_day)
           end
           
           # 排序
@@ -278,7 +285,14 @@ module Api
           when 'score'
             @submissions = @submissions.order("score #{sort_order}")
           else
-            @submissions = @submissions.order("#{sort_by} #{sort_order}")
+            # 明确指定表名以避免字段歧义
+            table_prefix = case sort_by
+                          when 'created_at', 'updated_at'
+                            'essay_gradings.'
+                          else
+                            ''
+                          end
+            @submissions = @submissions.order("#{table_prefix}#{sort_by} #{sort_order}")
           end
           
           # 分页
