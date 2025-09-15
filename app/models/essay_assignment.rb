@@ -50,7 +50,7 @@ class EssayAssignment < ApplicationRecord
   validates :assignment, presence: true
   validates :category, presence: true
   validates :title, presence: true
-  validates :rubric, presence: true
+  validates :rubric, optional: true
 
   # IELTS看圖作文的圖片格式驗證
   validates :graph_image, content_type: { in: ['image/jpeg'],
