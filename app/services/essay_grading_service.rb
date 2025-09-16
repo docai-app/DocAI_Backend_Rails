@@ -41,7 +41,7 @@ class EssayGradingService
       payload:,
       headers: headers(app_key),
       timeout: TIMEOUT,
-      open_timeout: 100
+      open_timeout: 200 # 将 open_timeout 与 timeout 保持一致，避免在连接阶段就超时，由原来的100秒变200秒
     )
   rescue RestClient::ExceptionWithResponse => e
     Rails.logger.error("Exception when calling workflow: #{e.response}")
