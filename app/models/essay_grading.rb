@@ -133,6 +133,16 @@ class EssayGrading < ApplicationRecord
     EssayGradingService.new(general_user_id, self).run_workflows
   end
 
+  # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading
+  def rerun_workflow
+    # 更新状态为pending
+    self.status = :pending
+    save!
+
+    # 运行工作流
+    run_workflow
+  end
+
   # 定義遞歸方法來計算所有 errors 的數量
   def count_errors(hash)
     count = 0

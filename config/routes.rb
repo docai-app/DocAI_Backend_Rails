@@ -489,6 +489,13 @@ Rails.application.routes.draw do
           end
         end
         
+        # Essay Gradings Management for Admin
+        resources :essay_gradings, only: [] do
+          member do
+            post :rerun_workflow
+          end
+        end
+
         # Activity Logs for Admin
         resources :activity_logs, only: [:index]
       end
