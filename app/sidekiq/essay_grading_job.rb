@@ -8,7 +8,8 @@ class EssayGradingJob
     essay_grading = EssayGrading.find(essay_grading_id)
     essay_grading.transcribe_audio # function 自己有判斷需唔需要
     EssayGradingService.new(essay_grading.general_user_id, essay_grading).run_workflows
-
-    EssayGradingSupplementPracticeService.new(essay_grading.general_user_id, essay_grading).run_workflow
+    if essay_grading.essay_assignment && essay_grading.essay_assignment.category == 'essay'
+      EssayGradingSupplementPracticeService.new(essay_grading.general_user_id, essay_grading).run_workflow
+    end
   end
 end
