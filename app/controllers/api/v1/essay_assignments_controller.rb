@@ -31,7 +31,7 @@ module Api
         
         @essay_assignments = @essay_assignments.includes(:community)
                                                .select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
-                                                      :topic, :created_at, :updated_at, :code, :assignment, :community_id)
+                                                      :topic, :created_at, :updated_at, :code, :assignment, :community_id, :meta)
                                                .order('created_at desc')
 
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
@@ -83,6 +83,8 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
+         essay_assignment_data = @essay_assignment.as_json
+         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
 
         @essay_gradings = @essay_assignment.essay_gradings
                                            .joins(:general_user)
@@ -113,7 +115,7 @@ module Api
         # binding.pry
         render json: {
           success: true,
-          essay_assignment: @essay_assignment,
+          essay_assignment: essay_assignment_data,
           essay_gradings: @essay_gradings.sort_by do |eg|
             eg.class_no.to_i
           rescue StandardError => e
