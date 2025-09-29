@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 # app/services/essay_grading_service.rb
-require 'rest-client'
+require 'net/http'
+require 'uri'
+require 'json'
 
 class EssayGradingService
-  # API_URL = 'https://admin.docai.net/v1/workflows/run'
   API_URL = 'https://aienglish-dify.docai.net/v1/workflows/run'
   TIMEOUT = 300 # Timeout duration in seconds (5 minutes)
 
@@ -18,43 +19,92 @@ class EssayGradingService
   end
 
   def run_workflows
-    # 运行 grading workflow
-    grading_response = execute_workflow(@grading_app_key, grading_request_payload)
-    @grading_success = process_response(grading_response, 'grading')
+    Rails.logger.info("[EssayGradingService] Starting run_workflows for essay grading ID: #{@essay_grading.id}")
 
-    # 运行 general_context workflow (如果 @general_context_app_key 不为 nil)
+    # Run grading workflow with streaming
+    Rails.logger.info("[EssayGradingService] Executing grading workflow")
+    grading_response = execute_workflow_streaming(@grading_app_key, grading_request_payload)
+    Rails.logger.info("[EssayGradingService] Grading workflow response received: #{grading_response.size} chunks")
+    @grading_success = process_streaming_response(grading_response, 'grading')
+    Rails.logger.info("[EssayGradingService] Grading workflow success: #{@grading_success}")
+
+    # Run general_context workflow (if @general_context_app_key is not nil)
     unless @general_context_app_key.blank?
-      general_context_response = execute_workflow(@general_context_app_key, general_context_request_payload)
-      @general_context_success = process_response(general_context_response, 'general_context')
+      Rails.logger.info("[EssayGradingService] Executing general_context workflow")
+      general_context_response = execute_workflow_streaming(@general_context_app_key, general_context_request_payload)
+      Rails.logger.info("[EssayGradingService] General context workflow response received: #{general_context_response.size} chunks")
+      @general_context_success = process_streaming_response(general_context_response, 'general_context')
+      Rails.logger.info("[EssayGradingService] General context workflow success: #{@general_context_success}")
     end
 
-    # 最终确认状态
+    # Final status update
+    Rails.logger.info("[EssayGradingService] Updating final status for essay grading ID: #{@essay_grading.id}")
     update_final_status
+    Rails.logger.info("[EssayGradingService] Completed run_workflows for essay grading ID: #{@essay_grading.id}")
   end
 
   private
 
-  def execute_workflow(app_key, payload)
-    RestClient::Request.execute(
-      method: :post,
-      url: API_URL,
-      payload:,
-      headers: headers(app_key),
-      timeout: TIMEOUT,
-      open_timeout: TIMEOUT # 将 open_timeout 与 timeout 保持一致，避免在连接阶段就超时，由原来的100秒变300秒
-    )
-  rescue RestClient::ExceptionWithResponse => e
-    Rails.logger.error("Exception when calling workflow: #{e.response}")
-    nil
+  def execute_workflow_streaming(app_key, payload)
+    response_data = []
+    uri = URI.parse(API_URL)
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = (uri.scheme == 'https')
+    http.read_timeout = TIMEOUT
+    http.open_timeout = TIMEOUT
+
+    request = Net::HTTP::Post.new(uri.request_uri)
+    request['Authorization'] = "Bearer #{app_key}"
+    request['Content-Type'] = 'application/json'
+    request['Accept'] = 'text/event-stream'
+    request.body = payload.to_json
+
+    Rails.logger.debug("[EssayGradingService] Sending request to #{API_URL} with payload: #{payload.to_json}")
+
+    http.request(request) do |response|
+      unless response.code == '200'
+        Rails.logger.error("[EssayGradingService] Streaming request failed with code #{response.code}: #{response.body}")
+        return []
+      end
+
+      response.read_body do |chunk|
+        Rails.logger.debug("[EssayGradingService] Received SSE chunk: #{chunk}")
+        # Skip non-data lines (SSE protocol lines like "event: ping")
+        next unless chunk.start_with?('data: ')
+
+        # Extract JSON data from SSE chunk
+        json_str = chunk.sub(/^data: /, '')
+        next if json_str.strip.empty?
+
+        begin
+          data = JSON.parse(json_str)
+          response_data << data
+        rescue JSON::ParserError => e
+          Rails.logger.error("[EssayGradingService] Failed to parse SSE chunk: #{e.message}, chunk: #{json_str}")
+        end
+      end
+    end
+
+    Rails.logger.debug("[EssayGradingService] Collected #{response_data.size} SSE chunks")
+    response_data
+  rescue Net::ReadTimeout => e
+    Rails.logger.error("[EssayGradingService] Read timeout during streaming: #{e.message}")
+    []
+  rescue Net::OpenTimeout => e
+    Rails.logger.error("[EssayGradingService] Open timeout during streaming: #{e.message}")
+    []
   rescue StandardError => e
-    Rails.logger.error("Standard error when calling workflow: #{e.message}")
-    nil
+    Rails.logger.error("[EssayGradingService] Standard error during streaming workflow: #{e.message}")
+    Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
+    []
   end
 
   def headers(app_key)
     {
       'Authorization' => "Bearer #{app_key}",
-      'Content-Type' => 'application/json'
+      'Content-Type' => 'application/json',
+      'Accept' => 'text/event-stream'
     }
   end
 
@@ -67,22 +117,19 @@ class EssayGradingService
                { Essay: @essay_grading.essay, essaytopic: @essay_grading.topic }
              end
 
-    # 向後兼容：非IELTS Task 1 的圖片處理保持原有邏輯
     if !is_ielts_task_1? && @essay_grading.essay_assignment.graph_image.attached?
-      inputs[:graph_image_url] = @essay_grading.essay_assignment.graph_image.url
-      Rails.logger.info("[EssayGradingService] Including graph image URL for grading assignment #{@essay_grading.essay_assignment.id}")
+      inputs[:graph] = build_ielts_graph_input('grading')
+      Rails.logger.info("[EssayGradingService] Including graph image for grading assignment #{@essay_grading.essay_assignment.id}")
     end
 
     payload = {
       inputs:,
-      response_mode: 'blocking',
+      response_mode: 'streaming',
       user: @user_id
     }
 
-    # 記錄完整的請求載荷以便調試
     Rails.logger.info("[EssayGradingService] Full grading request payload: #{payload.to_json}")
-
-    payload.to_json
+    payload
   end
 
   def general_context_request_payload
@@ -95,49 +142,70 @@ class EssayGradingService
                }
              end
 
-    # 向後兼容：非IELTS Task 1 的圖片處理保持原有邏輯
     if !is_ielts_task_1? && @essay_grading.essay_assignment.graph_image.attached?
-      inputs[:graph_image_url] = @essay_grading.essay_assignment.graph_image.url
-      Rails.logger.info("[EssayGradingService] Including graph image URL for general context assignment #{@essay_grading.essay_assignment.id}")
+      inputs[:graph] = build_ielts_graph_input('general_context')
+      Rails.logger.info("[EssayGradingService] Including graph image for general context assignment #{@essay_grading.essay_assignment.id}")
     end
 
     payload = {
       inputs:,
-      response_mode: 'blocking',
+      response_mode: 'streaming',
       user: @user_id
     }
 
-    # 記錄完整的請求載荷以便調試
     Rails.logger.info("[EssayGradingService] Full general context payload: #{payload.to_json}")
-
-    payload.to_json
+    payload
   end
 
-  def process_response(response, context)
-    return false unless response && response.code == 200
+  def process_streaming_response(response_data, context)
+    Rails.logger.info("[EssayGradingService] Processing streaming response for #{context}, received #{response_data.size} chunks")
+    return false if response_data.empty?
 
     begin
-      result = JSON.parse(response.body)
+      # Collect all workflow_finished events
+      workflow_finished_chunks = response_data.select { |chunk| chunk['event'] == 'workflow_finished' && chunk['data'] }
 
-      # 檢查 Dify 響應是否包含錯誤
-      if result['error'].present?
-        Rails.logger.error("[EssayGradingService] Dify API error: #{result['error']}")
+      unless workflow_finished_chunks.any?
+        Rails.logger.error("[EssayGradingService] No workflow_finished event found in streaming response: #{response_data}")
         return false
       end
 
-      # 檢查響應結構是否正確
-      unless result['data'] && result['data']['outputs']
-        Rails.logger.error("[EssayGradingService] Invalid Dify response structure: #{result}")
+      # Try to merge outputs from all workflow_finished chunks
+      outputs = {}
+      workflow_finished_chunks.each do |chunk|
+        if chunk['data']['error'].present?
+          Rails.logger.error("[EssayGradingService] Dify API error in streaming response: #{chunk['data']['error']}")
+          return false
+        end
+
+        chunk_outputs = chunk['data']['outputs']
+        next unless chunk_outputs.is_a?(Hash)
+
+        # Merge outputs (assuming outputs is a hash, potentially with 'text' containing JSON)
+        outputs.merge!(chunk_outputs)
+      end
+
+      unless outputs.any?
+        Rails.logger.error("[EssayGradingService] No valid outputs found in workflow_finished chunks: #{workflow_finished_chunks}")
         return false
       end
 
-      outputs = result['data']['outputs']
+      # If outputs['text'] contains a JSON string, parse it
+      if outputs['text'].is_a?(String)
+        begin
+          outputs = JSON.parse(outputs['text'])
+        rescue JSON::ParserError => e
+          Rails.logger.error("[EssayGradingService] Failed to parse outputs['text'] as JSON: #{e.message}, text: #{outputs['text']}")
+          return false
+        end
+      end
+
       num_of_suggestions = get_number_of_suggestion(outputs)
 
       if context == 'grading'
         @essay_grading.update(
           grading: @essay_grading.grading.merge('data' => outputs,
-                                                'number_of_suggestion' => num_of_suggestions)
+                                               'number_of_suggestion' => num_of_suggestions)
         )
       elsif context == 'general_context'
         @essay_grading.update(
@@ -145,20 +213,16 @@ class EssayGradingService
         )
       end
 
+      Rails.logger.info("[EssayGradingService] Successfully processed #{context} response, outputs: #{outputs}")
       true
-    rescue JSON::ParserError => e
-      Rails.logger.error("[EssayGradingService] Failed to parse Dify response: #{e.message}")
-      Rails.logger.error("[EssayGradingService] Response body: #{response.body}")
-      false
     rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Error processing Dify response: #{e.message}")
+      Rails.logger.error("[EssayGradingService] Error processing streaming response for #{context}: #{e.message}")
       Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
       false
     end
   end
 
   def get_number_of_suggestion(result)
-    # 檢查 result 是否為 nil 或不包含預期的結構
     return 0 unless result.is_a?(Hash) && result['text'].present?
 
     begin
@@ -182,7 +246,6 @@ class EssayGradingService
     count = 0
     hash['results'].each do |result|
       if result['errors'].is_a?(Array)
-        # 只計算 error1 不等於 'Correct' 的錯誤
         count += result['errors'].count { |error| error['error1'] != 'Correct' }
       end
     end
@@ -204,106 +267,84 @@ class EssayGradingService
   def update_final_status
     if @grading_success && (@general_context_app_key.blank? || @general_context_success)
       @essay_grading.update(status: 'graded')
-
       @essay_grading.calculate_sentence_builder_score if @essay_grading.category == 'sentence_builder'
-
       @essay_grading.call_webhook
+      Rails.logger.info("[EssayGradingService] Status updated to 'graded' for essay grading ID: #{@essay_grading.id}")
     else
-      # 任务失败，更新状态为stopped并发送通知邮件给管理员
       @essay_grading.update(status: 'stopped')
-      
-      # 发送通知邮件给管理员
-      begin
-        AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
-      rescue StandardError => e
-        Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
-      end
+      Rails.logger.error("[EssayGradingService] Workflow failed, status updated to 'stopped' for essay grading ID: #{@essay_grading.id}")
     end
   end
 
-  # 判斷是否為 IELTS Task 1 作業
   def is_ielts_task_1?
     @essay_grading.essay_assignment.rubric&.dig('name') == 'IELTS Task 1'
   end
 
-  # 構建 IELTS Task 1 專用的 inputs 格式
   def build_ielts_task_1_inputs(workflow_type)
-    # 根據 workflow 類型選擇正確的 app_key 來上傳圖片
     graph_input = build_ielts_graph_input(workflow_type)
 
-    # 根據 workflow 類型使用不同的參數格式
     inputs = if workflow_type == 'general_context'
-               # general_context workflow 使用標準參數格式
                {
-                 graph: graph_input,
                  Essay: @essay_grading.essay,
-                 essaytopic: @essay_grading.topic
+                 essaytopic: @essay_grading.topic,
+                 graph: graph_input
                }
              else
-               # grading workflow 使用 IELTS 特殊參數格式
                {
-                 graph: graph_input,
-                 essay: @essay_grading.essay,
-                 essay_topic: @essay_grading.topic
+                 Essay: @essay_grading.essay,
+                 essay_topic: @essay_grading.topic,
+                 graph: graph_input
                }
              end
 
     Rails.logger.info("[EssayGradingService] Building IELTS Task 1 inputs for #{workflow_type} workflow, assignment #{@essay_grading.essay_assignment.id}")
     Rails.logger.info("[EssayGradingService] Graph input: #{graph_input}")
-    Rails.logger.info("[EssayGradingService] Essay length: #{inputs[:essay] || inputs[:Essay]&.length}")
+    Rails.logger.info("[EssayGradingService] Essay length: #{inputs[:Essay]&.length}")
     Rails.logger.info("[EssayGradingService] Topic: #{inputs[:essay_topic] || inputs[:essaytopic]}")
-
     inputs
   end
 
-  # 構建 IELTS Task 1 圖片輸入格式
   def build_ielts_graph_input(workflow_type)
     return nil unless @essay_grading.essay_assignment.graph_image.attached?
 
     graph_url = @essay_grading.essay_assignment.graph_image.url
-
-    # 根據 workflow 類型選擇正確的 app_key
     app_key = case workflow_type
               when 'grading'
                 @grading_app_key
               when 'general_context'
                 @general_context_app_key
               else
-                @grading_app_key # 默認使用 grading app_key
+                @grading_app_key
               end
 
     Rails.logger.info("[EssayGradingService] Using app_key for #{workflow_type}: #{app_key&.first(10)}...")
 
-    # 使用 Dify 文件上傳服務
     upload_service = DifyFileUploadService.new(app_key, @user_id)
     upload_result = upload_service.upload_from_url(graph_url, 'image')
 
     if upload_result.success?
       Rails.logger.info("[EssayGradingService] Successfully uploaded graph to Dify for #{workflow_type}, upload_file_id: #{upload_result.upload_file_id}")
-
-      # 返回 Dify 期望的文件數組格式
-      file_input = {
+      [{
+        'type' => 'image',
         'transfer_method' => 'local_file',
-        'upload_file_id' => upload_result.upload_file_id,
-        'type' => 'image'
-      }
-
-      Rails.logger.info("[EssayGradingService] File input format for #{workflow_type}: #{file_input}")
-
-      # 返回數組格式，使用字符串鍵
-      [file_input]
+        'upload_file_id' => upload_result.upload_file_id
+      }]
     else
       Rails.logger.error("[EssayGradingService] Failed to upload graph to Dify for #{workflow_type}: #{upload_result.error_message}")
-      Rails.logger.warn("[EssayGradingService] Falling back to direct URL for graph in #{workflow_type}")
-
-      # 如果上傳失敗，回退到直接使用 URL（向後兼容）
-      graph_url
+      Rails.logger.warn("[EssayGradingService] Falling back to remote URL for graph in #{workflow_type}")
+      [{
+        'type' => 'image',
+        'transfer_method' => 'remote_url',
+        'url' => graph_url
+      }]
     end
   rescue StandardError => e
     Rails.logger.error("[EssayGradingService] Error building graph input for #{workflow_type}: #{e.message}")
-    Rails.logger.warn("[EssayGradingService] Falling back to direct URL for graph in #{workflow_type}")
-
-    # 發生錯誤時回退到直接使用 URL
-    graph_url
+    Rails.logger.warn("[EssayGradingService] Falling back to remote URL for graph in #{workflow_type}")
+    [{
+      'type' => 'image',
+      'transfer_method' => 'remote_url',
+      'url' => graph_url
+    }]
   end
 end
