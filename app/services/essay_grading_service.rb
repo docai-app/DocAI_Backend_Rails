@@ -209,7 +209,15 @@ class EssayGradingService
 
       @essay_grading.call_webhook
     else
+      # 任务失败，更新状态为stopped并发送通知邮件给管理员
       @essay_grading.update(status: 'stopped')
+      
+      # 发送通知邮件给管理员
+      begin
+        AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
+      end
     end
   end
 
