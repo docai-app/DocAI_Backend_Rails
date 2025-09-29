@@ -161,6 +161,15 @@ module Api
         }, status: :ok
       end
 
+      def test_email
+        set_essay_grading
+        begin
+          AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
+        rescue StandardError => e
+          Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
+        end
+      end
+
       # 顯示特定的 EssayGrading
       def show
         set_essay_grading

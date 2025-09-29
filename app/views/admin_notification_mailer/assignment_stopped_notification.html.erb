@@ -54,6 +54,14 @@
             <td>Stopped At</td>
             <td><%= Time.current %></td>
           </tr>
+          <tr>
+            <td>AIEnglish 頁面</td>
+            <td><a href="https://aienglish.docai.net/essay/assignment/<%= @assignment.id %>" target="_blank">點擊查看</a></td>
+          </tr>
+          <tr>
+            <td>管理後台 頁面</td>
+            <td><a href="https://prod-docai-admin-dashboard-frontend.vercel.app/submissions?assignmentId=<%= @assignment.id %>" target="_blank">點擊查看</a></td>
+          </tr>
         </table>
         
         <p>Please check the system and take necessary actions.</p>

@@ -54,6 +54,7 @@ Rails.application.routes.draw do
       end
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
+          get 'test_email'
           get 'download_report'
           get 'download_supplement_practice'
         end
