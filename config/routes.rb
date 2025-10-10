@@ -493,6 +493,9 @@ Rails.application.routes.draw do
         
         # Essay Gradings Management for Admin
         resources :essay_gradings, only: [] do
+          collection do 
+            get :speaking_times_data 
+          end
           member do
             post :rerun_workflow
           end
