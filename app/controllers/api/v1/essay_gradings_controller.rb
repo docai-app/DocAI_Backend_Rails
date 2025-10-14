@@ -541,6 +541,7 @@ module Api
                   :question,
                   :answer,
                   :user_answer,
+                  :indicator,
                   { options: {} }
                 ]
               ]
