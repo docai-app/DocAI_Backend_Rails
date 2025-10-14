@@ -172,7 +172,7 @@ module Api
 
       # 顯示特定的 EssayGrading
       def show
-        set_essay_grading
+        set_essay_grading_wiht_role
         # 预加载 essay_assignment 关联
         # @essay_grading = @essay_grading.includes(:essay_assignment).find(params[:id])
 
@@ -510,6 +510,10 @@ module Api
 
       # 設置特定的 EssayGrading
       def set_essay_grading
+        @essay_grading = EssayGrading.find(params[:id])
+      end
+
+      def set_essay_grading_wiht_role
         if current_general_user.aienglish_role == 'teacher'
           @essay_grading = EssayGrading.find(params[:id])
         else
