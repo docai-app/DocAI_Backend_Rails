@@ -510,7 +510,11 @@ module Api
 
       # 設置特定的 EssayGrading
       def set_essay_grading
-        @essay_grading = EssayGrading.find(params[:id])
+        if current_general_user.aienglish_role == 'teacher'
+          @essay_grading = EssayGrading.find(params[:id])
+        else
+          @essay_grading = current_general_user.essay_gradings.find(params[:id])
+        end
       end
 
       def set_essay_assignment_by_code
