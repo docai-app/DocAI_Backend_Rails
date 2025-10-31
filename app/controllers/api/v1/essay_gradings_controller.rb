@@ -1377,7 +1377,11 @@ module Api
         elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
           if essay_grading.general_context['data'].present?
-            general_context = JSON.parse(essay_grading.general_context['data']['text'])
+
+            text = essay_grading.general_context['data']['text']
+            fixed_json = fix_json_newlines(text)
+
+            general_context = JSON.parse(fixed_json)
             json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
 
             # 2025-05-11 新增以下
@@ -1405,6 +1409,17 @@ module Api
 
         "#{user.email} (#{user.nickname}, #{class_name}, #{class_number})"
       end
+
+      def fix_json_newlines(json_str)
+        # 匹配双引号包围的字符串（非贪婪，支持多行），替换内部的 \n 为 \\n
+        # 注意：这不处理嵌套转义的 \"，但你的数据中似乎没有
+        json_str.gsub(/"((?:[^"\\]|\\.)*)"/) do |match|
+          quoted = $1  # 捕获字符串内容
+          fixed_content = quoted.gsub("\n", '\\n')  # 只转义 \n
+          "\"#{fixed_content}\""  # 重建字符串
+        end
+      end
+
     end
   end
 end
