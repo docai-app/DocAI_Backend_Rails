@@ -87,6 +87,7 @@ module Api
          essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
 
         @essay_gradings = @essay_assignment.essay_gradings
+                                           .where.not(status: 'draft')
                                            .joins(:general_user)
                                            .joins(:essay_assignment)
                                            .select(

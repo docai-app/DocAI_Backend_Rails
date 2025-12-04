@@ -47,11 +47,17 @@ class EssayGrading < ApplicationRecord
   delegate :category, to: :essay_assignment
 
   # 狀態枚舉
-  enum status: { pending: 0, graded: 1, stopped: 2 }
+  # 新增 draft 狀態，用於學生「先保存草稿，不立即批改」
+  enum status: { pending: 0, graded: 1, stopped: 2, draft: 3 }
 
-  after_create :run_workflow, if: :need_to_run_workflow?
+  # 狀態為 draft 時，不執行工作流；
+  # 從 draft 變為其他狀態（例如 pending）時才執行工作流
+  after_create :run_workflow, if: :should_run_workflow_on_create?
+  after_update :run_workflow, if: :should_run_workflow_on_submit?
   after_create :calculate_comprehension_score, if: :is_comprehension?
-  after_create :calculate_speaking_pronunciation_score, if: :is_speaking_pronunciation?
+  # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
+  after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
+  after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
 
   has_one_attached :file, service: :microsoft
 
@@ -85,6 +91,26 @@ class EssayGrading < ApplicationRecord
 
   def need_to_run_workflow?
     %w[essay speaking_essay speaking_conversation sentence_builder].include?(category)
+  end
+
+  # 是否需要計算發音分數（僅 speaking_pronunciation，且不是 draft）
+  def should_calculate_speaking_pronunciation?
+    is_speaking_pronunciation? && !draft?
+  end
+
+  # 建立時，如果是需要跑 workflow 的類型，且不是 draft，就直接排隊跑工作流
+  def should_run_workflow_on_create?
+    need_to_run_workflow? && !draft?
+  end
+
+  # 從 draft 轉成非 draft（例如 pending）時，才觸發一次工作流
+  # 這樣「保存草稿」不會批改，「正式提交」才會批改
+  def should_run_workflow_on_submit?
+    return false unless need_to_run_workflow?
+    return false unless saved_change_to_status?
+
+    status_before, status_after = saved_change_to_status
+    status_before == 'draft' && status_after != 'draft'
   end
 
   def run_workflow
@@ -212,9 +238,14 @@ class EssayGrading < ApplicationRecord
 
     # 设置总分
 
-    self['score'] = ((total_score.to_f / self['grading']['speaking_pronunciation_sentences'].count)).round
-    self['status'] = 'graded'
-    save
+    # self['score'] = ((total_score.to_f / self['grading']['speaking_pronunciation_sentences'].count)).round
+    # self['status'] = 'graded'
+    # save
+
+    new_score = (total_score.to_f / grading['speaking_pronunciation_sentences'].count).round
+
+    # 关键：用 update_columns，直接写数据库，不触发回调
+    update_columns(score: new_score, status: EssayGrading.statuses[:graded])
   end
 
   def calculate_comprehension_score

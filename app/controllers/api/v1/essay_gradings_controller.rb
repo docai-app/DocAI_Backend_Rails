@@ -270,7 +270,7 @@ module Api
       def create
         set_essay_assignment_by_code
 
-        puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
+        # puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
 
         @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
@@ -284,11 +284,13 @@ module Api
         end
 
         if @essay_grading.save
-          # Track assignment submission
-          # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
-          ahoy.authenticate(current_general_user) if current_general_user
-          ahoy.track 'Assignment Submitted',
-                     { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
+          # Track assignment submission（非 draft 才記錄正式提交）
+          unless @essay_grading.status == 'draft'
+            # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
+            ahoy.authenticate(current_general_user) if current_general_user
+            ahoy.track 'Assignment Submitted',
+                       { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
+          end
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
@@ -477,12 +479,15 @@ module Api
         render json: { success: false, error: "Internal server error: #{e.message}" }, status: :internal_server_error
       end
 
+      # 編輯 / 更新單一 EssayGrading（包括切換 draft / 提交）
       def update
-        @user = current_general_user
-        if @user.update(user_params)
-          render json: { success: true, user: @user }, status: :ok
+        set_essay_grading_wiht_role
+
+        if @essay_grading.update(essay_grading_params)
+          render json: { success: true, essay_grading: @essay_grading }, status: :ok
         else
-          render json: { success: false, errors: @user.errors }, status: :ok
+          render json: { success: false, errors: @essay_grading.errors.full_messages },
+                 status: :unprocessable_entity
         end
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
@@ -533,6 +538,7 @@ module Api
           :topic,
           :file,
           :using_time,
+          :status, # 允許前端控制 draft / pending 等狀態
           grading: [
             :app_key,
             {
