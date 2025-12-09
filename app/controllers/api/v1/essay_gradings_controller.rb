@@ -133,14 +133,58 @@ module Api
                                                  essay_assignments.assignment AS assignment_name,
                                                  essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
-                                              .order('created_at desc, updated_at desc')
 
+        # 应用过滤条件
+        # 1. Assignment Name 过滤（模糊搜索，不区分大小写）
+        if params[:assignment_name].present?
+          @essay_gradings = @essay_gradings.where(
+            'essay_assignments.assignment ILIKE ?',
+            "%#{params[:assignment_name].strip}%"
+          )
+        end
+
+        # 2. Status 过滤（精确匹配）
+        if params[:status].present?
+          # 验证 status 是否为有效值
+          valid_statuses = EssayGrading.statuses.keys
+          status_param = params[:status].to_s.downcase
+          if valid_statuses.include?(status_param)
+            @essay_gradings = @essay_gradings.where(status: status_param)
+          else
+            render json: {
+              success: false,
+              error: "Invalid status. Valid values are: #{valid_statuses.join(', ')}"
+            }, status: :bad_request
+            return
+          end
+        end
+
+        # 3. Category 过滤（精确匹配）
+        if params[:category].present?
+          # 验证 category 是否为有效值
+          valid_categories = EssayAssignment.categories.keys
+          category_param = params[:category].to_s.downcase
+          if valid_categories.include?(category_param)
+            # category 是 enum，需要转换为对应的整数值
+            category_value = EssayAssignment.categories[category_param]
+            @essay_gradings = @essay_gradings.where('essay_assignments.category = ?', category_value)
+          else
+            render json: {
+              success: false,
+              error: "Invalid category. Valid values are: #{valid_categories.join(', ')}"
+            }, status: :bad_request
+            return
+          end
+        end
+
+        # 排序
+        @essay_gradings = @essay_gradings.order('created_at desc, updated_at desc')
+
+        # 分页
         @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
 
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
-
-        # binding.pry
 
         render json: {
           success: true,
