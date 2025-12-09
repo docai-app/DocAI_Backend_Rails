@@ -83,15 +83,18 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-         essay_assignment_data = @essay_assignment.as_json
-         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
+        essay_assignment_data = @essay_assignment.as_json
+        essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
 
+        # 确保只查询有 essay_assignment_id 的记录，并确保关联存在
         @essay_gradings = @essay_assignment.essay_gradings
                                            .where.not(status: 'draft')
+                                           .where.not(essay_assignment_id: nil) # 确保 essay_assignment_id 不为空
                                            .joins(:general_user)
                                            .joins(:essay_assignment)
                                            .select(
                                              'essay_gradings.id,
+                                      essay_gradings.essay_assignment_id,
                                       essay_gradings.general_user_id,
                                       essay_assignments.category as essay_assignment_category,
                                       essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id,
@@ -111,39 +114,55 @@ module Api
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score,
                                       COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS comprehension_score'
                                            )
-                                           .includes(:general_user).order('created_at asc')
+                                           .includes(:general_user, :essay_assignment) # 确保预加载关联
+                                           .order('created_at asc')
 
-        # binding.pry
         render json: {
           success: true,
           essay_assignment: essay_assignment_data,
           essay_gradings: @essay_gradings.sort_by do |eg|
             eg.class_no.to_i
           rescue StandardError => e
-            puts "Error converting class_no to integer: #{e.message}"
-            0 # 或者其他默认值
+            Rails.logger.warn "Error converting class_no to integer: #{e.message}"
+            0
           end.map do |eg|
+            # 确保 essay_assignment_id 存在
+            unless eg.essay_assignment_id.present?
+              Rails.logger.error "EssayGrading #{eg.id} missing essay_assignment_id"
+              next nil # 跳过这条记录
+            end
+
             # 解析 grading JSON
             grading_json = begin
-              JSON.parse(eg['grading']['data']['text'])
-            rescue StandardError
+              if eg['grading'].is_a?(Hash) && eg['grading']['data'].is_a?(Hash) && eg['grading']['data']['text'].present?
+                JSON.parse(eg['grading']['data']['text'])
+              else
+                {}
+              end
+            rescue StandardError => e
+              Rails.logger.warn "Error parsing grading JSON for EssayGrading #{eg.id}: #{e.message}"
               {}
             end
 
+            # 初始化变量
+            scores = {}
+            overall_score = nil
+            the_full_score = nil
+
             if @essay_assignment.sentence_builder?
-              sb_score = eg.calculate_sentence_builder_score
-              the_full_score = sb_score[:full_score]
-              overall_score = sb_score[:score]
-              eg['score'] = overall_score
+              begin
+                sb_score = eg.calculate_sentence_builder_score
+                the_full_score = sb_score[:full_score]
+                overall_score = sb_score[:score]
+                eg['score'] = overall_score
+              rescue StandardError => e
+                Rails.logger.error "Error calculating sentence builder score for EssayGrading #{eg.id}: #{e.message}"
+              end
             elsif @essay_assignment.comprehension?
-              # sb_score = eg.calculate_comprehension_score
-              eg['full_score'] = eg['grading']['comprehension']['questions_count']
-              eg['score'] = eg['grading']['comprehension']['score']
+              eg['full_score'] = eg['grading']['comprehension']['questions_count'] if eg['grading']['comprehension'].present?
+              eg['score'] = eg['grading']['comprehension']['score'] if eg['grading']['comprehension'].present?
             elsif @essay_assignment.speaking_pronunciation?
-              # sb_score = eg.calculate_speaking_pronunciation_score
-              eg['full_score'] = 100 # eg['grading']['speaking_pronunciation_sentences'].count
-              # eg['score'] = 1
-              # binding.pry
+              eg['full_score'] = 100
             else
               # 提取每個 criterion 的分數和總分
               scores = grading_json.each_with_object({}) do |(key, value), result|
@@ -184,10 +203,13 @@ module Api
               submission_class_name: eg.submission_class_name,
               submission_class_number: eg.submission_class_number
             }
-          end
+          end.compact # 移除 nil 值
         }, status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      rescue StandardError => e
+        Rails.logger.error "Error in EssayAssignmentsController#show: #{e.message}\n#{e.backtrace.first(10).join("\n")}"
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       def create
