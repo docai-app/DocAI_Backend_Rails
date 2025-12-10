@@ -329,12 +329,12 @@ module Api
 
         if @essay_grading.save
           # Track assignment submission（非 draft 才記錄正式提交）
-          unless @essay_grading.status == 'draft'
-            # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
-            ahoy.authenticate(current_general_user) if current_general_user
-            ahoy.track 'Assignment Submitted',
-                       { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
-          end
+          # unless @essay_grading.status == 'draft'
+          #   # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
+          #   ahoy.authenticate(current_general_user) if current_general_user
+          #   ahoy.track 'Assignment Submitted',
+          #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
+          # end
           render json: { success: true, essay_grading: @essay_grading }, status: :created
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
