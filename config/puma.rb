@@ -16,7 +16,7 @@
 # - 数据库连接池 = 30 (每个 worker 独立连接池)
 # - PostgreSQL 总连接数 = 2 × 30 = 60 (在默认 100 限制内，安全)
 # 注意：pool (database.yml) 应该 >= RAILS_MAX_THREADS
-max_threads_count = ENV.fetch('RAILS_MAX_THREADS', 25)
+max_threads_count = ENV.fetch('RAILS_MAX_THREADS', 20)
 min_threads_count = ENV.fetch('RAILS_MIN_THREADS') { max_threads_count }
 threads min_threads_count, max_threads_count
 
