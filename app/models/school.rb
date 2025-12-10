@@ -62,6 +62,60 @@ class School < ApplicationRecord
     school_academic_years.where('start_date <= ? AND end_date >= ?', date, date).first
   end
 
+  # Scope for eager loading Active Storage attachments
+  scope :with_attached_logo, -> { includes(logo_attachment: :blob) }
+
+  # 批量获取所有 logo URLs，避免多次查询 Active Storage
+  def all_logo_urls
+    return {
+      logo_url: nil,
+      logo_thumbnail_url: nil,
+      logo_small_url: nil,
+      logo_large_url: nil,
+      logo_square_url: nil
+    } unless logo.attached?
+
+    base_url = logo.url
+
+    if Rails.env.development? || Rails.env.test?
+      {
+        logo_url: base_url,
+        logo_thumbnail_url: base_url,
+        logo_small_url: base_url,
+        logo_large_url: base_url,
+        logo_square_url: base_url
+      }
+    else
+      {
+        logo_url: base_url,
+        logo_thumbnail_url: begin
+          logo.variant(resize_to_limit: [200, 200])&.processed&.url || base_url
+        rescue StandardError => e
+          Rails.logger.error("處理 logo 縮圖錯誤: #{e.message}")
+          base_url
+        end,
+        logo_small_url: begin
+          logo.variant(resize_to_limit: [100, 100])&.processed&.url || base_url
+        rescue StandardError => e
+          Rails.logger.error("處理 logo 小圖錯誤: #{e.message}")
+          base_url
+        end,
+        logo_large_url: begin
+          logo.variant(resize_to_limit: [500, 500])&.processed&.url || base_url
+        rescue StandardError => e
+          Rails.logger.error("處理 logo 大圖錯誤: #{e.message}")
+          base_url
+        end,
+        logo_square_url: begin
+          logo.variant(resize_to_fill: [300, 300])&.processed&.url || base_url
+        rescue StandardError => e
+          Rails.logger.error("處理 logo 方圖錯誤: #{e.message}")
+          base_url
+        end
+      }
+    end
+  end
+
   # 返回 logo 的完整 URL
   def logo_url
     logo.attached? ? logo.url : nil

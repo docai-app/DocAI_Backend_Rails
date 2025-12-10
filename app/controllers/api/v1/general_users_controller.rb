@@ -233,7 +233,7 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
-      # AIEnglish 專用用戶資料方法
+        # AIEnglish 專用用戶資料方法
       def show_aienglish_profile
         @user = current_general_user
 
@@ -250,17 +250,39 @@ module Api
         # 根據角色獲取不同的資訊
         if @user.aienglish_role == 'teacher'
           # 獲取教師資訊
-          aienglish_data[:teaching_assignments] = @user.teacher_assignments.includes(school_academic_year: :school).map do |assignment|
+          # 優化：使用 with_attached_logo 預加載 Active Storage，避免 N+1 查詢
+          assignments = @user.teacher_assignments
+                             .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                             .order(created_at: :desc)
+
+          aienglish_data[:teaching_assignments] = assignments.map do |assignment|
+            school_academic_year = assignment.school_academic_year
+            school = school_academic_year&.school
+
+            school_data = if school
+                            {
+                              id: school.id,
+                              name: school.name,
+                              code: school.code
+                            }.merge(school.all_logo_urls)
+                          else
+                            nil
+                          end
+
+            academic_year_data = if school_academic_year
+                                   {
+                                     id: school_academic_year.id,
+                                     name: school_academic_year.name,
+                                     status: school_academic_year.status
+                                   }
+                                 else
+                                   nil
+                                 end
+
             {
               id: assignment.id,
-              school: assignment.school_academic_year.school.as_json(only: %i[id name code]).merge(
-                logo_url: assignment.school_academic_year.school.logo_url,
-                logo_thumbnail_url: assignment.school_academic_year.school.logo_thumbnail_url,
-                logo_small_url: assignment.school_academic_year.school.logo_small_url,
-                logo_large_url: assignment.school_academic_year.school.logo_large_url,
-                logo_square_url: assignment.school_academic_year.school.logo_square_url
-              ),
-              academic_year: assignment.school_academic_year.as_json(only: %i[id year name status]),
+              school: school_data,
+              academic_year: academic_year_data,
               department: assignment.department,
               position: assignment.position,
               created_at: assignment.created_at
@@ -272,23 +294,47 @@ module Api
           aienglish_data[:students_count] = student_ids.count if student_ids.present?
         else
           # 獲取學生資訊
-          student_enrollment = @user.student_enrollments.includes(school_academic_year: :school).order(created_at: :desc).limit(1).map do |enrollment|
-            {
+          # 優化：使用 with_attached_logo 預加載 Active Storage，使用 first 而不是 limit(1).map
+          enrollment = @user.student_enrollments
+                            .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                            .order(created_at: :desc)
+                            .first
+
+          if enrollment
+            school_academic_year = enrollment.school_academic_year
+            school = school_academic_year&.school
+
+            school_data = if school
+                            {
+                              id: school.id,
+                              name: school.name,
+                              code: school.code
+                            }.merge(school.all_logo_urls)
+                          else
+                            nil
+                          end
+
+            academic_year_data = if school_academic_year
+                                   {
+                                     id: school_academic_year.id,
+                                     name: school_academic_year.name,
+                                     status: school_academic_year.status
+                                   }
+                                 else
+                                   nil
+                                 end
+
+            aienglish_data[:enrollments] = [{
               id: enrollment.id,
-              school: enrollment.school_academic_year.school.as_json(only: %i[id name code]).merge(
-                logo_url: enrollment.school_academic_year.school.logo_url,
-                logo_thumbnail_url: enrollment.school_academic_year.school.logo_thumbnail_url,
-                logo_small_url: enrollment.school_academic_year.school.logo_small_url,
-                logo_large_url: enrollment.school_academic_year.school.logo_large_url,
-                logo_square_url: enrollment.school_academic_year.school.logo_square_url
-              ),
-              academic_year: enrollment.school_academic_year.as_json(only: %i[id year name status]),
+              school: school_data,
+              academic_year: academic_year_data,
               class_name: enrollment.class_name,
               class_number: enrollment.class_number,
               created_at: enrollment.created_at
-            }
+            }]
+          else
+            aienglish_data[:enrollments] = []
           end
-          aienglish_data[:enrollments] = student_enrollment
 
           # 獲取學生的教師
           aienglish_data[:teachers] = @user.find_teachers_via_students

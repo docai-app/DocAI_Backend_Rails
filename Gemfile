@@ -140,3 +140,4 @@ gem 'mini_magick', '~> 4.10'
 
 gem 'ahoy_matey'
 gem 'geocoder'
+gem 'rails_performance'
