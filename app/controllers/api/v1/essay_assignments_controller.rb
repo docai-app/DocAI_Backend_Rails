@@ -83,127 +83,184 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-        essay_assignment_data = @essay_assignment.as_json
+        
+        # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
+        essay_assignment_data = {
+          id: @essay_assignment.id,
+          topic: @essay_assignment.topic,
+          assignment: @essay_assignment.assignment,
+          title: @essay_assignment.title,
+          hints: @essay_assignment.hints,
+          category: @essay_assignment.category,
+          answer_visible: @essay_assignment.answer_visible,
+          remark: @essay_assignment.remark,
+          code: @essay_assignment.code,
+          rubric: @essay_assignment.rubric,
+          meta: @essay_assignment.meta,
+          number_of_submission: @essay_assignment.number_of_submission,
+          created_at: @essay_assignment.created_at,
+          updated_at: @essay_assignment.updated_at
+        }
         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
 
-        # 确保只查询有 essay_assignment_id 的记录，并确保关联存在
+        # 優化：移除 select，避免 schema 查詢；使用 includes 預加載關聯
+        # 優化：在數據庫層面過濾，避免在 Ruby 層面處理
         @essay_gradings = @essay_assignment.essay_gradings
                                            .where.not(status: 'draft')
-                                           .where.not(essay_assignment_id: nil) # 确保 essay_assignment_id 不为空
-                                           .joins(:general_user)
-                                           .joins(:essay_assignment)
-                                           .select(
-                                             'essay_gradings.id,
-                                      essay_gradings.essay_assignment_id,
-                                      essay_gradings.general_user_id,
-                                      essay_assignments.category as essay_assignment_category,
-                                      essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id,
-                                      essay_gradings.using_time,
-                                      essay_gradings.created_at,
-                                      essay_gradings.updated_at,
-                                      essay_gradings.status,
-                                      essay_gradings.grading,
-                                      essay_gradings.submission_class_name,
-                                      essay_gradings.submission_class_number,
-                                      COALESCE(essay_gradings.grading ->> \'number_of_suggestion\', \'null\') AS number_of_suggestion,
-                                      general_users.nickname,
-                                      general_users.banbie,
-                                      general_users.class_no,
-                                      essay_gradings.score as score,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'questions_count\', \'null\') AS questions_count,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'full_score\', \'null\') AS full_score,
-                                      COALESCE(essay_gradings.grading -> \'comprehension\' ->> \'score\', \'null\') AS comprehension_score'
-                                           )
-                                           .includes(:general_user, :essay_assignment) # 确保预加载关联
+                                           .where.not(essay_assignment_id: nil)
+                                           .includes(:general_user, :essay_assignment)
                                            .order('created_at asc')
+
+        # 優化：預先獲取 category，避免在循環中重複訪問
+        assignment_category = @essay_assignment.category
+        is_sentence_builder = assignment_category == 'sentence_builder'
+        is_comprehension = assignment_category == 'comprehension'
+        is_speaking_pronunciation = assignment_category == 'speaking_pronunciation'
+
+        # 優化：批量處理數據，減少重複的 JSON 解析和計算
+        essay_gradings_data = @essay_gradings.map do |eg|
+          # 確保 essay_assignment_id 存在
+          next nil unless eg.essay_assignment_id.present?
+
+          # 優化：緩存 grading 數據，避免重複訪問
+          grading_data = eg.grading || {}
+          grading_data_hash = grading_data.is_a?(Hash) ? grading_data : {}
+          grading_text = grading_data_hash.dig('data', 'text')
+
+          # 優化：只在需要時解析 JSON，並緩存結果
+          grading_json = nil
+          if grading_text.present? && !is_sentence_builder && !is_comprehension && !is_speaking_pronunciation
+            begin
+              grading_json = JSON.parse(grading_text)
+            rescue StandardError => e
+              Rails.logger.warn "Error parsing grading JSON for EssayGrading #{eg.id}: #{e.message}"
+              grading_json = {}
+            end
+          end
+
+          # 初始化變量
+          scores = {}
+          overall_score = nil
+          the_full_score = nil
+          number_of_suggestion = grading_data_hash['number_of_suggestion']
+          comprehension_data = grading_data_hash['comprehension'] || {}
+
+          if is_sentence_builder
+            # 優化：只在需要時計算分數，避免不必要的保存操作
+            begin
+              sentence_builder_data = grading_data_hash['sentence_builder']
+              
+              # 先檢查是否已經有分數，避免重複計算和保存
+              if sentence_builder_data.is_a?(Hash) && sentence_builder_data['score'].present?
+                the_full_score = sentence_builder_data['full_score']
+                overall_score = sentence_builder_data['score']
+              elsif sentence_builder_data.is_a?(Array)
+                # 如果是數組，查找第一個有分數的元素
+                sb_item = sentence_builder_data.find { |item| item.is_a?(Hash) && item['score'].present? }
+                if sb_item
+                  the_full_score = sb_item['full_score']
+                  overall_score = sb_item['score']
+                elsif grading_text.present?
+                  # 如果沒有緩存分數，才計算（但不在讀取時保存）
+                  begin
+                    response = JSON.parse(grading_text)
+                    total_score = response['results']&.size || 0
+                    score = 0
+                    response['results']&.each do |result|
+                      score += 1 if result['errors']&.all? { |error| error['error1'] == 'Correct' }
+                    end
+                    the_full_score = total_score
+                    overall_score = score
+                  rescue StandardError => e
+                    Rails.logger.error "Error parsing sentence builder data for EssayGrading #{eg.id}: #{e.message}"
+                  end
+                end
+              elsif grading_text.present?
+                # 如果沒有緩存分數，才計算（但不在讀取時保存）
+                begin
+                  response = JSON.parse(grading_text)
+                  total_score = response['results']&.size || 0
+                  score = 0
+                  response['results']&.each do |result|
+                    score += 1 if result['errors']&.all? { |error| error['error1'] == 'Correct' }
+                  end
+                  the_full_score = total_score
+                  overall_score = score
+                rescue StandardError => e
+                  Rails.logger.error "Error parsing sentence builder data for EssayGrading #{eg.id}: #{e.message}"
+                end
+              end
+            rescue StandardError => e
+              Rails.logger.error "Error calculating sentence builder score for EssayGrading #{eg.id}: #{e.message}"
+            end
+          elsif is_comprehension
+            the_full_score = comprehension_data['questions_count']
+            overall_score = comprehension_data['score']
+          elsif is_speaking_pronunciation
+            the_full_score = 100
+            overall_score = eg.score
+          elsif grading_json
+            # 提取每個 criterion 的分數和總分
+            scores = grading_json.each_with_object({}) do |(key, value), result|
+              next unless key.start_with?('Criterion') && value.is_a?(Hash)
+
+              value.each do |criterion_key, criterion_value|
+                result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
+              end
+            end
+
+            # 提取 Overall Score
+            overall_score = grading_json['Overall Score']
+            the_full_score = grading_json['Full Score']
+          end
+
+          # 優化：使用預加載的關聯，避免額外查詢
+          general_user = eg.general_user
+          class_no_int = begin
+            (general_user&.class_no || '0').to_i
+          rescue StandardError
+            0
+          end
+
+          {
+            id: eg.id,
+            general_user: {
+              id: eg.general_user_id,
+              nickname: general_user&.nickname,
+              class_name: general_user&.banbie,
+              class_no: general_user&.class_no
+            },
+            using_time: eg.using_time,
+            newsfeed_id: eg.newsfeed_id,
+            category: assignment_category,
+            created_at: eg.created_at,
+            updated_at: eg.updated_at,
+            status: eg.status,
+            number_of_suggestion: number_of_suggestion,
+            questions_count: comprehension_data['questions_count'],
+            full_score: the_full_score,
+            score: overall_score || eg.score,
+            scores: scores,
+            overall_score: overall_score,
+            the_full_score: the_full_score,
+            submission_class_name: eg.submission_class_name,
+            submission_class_number: eg.submission_class_number
+          }
+        end.compact
+
+        # 優化：在 Ruby 層面排序（因為需要按 class_no 數字排序，數據庫排序可能不準確）
+        essay_gradings_data.sort_by! do |eg_data|
+          begin
+            (eg_data[:general_user][:class_no] || '0').to_i
+          rescue StandardError
+            0
+          end
+        end
 
         render json: {
           success: true,
           essay_assignment: essay_assignment_data,
-          essay_gradings: @essay_gradings.sort_by do |eg|
-            eg.class_no.to_i
-          rescue StandardError => e
-            Rails.logger.warn "Error converting class_no to integer: #{e.message}"
-            0
-          end.map do |eg|
-            # 确保 essay_assignment_id 存在
-            unless eg.essay_assignment_id.present?
-              Rails.logger.error "EssayGrading #{eg.id} missing essay_assignment_id"
-              next nil # 跳过这条记录
-            end
-
-            # 解析 grading JSON
-            grading_json = begin
-              if eg['grading'].is_a?(Hash) && eg['grading']['data'].is_a?(Hash) && eg['grading']['data']['text'].present?
-                JSON.parse(eg['grading']['data']['text'])
-              else
-                {}
-              end
-            rescue StandardError => e
-              Rails.logger.warn "Error parsing grading JSON for EssayGrading #{eg.id}: #{e.message}"
-              {}
-            end
-
-            # 初始化变量
-            scores = {}
-            overall_score = nil
-            the_full_score = nil
-
-            if @essay_assignment.sentence_builder?
-              begin
-                sb_score = eg.calculate_sentence_builder_score
-                the_full_score = sb_score[:full_score]
-                overall_score = sb_score[:score]
-                eg['score'] = overall_score
-              rescue StandardError => e
-                Rails.logger.error "Error calculating sentence builder score for EssayGrading #{eg.id}: #{e.message}"
-              end
-            elsif @essay_assignment.comprehension?
-              eg['full_score'] = eg['grading']['comprehension']['questions_count'] if eg['grading']['comprehension'].present?
-              eg['score'] = eg['grading']['comprehension']['score'] if eg['grading']['comprehension'].present?
-            elsif @essay_assignment.speaking_pronunciation?
-              eg['full_score'] = 100
-            else
-              # 提取每個 criterion 的分數和總分
-              scores = grading_json.each_with_object({}) do |(key, value), result|
-                next unless key.start_with?('Criterion') && value.is_a?(Hash)
-
-                value.each do |criterion_key, criterion_value|
-                  # 排除不需要的键
-                  result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
-                end
-              end
-
-              # 提取 Overall Score
-              overall_score = grading_json['Overall Score']
-              the_full_score = grading_json['Full Score']
-            end
-
-            {
-              id: eg.id,
-              general_user: {
-                id: eg.general_user_id,
-                nickname: eg.nickname,
-                class_name: eg.banbie,
-                class_no: eg.class_no
-              },
-              using_time: eg['using_time'],
-              newsfeed_id: eg['newsfeed_id'],
-              category: eg['essay_assignment_category'],
-              created_at: eg.created_at,
-              updated_at: eg.updated_at,
-              status: eg.status,
-              number_of_suggestion: eg['number_of_suggestion'] == 'null' ? nil : eg['number_of_suggestion'],
-              questions_count: eg['questions_count'] == 'null' ? nil : eg['questions_count'],
-              full_score: eg['full_score'] == 'null' ? nil : eg['full_score'],
-              score: eg['score'] == 'null' ? nil : eg['score'].to_i,
-              scores:,
-              overall_score:,
-              the_full_score:,
-              submission_class_name: eg.submission_class_name,
-              submission_class_number: eg.submission_class_number
-            }
-          end.compact # 移除 nil 值
+          essay_gradings: essay_gradings_data
         }, status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
