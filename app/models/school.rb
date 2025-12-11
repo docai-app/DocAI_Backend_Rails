@@ -81,10 +81,10 @@ class School < ApplicationRecord
     # 在开发/测试环境，所有尺寸都返回 base_url，避免生成 variant 的开销
     if Rails.env.development? || Rails.env.test?
       {
-        # logo_url: base_url,
-        # logo_thumbnail_url: base_url,
+        logo_url: base_url,
+        logo_thumbnail_url: base_url,
         logo_small_url: base_url,
-        # logo_large_url: base_url,
+        logo_large_url: base_url,
         logo_square_url: base_url
       }
     else
@@ -92,25 +92,13 @@ class School < ApplicationRecord
       # 优化：使用 memoization 缓存结果，避免重复生成
       @all_logo_urls_cache ||= begin
         {
-        #   logo_url: base_url,
-        #   logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
+          logo_url: base_url,
+          logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
           logo_small_url: safe_variant_url(resize_to_limit: [100, 100], fallback: base_url),
-        #   logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
+          logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
           logo_square_url: safe_variant_url(resize_to_fill: [300, 300], fallback: base_url)
         }
       end
-    end
-  end
-
-  private
-
-  # 安全地生成 variant URL，失败时返回 fallback
-  def safe_variant_url(options, fallback:)
-    begin
-      logo.variant(options)&.processed&.url || fallback
-    rescue StandardError => e
-      Rails.logger.error("處理 logo variant 錯誤: #{e.message}")
-      fallback
     end
   end
 
@@ -186,6 +174,16 @@ class School < ApplicationRecord
   end
 
   private
+
+  # 安全地生成 variant URL，失败时返回 fallback
+  def safe_variant_url(options, fallback:)
+    begin
+      logo.variant(options)&.processed&.url || fallback
+    rescue StandardError => e
+      Rails.logger.error("處理 logo variant 錯誤: #{e.message}")
+      fallback
+    end
+  end
 
   # 驗證 logo 格式
   def validate_logo_format
