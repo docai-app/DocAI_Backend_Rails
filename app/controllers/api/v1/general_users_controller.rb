@@ -243,6 +243,12 @@ module Api
         end
 
         # 優化：手動構建用戶資料，只選擇需要的字段，避免 as_json 的開銷
+        # 安全處理 meta 字段，確保不為 nil 且是 Hash 類型
+        user_meta = @user.meta
+        user_meta = {} if user_meta.nil?
+        user_meta = user_meta.to_h if user_meta.respond_to?(:to_h) && !user_meta.is_a?(Hash)
+        filtered_meta = user_meta.is_a?(Hash) ? user_meta.except('konnecai_tokens') : {}
+
         aienglish_data = {
           id: @user.id,
           email: @user.email,
@@ -255,8 +261,8 @@ module Api
           banbie: @user.banbie,
           class_no: @user.class_no,
           created_at: @user.created_at,
-          updated_at: @user.updated_at,
-          meta: @user.meta.except('konnecai_tokens'),
+          updated_at: @user.updated_at, 
+          meta: filtered_meta,
           recovery_email: @user.recovery_email,
           is_recovery_email_confirmed: @user.recovery_email_confirmed?,
           recovery_email_confirmed_at: @user.recovery_email_confirmed_at
@@ -388,7 +394,13 @@ module Api
         end
 
         render json: { success: true, user: aienglish_data }, status: :ok
+      rescue ArgumentError => e
+        # 捕获参数错误，可能是 fallback 参数缺失
+        Rails.logger.error("[GeneralUsersController#show_aienglish_profile] ArgumentError: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+        render json: { success: false, error: "Invalid arguments: #{e.message}" }, status: :internal_server_error
       rescue StandardError => e
+        # 记录完整的错误信息以便调试
+        Rails.logger.error("[GeneralUsersController#show_aienglish_profile] Error: #{e.class.name}: #{e.message}\n#{e.backtrace.first(10).join("\n")}")
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 

@@ -76,7 +76,25 @@ class School < ApplicationRecord
       logo_square_url: nil
     } unless logo.attached?
 
-    base_url = logo.url
+    # 安全获取 logo URL，处理可能的异常
+    base_url = begin
+      logo.url
+    rescue ArgumentError => e
+      # 如果 url 方法需要参数，尝试使用默认方式
+      Rails.logger.error("Error getting logo URL: #{e.message}")
+      nil
+    rescue StandardError => e
+      Rails.logger.error("Unexpected error getting logo URL: #{e.message}")
+      nil
+    end
+
+    return {
+      logo_url: nil,
+      logo_thumbnail_url: nil,
+      logo_small_url: nil,
+      logo_large_url: nil,
+      logo_square_url: nil
+    } unless base_url
 
     # 在开发/测试环境，所有尺寸都返回 base_url，避免生成 variant 的开销
     if Rails.env.development? || Rails.env.test?
