@@ -1,6 +1,6 @@
 RailsPerformance.setup do |config|
   config.redis    = Redis.new(url: ENV["REDIS_URL"].presence || "redis://127.0.0.1:6379/0") # or Redis::Namespace.new("rails-performance", redis: Redis.new), see below in README
-  config.duration = 4.hours
+  config.duration = 24.hours
 
   config.debug    = false # currently not used
   config.enabled  = true

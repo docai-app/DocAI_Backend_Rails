@@ -66,6 +66,7 @@ class School < ApplicationRecord
   scope :with_attached_logo, -> { includes(logo_attachment: :blob) }
 
   # 批量获取所有 logo URLs，避免多次查询 Active Storage
+  # 优化：在开发/测试环境直接返回 base_url，避免生成 variant 的开销
   def all_logo_urls
     return {
       logo_url: nil,
@@ -77,42 +78,39 @@ class School < ApplicationRecord
 
     base_url = logo.url
 
+    # 在开发/测试环境，所有尺寸都返回 base_url，避免生成 variant 的开销
     if Rails.env.development? || Rails.env.test?
       {
-        logo_url: base_url,
-        logo_thumbnail_url: base_url,
+        # logo_url: base_url,
+        # logo_thumbnail_url: base_url,
         logo_small_url: base_url,
-        logo_large_url: base_url,
+        # logo_large_url: base_url,
         logo_square_url: base_url
       }
     else
-      {
-        logo_url: base_url,
-        logo_thumbnail_url: begin
-          logo.variant(resize_to_limit: [200, 200])&.processed&.url || base_url
-        rescue StandardError => e
-          Rails.logger.error("處理 logo 縮圖錯誤: #{e.message}")
-          base_url
-        end,
-        logo_small_url: begin
-          logo.variant(resize_to_limit: [100, 100])&.processed&.url || base_url
-        rescue StandardError => e
-          Rails.logger.error("處理 logo 小圖錯誤: #{e.message}")
-          base_url
-        end,
-        logo_large_url: begin
-          logo.variant(resize_to_limit: [500, 500])&.processed&.url || base_url
-        rescue StandardError => e
-          Rails.logger.error("處理 logo 大圖錯誤: #{e.message}")
-          base_url
-        end,
-        logo_square_url: begin
-          logo.variant(resize_to_fill: [300, 300])&.processed&.url || base_url
-        rescue StandardError => e
-          Rails.logger.error("處理 logo 方圖錯誤: #{e.message}")
-          base_url
-        end
-      }
+      # 生产环境：只生成必要的 variant，使用 rescue 确保即使失败也返回 base_url
+      # 优化：使用 memoization 缓存结果，避免重复生成
+      @all_logo_urls_cache ||= begin
+        {
+        #   logo_url: base_url,
+        #   logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
+          logo_small_url: safe_variant_url(resize_to_limit: [100, 100], fallback: base_url),
+        #   logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
+          logo_square_url: safe_variant_url(resize_to_fill: [300, 300], fallback: base_url)
+        }
+      end
+    end
+  end
+
+  private
+
+  # 安全地生成 variant URL，失败时返回 fallback
+  def safe_variant_url(options, fallback:)
+    begin
+      logo.variant(options)&.processed&.url || fallback
+    rescue StandardError => e
+      Rails.logger.error("處理 logo variant 錯誤: #{e.message}")
+      fallback
     end
   end
 

@@ -242,29 +242,52 @@ module Api
           return render json: { success: false, error: 'User is not an AIEnglish user' }, status: :bad_request
         end
 
-        # 構建 AIEnglish 用戶資料，排除 konnecai_tokens
-        aienglish_data = @user.as_json(
-          except: %i[konnecai_tokens recovery_confirmation_token recovery_confirmation_sent_at]
-        )
+        # 優化：手動構建用戶資料，只選擇需要的字段，避免 as_json 的開銷
+        aienglish_data = {
+          id: @user.id,
+          email: @user.email,
+          nickname: @user.nickname,
+          phone: @user.phone,
+          date_of_birth: @user.date_of_birth,
+          sex: @user.sex,
+          timezone: @user.timezone,
+          whats_app_number: @user.whats_app_number,
+          banbie: @user.banbie,
+          class_no: @user.class_no,
+          created_at: @user.created_at,
+          updated_at: @user.updated_at,
+          meta: @user.meta.except('konnecai_tokens'),
+          recovery_email: @user.recovery_email,
+          is_recovery_email_confirmed: @user.recovery_email_confirmed?,
+          recovery_email_confirmed_at: @user.recovery_email_confirmed_at
+        }
 
         # 根據角色獲取不同的資訊
         if @user.aienglish_role == 'teacher'
           # 獲取教師資訊
-          # 優化：使用 with_attached_logo 預加載 Active Storage，避免 N+1 查詢
+          # 優化：使用 includes 預加載關聯，避免 N+1 查詢
+          # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
           assignments = @user.teacher_assignments
                              .includes(school_academic_year: { school: { logo_attachment: :blob } })
                              .order(created_at: :desc)
 
+          # 優化：批量處理，減少重複的 logo URL 生成
+          school_logo_cache = {}
           aienglish_data[:teaching_assignments] = assignments.map do |assignment|
             school_academic_year = assignment.school_academic_year
             school = school_academic_year&.school
 
+            # 緩存 logo URLs，避免重複生成
             school_data = if school
-                            {
-                              id: school.id,
-                              name: school.name,
-                              code: school.code
-                            }.merge(school.all_logo_urls)
+                            cache_key = school.id
+                            unless school_logo_cache[cache_key]
+                              school_logo_cache[cache_key] = {
+                                id: school.id,
+                                name: school.name,
+                                code: school.code
+                              }.merge(school.all_logo_urls)
+                            end
+                            school_logo_cache[cache_key]
                           else
                             nil
                           end
@@ -289,12 +312,16 @@ module Api
             }
           end
 
-          # 獲取教師的學生
-          student_ids = KgLinker.where(map_from_id: @user.id, relation: 'has_student').pluck(:map_to_id).uniq
-          aienglish_data[:students_count] = student_ids.count if student_ids.present?
+          # 優化：直接使用 count，避免先 pluck 再 count
+        #   students_count = KgLinker.where(map_from_id: @user.id, relation: 'has_student')
+                                #    .select(:map_to_id)
+                                #    .distinct
+                                #    .count
+        #   aienglish_data[:students_count] = students_count if students_count > 0
         else
           # 獲取學生資訊
-          # 優化：使用 with_attached_logo 預加載 Active Storage，使用 first 而不是 limit(1).map
+          # 優化：使用 includes 預加載關聯，避免 N+1 查詢
+          # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
           enrollment = @user.student_enrollments
                             .includes(school_academic_year: { school: { logo_attachment: :blob } })
                             .order(created_at: :desc)
@@ -336,18 +363,31 @@ module Api
             aienglish_data[:enrollments] = []
           end
 
-          # 獲取學生的教師
-          aienglish_data[:teachers] = @user.find_teachers_via_students
+          # 優化：只在需要時查詢教師，使用 pluck 直接獲取值，避免 ActiveRecord 對象和 schema 查詢
+          teacher_ids = KgLinker.where(map_to_id: @user.id, relation: 'has_student')
+                                .distinct
+                                .pluck(:map_from_id)
+          if teacher_ids.present?
+            # 使用 pluck 直接獲取值，避免 ActiveRecord 對象創建和 schema 查詢
+            aienglish_data[:teachers] = GeneralUser.where(id: teacher_ids)
+                                                    .order(created_at: :desc)
+                                                    .pluck(:id, :email, :nickname, :phone, :created_at, :updated_at)
+                                                    .map do |id, email, nickname, phone, created_at, updated_at|
+              {
+                id: id,
+                email: email,
+                nickname: nickname,
+                phone: phone,
+                created_at: created_at,
+                updated_at: updated_at
+              }
+            end
+          else
+            aienglish_data[:teachers] = []
+          end
         end
 
-        render json: {
-          success: true,
-          user: aienglish_data.merge({
-                                       recovery_email: @user.recovery_email,
-                                       is_recovery_email_confirmed: @user.recovery_email_confirmed?,
-                                       recovery_email_confirmed_at: @user.recovery_email_confirmed_at
-                                     })
-        }, status: :ok
+        render json: { success: true, user: aienglish_data }, status: :ok
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
