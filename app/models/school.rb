@@ -92,11 +92,16 @@ class School < ApplicationRecord
       # 优化：使用 memoization 缓存结果，避免重复生成
       @all_logo_urls_cache ||= begin
         {
-          logo_url: base_url,
-          logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
-          logo_small_url: safe_variant_url(resize_to_limit: [100, 100], fallback: base_url),
-          logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
-          logo_square_url: safe_variant_url(resize_to_fill: [300, 300], fallback: base_url)
+            logo_url: base_url,
+            logo_thumbnail_url: base_url,
+            logo_small_url: base_url,
+            logo_large_url: base_url,
+            logo_square_url: base_url
+        #   logo_url: base_url,
+        #   logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
+        #   logo_small_url: safe_variant_url(resize_to_limit: [100, 100], fallback: base_url),
+        #   logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
+        #   logo_square_url: safe_variant_url(resize_to_fill: [300, 300], fallback: base_url)
         }
       end
     end
