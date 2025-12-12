@@ -198,7 +198,7 @@ module Api
             overall_score = comprehension_data['score']
           elsif is_speaking_pronunciation
             the_full_score = 100
-            overall_score = eg.score
+            overall_score = eg['score'] == 'null' ? nil : eg['score'].to_i
           elsif grading_json
             # 提取每個 criterion 的分數和總分
             scores = grading_json.each_with_object({}) do |(key, value), result|
