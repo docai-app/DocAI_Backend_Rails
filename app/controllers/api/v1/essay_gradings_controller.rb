@@ -44,11 +44,16 @@ module Api
               bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
-              normal: font_path.join('DejaVuSans.ttf')
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf'), # Fallback to normal for bold
+              italic: font_path.join('DejaVuSans.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              bold: font_path.join('ARIALBD.ttf'),
+              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
             }
           )
 
@@ -696,11 +701,16 @@ module Api
               bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
-              normal: font_path.join('DejaVuSans.ttf')
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf'), # Fallback to normal for bold
+              italic: font_path.join('DejaVuSans.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              bold: font_path.join('ARIALBD.ttf'),
+              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
             }
           )
 
@@ -830,11 +840,16 @@ module Api
               bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
-              normal: font_path.join('DejaVuSans.ttf')
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf'), # Fallback to normal for bold
+              italic: font_path.join('DejaVuSans.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              bold: font_path.join('ARIALBD.ttf'),
+              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
             }
           )
 
@@ -982,11 +997,16 @@ module Api
               bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
-              normal: font_path.join('DejaVuSans.ttf')
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf'), # Fallback to normal for bold
+              italic: font_path.join('DejaVuSans.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              bold: font_path.join('ARIALBD.ttf'),
+              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
             }
           )
 
@@ -1239,11 +1259,16 @@ module Api
               bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
-              normal: font_path.join('DejaVuSans.ttf')
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf'), # Fallback to normal for bold
+              italic: font_path.join('DejaVuSans.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              bold: font_path.join('ARIALBD.ttf'),
+              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
             }
           )
 
