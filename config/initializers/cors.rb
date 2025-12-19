@@ -23,7 +23,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://mjsse-dev.docai.net', 'http://mjsse-dev.docai.net', 'https://mjsse.docai.net', 'http://mjsse.docai.net',
             'https://phc-dev.docai.net', 'http://phc-dev.docai.net', 'https://phc.docai.net', 'http://phc.docai.net',
             'https://dify.docai.net', 'https://admin.docai.net', 'https://xinhua-admin.docai.net',
-            'https://test-docai-chatbot-plus.vercel.app', 'https://docai-client.docai.net', 'https://docai-teacher.docai.net', 'https://docai-teacher-dev.docai.net', 'https://dev-docai-frontend-pro-one.vercel.app', 'https://essay-checker.docai.net', 'https://aienglish.docai.net','https://communitys-ai.vercel.app','https://aienglish-admin.docai.net','https://essay-admin.docai.net','http://localhost:5173','http://129.226.205.17:5173'
+            'https://test-docai-chatbot-plus.vercel.app', 'https://docai-client.docai.net', 'https://docai-teacher.docai.net', 'https://docai-teacher-dev.docai.net', 'https://dev-docai-frontend-pro-one.vercel.app', 'https://essay-checker.docai.net', 'https://aienglish.docai.net','https://communitys-ai.vercel.app','https://aienglish-admin.docai.net','https://essay-admin.docai.net','http://localhost:5173','http://129.226.205.17:5173','https://super-duper-orbit-4jxg99v7w43q9p-5173.app.github.dev'
 
     # origins Cors.all.pluck(:url)
     # origins *Cors.pluck(:url)
