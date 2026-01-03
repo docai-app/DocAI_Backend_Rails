@@ -7,7 +7,7 @@ module Api
         # include AdminAuthenticator
 
         before_action :set_essay_grading, only: [:rerun_workflow]
-        before_action :check_stopped_status, only: [:rerun_workflow]
+        # before_action :check_stopped_status, only: [:rerun_workflow]
 
         def speaking_times_data
           # 支持的时间范围参数: week(默认), month, year
