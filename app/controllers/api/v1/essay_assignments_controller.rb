@@ -125,7 +125,12 @@ module Api
           # 優化：緩存 grading 數據，避免重複訪問
           grading_data = eg.grading || {}
           grading_data_hash = grading_data.is_a?(Hash) ? grading_data : {}
-          grading_text = grading_data_hash.dig('data', 'text')
+          begin
+            grading_text = grading_data_hash.dig('data', 'text')
+          rescue StandardError => e
+            Rails.logger.warn "Error getting grading text for EssayGrading #{eg.id}: #{e.message}"
+            grading_text = nil
+          end
 
           # 優化：只在需要時解析 JSON，並緩存結果
           grading_json = nil
