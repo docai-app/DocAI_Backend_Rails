@@ -46,10 +46,20 @@ Rails.application.routes.draw do
           get 'show_only'
           get 'download_reports', to: 'essay_gradings#download_reports'
           post 'generate_sample_essay'
+          get 'statistics', to: 'assignment_statistics#show'
+          post 'send_reminders', to: 'assignment_reminders#create'
         end
         collection do
           post :parse_vocab_csv
           get 'by_community/:community_id', to: 'essay_assignments#by_community'
+          get 'distribution_options', to: 'assignment_distributions#distribution_options'
+          get 'my_assignments', to: 'my_assignments#index'
+        end
+        resources :distributions, controller: 'assignment_distributions', except: [:new, :edit] do
+          collection do
+            post 'add_students', to: 'assignment_distributions#add_students'
+            post 'remove_students', to: 'assignment_distributions#remove_students'
+          end
         end
       end
       resources :essay_gradings, only: %i[index show update destroy] do

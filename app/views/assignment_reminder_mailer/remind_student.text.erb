@@ -1,0 +1,32 @@
+Assignment Reminder
+
+Dear <%= @student.nickname || @student.email %>,
+
+You have an assignment that has not been submitted yet.
+
+Assignment: <%= @essay_assignment.title %>
+<% if @essay_assignment.topic.present? %>
+Topic: <%= @essay_assignment.topic %>
+<% end %>
+
+<% if @deadline.present? %>
+Deadline: <%= @deadline.strftime('%B %d, %Y at %I:%M %p') %>
+  <% if @days_remaining.present? %>
+    <% if @days_remaining <= 0 %>
+This assignment is overdue.
+    <% elsif @days_remaining <= 3 %>
+Time remaining: <%= @days_remaining %> <%= @days_remaining == 1 ? 'day' : 'days' %>
+    <% else %>
+Time remaining: <%= @days_remaining %> <%= @days_remaining == 1 ? 'day' : 'days' %>
+    <% end %>
+  <% end %>
+<% end %>
+
+View Assignment Details: <%= @assignment_url %>
+
+Please complete this assignment as soon as possible.
+
+Thank you
+
+---
+© <%= Time.now.year %> AI ENGLISH. All rights reserved.

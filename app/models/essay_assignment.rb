@@ -42,6 +42,11 @@ class EssayAssignment < ApplicationRecord
   belongs_to :general_user
   belongs_to :community, optional: true
 
+  # 作業分配關聯
+  has_many :assignment_distributions, dependent: :destroy
+  has_many :assignment_student_assignments, dependent: :destroy
+  has_many :assigned_students, through: :assignment_student_assignments, source: :general_user
+
   # 檔案附件 - 為IELTS看圖作文添加圖片上傳功能
   has_one_attached :graph_image, service: :microsoft
 
@@ -196,5 +201,35 @@ class EssayAssignment < ApplicationRecord
 
     # 保存更新后的 meta
     update(meta: meta.merge('speaking_pronunciation_sentences' => current_sentences))
+  end
+
+  # 作業分配相關方法
+  def distributed?
+    assignment_distributions.active.exists?
+  end
+
+  def assigned_to_student?(student)
+    assignment_student_assignments.where(general_user: student).exists?
+  end
+
+  # 獲取所有被分配的學生（去重）
+  def all_assigned_students
+    GeneralUser.where(id: assignment_student_assignments.select(:general_user_id).distinct)
+  end
+
+  # 獲取作業統計
+  def assignment_statistics
+    total = assignment_student_assignments.count
+    completed = assignment_student_assignments.completed.count
+    pending = assignment_student_assignments.assigned.count
+    overdue = assignment_student_assignments.overdue.count
+    
+    {
+      total: total,
+      completed: completed,
+      pending: pending,
+      overdue: overdue,
+      completion_rate: total.zero? ? 0.0 : (completed.to_f / total * 100).round(2)
+    }
   end
 end

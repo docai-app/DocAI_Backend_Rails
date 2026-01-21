@@ -333,6 +333,10 @@ module Api
         end
 
         if @essay_grading.save
+          # 檢查是否有對應的作業分配，如果有則更新分配狀態
+          # 只有非草稿狀態的提交才更新分配狀態
+          update_assignment_status_if_needed unless @essay_grading.status == 'draft'
+
           # Track assignment submission（非 draft 才記錄正式提交）
           # unless @essay_grading.status == 'draft'
           #   # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
@@ -533,6 +537,15 @@ module Api
         set_essay_grading_wiht_role
 
         if @essay_grading.update(essay_grading_params)
+          # 如果狀態從 draft 變為非 draft，需要更新分配狀態
+          if @essay_grading.saved_change_to_status? && 
+             @essay_grading.status != 'draft' && 
+             @essay_grading.status_before_last_save == 'draft'
+            # 需要設置 @essay_assignment 以便 update_assignment_status_if_needed 使用
+            @essay_assignment = @essay_grading.essay_assignment
+            update_assignment_status_if_needed
+          end
+
           render json: { success: true, essay_grading: @essay_grading }, status: :ok
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages },
@@ -1492,6 +1505,27 @@ module Api
           quoted = $1  # 捕获字符串内容
           fixed_content = quoted.gsub("\n", '\\n')  # 只转义 \n
           "\"#{fixed_content}\""  # 重建字符串
+        end
+      end
+
+      # 更新作業分配狀態（如果存在對應的分配記錄）
+      def update_assignment_status_if_needed
+        # 查找對應的 AssignmentStudentAssignment
+        assignment = AssignmentStudentAssignment.find_by(
+          essay_assignment_id: @essay_assignment.id,
+          general_user_id: current_general_user.id
+        )
+
+        # 如果存在分配記錄，說明是通過分配的作業進入，需要更新狀態
+        if assignment
+          assignment.update_columns(
+            status: AssignmentStudentAssignment.statuses[:completed],
+            completed_at: @essay_grading.created_at
+          )
+          Rails.logger.info "Updated assignment status for user #{current_general_user.id}, assignment #{@essay_assignment.id}"
+        else
+          # 如果不存在分配記錄，說明是直接通過 code 進入，不需要更新狀態
+          Rails.logger.info "No assignment distribution found for user #{current_general_user.id}, assignment #{@essay_assignment.id} - skipping status update"
         end
       end
 

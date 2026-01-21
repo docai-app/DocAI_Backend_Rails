@@ -74,6 +74,10 @@ class GeneralUser < ApplicationRecord
   has_many :essay_gradings
   has_many :essay_assignments
 
+  # 作業分配關聯
+  has_many :assignment_student_assignments, dependent: :destroy
+  has_many :assigned_essay_assignments, through: :assignment_student_assignments, source: :essay_assignment
+
   # Community 关联
   has_many :created_communities, class_name: 'Community', dependent: :destroy
   has_many :community_memberships, dependent: :destroy
@@ -430,6 +434,46 @@ class GeneralUser < ApplicationRecord
       'general_user_id = :user_id OR id IN (SELECT community_id FROM community_memberships WHERE general_user_id = :user_id)',
       user_id: id
     ).distinct
+  end
+
+  # 作業分配相關方法
+  def pending_assignments
+    assigned_essay_assignments
+      .joins(:assignment_student_assignments)
+      .where(assignment_student_assignments: { 
+        general_user_id: id, 
+        status: [:assigned, :overdue] 
+      })
+      .where('assignment_student_assignments.deadline > ? OR assignment_student_assignments.deadline IS NULL', Time.current)
+  end
+
+  def overdue_assignments
+    assigned_essay_assignments
+      .joins(:assignment_student_assignments)
+      .where(assignment_student_assignments: { 
+        general_user_id: id, 
+        status: :overdue 
+      })
+      .where('assignment_student_assignments.deadline < ?', Time.current)
+  end
+
+  def completed_assignments
+    assigned_essay_assignments
+      .joins(:assignment_student_assignments)
+      .where(assignment_student_assignments: { 
+        general_user_id: id, 
+        status: :completed 
+      })
+  end
+
+  # 獲取所有分配的作業（包括狀態信息）
+  def my_assignments(status: nil)
+    query = assignment_student_assignments
+              .includes(:essay_assignment)
+              .order('assignment_student_assignments.created_at DESC')
+    
+    query = query.where(status: status) if status.present?
+    query
   end
 
   # Validations for recovery_email
