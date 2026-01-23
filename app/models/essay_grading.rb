@@ -55,6 +55,7 @@ class EssayGrading < ApplicationRecord
   after_create :run_workflow, if: :should_run_workflow_on_create?
   after_update :run_workflow, if: :should_run_workflow_on_submit?
   after_create :calculate_comprehension_score, if: :is_comprehension?
+  after_update :calculate_comprehension_score, if: :is_comprehension?
   # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
   after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
   after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
@@ -261,16 +262,29 @@ class EssayGrading < ApplicationRecord
       end
     end
 
-    # 返回最终分数
-    self['grading']['comprehension']['score'] = score
-    self['grading']['comprehension']['questions_count'] = questions.count
-    self['grading']['comprehension']['full_score'] = questions.count
-    self['status'] = 'graded'
-    self['score'] = score
-    save
+    # 保存当前状态，用于判断是否需要设置为 graded
+    current_status = status
+    puts "current_status: #{current_status}"
 
-    # 呼叫 webhook
-    call_webhook
+    # 更新 grading JSONB 字段
+    updated_grading = grading.dup
+    updated_grading['comprehension'] ||= {}
+    updated_grading['comprehension']['score'] = score
+    updated_grading['comprehension']['questions_count'] = questions.count
+    updated_grading['comprehension']['full_score'] = questions.count
+
+    # 确定最终状态：如果当前状态是 draft，保持 draft 状态；否则设置为 graded
+    final_status = current_status == 'draft' ? EssayGrading.statuses[:draft] : EssayGrading.statuses[:graded]
+
+    # 关键：用 update_columns，直接写数据库，不触发回调，避免无限递归
+    update_columns(
+      grading: updated_grading,
+      score: score,
+      status: final_status
+    )
+
+    # 呼叫 webhook（仅在非 draft 状态时调用）
+    call_webhook unless current_status == 'draft'
   end
 
   def calculate_sentence_builder_score
