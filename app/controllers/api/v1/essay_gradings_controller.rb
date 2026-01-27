@@ -610,6 +610,10 @@ module Api
                   :answer,
                   :user_answer,
                   :indicator,
+                  :summary,
+                  :type,
+                  :chosen_paragraphs,
+                  { blanks: [:id, :answer, :user_answer] },
                   { options: {} }
                 ]
               ]
@@ -812,20 +816,57 @@ module Api
           pdf.move_down 10
 
           comprehension['questions'].each_with_index do |question, index|
-            pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
-            pdf.move_down 5
-
-            question['options'].each do |key, option|
-              pdf.text "  #{key}: #{option}", size: 12
+          
+            if question['type'] == 'fill_in_the_blanks' && !essay_grading.essay_assignment.meta['fill_in_the_blanks_visible']
+              next;
             end
 
-            pdf.move_down 5
-            pdf.fill_color '000000' # 重置颜色为黑色
-            pdf.text "My Answer: #{question['user_answer']}", style: :bold, size: 12 # 添加我的答案
-            pdf.fill_color '008000'  # 设置文本颜色为绿色
-            pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 12
-            pdf.fill_color '000000'  # 重置颜色为黑色
-            pdf.move_down 15
+            if question['type'] == 'fill_in_the_blanks'
+              pdf.text "Q#{index + 1}. Fill in the blanks", size: 14, style: :bold
+              pdf.move_down 8
+
+              # Chosen Paragraphs
+              if question['chosen_paragraphs'].present?
+                pdf.text "Chosen Paragraphs:", size: 12, style: :bold
+                pdf.move_down 3
+                pdf.text question['chosen_paragraphs'], size: 11, leading: 4
+                pdf.move_down 8
+              end
+
+              # Summary (渲染后的，将 [[blank_X]] 替换为下划线)
+              if question['summary'].present?
+                pdf.text "Summary:", size: 12, style: :bold
+                pdf.move_down 3
+                summary_text = render_fill_in_the_blank_summary(question)
+                pdf.text summary_text, size: 11, leading: 4
+                pdf.move_down 8
+              end
+
+              # User Answer (格式化后的)
+              user_answer_text = get_fill_in_the_blanks_user_answer(question)
+              pdf.text "My answer: #{user_answer_text}", size: 12, style: :bold
+              pdf.move_down 5
+
+              # Correct Answer (格式化后的)
+              correct_answer_text = get_fill_in_the_blanks_answer(question)
+              pdf.fill_color '008000'
+              pdf.text "Correct answer: #{correct_answer_text}", size: 12, style: :bold
+              pdf.fill_color '000000'
+              pdf.move_down 15
+            else
+              pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
+              pdf.move_down 5
+              question['options'].each do |key, option|
+                pdf.text "  #{key}: #{option}", size: 12
+              end 
+              pdf.move_down 5
+              pdf.fill_color '000000' # 重置颜色为黑色
+              pdf.text "My Answer: #{question['user_answer']}", style: :bold, size: 12 # 添加我的答案
+              pdf.fill_color '008000'  # 设置文本颜色为绿色
+              pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 12
+              pdf.fill_color '000000'  # 重置颜色为黑色
+              pdf.move_down 15
+            end
           end
 
           # Final Result
@@ -1506,6 +1547,54 @@ module Api
           fixed_content = quoted.gsub("\n", '\\n')  # 只转义 \n
           "\"#{fixed_content}\""  # 重建字符串
         end
+      end
+
+      # 渲染填空题的 summary，将 [[blank_X]] 替换为下划线
+      def render_fill_in_the_blank_summary(question)
+        return '' unless question['summary']
+
+        summary = question['summary']
+        # 匹配 [[blank_X]] 格式
+        blank_regex = /\[\[(\w+)\]\]/
+        # 将所有 [[blank_X]] 替换为下划线
+        summary.gsub(blank_regex, '____')
+      end
+
+      # 获取填空题的用户答案，按照 blanks 的顺序排列，用逗号分隔
+      def get_fill_in_the_blanks_user_answer(question)
+        return '' unless question['user_answer'] && question['blanks'] && question['blanks'].is_a?(Array)
+
+        begin
+          # 解析 user_answer JSON 字符串
+          user_answers = if question['user_answer'].is_a?(String)
+                           JSON.parse(question['user_answer'])
+                         else
+                           question['user_answer']
+                         end
+
+          # 按照 blanks 的顺序排列答案
+          answers = question['blanks'].map do |blank|
+            blank_id = blank['id']
+            user_answer = user_answers[blank_id]
+
+            # 如果有答案，返回去除首尾空格的答案；否则返回下划线
+            user_answer ? user_answer.to_s.strip : '__'
+          end
+
+          # 用逗号分隔
+          answers.join(', ')
+        rescue JSON::ParserError => e
+          # 如果解析失败，返回原始值
+          Rails.logger.warn("Failed to parse user_answer: #{e.message}")
+          question['user_answer'].to_s
+        end
+      end
+
+      # 获取填空题的正确答案，按照 blanks 的顺序排列，用逗号分隔
+      def get_fill_in_the_blanks_answer(question)
+        return '' unless question['blanks'] && question['blanks'].is_a?(Array)
+
+        question['blanks'].map { |blank| blank['answer'] }.join(', ')
       end
 
       # 更新作業分配狀態（如果存在對應的分配記錄）

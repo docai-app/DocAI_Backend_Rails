@@ -252,13 +252,60 @@ class EssayGrading < ApplicationRecord
   def calculate_comprehension_score
     # 初始化分数
     score = 0
+    all_blanks_count = 0
 
     # 遍历所有问题
     questions.each do |question|
+      if question['type'] == 'fill_in_the_blanks' && !essay_assignment.meta['fill_in_the_blanks_visible']
+        next;
+      end
       # 比较正确答案和用户答案
-      if question['answer'] == question['user_answer']
-        # 如果答案正确，分数增加1
-        score += 1
+      if question['type'] == 'fill_in_the_blanks' 
+        # 填空题：需要比较 blanks 数组中的每个答案
+        blanks = question['blanks'] || []
+        user_answer_str = question['user_answer']
+        
+        # 如果 blanks 为空或 user_answer 为空，跳过
+        next if blanks.empty? || user_answer_str.blank?
+        
+        begin
+          # 解析 user_answer JSON 字符串
+          user_answers = JSON.parse(user_answer_str)
+          
+          # 如果用户没有填写任何答案，跳过
+          next if user_answers.empty?
+          
+          # 创建一个 blank_id 到正确答案的映射，方便查找
+          blanks_map = blanks.each_with_object({}) do |blank, hash|
+            hash[blank['id']] = blank['answer'].to_s.strip.downcase
+          end
+          
+          # 统计用户填写的 blank 中有多少个正确答案
+          correct_count = user_answers.count do |blank_id, user_answer|
+            # 检查该 blank_id 是否在题目中存在
+            correct_answer = blanks_map[blank_id]
+            
+            # 如果 blank_id 不存在于题目中，不算正确（可能是无效的 blank_id）
+            next false if correct_answer.nil?
+            
+            # 不区分大小写比较
+            user_answer_str = user_answer.to_s.strip.downcase
+            correct_answer == user_answer_str
+          end
+          
+          # 答对多少个 blank 就得多少分
+          score += correct_count
+          all_blanks_count += blanks.count
+        rescue JSON::ParserError => e
+          # 如果 JSON 解析失败，记录错误但不影响其他题目
+          Rails.logger.warn("Failed to parse user_answer for fill_in_the_blanks question: #{e.message}")
+        end
+      else
+        all_blanks_count += 1
+        if question['answer'] == question['user_answer']
+          # 如果答案正确，分数增加1
+          score += 1
+        end
       end
     end
 
@@ -270,8 +317,8 @@ class EssayGrading < ApplicationRecord
     updated_grading = grading.dup
     updated_grading['comprehension'] ||= {}
     updated_grading['comprehension']['score'] = score
-    updated_grading['comprehension']['questions_count'] = questions.count
-    updated_grading['comprehension']['full_score'] = questions.count
+    updated_grading['comprehension']['questions_count'] = all_blanks_count #questions.count
+    updated_grading['comprehension']['full_score'] = all_blanks_count #questions.count
 
     # 确定最终状态：如果当前状态是 draft，保持 draft 状态；否则设置为 graded
     final_status = current_status == 'draft' ? EssayGrading.statuses[:draft] : EssayGrading.statuses[:graded]
