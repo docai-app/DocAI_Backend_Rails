@@ -370,6 +370,8 @@ class GeneralUser < ApplicationRecord
     # 如果是教師，通過teaching assignment獲取學校
     elsif aienglish_role == 'teacher' && current_teaching_assignment.present?
       return current_teaching_assignment.school_academic_year.school
+    elsif aienglish_role == 'teacher' && teacher_assignments.present?
+      return teacher_assignments.first.school_academic_year.school
     end
 
     # 如果沒有找到學校關聯，返回nil

@@ -5,7 +5,7 @@ module Api
     class AssignmentStatisticsController < ApiController
       before_action :authenticate_general_user!
       before_action :set_essay_assignment
-      before_action :ensure_teacher_and_same_school
+    #   before_action :ensure_teacher_and_same_school
 
       # GET /api/v1/essay_assignments/:essay_assignment_id/statistics
       def show

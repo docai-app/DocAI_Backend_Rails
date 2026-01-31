@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ApiController < ActionController::Base
-  # before_action :switch_tenant
+  before_action :switch_public_tenant #:switch_tenant
   before_action :set_paper_trail_whodunnit
   skip_before_action :verify_authenticity_token
   respond_to :json
@@ -53,6 +53,10 @@ class ApiController < ActionController::Base
     end
     puts "tenantName: #{tenant_name}"
     Apartment::Tenant.switch!(tenant_name)
+  end
+
+  def switch_public_tenant
+    Apartment::Tenant.switch!('public')
   end
 
   rescue_from Exception, with: :render_error
