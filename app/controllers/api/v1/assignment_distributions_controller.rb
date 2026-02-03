@@ -21,28 +21,30 @@ module Api
         return render_not_found('Academic year not found') unless academic_year
 
         # 獲取班級列表（優化：使用單一查詢）
+        # 確保只查詢 active 狀態的學年，並過濾掉空的 class_name
         classes = StudentEnrollment
           .joins(:school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
+          .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
           .where(status: :active)
+          .where.not(class_name: [nil, ''])
           .group(:class_name)
           .select('class_name, COUNT(*) as student_count')
-          .map { |e| { class_name: e.class_name, student_count: e.student_count } }
+          .map do |e|
+            {
+              class_name: e.class_name,
+              student_count: e.read_attribute('student_count') || e.attributes['student_count'] || 0
+            }
+          end
 
         # 獲取學生列表（優化：避免 N+1 查詢）
-        # 直接在查詢中獲取 class_name，避免在循環中調用 current_enrollment
+        # 使用 includes 預加載關聯，然後直接訪問屬性
         students = StudentEnrollment
+          .includes(:general_user, :school_academic_year)
           .joins(:general_user, :school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
           .where(status: :active)
           .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
-          .select(
-            'general_users.id',
-            'general_users.nickname',
-            'general_users.email',
-            'general_users.class_no',
-            'student_enrollments.class_name'
-          )
           .distinct
           .map do |enrollment|
             {
