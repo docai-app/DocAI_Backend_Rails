@@ -20,7 +20,7 @@ module Api
 
         return render_not_found('Academic year not found') unless academic_year
 
-        # 獲取班級列表
+        # 獲取班級列表（優化：使用單一查詢）
         classes = StudentEnrollment
           .joins(:school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
@@ -29,23 +29,28 @@ module Api
           .select('class_name, COUNT(*) as student_count')
           .map { |e| { class_name: e.class_name, student_count: e.student_count } }
 
-        # 獲取學生列表
-        students = GeneralUser
-          .joins(:student_enrollments)
-          .where(student_enrollments: { 
-            school_academic_year_id: academic_year.id,
-            status: :active 
-          })
-          .select(:id, :nickname, :email, :class_no)
+        # 獲取學生列表（優化：避免 N+1 查詢）
+        # 直接在查詢中獲取 class_name，避免在循環中調用 current_enrollment
+        students = StudentEnrollment
+          .joins(:general_user, :school_academic_year)
+          .where(school_academic_years: { id: academic_year.id })
+          .where(status: :active)
+          .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
+          .select(
+            'general_users.id',
+            'general_users.nickname',
+            'general_users.email',
+            'general_users.class_no',
+            'student_enrollments.class_name'
+          )
           .distinct
-          .map do |user|
-            enrollment = user.current_enrollment
+          .map do |enrollment|
             {
-              id: user.id,
-              nickname: user.nickname,
-              email: user.email,
-              class_name: enrollment&.class_name,
-              class_number: user.class_no
+              id: enrollment.general_user.id,
+              nickname: enrollment.general_user.nickname,
+              email: enrollment.general_user.email,
+              class_name: enrollment.class_name,
+              class_number: enrollment.general_user.class_no
             }
           end
 
