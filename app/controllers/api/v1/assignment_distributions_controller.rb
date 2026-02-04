@@ -22,6 +22,7 @@ module Api
 
         # 獲取班級列表（優化：使用單一查詢）
         # 確保只查詢 active 狀態的學年，並過濾掉空的 class_name
+        # 使用 COUNT(DISTINCT general_user_id) 確保每個學生只被計算一次，避免重複計算
         classes = StudentEnrollment
           .joins(:school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
@@ -29,7 +30,7 @@ module Api
           .where(status: :active)
           .where.not(class_name: [nil, ''])
           .group(:class_name)
-          .select('class_name, COUNT(*) as student_count')
+          .select('class_name, COUNT(DISTINCT general_user_id) as student_count')
           .map do |e|
             {
               class_name: e.class_name,
@@ -38,23 +39,32 @@ module Api
           end
 
         # 獲取學生列表（優化：避免 N+1 查詢）
-        # 使用 includes 預加載關聯，然後直接訪問屬性
-        students = StudentEnrollment
+        # 確保只獲取當前學年的學生，並按 general_user_id 去重
+        # 根據模型驗證，同一學年中一個學生應該只有一個記錄，但為了保險起見，使用 uniq 去重
+        enrollments = StudentEnrollment
           .includes(:general_user, :school_academic_year)
           .joins(:general_user, :school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
           .where(status: :active)
           .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
-          .distinct
-          .map do |enrollment|
-            {
-              id: enrollment.general_user.id,
-              nickname: enrollment.general_user.nickname,
-              email: enrollment.general_user.email,
-              class_name: enrollment.class_name,
-              class_number: enrollment.general_user.class_no
-            }
-          end
+          .order('student_enrollments.general_user_id, student_enrollments.created_at DESC')
+        
+        # 使用 Hash 按 general_user_id 去重，確保每個學生只返回一次
+        # 如果同一學生有多個記錄，選擇最新的（按 created_at DESC 排序）
+        unique_enrollments = enrollments.each_with_object({}) do |enrollment, hash|
+          user_id = enrollment.general_user_id
+          hash[user_id] ||= enrollment
+        end.values
+        
+        students = unique_enrollments.map do |enrollment|
+          {
+            id: enrollment.general_user.id,
+            nickname: enrollment.general_user.nickname,
+            email: enrollment.general_user.email,
+            class_name: enrollment.class_name,
+            class_number: enrollment.general_user.class_no
+          }
+        end
 
         render json: {
           success: true,
