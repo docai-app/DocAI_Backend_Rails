@@ -137,28 +137,28 @@ class EssayGrading < ApplicationRecord
     return nil
     return essay if essay.present?
 
-    begin
-      response = RestClient::Request.execute(
-        method: :post,
-        url: 'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
-        payload: { audio_url: file.url }.to_json,
-        headers: { content_type: :json, accept: :json },
-        open_timeout: 60,   # 设置连接超时时间为 60 秒
-        read_timeout: 300   # 设置读取超时时间为 120 秒
-      )
+    # begin
+    #   response = RestClient::Request.execute(
+    #     method: :post,
+    #     url: 'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
+    #     payload: { audio_url: file.url }.to_json,
+    #     headers: { content_type: :json, accept: :json },
+    #     open_timeout: 60,   # 设置连接超时时间为 60 秒
+    #     read_timeout: 300   # 设置读取超时时间为 120 秒
+    #   )
 
-      # 处理成功的响应
-      response = JSON.parse(response.body) # 返回解析后的JSON数据
-      self['essay'] = response['text']
-      save
-    rescue RestClient::ExceptionWithResponse => e
-      # 处理失败的响应
-      error_response = e.response
-      raise "API request failed with response: #{error_response.code} #{error_response.body}"
-    rescue StandardError => e
-      # 处理其他错误
-      raise "An error occurred: #{e.message}"
-    end
+    #   # 处理成功的响应
+    #   response = JSON.parse(response.body) # 返回解析后的JSON数据
+    #   self['essay'] = response['text']
+    #   save
+    # rescue RestClient::ExceptionWithResponse => e
+    #   # 处理失败的响应
+    #   error_response = e.response
+    #   raise "API request failed with response: #{error_response.code} #{error_response.body}"
+    # rescue StandardError => e
+    #   # 处理其他错误
+    #   raise "An error occurred: #{e.message}"
+    # end
   end
 
   def run_workflow_sync
