@@ -1,0 +1,157 @@
+{
+    "quizTitle": "English Grammar Quiz",
+    "sections": [
+        {
+            "topic": "Spelling and Typographical Errors",
+            "type": "multiple_choice",
+            "instructions": "Choose the correct spelling for the underlined word in each sentence.",
+            "questions": [
+                {
+                    "question": "She received a beautifull gift for her birthday. What is the correct spelling?",
+                    "options": [
+                        "beautifull",
+                        "beautiful",
+                        "beautifulll",
+                        "beauteful"
+                    ],
+                    "answer": "beautiful"
+                },
+                {
+                    "question": "He always beleives in himself no matter what. What is the correct spelling?",
+                    "options": [
+                        "beleives",
+                        "believes",
+                        "believs",
+                        "beleves"
+                    ],
+                    "answer": "believes"
+                },
+                {
+                    "question": "They went to the restuarant for dinner last night. What is the correct spelling?",
+                    "options": [
+                        "restuarant",
+                        "restaurent",
+                        "restaurant",
+                        "restaurrant"
+                    ],
+                    "answer": "restaurant"
+                }
+            ]
+        },
+        {
+            "topic": "Capitalization and Punctuation Mistakes",
+            "type": "multiple_choice",
+            "instructions": "Choose the sentence with correct capitalization and punctuation.",
+            "questions": [
+                {
+                    "question": "Which sentence is correctly capitalized and punctuated?",
+                    "options": [
+                        "did you see the movie last night?",
+                        "Did you see the Movie last night?",
+                        "Did you see the movie last night?",
+                        "did You see the movie Last Night?"
+                    ],
+                    "answer": "Did you see the movie last night?"
+                },
+                {
+                    "question": "Which sentence uses punctuation correctly?",
+                    "options": [
+                        "I like apples oranges and bananas.",
+                        "I like apples, oranges, and bananas.",
+                        "I like apples oranges, and bananas.",
+                        "I like apples, oranges and bananas"
+                    ],
+                    "answer": "I like apples, oranges, and bananas."
+                },
+                {
+                    "question": "Select the sentence with proper capitalization.",
+                    "options": [
+                        "My favorite book is harry potter.",
+                        "My Favorite book is Harry Potter.",
+                        "My favorite book is Harry Potter.",
+                        "my favorite Book is Harry potter."
+                    ],
+                    "answer": "My favorite book is Harry Potter."
+                }
+            ]
+        },
+        {
+            "topic": "Sentence Structure and Clarity Issues",
+            "type": "multiple_choice",
+            "instructions": "Choose the sentence that is clear and grammatically correct.",
+            "questions": [
+                {
+                    "question": "Select the clear and correct sentence:",
+                    "options": [
+                        "Running fastly, the dog chased the ball.",
+                        "The dog chased the ball running fastly.",
+                        "The dog chased the ball quickly.",
+                        "Chased the ball the dog running fastly."
+                    ],
+                    "answer": "The dog chased the ball quickly."
+                },
+                {
+                    "question": "Choose the sentence that makes sense:",
+                    "options": [
+                        "Because it was raining, we canceled the picnic.",
+                        "We canceled the picnic because raining was it.",
+                        "It was raining because we canceled the picnic.",
+                        "Because raining was it, canceled we picnic."
+                    ],
+                    "answer": "Because it was raining, we canceled the picnic."
+                },
+                {
+                    "question": "Pick the best sentence:",
+                    "options": [
+                        "She gave him a book interesting to read.",
+                        "She gave him an interesting book to read.",
+                        "She gave him a interesting book to read.",
+                        "She gave him interesting a book to read."
+                    ],
+                    "answer": "She gave him an interesting book to read."
+                }
+            ]
+        },
+        {
+            "topic": "Incorrect Use of True/False Question Format",
+            "type": "true_or_false",
+            "instructions": "Read each statement and choose whether it is a properly formatted true/false question.",
+            "questions": [
+                {
+                    "statement": "\"Is it true that cats can fly?\"",
+                    "answer": false
+                },
+                {
+                    "statement": "\"True or false: Water freezes at 0 degrees Celsius.\"",
+                    "answer": true
+                },
+                {
+                    "statement": "\"The sun rises in the west. True or false?\"",
+                    "answer": true
+                }
+            ]
+        },
+        {
+            "topic": "Grammar and Word Choice Errors",
+            "type": "fill_in_the_blanks",
+            "instructions": "Fill in the blank with the best word choice to complete each sentence correctly.",
+            "questions": [
+                {
+                    "question": "She ___ to the store every Saturday. (go/goes/going)",
+                    "id": "blank_1",
+                    "answer": "goes"
+                },
+                {
+                    "question": "\"There are many ___ in the park today.\" (child/children/childs)",
+                    "id": "blank_2",
+                    "answer": "children"
+                },
+                {
+                    "question": "\"He ___ playing football when he was younger.\" (like/likes/liked)",
+                    "id": "blank_3",
+                    "answer": "liked"
+                }
+            ]
+        }
+    ]
+}

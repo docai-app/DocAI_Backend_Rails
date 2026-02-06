@@ -47,6 +47,9 @@ class EssayAssignment < ApplicationRecord
   has_many :assignment_student_assignments, dependent: :destroy
   has_many :assigned_students, through: :assignment_student_assignments, source: :general_user
 
+  # 補充練習記錄關聯
+  has_many :supplement_practice_records, dependent: :destroy
+
   # 檔案附件 - 為IELTS看圖作文添加圖片上傳功能
   has_one_attached :graph_image, service: :microsoft
 

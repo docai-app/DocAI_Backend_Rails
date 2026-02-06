@@ -94,6 +94,22 @@ module Api
             }, status: :internal_server_error
           end
         end
+        # POST /api/admin/v1/essay_gradings/:id/rerun_supplement_practice_workflow
+        def rerun_supplement_practice_workflow
+          begin
+            @essay_grading.run_supplement_practice_workflow
+            render json: { 
+              success: true, 
+              message: 'Supplement practice workflow rerun successfully',
+              essay_grading: @essay_grading
+            }, status: :ok
+          rescue StandardError => e
+            render json: { 
+              success: false, 
+              message: "Failed to rerun supplement practice workflow: #{e.message}"
+            }, status: :internal_server_error
+          end
+        end
 
         private
 

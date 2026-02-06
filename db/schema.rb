@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_01_19_145616) do
+ActiveRecord::Schema[7.0].define(version: 2026_02_06_084740) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -981,6 +981,33 @@ ActiveRecord::Schema[7.0].define(version: 2026_01_19_145616) do
     t.index ["reset_password_token"], name: "index_super_admins_on_reset_password_token", unique: true
   end
 
+  create_table "supplement_practice_records", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_grading_id", null: false
+    t.uuid "general_user_id", null: false
+    t.integer "status", default: 0, null: false
+    t.decimal "score", precision: 10, scale: 2, default: "0.0"
+    t.decimal "full_score", precision: 10, scale: 2, default: "0.0"
+    t.integer "questions_count", default: 0
+    t.integer "using_time", default: 0, comment: "完成用时（秒）"
+    t.datetime "started_at", comment: "开始时间"
+    t.datetime "submitted_at", comment: "提交时间"
+    t.jsonb "answers", default: {}, null: false
+    t.jsonb "questions_data", default: {}, null: false
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "essay_assignment_id", null: false
+    t.index ["essay_assignment_id", "status"], name: "index_supplement_practice_on_assignment_and_status"
+    t.index ["essay_assignment_id"], name: "index_supplement_practice_records_on_essay_assignment_id"
+    t.index ["essay_grading_id", "general_user_id"], name: "index_supplement_practice_on_grading_and_user"
+    t.index ["essay_grading_id", "general_user_id"], name: "index_supplement_practice_unique_submitted", unique: true, where: "(status = 1)"
+    t.index ["essay_grading_id"], name: "index_supplement_practice_records_on_essay_grading_id"
+    t.index ["general_user_id", "status"], name: "index_supplement_practice_records_on_general_user_id_and_status"
+    t.index ["general_user_id"], name: "index_supplement_practice_records_on_general_user_id"
+    t.index ["status"], name: "index_supplement_practice_records_on_status"
+    t.index ["submitted_at"], name: "index_supplement_practice_records_on_submitted_at"
+  end
+
   create_table "tag_functions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "tag_id", null: false
     t.uuid "function_id", null: false
@@ -1165,6 +1192,9 @@ ActiveRecord::Schema[7.0].define(version: 2026_01_19_145616) do
   add_foreign_key "storyboards", "users"
   add_foreign_key "student_enrollments", "general_users"
   add_foreign_key "student_enrollments", "school_academic_years"
+  add_foreign_key "supplement_practice_records", "essay_assignments"
+  add_foreign_key "supplement_practice_records", "essay_gradings"
+  add_foreign_key "supplement_practice_records", "general_users"
   add_foreign_key "taggings", "tags"
   add_foreign_key "teacher_assignments", "general_users"
   add_foreign_key "teacher_assignments", "school_academic_years"

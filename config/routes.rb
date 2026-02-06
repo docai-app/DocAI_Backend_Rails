@@ -61,12 +61,39 @@ Rails.application.routes.draw do
             post 'remove_students', to: 'assignment_distributions#remove_students'
           end
         end
+        # 补充练习记录路由（通过作业ID查询）
+        resources :supplement_practice_records, only: [], param: :id do
+          collection do
+            get '', to: 'supplement_practice_records#by_assignment_id'
+          end
+        end
       end
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
           get 'test_email'
           get 'download_report'
           get 'download_supplement_practice'
+        end
+        # 补充练习记录路由
+        member do
+          get 'supplement_practice', to: 'supplement_practice_records#show_questions'
+          post 'supplement_practice/draft', to: 'supplement_practice_records#create_draft'
+          post 'supplement_practice/submit', to: 'supplement_practice_records#submit'
+        end
+        resources :supplement_practice_records, only: [:index], param: :id do
+          collection do
+            get 'by_assignment', to: 'supplement_practice_records#by_assignment'
+          end
+        end
+      end
+      
+      # 补充练习记录独立路由
+      resources :supplement_practice_records, only: [:show], param: :id do
+        collection do
+          get 'my_records', to: 'supplement_practice_records#my_records'
+        end
+        member do
+          get 'download_report', to: 'supplement_practice_records#download_report'
         end
       end
 
@@ -508,6 +535,7 @@ Rails.application.routes.draw do
           end
           member do
             post :rerun_workflow
+            post :rerun_supplement_practice_workflow
           end
         end
 

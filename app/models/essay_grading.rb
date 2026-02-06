@@ -45,6 +45,12 @@ class EssayGrading < ApplicationRecord
   belongs_to :submission_school, class_name: 'School', optional: true
   belongs_to :submission_academic_year, class_name: 'SchoolAcademicYear', optional: true
   delegate :category, to: :essay_assignment
+  
+  # 补充练习记录关联
+  has_many :supplement_practice_records, dependent: :destroy
+  has_one :submitted_supplement_practice_record, 
+          -> { where(status: :submitted) },
+          class_name: 'SupplementPracticeRecord'
 
   # 狀態枚舉
   # 新增 draft 狀態，用於學生「先保存草稿，不立即批改」
@@ -168,6 +174,13 @@ class EssayGrading < ApplicationRecord
 
     # 运行工作流
     run_workflow
+  end
+
+  # 重新运行补充练习工作流
+  def run_supplement_practice_workflow
+    if essay_assignment && essay_assignment.category == 'essay'
+      EssayGradingSupplementPracticeService.new(general_user_id, self).run_workflow
+    end
   end
 
   # 定義遞歸方法來計算所有 errors 的數量
