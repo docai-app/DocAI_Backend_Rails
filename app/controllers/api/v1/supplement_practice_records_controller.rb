@@ -42,6 +42,9 @@ module Api
         }
 
         render json: { success: true, data: response_data }, status: :ok
+      rescue OldDataFormatError => e
+        Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected: #{e.message}")
+        render json: { success: false, code: e.code, message: e.message }, status: :ok
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in show_questions: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
@@ -83,6 +86,9 @@ module Api
         else
           render json: { success: false, errors: record.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue OldDataFormatError => e
+        Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected in create_draft: #{e.message}")
+        render json: { success: false, code: e.code, message: e.message }, status: :ok
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in create_draft: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
@@ -147,6 +153,9 @@ module Api
         else
           render json: { success: false, errors: record.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue OldDataFormatError => e
+        Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected in submit: #{e.message}")
+        render json: { success: false, code: e.code, message: e.message }, status: :ok
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in submit: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))

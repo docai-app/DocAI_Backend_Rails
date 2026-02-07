@@ -2,6 +2,16 @@
 
 require 'json'
 
+# 自定义异常类，用于标识旧数据格式
+class OldDataFormatError < StandardError
+  attr_reader :code
+
+  def initialize(message = 'this is old data', code = 'old_data')
+    super(message)
+    @code = code
+  end
+end
+
 class SupplementPracticeParserService
   def initialize(essay_grading)
     @essay_grading = essay_grading
@@ -28,7 +38,8 @@ class SupplementPracticeParserService
       normalized_data
     rescue JSON::ParserError => e
       Rails.logger.error("[SupplementPracticeParserService] JSON parse error: #{e.message}")
-      raise ArgumentError, "Invalid JSON format: #{e.message}"
+      # 抛出自定义异常，标识这是旧数据格式
+      raise OldDataFormatError.new('this is old data', 'old_data')
     rescue StandardError => e
       Rails.logger.error("[SupplementPracticeParserService] Parse error: #{e.message}")
       raise e
