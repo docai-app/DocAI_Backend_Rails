@@ -529,7 +529,7 @@ Rails.application.routes.draw do
         end
         
         # Essay Gradings Management for Admin
-        resources :essay_gradings, only: [] do
+        resources :essay_gradings, only: [:show] do
           collection do 
             get :speaking_times_data 
           end
