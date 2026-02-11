@@ -268,7 +268,8 @@ module Api
             general_user: {
               id: record.general_user.id,
               nickname: record.general_user.nickname,
-              email: record.general_user.email
+              class_name: record.general_user.banbie,
+              class_no: record.general_user.class_no
             },
             essay_grading: {
               id: record.essay_grading.id,
@@ -351,7 +352,9 @@ module Api
             general_user: {
               id: record.general_user.id,
               nickname: record.general_user.nickname,
-              email: record.general_user.email
+              email: record.general_user.email,
+              class_name: record.general_user.banbie,
+              class_no: record.general_user.class_no
             },
             status: record.status,
             score: record.score,
@@ -409,7 +412,9 @@ module Api
             general_user: {
               id: eg.general_user.id,
               nickname: eg.general_user.nickname,
-              email: eg.general_user.email
+              email: eg.general_user.email,
+              class_name: eg.general_user.banbie,
+              class_no: eg.general_user.class_no
             },
             essay_grading: {
               id: eg.id,
