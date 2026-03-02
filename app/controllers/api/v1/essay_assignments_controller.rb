@@ -12,45 +12,37 @@ module Api
       def index
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
-        
-        # 添加按Community筛选
-        if params[:community_id].present?
-          community = Community.find_by(id: params[:community_id])
-          
-          unless community
-            return render json: { success: false, error: 'Community not found' }, status: :not_found
-          end
-          
-          # 检查用户权限
-          unless community.creator?(current_general_user) || community.member?(current_general_user)
-            return render json: { success: false, error: 'Access denied to this community' }, status: :forbidden
-          end
-          
-          @essay_assignments = @essay_assignments.where(community_id: params[:community_id])
-        end
-        
-        @essay_assignments = @essay_assignments.includes(:community)
-                                               .select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
-                                                      :topic, :created_at, :updated_at, :code, :assignment, :community_id, :meta)
-                                               .order('created_at desc')
 
-        @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
-        
-        # 添加Community信息到响应
-        assignments_with_community = @essay_assignments.map do |assignment|
-          assignment_data = assignment.as_json
-          if assignment.community
-            assignment_data['community'] = {
-              id: assignment.community.id,
-              name: assignment.community.name,
-              code: assignment.community.code
-            }
-          end
-          assignment_data
-        end
-        
-        render json: { success: true, essay_assignments: assignments_with_community, meta: pagination_meta(@essay_assignments) },
-               status: :ok
+        draft_status = EssayGrading.statuses[:draft]
+
+        select_columns = <<~SQL
+          essay_assignments.id,
+          essay_assignments.rubric,
+          essay_assignments.title,
+          essay_assignments.hints,
+          essay_assignments.category,
+          essay_assignments.answer_visible,
+          essay_assignments.topic,
+          essay_assignments.created_at,
+          essay_assignments.updated_at,
+          essay_assignments.code,
+          essay_assignments.assignment,
+          essay_assignments.meta,
+          COUNT(CASE WHEN essay_gradings.status != #{draft_status} THEN 1 END) AS number_of_submission
+        SQL
+
+        @essay_assignments = @essay_assignments
+                               .left_outer_joins(:essay_gradings)
+                               .select(select_columns)
+                               .group('essay_assignments.id')
+                               .order('essay_assignments.created_at desc')
+                               .page(params[:page])
+
+        render json: {
+          success: true,
+          essay_assignments: @essay_assignments,
+          meta: pagination_meta(@essay_assignments)
+        }, status: :ok
       end
 
       def show_only
