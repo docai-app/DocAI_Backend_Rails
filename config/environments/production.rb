@@ -46,9 +46,11 @@ Rails.application.configure do
   # config.force_ssl = true
 
   # 允许通过 IP 地址访问（用于直连、调试或绕过 Cloudflare 超时）
-  # Host 格式可能是 "192.168.1.100" 或 "192.168.1.100:3000"
-#   config.hosts << proc { |req| req.host.match?(/\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?\z/) }
-  config.hosts << /\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\z/
+  # Host 可能是 "43.228.217.111" 或 "43.228.217.111:3000"（带端口）
+  config.hosts << /\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?\z/
+
+  # 若仍 403，可临时取消下行注释以允许所有 host（仅调试用，解决后请恢复注释）
+  # config.hosts.clear; config.hosts << proc { true }
 
   # Include generic and useful information about system operation, but avoid logging too much
   # information to avoid inadvertent exposure of personally identifiable information (PII).
