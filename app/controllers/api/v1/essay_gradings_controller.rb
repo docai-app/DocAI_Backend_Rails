@@ -1510,17 +1510,27 @@ module Api
             text = essay_grading.general_context['data']['text']
             fixed_json = fix_json_newlines(text)
 
-            general_context = JSON.parse(fixed_json)
-            json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
+            begin
+              general_context = JSON.parse(fixed_json)
+              json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
 
-            # 2025-05-11 新增以下
-            if general_context['studentFeedback'].present?
-              json_data['overall_comment'] =
-                general_context['studentFeedback']['overall']
-            end
-            if general_context['studentFeedback'].present?
-              json_data['detailedFeedback'] =
-                general_context['studentFeedback']['detailedFeedback']
+              # 2025-05-11 新增以下
+              if general_context['studentFeedback'].present?
+                json_data['overall_comment'] =
+                  general_context['studentFeedback']['overall']
+              end
+              if general_context['studentFeedback'].present?
+                json_data['detailedFeedback'] =
+                  general_context['studentFeedback']['detailedFeedback']
+              end
+            rescue JSON::ParserError => e
+              # JSON 解析失败时尝试正则回退提取（处理 AI 返回的含未转义引号、字面换行等畸形 JSON）
+              fallback = extract_general_context_fallback(text)
+              if fallback.present?
+                json_data['overall_comment'] = fallback['overall'] if fallback['overall'].present?
+                json_data['detailedFeedback'] = fallback['detailedFeedback'] if fallback['detailedFeedback'].present?
+              end
+              Rails.logger.warn("Failed to parse general_context JSON for essay_grading #{essay_grading.id}, used fallback extraction: #{e.message}")
             end
           end
         end
@@ -1547,6 +1557,24 @@ module Api
           fixed_content = quoted.gsub("\n", '\\n')  # 只转义 \n
           "\"#{fixed_content}\""  # 重建字符串
         end
+      end
+
+      # 当 general_context JSON 解析失败时的回退提取（处理 AI 返回的含未转义引号、字面换行等畸形 JSON）
+      def extract_general_context_fallback(text)
+        result = {}
+        return result if text.blank?
+
+        # 提取 overall（通常不含内部引号）
+        if text =~ /"overall"\s*:\s*"((?:[^"\\]|\\.)*)"/
+          result['overall'] = Regexp.last_match(1).gsub(/\\n/, "\n").gsub(/\\"/, '"')
+        end
+
+        # 提取 detailedFeedback（可能含内部引号，用 [\s\S]* 匹配含换行的内容，贪婪到结构末尾）
+        if text =~ /"detailedFeedback"\s*:\s*"([\s\S]*)"\s*\n\s*}\s*\n\s*}/
+          result['detailedFeedback'] = Regexp.last_match(1).gsub(/\\n/, "\n").gsub(/\\"/, '"')
+        end
+
+        result
       end
 
       # 渲染填空题的 summary，将 [[blank_X]] 替换为下划线
