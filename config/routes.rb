@@ -456,6 +456,7 @@ Rails.application.routes.draw do
     namespace :admin do
       namespace :v1 do
         resources :entities, only: %i[index show create update destroy]
+        get 'school-impact-report', to: 'school_impact_reports#show'
         resources :users, only: %i[index show create update destroy] do
           collection do
             post 'lock', to: 'users#lock_user'
