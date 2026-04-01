@@ -33,7 +33,7 @@
 #  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
-  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder,
+  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :listening, :sentence_builder,
                  :speaking_pronunciation_sentences, :supplement_practice
   store_accessor :general_context, :app_key, :data
 
@@ -62,6 +62,8 @@ class EssayGrading < ApplicationRecord
   after_update :run_workflow, if: :should_run_workflow_on_submit?
   after_create :calculate_comprehension_score, if: :is_comprehension?
   after_update :calculate_comprehension_score, if: :is_comprehension?
+  after_create :calculate_listening_score, if: :is_listening?
+  after_update :calculate_listening_score, if: :is_listening?
   # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
   after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
   after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
@@ -90,6 +92,10 @@ class EssayGrading < ApplicationRecord
 
   def is_comprehension?
     category == 'comprehension'
+  end
+
+  def is_listening?
+    category == 'listening'
   end
 
   def is_speaking_pronunciation?
@@ -347,6 +353,48 @@ class EssayGrading < ApplicationRecord
     call_webhook unless current_status == 'draft'
   end
 
+  # 與 calculate_comprehension_score 相同模式：依題目計分、回寫 grading.listening、update_columns 避免回調循環
+  def calculate_listening_score
+    listening_block = grading&.dig('listening')
+    listening_block = {} unless listening_block.is_a?(Hash)
+    listening_block = listening_block.stringify_keys
+    raw_questions = Array(listening_block['questions'])
+
+    score = 0
+    full_score = 0
+    scored_questions = []
+
+    raw_questions.each do |raw|
+      q = raw.is_a?(Hash) ? raw.stringify_keys : {}
+      pts, possible, merged = listening_score_one_question(q)
+      score += pts
+      full_score += possible
+      scored_questions << merged
+    end
+
+    percentage = full_score.positive? ? ((score.to_f / full_score) * 100).round : 0
+
+    current_status = status
+    updated_grading = grading.deep_dup
+    base_listening = updated_grading['listening'].is_a?(Hash) ? updated_grading['listening'].deep_dup.stringify_keys : {}
+    updated_grading['listening'] = base_listening.merge(
+      'questions' => scored_questions,
+      'score' => score,
+      'full_score' => full_score,
+      'percentage' => percentage
+    )
+
+    final_status = current_status == 'draft' ? EssayGrading.statuses[:draft] : EssayGrading.statuses[:graded]
+
+    update_columns(
+      grading: updated_grading,
+      score: score,
+      status: final_status
+    )
+
+    call_webhook unless current_status == 'draft'
+  end
+
   def calculate_sentence_builder_score
     return { full_score: nil, score: nil } if self['status'] != 'graded'
 
@@ -385,7 +433,7 @@ class EssayGrading < ApplicationRecord
     save
 
     # 返回 full_score 和 score
-    { full_score: total_score, score: }
+    { full_score: total_score, score: score }
   end
 
   def call_webhook
@@ -417,6 +465,9 @@ class EssayGrading < ApplicationRecord
     if category == 'comprehension'
       payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
+    elsif category == 'listening'
+      payload[:record]['Full Score'] = grading.dig('listening', 'full_score')
+      payload[:record][:Score] = grading.dig('listening', 'score')
     elsif category == 'sentence_builder'
       payload[:record]['Full Score'] = grading['full_score']
       payload[:record][:Score] = grading['score']
@@ -529,6 +580,9 @@ class EssayGrading < ApplicationRecord
     if category == 'comprehension'
       payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
+    elsif category == 'listening'
+      payload[:record]['Full Score'] = grading.dig('listening', 'full_score')
+      payload[:record][:Score] = grading.dig('listening', 'score')
     else
       grading_data = JSON.parse(grading['data']['text'])
       payload[:record]['Overall Score'] = grading_data['Overall Score']
@@ -572,6 +626,99 @@ class EssayGrading < ApplicationRecord
   end
 
   private
+
+  # listening：回傳 [得分, 滿分, 帶 is_correct 的題目 Hash]
+  def listening_score_one_question(q)
+    type = q['type'].to_s
+    if type == 'fill_in_the_blanks' && q['blanks'].is_a?(Array) && q['blanks'].any?
+      return listening_score_multi_blanks_question(q)
+    end
+
+    possible = 1
+    correct = if type == 'multiple_choice'
+                listening_mcq_correct?(q)
+              else
+                listening_fib_simple_correct?(q)
+              end
+    [correct ? 1 : 0, possible, q.merge('is_correct' => correct)]
+  end
+
+  # 與阅读理解 blanks 一致：user_answer 為 JSON 物件，鍵為 blank id
+  def listening_score_multi_blanks_question(q)
+    blanks = q['blanks'] || []
+    user_answer_str = q['user_answer']
+
+    return [0, 0, q.merge('is_correct' => false)] if blanks.empty? || user_answer_str.blank?
+
+    begin
+      user_answers = JSON.parse(user_answer_str.to_s)
+      unless user_answers.is_a?(Hash)
+        return [0, blanks.size, q.merge('is_correct' => false)]
+      end
+
+      return [0, blanks.size, q.merge('is_correct' => false)] if user_answers.blank?
+
+      blanks_map = blanks.each_with_object({}) do |blank, hash|
+        next unless blank.is_a?(Hash)
+
+        bk = blank.stringify_keys
+        id_key = bk['id']
+        next if id_key.nil?
+
+        hash[id_key.to_s] = bk['answer'].to_s.strip.downcase
+      end
+
+      correct_count = user_answers.count do |blank_id, user_answer|
+        correct_answer = blanks_map[blank_id.to_s] || blanks_map[blank_id]
+        next false if correct_answer.nil?
+
+        user_answer.to_s.strip.downcase == correct_answer
+      end
+
+      all_correct = correct_count == blanks.size
+      [correct_count, blanks.size, q.merge('is_correct' => all_correct)]
+    rescue JSON::ParserError => e
+      Rails.logger.warn("Listening: parse blanks user_answer failed: #{e.message}")
+      [0, blanks.size, q.merge('is_correct' => false)]
+    end
+  end
+
+  # 與前端 normalizeAnswer（essay-checker mock-schema）對齊：小寫、去標點、壓縮空白
+  def listening_normalize_answer(value)
+    return '' if value.blank?
+
+    value.to_s.downcase.gsub(/[.,\/#!$%^&*;:{}=\-_`~()]/, '').gsub(/\s+/, ' ').strip
+  end
+
+  def listening_mcq_correct?(q)
+    ua = listening_normalize_answer(q['user_answer'])
+    return false if ua.blank?
+
+    correct_key = q['answer'].to_s
+    opts = q['options'] || {}
+    return false unless opts.is_a?(Hash)
+
+    return true if listening_normalize_answer(correct_key) == ua
+
+    label = opts[correct_key] || opts[correct_key.to_sym]
+    return true if label.present? && ua == listening_normalize_answer(label.to_s)
+
+    opts.each do |k, v|
+      next unless ua == listening_normalize_answer(k.to_s) || ua == listening_normalize_answer(v.to_s)
+
+      return listening_normalize_answer(k.to_s) == listening_normalize_answer(correct_key)
+    end
+
+    false
+  end
+
+  def listening_fib_simple_correct?(q)
+    ua = listening_normalize_answer(q['user_answer'])
+    return false if ua.blank?
+
+    valid = [q['answer']] + Array(q['accepted_answers'])
+    valid.compact.any? { |a| listening_normalize_answer(a) == ua }
+  end
 
   # 獲取提交時的學生信息
   # @return [Hash, nil] 包含提交時學生信息的哈希，如果無法獲取則返回 nil
