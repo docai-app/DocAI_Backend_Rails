@@ -81,6 +81,19 @@ class EssayGrading < ApplicationRecord
     end
   end
 
+  # 动态定义 listening getter 和 setter（与 comprehension 相同字段，操作 grading['listening']）
+  # 方法名加 listening_ 前缀，避免与 comprehension 及数据库 score 等冲突
+  %i[questions questions_count full_score score].each do |key|
+    method_name = :"listening_#{key}"
+    define_method(method_name) do
+      listening && listening[key.to_s]
+    end
+
+    define_method(:"#{method_name}=") do |value|
+      self.listening = (listening || {}).merge(key.to_s => value)
+    end
+  end
+
   # def upload_file(file)
   #   blob_service = Azure::Storage::Blob::BlobService.create
   #   container_name = 'your_container_name'
@@ -350,7 +363,7 @@ class EssayGrading < ApplicationRecord
     )
 
     # 呼叫 webhook（仅在非 draft 状态时调用）
-    call_webhook unless current_status == 'draft'
+    # call_webhook unless current_status == 'draft'
   end
 
   # 與 calculate_comprehension_score 相同模式：依題目計分、回寫 grading.listening、update_columns 避免回調循環
@@ -392,7 +405,7 @@ class EssayGrading < ApplicationRecord
       status: final_status
     )
 
-    call_webhook unless current_status == 'draft'
+    # call_webhook unless current_status == 'draft'
   end
 
   def calculate_sentence_builder_score
