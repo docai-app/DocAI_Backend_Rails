@@ -231,15 +231,22 @@ class EssayGrading < ApplicationRecord
   end
 
   def get_news_feed
+    # 同一個 EssayGrading 實例在單次請求/流程內多次呼叫時，避免重複請求
+    return @__news_feed_memo if defined?(@__news_feed_memo)
+
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
     if essay_assignment.get_news_feed.present?
       news_feed = essay_assignment.get_news_feed
       result = {}
       result['data'] = news_feed.key?('data') ? news_feed['data'] : news_feed
-      return result
+      @__news_feed_memo = result
+      return @__news_feed_memo
     end
 
-    return nil if self['meta']['newsfeed_id'].nil?
+    if self['meta']['newsfeed_id'].nil?
+      @__news_feed_memo = nil
+      return @__news_feed_memo
+    end
 
     uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}/form.json")
 
@@ -252,9 +259,12 @@ class EssayGrading < ApplicationRecord
 
     response = Net::HTTP.get_response(uri)
 
-    return unless response.is_a?(Net::HTTPSuccess)
+    unless response.is_a?(Net::HTTPSuccess)
+      @__news_feed_memo = nil
+      return @__news_feed_memo
+    end
 
-    JSON.parse(response.body)
+    @__news_feed_memo = JSON.parse(response.body)
   end
 
   def calculate_speaking_pronunciation_score

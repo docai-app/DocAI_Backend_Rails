@@ -65,20 +65,7 @@ module Api
           user = @essay_grading.general_user
           school_logo_url = user.aienglish_user? ? user.school_logo_url(:small) : nil
 
-          # 處理學校 Logo
-          if school_logo_url.present?
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # Logo 尺寸調整為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              pdf.move_down 20
-            rescue StandardError => e
-              Rails.logger.error("Error loading school logo: #{e.message}")
-            end
-          else
-            pdf.move_down 20
-          end
+          render_school_logo(pdf, school_logo_url)
 
           # Title
           pdf.move_down 10
@@ -246,6 +233,9 @@ module Api
         if @essay_grading.category == 'comprehension'
           score = @essay_grading.grading.dig('comprehension', 'score'),
                   full_score = @essay_grading.grading.dig('comprehension', 'full_score')
+        elsif @essay_grading.category == 'listening'
+          score = @essay_grading.grading.dig('listening', 'score')
+          full_score = @essay_grading.grading.dig('listening', 'full_score')
         elsif @essay_grading.category == 'speaking_pronunciation'
           score = @essay_grading['score']
           full_score = 100
@@ -264,7 +254,7 @@ module Api
             updated_at: @essay_grading.updated_at,
             status: @essay_grading.status,
             number_of_suggestion: @essay_grading.grading['number_of_suggestion'],
-            questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
+            questions_count: @essay_grading.grading.dig('comprehension', 'questions_count') || @essay_grading.grading.dig('listening', 'questions_count'),
             full_score:,
             score:,
             scores:,
@@ -558,11 +548,17 @@ module Api
       def download_reports
         essay_assignment = EssayAssignment.find(params[:id])
         essay_gradings = essay_assignment.essay_gradings.where(status: 'graded').includes(:general_user)
+        newsfeed_cache = {}
+        # 批量下載保留 logo，但以 URL 做快取，避免重複下載
+        report_options = { logo_cache: {} }
 
         zip_data = Zip::OutputStream.write_buffer do |zip|
           essay_gradings.each_with_index do |grading, index|
             puts "Generating report for grading: #{grading.id}, #{index}"
-            report = generate_report(grading)
+            started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+            report = generate_report(grading, newsfeed_cache, report_options)
+            elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+            # puts "[download_reports] generated grading_id=#{grading.id} in #{elapsed_ms}ms"
             # 使用 index 确保文件名唯一
             zip.put_next_entry("report_#{grading.general_user.nickname}_#{index + 1}.pdf")
             zip.write(report)
@@ -757,25 +753,7 @@ module Api
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
 
-          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
-          if school_logo_url.present?
-            # 下載 logo 到臨時文件
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 20
-            rescue StandardError => e
-              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-              Rails.logger.error("Error loading school logo: #{e.message}")
-              # 不需要移動光標，因為沒有添加 logo
-            end
-          else
-            # 沒有 logo 時正常開始內容
-            pdf.move_down 20
-          end
+          render_school_logo(pdf, school_logo_url)
 
           # 开始内容部分
           # pdf.move_down 10
@@ -906,6 +884,113 @@ module Api
         end
       end
 
+      def generate_listening_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
+        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+          font_path = Rails.root.join('app/assets/fonts')
+
+          pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf'),
+              italic: font_path.join('DejaVuSans.ttf'),
+              bold_italic: font_path.join('DejaVuSans.ttf')
+            },
+            'Arial' => {
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf'),
+              italic: font_path.join('ARIAL.ttf'),
+              bold_italic: font_path.join('ARIALBD.ttf')
+            }
+          )
+
+          pdf.font('Arial')
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
+          pdf.fill_color '000000'
+
+          render_school_logo(pdf, school_logo_url)
+
+          pdf.text "Assessment Report (#{essay_grading.category.humanize})", size: 20, style: :bold, align: :center
+          pdf.stroke_color '444444'
+          pdf.move_down 25
+
+          pdf.text 'Assignment Information', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
+
+          listening = json_data['listening'] || {}
+          info_data = [
+            ['Assignment:', json_data['assignment'] || 'N/A'],
+            ['Topic:', json_data['topic'] || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            ['Level:', listening['level'] || essay_grading.essay_assignment.meta.dig('listening', 'level') || 'N/A'],
+            ['Play Count:', (listening['play_count'] || 0).to_s]
+          ]
+
+          info_data.each do |label, value|
+            pdf.formatted_text [
+              { text: label, styles: [:bold], size: 12 },
+              { text: " #{value}", size: 12 }
+            ]
+            pdf.move_down 4
+          end
+          pdf.move_down 20
+
+          if json_data['article'].present?
+            pdf.text 'Listening Passage', size: 15, style: :bold
+            pdf.stroke_horizontal_rule
+            pdf.move_down 10
+            pdf.text json_data['article'].to_s.gsub("\n", '<br>'), size: 12, leading: 4, inline_format: true
+            pdf.move_down 10
+          end
+
+          pdf.text 'Listening Questions', size: 18, style: :bold
+          pdf.move_down 10
+
+          Array(listening['questions']).each_with_index do |question, index|
+            pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
+            pdf.move_down 5
+
+            if question['type'] == 'multiple_choice' && question['options'].is_a?(Hash)
+              question['options'].each do |key, option|
+                pdf.text "  #{key}: #{option}", size: 12
+              end
+              pdf.move_down 5
+            end
+
+            pdf.fill_color '000000'
+            pdf.text "My Answer: #{question['user_answer'].presence || 'N/A'}", style: :bold, size: 12
+            pdf.fill_color '008000'
+            pdf.text "Correct Answer: #{question['answer'].presence || 'N/A'}", style: :bold, size: 12
+            pdf.fill_color '000000'
+
+            if question['indicator'].present?
+              pdf.move_down 4
+              pdf.text "Indicator: #{question['indicator']}", size: 11
+            end
+
+            pdf.move_down 14
+          end
+
+          pdf.text 'Final Result', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 10
+          pdf.formatted_text [
+            { text: 'Overall Score: ', styles: [:bold], size: 12 },
+            { text: "#{listening['score'] || 0} / #{listening['full_score'] || 0}", size: 12 }
+          ]
+          pdf.move_down 5
+          pdf.formatted_text [
+            { text: 'Percentage: ', styles: [:bold], size: 12 },
+            { text: "#{listening['percentage'] || 0}%", size: 12 }
+          ]
+          pdf.move_down 20
+        end
+      end
+
       def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
@@ -933,25 +1018,7 @@ module Api
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
 
-          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
-          if school_logo_url.present?
-            # 下載 logo 到臨時文件
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 20
-            rescue StandardError => e
-              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-              Rails.logger.error("Error loading school logo: #{e.message}")
-              # 不需要移動光標，因為沒有添加 logo
-            end
-          else
-            # 沒有 logo 時正常開始內容
-            pdf.move_down 20
-          end
+          render_school_logo(pdf, school_logo_url)
 
           # 开始内容部分
           # pdf.move_down 20
@@ -1090,25 +1157,7 @@ module Api
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
 
-          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
-          if school_logo_url.present?
-            # 下載 logo 到臨時文件
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 20
-            rescue StandardError => e
-              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-              Rails.logger.error("Error loading school logo: #{e.message}")
-              # 不需要移動光標，因為沒有添加 logo
-            end
-          else
-            # 沒有 logo 時正常開始內容
-            pdf.move_down 20
-          end
+          render_school_logo(pdf, school_logo_url)
 
           # 开始内容部分
           pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold,
@@ -1352,20 +1401,7 @@ module Api
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
 
-          # 處理學校 Logo
-          if school_logo_url.present?
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # Logo 尺寸調整為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              pdf.move_down 20
-            rescue StandardError => e
-              Rails.logger.error("Error loading school logo: #{e.message}")
-            end
-          else
-            pdf.move_down 20
-          end
+          render_school_logo(pdf, school_logo_url)
 
           # Title
           # pdf.move_down 10
@@ -1474,14 +1510,13 @@ module Api
         end
       end
 
-      def generate_report(grading)
-        grading = EssayGrading.includes(:essay_assignment).find(grading.id) # 确保 essay_assignment 被加载
-        json_data = prepare_report_data(grading)
-        pdf = generate_pdf(json_data, grading)
+      def generate_report(grading, newsfeed_cache = nil, options = {})
+        json_data = prepare_report_data(grading, newsfeed_cache)
+        pdf = generate_pdf(json_data, grading, options)
         pdf.render
       end
 
-      def generate_pdf(json_data, essay_grading)
+      def generate_pdf(json_data, essay_grading, options = {})
         assignment = essay_grading.essay_assignment
         raise "Essay assignment not found for grading ID #{essay_grading.id}" if assignment.nil?
 
@@ -1490,6 +1525,7 @@ module Api
 
         # 只有 AI English 用戶才會有學校 logo
         school_logo_url = user.aienglish_user? ? user.school_logo_url(:small) : nil
+        @report_logo_cache = options[:logo_cache] if options.is_a?(Hash)
 
         # 準備用戶顯示資訊（優先使用提交班級資訊）
         submission_info = prepare_submission_info(essay_grading)
@@ -1497,6 +1533,8 @@ module Api
         # 根據不同類型生成不同報告
         if assignment.category == 'comprehension'
           generate_comprehension_pdf(json_data, essay_grading, school_logo_url, submission_info)
+        elsif assignment.category == 'listening'
+          generate_listening_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category == 'speaking_pronunciation' # 新增對 speaking_pronunciation 的專門處理
           generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('essay')
@@ -1510,7 +1548,7 @@ module Api
         end
       end
 
-      def prepare_report_data(essay_grading)
+      def prepare_report_data(essay_grading, newsfeed_cache = nil)
         assignment = essay_grading.essay_assignment
         json_data = {
           'topic' => assignment.topic,
@@ -1520,10 +1558,20 @@ module Api
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
-          newsfeed = essay_grading.get_news_feed
+          newsfeed = cached_news_feed(essay_grading, newsfeed_cache)
           if newsfeed.present?
             json_data['title'] = newsfeed['data']['title']
             json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
+          end
+        elsif assignment.category == 'listening'
+          json_data['listening'] = essay_grading.grading['listening']
+          newsfeed = cached_news_feed(essay_grading, newsfeed_cache)
+          if newsfeed.present?
+            json_data['title'] = newsfeed['data']['title']
+            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
+          else
+            json_data['article'] = assignment.meta['listening_transcript'] ||
+                                   assignment.meta.dig('listening', 'transcript')
           end
         elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
@@ -1558,6 +1606,71 @@ module Api
         end
 
         json_data
+      end
+
+      # 批量下载时同一个 newsfeed_id 只获取一次，降低重复查询/请求
+      def cached_news_feed(essay_grading, cache = nil)
+        unless cache.is_a?(Hash)
+        #   puts "[download_reports][newsfeed] no-cache grading_id=#{essay_grading.id} newsfeed_id=#{essay_grading.newsfeed_id}"
+          return essay_grading.get_news_feed
+        end
+
+        key = essay_grading.newsfeed_id.presence || essay_grading.meta&.dig('newsfeed_id')
+        if key.blank?
+        #   puts "[download_reports][newsfeed] blank-key grading_id=#{essay_grading.id} newsfeed_id=#{essay_grading.newsfeed_id}"
+          return essay_grading.get_news_feed
+        end
+
+        if cache.key?(key)
+        #   puts "[download_reports][newsfeed] HIT key=#{key} grading_id=#{essay_grading.id}"
+          return cache[key]
+        end
+
+        #   puts "[download_reports][newsfeed] MISS key=#{key} grading_id=#{essay_grading.id} => fetching"
+        cache[key] = essay_grading.get_news_feed
+      end
+
+      # 批量下载保留 logo 时，按 URL 缓存二进制，避免重复远程下载
+      def render_school_logo(pdf, school_logo_url)
+        unless school_logo_url.present?
+          pdf.move_down 20
+          return
+        end
+
+        cache = @report_logo_cache
+        logo_binary = nil
+        cache_key = begin
+          uri = URI.parse(school_logo_url)
+          if uri.host.present? && uri.path.present?
+            "#{uri.scheme}://#{uri.host}#{uri.path}"
+          else
+            school_logo_url
+          end
+        rescue StandardError
+          school_logo_url
+        end
+
+        if cache.is_a?(Hash) && cache.key?(cache_key)
+        #   puts "[download_reports][logo] HIT key=#{cache_key}"
+          logo_binary = cache[cache_key]
+        else
+        #   puts "[download_reports][logo] MISS key=#{cache_key} url=#{school_logo_url} => downloading"
+          begin
+            require 'open-uri'
+            logo_binary = URI.open(school_logo_url, &:read)
+            cache[cache_key] = logo_binary if cache.is_a?(Hash)
+          rescue StandardError => e
+            Rails.logger.error("Error loading school logo: #{e.message}")
+          end
+        end
+
+        if logo_binary.present?
+          pdf.image StringIO.new(logo_binary), at: [0, pdf.cursor], width: 50
+          pdf.move_down 20
+        elsif !cache.is_a?(Hash)
+          # 单份下载时失败保持旧行为：不额外位移
+          nil
+        end
       end
 
       # 準備提交資訊（優先使用submission的班級資訊）

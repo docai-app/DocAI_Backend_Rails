@@ -108,6 +108,7 @@ module Api
         is_sentence_builder = assignment_category == 'sentence_builder'
         is_comprehension = assignment_category == 'comprehension'
         is_speaking_pronunciation = assignment_category == 'speaking_pronunciation'
+        is_listening = assignment_category == 'listening'
 
         # 優化：批量處理數據，減少重複的 JSON 解析和計算
         essay_gradings_data = @essay_gradings.map do |eg|
@@ -116,7 +117,7 @@ module Api
 
           # 優化：緩存 grading 數據，避免重複訪問
           grading_data = eg.grading || {}
-          grading_data_hash = grading_data.is_a?(Hash) ? grading_data : {}
+          grading_data_hash = grading_data.is_a?(Hash) ? grading_data.deep_stringify_keys : {}
           begin
             grading_text = grading_data_hash.dig('data', 'text')
           rescue StandardError => e
@@ -126,7 +127,7 @@ module Api
 
           # 優化：只在需要時解析 JSON，並緩存結果
           grading_json = nil
-          if grading_text.present? && !is_sentence_builder && !is_comprehension && !is_speaking_pronunciation
+          if grading_text.present? && !is_sentence_builder && !is_comprehension && !is_speaking_pronunciation && !is_listening  
             begin
               grading_json = JSON.parse(grading_text)
             rescue StandardError => e
@@ -141,6 +142,9 @@ module Api
           the_full_score = nil
           number_of_suggestion = grading_data_hash['number_of_suggestion']
           comprehension_data = grading_data_hash['comprehension'] || {}
+          listening_data = grading_data_hash['listening'] || {}
+          listening_play_count = listening_data['play_count']
+          listening_play_count = listening_play_count.to_i if listening_play_count.present?
 
           if is_sentence_builder
             # 優化：只在需要時計算分數，避免不必要的保存操作
@@ -196,6 +200,9 @@ module Api
           elsif is_speaking_pronunciation
             the_full_score = 100
             overall_score = eg['score'] == 'null' ? nil : eg['score'].to_i
+          elsif is_listening
+            the_full_score = listening_data['full_score']
+            overall_score = listening_data['score']
           elsif grading_json
             # 提取每個 criterion 的分數和總分
             scores = grading_json.each_with_object({}) do |(key, value), result|
@@ -234,7 +241,8 @@ module Api
             updated_at: eg.updated_at,
             status: eg.status,
             number_of_suggestion: number_of_suggestion,
-            questions_count: comprehension_data['questions_count'],
+            questions_count: comprehension_data['questions_count'] || listening_data['questions_count'],
+            play_count: listening_play_count || 0,
             full_score: the_full_score,
             score: overall_score || eg.score,
             scores: scores,
