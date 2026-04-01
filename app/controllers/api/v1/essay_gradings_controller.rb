@@ -619,6 +619,28 @@ module Api
               ]
             },
             {
+              listening: [
+                :play_count,
+                :listening_form_id,
+                :level,
+                :score,
+                :full_score,
+                :percentage,
+                questions: [
+                  :id,
+                  :question,
+                  :answer,
+                  :user_answer,
+                  :indicator,
+                  :summary,
+                  :type,
+                  :is_correct,
+                  { blanks: [:id, :answer, :user_answer] },
+                  { options: {} }
+                ]
+              ]
+            },
+            {
               speaking_pronunciation_sentences: [
                 :sentence,
                 :speaking_times,
@@ -643,7 +665,7 @@ module Api
               ]
             }
           ],
-          meta: %i[newsfeed_id sample_essay audiobase64s files],
+          meta: %i[newsfeed_id sample_essay audiobase64s files listening_form_id],
           sentence_builder: %i[vocab sentence]
         )
       end
