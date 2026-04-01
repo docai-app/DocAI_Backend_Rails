@@ -27,6 +27,7 @@ module Api
           essay_assignments.updated_at,
           essay_assignments.code,
           essay_assignments.assignment,
+          essay_assignments.essay_type,
           essay_assignments.meta,
           COUNT(CASE WHEN essay_gradings.status != #{draft_status} THEN 1 END) AS number_of_submission
         SQL
@@ -75,7 +76,7 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-        
+
         # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
         essay_assignment_data = {
           id: @essay_assignment.id,
@@ -83,6 +84,7 @@ module Api
           assignment: @essay_assignment.assignment,
           title: @essay_assignment.title,
           hints: @essay_assignment.hints,
+          essay_type: @essay_assignment.essay_type,
           category: @essay_assignment.category,
           answer_visible: @essay_assignment.answer_visible,
           remark: @essay_assignment.remark,
@@ -126,15 +128,8 @@ module Api
           end
 
           # 優化：只在需要時解析 JSON，並緩存結果
-          grading_json = nil
-          if grading_text.present? && !is_sentence_builder && !is_comprehension && !is_speaking_pronunciation && !is_listening  
-            begin
-              grading_json = JSON.parse(grading_text)
-            rescue StandardError => e
-              Rails.logger.warn "Error parsing grading JSON for EssayGrading #{eg.id}: #{e.message}"
-              grading_json = {}
-            end
-          end
+          grading_json = effective_assignment_grading_json(eg, grading_text) if !is_sentence_builder && !is_comprehension && !is_speaking_pronunciation && !is_listening
+          grading_json ||= {}
 
           # 初始化變量
           scores = {}
@@ -150,7 +145,7 @@ module Api
             # 優化：只在需要時計算分數，避免不必要的保存操作
             begin
               sentence_builder_data = grading_data_hash['sentence_builder']
-              
+
               # 先檢查是否已經有分數，避免重複計算和保存
               if sentence_builder_data.is_a?(Hash) && sentence_builder_data['score'].present?
                 the_full_score = sentence_builder_data['full_score']
@@ -244,10 +239,10 @@ module Api
             questions_count: comprehension_data['questions_count'] || listening_data['questions_count'],
             play_count: listening_play_count || 0,
             full_score: the_full_score,
-            score: overall_score || eg.score,
-            scores: scores,
-            overall_score: overall_score,
-            the_full_score: the_full_score,
+              score: normalize_assignment_score(overall_score || eg.score),
+              scores: scores,
+              overall_score: normalize_assignment_score(overall_score),
+              the_full_score: the_full_score,
             submission_class_name: eg.submission_class_name,
             submission_class_number: eg.submission_class_number
           }
@@ -277,22 +272,22 @@ module Api
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
         @essay_assignment.general_user_id = current_general_user.id
-        
+
         # 如果指定了Community，需要验证用户权限
         if @essay_assignment.community_id.present?
           community = Community.find_by(id: @essay_assignment.community_id)
-          
+
           unless community
             return render json: { success: false, error: 'Community not found' }, status: :not_found
           end
-          
+
           # 检查用户是否为Community的创建者或成员
           unless community.creator?(current_general_user) || community.member?(current_general_user)
-            return render json: { success: false, error: 'Access denied. You must be a member or creator of this community' }, 
+            return render json: { success: false, error: 'Access denied. You must be a member or creator of this community' },
                           status: :forbidden
           end
         end
-        
+
         if @essay_assignment.save
           # 返回包含Community信息的响应
           assignment_data = @essay_assignment.as_json
@@ -325,34 +320,34 @@ module Api
       # 通过Community ID获取所有EssayAssignment
       def by_community
         community_id = params[:community_id]
-        
+
         unless community_id.present?
           return render json: { success: false, error: 'Community ID is required' }, status: :bad_request
         end
-        
+
         community = Community.find_by(id: community_id)
         unless community
           return render json: { success: false, error: 'Community not found' }, status: :not_found
         end
-        
+
         # 检查用户权限
         unless community.creator?(current_general_user) || community.member?(current_general_user)
           return render json: { success: false, error: 'Access denied to this community' }, status: :forbidden
         end
-        
+
         @essay_assignments = community.essay_assignments
                                       .includes(:general_user)
                                       .select(:id, :number_of_submission, :rubric, :title, :hints, :category, :answer_visible,
-                                             :topic, :created_at, :updated_at, :code, :assignment, :general_user_id)
+                                             :topic, :created_at, :updated_at, :code, :assignment, :essay_type, :general_user_id)
                                       .order('created_at desc')
-        
+
         # 添加分类筛选
         if params[:category].present?
           @essay_assignments = @essay_assignments.where(category: params[:category])
         end
-        
+
         @essay_assignments = Kaminari.paginate_array(@essay_assignments).page(params[:page])
-        
+
         # 构建响应数据
         assignments_with_creator = @essay_assignments.map do |assignment|
           assignment_data = assignment.as_json
@@ -368,17 +363,17 @@ module Api
           }
           assignment_data
         end
-        
-        render json: { 
-          success: true, 
+
+        render json: {
+          success: true,
           community: {
             id: community.id,
             name: community.name,
             code: community.code,
             description: community.description
           },
-          essay_assignments: assignments_with_creator, 
-          meta: pagination_meta(@essay_assignments) 
+          essay_assignments: assignments_with_creator,
+          meta: pagination_meta(@essay_assignments)
         }, status: :ok
       end
 
@@ -514,6 +509,7 @@ module Api
           :topic,
           :assignment,
           :title,
+          :essay_type,
           :hints,
           :category,
           :answer_visible,
@@ -552,6 +548,33 @@ module Api
         end
 
         permitted_params
+      end
+
+      def effective_assignment_grading_json(essay_grading, fallback_grading_text = nil)
+        teacher_review_score = if essay_grading.respond_to?(:teacher_review_hash)
+                                 essay_grading.teacher_review_hash.dig('score', 'data')
+                               elsif essay_grading.respond_to?(:meta) && essay_grading.meta.is_a?(Hash)
+                                 essay_grading.meta.dig('teacher_review', 'score', 'data')
+                               end
+        return teacher_review_score if teacher_review_score.is_a?(Hash) && teacher_review_score.present?
+
+        grading_text = fallback_grading_text
+        if grading_text.blank? && essay_grading.respond_to?(:grading)
+          grading_hash = essay_grading.grading.is_a?(Hash) ? essay_grading.grading.deep_stringify_keys : {}
+          grading_text = grading_hash.dig('data', 'text')
+        end
+
+        JSON.parse(grading_text)
+      rescue StandardError => e
+        Rails.logger.warn "Error parsing effective grading JSON for EssayGrading #{essay_grading.try(:id)}: #{e.message}"
+        {}
+      end
+
+      def normalize_assignment_score(raw_score)
+        return nil if raw_score == 'null' || raw_score.nil?
+        return raw_score.to_f if raw_score.to_s.include?('.')
+
+        raw_score.to_i
       end
 
       def pagination_meta(object)

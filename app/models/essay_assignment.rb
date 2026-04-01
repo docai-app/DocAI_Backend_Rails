@@ -18,6 +18,7 @@
 #  hints                :string
 #  meta                 :jsonb            not null
 #  answer_visible       :boolean          default(TRUE), not null
+#  essay_type           :string
 #  remark               :string
 #
 # Indexes
@@ -38,6 +39,7 @@ class EssayAssignment < ApplicationRecord
   before_save :normalize_level
   after_save :check_and_generate_vocab_examples
   after_save :check_and_post_speaking_pronunciation_sentences
+  validate :validate_speaking_pronunciation_sentences
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
@@ -91,6 +93,32 @@ class EssayAssignment < ApplicationRecord
     end
   end
 
+  REVISED_ESSAY_WORKFLOW_MAP = {
+    'discuss_both_views' => 'essay_revised_argumentative_writing_app_key',
+    'outweigh_questions' => 'essay_revised_argumentative_writing_app_key',
+    'discussion_plus_opinion' => 'essay_revised_argumentative_writing_app_key',
+    'causes_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'effects_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'problems_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'causes_and_effects_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'problems_and_solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'compare_and_contrast_essay' => 'essay_revised_compare_and_contrast_writing_app_key'
+  }.freeze
+
+  ESSAY_TYPE_LABELS = {
+    'discuss_both_views' => 'Discuss Both Views (Balanced Discussion)',
+    'outweigh_questions' => 'Outweigh Questions (Argumentative)',
+    'discussion_plus_opinion' => 'Discussion Plus Opinion (Personal Position)',
+    'causes_essay' => 'Causes Essay',
+    'effects_essay' => 'Effects Essay',
+    'problems_essay' => 'Problems Essay',
+    'causes_and_effects_essay' => 'Causes and Effects Essay',
+    'solutions_essay' => 'Solutions Essay',
+    'problems_and_solutions_essay' => 'Problems and Solutions Essay',
+    'compare_and_contrast_essay' => 'Compare and Contrast Essay'
+  }.freeze
+
   def get_news_feed
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
     return meta['self_upload_newsfeed'] if meta['self_upload_newsfeed'].present?
@@ -139,6 +167,32 @@ class EssayAssignment < ApplicationRecord
     end
   end
 
+  def revised_essay_workflow_app_key
+    env_key = REVISED_ESSAY_WORKFLOW_MAP[essay_type]
+    return nil if env_key.blank?
+
+    ENV[env_key]
+  end
+
+  def revised_essay_type_label
+    ESSAY_TYPE_LABELS[essay_type].presence || essay_type.to_s.humanize
+  end
+
+  def validate_speaking_pronunciation_sentences
+    return unless speaking_pronunciation?
+
+    sentences = normalized_speaking_pronunciation_sentences
+
+    if sentences.empty?
+      errors.add(:base, 'Please add pronunciation sentences before saving.')
+      return
+    end
+
+    return if sentences.length == raw_speaking_pronunciation_sentences.length
+
+    errors.add(:base, 'Please complete every pronunciation sentence before saving.')
+  end
+
   def check_and_generate_vocab_examples
     # 只針對 sentence_builder 類型處理
     return unless category == 'sentence_builder'
@@ -165,6 +219,28 @@ class EssayAssignment < ApplicationRecord
     SentenceBuilderExampleJob.perform_async(id)
   end
 
+  def raw_speaking_pronunciation_sentences
+    meta_hash = meta.is_a?(Hash) ? meta : {}
+    raw_sentences = meta_hash['speaking_pronunciation_sentences'] || meta_hash[:speaking_pronunciation_sentences]
+    raw_sentences.is_a?(Array) ? raw_sentences : []
+  end
+
+  def normalized_speaking_pronunciation_sentences
+    raw_speaking_pronunciation_sentences.filter_map do |item|
+      sentence =
+        case item
+        when Hash
+          item['sentence'] || item[:sentence]
+        else
+          nil
+        end
+
+      next if sentence.blank?
+
+      item.merge('sentence' => sentence.to_s.strip)
+    end
+  end
+
   def check_and_post_speaking_pronunciation_sentences
     # 只針對 speaking_pronunciation 類型處理
     return unless category == 'speaking_pronunciation'
@@ -184,27 +260,14 @@ class EssayAssignment < ApplicationRecord
                     item.is_a?(Hash) && item['sentence'].present?
                   end
 
-    # 遍歷每個 sentence 並調用 API
-    current_sentences.each do |sentence_obj|
-      sentence = sentence_obj['sentence']
-      response = Net::HTTP.post(
-        URI('https://pronunciation.m2mda.com/pinyin'),
-        { language: 'en', sentence: }.to_json,
-        'Content-Type' => 'application/json'
-      )
+    enriched_sentences = pronunciation_ipa_transcriber.enrich_sentences(current_sentences)
+    return if enriched_sentences == current_sentences
 
-      if response.is_a?(Net::HTTPSuccess)
-        result = JSON.parse(response.body)
-        puts "API Response: #{result}"
-        # 更新 sentence_obj 中的字段
-        sentence_obj.merge!(result)
-      else
-        puts "Failed to fetch pronunciation for sentence: #{sentence}"
-      end
-    end
+    update_column(:meta, meta.merge('speaking_pronunciation_sentences' => enriched_sentences))
+  end
 
-    # 保存更新后的 meta
-    update(meta: meta.merge('speaking_pronunciation_sentences' => current_sentences))
+  def pronunciation_ipa_transcriber
+    @pronunciation_ipa_transcriber ||= PronunciationIpaTranscriberService.new
   end
 
   # 作業分配相關方法

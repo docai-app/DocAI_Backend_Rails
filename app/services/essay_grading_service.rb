@@ -1,409 +1,244 @@
 # frozen_string_literal: true
 
 # app/services/essay_grading_service.rb
+require 'rest-client'
 require 'json'
 require 'net/http'
 
 class EssayGradingService
+  # API_URL = 'https://admin.docai.net/v1/workflows/run'
   API_URL = 'https://aienglish-dify.docai.net/v1/workflows/run'
+  COMPLETION_API_URL = 'https://aienglish-dify.docai.net/v1/completion-messages'
   TIMEOUT = 300 # Timeout duration in seconds (5 minutes)
-  MAX_RETRIES = 3 # Maximum retry attempts for errors
 
   def initialize(user_id, essay_grading)
     @user_id = user_id
     @essay_grading = essay_grading
     @grading_app_key = essay_grading.grading['app_key']
     @general_context_app_key = essay_grading.general_context['app_key']
+    @revised_essay_app_key = essay_grading.revised_essay_app_key
     @grading_success = false
     @general_context_success = false
+    @revised_essay_success = false
   end
 
   def run_workflows
-    # Rails.logger.info("[EssayGradingService] Starting run_workflows for essay grading ID: #{@essay_grading.id}")
+    # 运行 grading workflow
+    grading_response = execute_streaming_workflow(@grading_app_key, grading_request_payload)
+    @grading_success = process_response(grading_response, 'grading')
 
-    # Run grading workflow with streaming
-    grading_task_id = "#{@essay_grading.id}_grading"
-    # Rails.logger.info("[EssayGradingService] Executing grading workflow with task_id: #{grading_task_id}")
-    grading_response, _ = execute_workflow_streaming(@grading_app_key, grading_request_payload, grading_task_id)
-    # Rails.logger.info("[EssayGradingService] Grading workflow response received: #{grading_response.size} chunks, task_id: #{grading_task_id}")
-    @grading_success = process_streaming_response(grading_response, grading_task_id, 'grading')
-    Rails.logger.info("[EssayGradingService] Grading workflow success: #{@grading_success}")
-
-    # Run general_context workflow (if @general_context_app_key is not nil)
+    # 运行 general_context workflow (如果 @general_context_app_key 不为 nil)
     unless @general_context_app_key.blank?
-      general_context_task_id = "#{@essay_grading.id}_general_context"
-      # Rails.logger.info("[EssayGradingService] Executing general_context workflow with task_id: #{general_context_task_id}")
-      general_context_response, _ = execute_workflow_streaming(@general_context_app_key, general_context_request_payload, general_context_task_id)
-      # Rails.logger.info("[EssayGradingService] General context workflow response received: #{general_context_response.size} chunks, task_id: #{general_context_task_id}")
-      @general_context_success = process_streaming_response(general_context_response, general_context_task_id, 'general_context')
-      Rails.logger.info("[EssayGradingService] General context workflow success: #{@general_context_success}")
+      general_context_response = execute_workflow(@general_context_app_key, general_context_request_payload)
+      @general_context_success = process_response(general_context_response, 'general_context')
     end
 
-    # Final status update
-    # Rails.logger.info("[EssayGradingService] Updating final status for essay grading ID: #{@essay_grading.id}")
+    unless @revised_essay_app_key.blank?
+      revised_essay_response = execute_completion(@revised_essay_app_key, revised_essay_completion_payload)
+      @revised_essay_success = process_response(revised_essay_response, 'revised_essay')
+    end
+
+    # 最终确认状态
     update_final_status
-    # Rails.logger.info("[EssayGradingService] Completed run_workflows for essay grading ID: #{@essay_grading.id}")
   end
 
   private
 
-  def execute_workflow_streaming(app_key, payload, task_id)
-    retries = 0
-    response_data = []
-
-    begin
-      uri = URI(API_URL)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.open_timeout = TIMEOUT
-      http.read_timeout = TIMEOUT
-
-      request = Net::HTTP::Post.new(uri.request_uri, headers(app_key))
-      request.body = payload.to_json
-
-      # Rails.logger.debug("[EssayGradingService] Sending streaming request to #{API_URL} at #{Time.now.utc}, task_id: #{task_id}")
-
-      http.request(request) do |response|
-        if response.code.to_i != 200
-          Rails.logger.error("[EssayGradingService] Streaming request failed with code #{response.code}: #{response.body}, task_id: #{task_id}")
-          return [[], task_id]
-        end
-
-        # Rails.logger.debug("[EssayGradingService] Response headers: #{response.to_hash.inspect}, task_id: #{task_id}")
-
-        buffer = String.new # Initialize as mutable string
-        response.read_body do |chunk|
-          # Rails.logger.debug("[EssayGradingService] Received raw chunk: #{chunk.inspect}, task_id: #{task_id}")
-          next if chunk.empty?
-
-          # Ensure chunk is mutable
-          chunk = chunk.dup
-          buffer << chunk
-
-          # Split buffer by double newline (SSE events are separated by "\n\n")
-          while (index = buffer.index("\n\n"))
-            event = buffer.slice!(0, index + 2).strip
-            next unless event.start_with?('data: ')
-
-            json_str = event.sub(/^data: /, '')
-            next if json_str.empty?
-
-            # Rails.logger.debug("[EssayGradingService] Processed SSE chunk: #{json_str}, task_id: #{task_id}")
-
-            begin
-              data = JSON.parse(json_str)
-              response_data << data
-            rescue JSON::ParserError => e
-              Rails.logger.error("[EssayGradingService] Failed to parse SSE chunk: #{e.message}, chunk: #{json_str}, task_id: #{task_id}")
-            end
-          end
-        end
-
-        # Process any remaining data in buffer
-        unless buffer.empty? || buffer.strip.empty?
-          json_str = buffer.sub(/^data: /, '')
-          # Rails.logger.debug("[EssayGradingService] Processing remaining buffer: #{json_str}, task_id: #{task_id}")
-          unless json_str.empty?
-            begin
-              data = JSON.parse(json_str)
-              response_data << data
-            rescue JSON::ParserError => e
-              Rails.logger.error("[EssayGradingService] Failed to parse remaining buffer: #{e.message}, chunk: #{json_str}, task_id: #{task_id}")
-            end
-          end
-        end
-      end
-    rescue EOFError, RuntimeError => e
-      Rails.logger.error("[EssayGradingService] Error during streaming workflow: #{e.message}, task_id: #{task_id}")
-      retries += 1
-      if retries <= MAX_RETRIES
-        # Rails.logger.info("[EssayGradingService] Retrying streaming request (attempt #{retries}/#{MAX_RETRIES}), task_id: #{task_id}")
-        sleep(2**retries) # Exponential backoff
-        retry
-      else
-        Rails.logger.error("[EssayGradingService] Max retries reached for streaming error, attempting blocking request, task_id: #{task_id}")
-        return execute_workflow_blocking(app_key, payload, task_id)
-      end
-    rescue Net::ReadTimeout => e
-      Rails.logger.error("[EssayGradingService] Timeout error during streaming workflow: #{e.message}, task_id: #{task_id}")
-      return [[], task_id]
-    rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Standard error during streaming workflow: #{e.message}, task_id: #{task_id}")
-      Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
-      return [[], task_id]
-    end
-
-    # Rails.logger.debug("[EssayGradingService] Collected #{response_data.size} SSE chunks, task_id: #{task_id}")
-    [response_data, task_id]
+  def execute_workflow(app_key, payload)
+    RestClient::Request.execute(
+      method: :post,
+      url: API_URL,
+      payload: payload.to_json,
+      headers: headers(app_key),
+      timeout: TIMEOUT,
+      open_timeout: 100
+    )
+  rescue RestClient::ExceptionWithResponse => e
+    Rails.logger.error("Exception when calling workflow: #{e.response}")
+    nil
+  rescue StandardError => e
+    Rails.logger.error("Standard error when calling workflow: #{e.message}")
+    nil
   end
 
-  def execute_workflow_blocking(app_key, payload, task_id)
-    Rails.logger.info("[EssayGradingService] Falling back to blocking request for task_id: #{task_id}")
-    response_data = []
-
+  def execute_streaming_workflow(app_key, payload)
     uri = URI(API_URL)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    http.open_timeout = TIMEOUT
-    http.read_timeout = TIMEOUT
-
-    # Use blocking mode
-    payload = payload.merge(response_mode: 'blocking')
-    request = Net::HTTP::Post.new(uri.request_uri, headers(app_key))
+    request = Net::HTTP::Post.new(uri, streaming_headers(app_key))
     request.body = payload.to_json
 
-    Rails.logger.debug("[EssayGradingService] Sending blocking request to #{API_URL} at #{Time.now.utc}, task_id: #{task_id}")
+    http = Net::HTTP.new(uri.hostname, uri.port)
+    http.use_ssl = uri.scheme == 'https'
+    http.read_timeout = TIMEOUT
+    http.open_timeout = 100
 
-    begin
-      response = http.request(request)
-      if response.code.to_i != 200
-        Rails.logger.error("[EssayGradingService] Blocking request failed with code #{response.code}: #{response.body}, task_id: #{task_id}")
-        return [[], task_id]
-      end
-
-      Rails.logger.debug("[EssayGradingService] Blocking response headers: #{response.to_hash.inspect}, task_id: #{task_id}")
-      body = response.body
-      Rails.logger.debug("[EssayGradingService] Blocking response body: #{body}, task_id: #{task_id}")
-
-      begin
-        data = JSON.parse(body)
-        if data['error'].present?
-          Rails.logger.error("[EssayGradingService] Dify API error in blocking response: #{data['error']}, task_id: #{task_id}")
-          return [[], task_id]
-        end
-        response_data << { 'event' => 'workflow_finished', 'data' => data }
-      rescue JSON::ParserError => e
-        Rails.logger.error("[EssayGradingService] Failed to parse blocking response: #{e.message}, body: #{body}, task_id: #{task_id}")
-        return [[], task_id]
-      end
-    rescue Net::ReadTimeout => e
-      Rails.logger.error("[EssayGradingService] Timeout error during blocking workflow: #{e.message}, task_id: #{task_id}")
-      return [[], task_id]
-    rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Standard error during blocking workflow: #{e.message}, task_id: #{task_id}")
-      Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
-      return [[], task_id]
+    if http.use_ssl?
+      http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      ca_file = ENV['SSL_CERT_FILE'].presence || '/etc/ssl/cert.pem'
+      http.ca_file = ca_file if File.exist?(ca_file)
     end
 
-    Rails.logger.debug("[EssayGradingService] Collected #{response_data.size} blocking response chunks, task_id: #{task_id}")
-    [response_data, task_id]
+    http.start do |client|
+      response = client.request(request)
+      unless response.is_a?(Net::HTTPSuccess)
+        Rails.logger.error("Streaming workflow HTTP error: #{response.code} #{response.message}")
+        return nil
+      end
+
+      process_streaming_workflow_response(response.body.to_s)
+    end
+  rescue StandardError => e
+    Rails.logger.error("Standard error when calling streaming workflow: #{e.class}: #{e.message}")
+    nil
   end
 
   def headers(app_key)
     {
       'Authorization' => "Bearer #{app_key}",
-      'Content-Type' => 'application/json',
-      'Accept' => 'text/event-stream'
+      'Content-Type' => 'application/json'
     }
+  end
+
+  def streaming_headers(app_key)
+    headers(app_key).merge('Accept' => 'text/event-stream')
   end
 
   def grading_request_payload
     inputs = if @essay_grading.essay_assignment.category == 'sentence_builder'
                { sentence_builder: @essay_grading.sentence_builder_for_dify.to_json }
-             elsif is_ielts_task_1?
-               build_ielts_task_1_inputs('grading')
              else
                { Essay: @essay_grading.essay, essaytopic: @essay_grading.topic }
              end
 
-    if !is_ielts_task_1? && @essay_grading.essay_assignment.graph_image.attached?
-      inputs[:graph] = build_ielts_graph_input('grading')
-      # Rails.logger.info("[EssayGradingService] Including graph image for grading assignment #{@essay_grading.essay_assignment.id}")
-    end
-
-    payload = {
+    {
       inputs:,
       response_mode: 'streaming',
       user: @user_id
     }
-
-    # Rails.logger.info("[EssayGradingService] Full grading request payload: #{payload.to_json}")
-    payload
   end
 
   def general_context_request_payload
-    inputs = if is_ielts_task_1?
-               build_ielts_task_1_inputs('general_context')
-             else
-               {
-                 Essay: @essay_grading.essay,
-                 essaytopic: @essay_grading.topic
-               }
-             end
-
-    if !is_ielts_task_1? && @essay_grading.essay_assignment.graph_image.attached?
-      inputs[:graph] = build_ielts_graph_input('general_context')
-      # Rails.logger.info("[EssayGradingService] Including graph image for general context assignment #{@essay_grading.essay_assignment.id}")
-    end
-
-    payload = {
-      inputs:,
-      response_mode: 'streaming',
+    {
+      inputs: {
+        Essay: @essay_grading.essay, # 假设 general_context 使用相同的 Essay 字段，如果不同则修改
+        essaytopic: @essay_grading.topic # 同样假设 topic 字段相同，如果不同则修改
+      },
+      response_mode: 'blocking',
       user: @user_id
     }
-
-    Rails.logger.info("[EssayGradingService] Full general context payload: #{payload.to_json}")
-    payload
   end
 
-  def process_streaming_response(response_data, task_id, context)
-    # Rails.logger.info("[EssayGradingService] Processing streaming response for #{context}, received #{response_data.size} chunks, task_id: #{task_id}")
-    return false if response_data.empty?
-
-    begin
-      outputs = nil
-
-      # Try workflow_finished event first
-      workflow_finished_chunks = response_data.select { |chunk| chunk['event'] == 'workflow_finished' && chunk['data'] }
-      if workflow_finished_chunks.any?
-        # Rails.logger.info("[EssayGradingService] Found #{workflow_finished_chunks.size} workflow_finished chunks for task_id: #{task_id}")
-        workflow_finished_chunks.each do |chunk|
-          if chunk['data']['error'].present?
-            Rails.logger.error("[EssayGradingService] Dify API error in streaming response: #{chunk['data']['error']}, task_id: #{task_id}")
-            return false
-          end
-
-          chunk_outputs = chunk['data']['outputs']
-          next unless chunk_outputs.is_a?(Hash) && chunk_outputs['text']
-
-          # outputs = chunk_outputs['text']
-          outputs = chunk_outputs
-          # If outputs['text'] is a JSON string, parse it
-          # begin
-          #   outputs = JSON.parse(json_str)
-          #   break # Use the first valid outputs
-          # rescue JSON::ParserError => e
-          #   Rails.logger.error("[EssayGradingService] Failed to parse workflow_finished outputs['text'] as JSON: #{e.message}, text: #{chunk_outputs['text']}, task_id: #{task_id}")
-          # end
-        end
-      end
-
-      # Fallback to text_chunk if no valid workflow_finished outputs
-      unless outputs
-        text_chunks = response_data.select { |chunk| chunk['event'] == 'text_chunk' && chunk['data']  }
-        if text_chunks.any?
-          # Rails.logger.info("[EssayGradingService] Falling back to text_chunk concatenation, found #{text_chunks.size} text chunks for task_id: #{task_id}")
-          outputs = text_chunks.map { |chunk| chunk['data'] }.join
-          # begin
-          #   # Try parsing the raw concatenated string
-          #   outputs = JSON.parse(json_str)
-          # rescue JSON::ParserError => e
-          #   Rails.logger.warn("[EssayGradingService] Failed to parse concatenated text_chunks as JSON: #{e.message}, attempting to fix JSON, task_id: #{task_id}")
-          #   # Attempt to fix the JSON string
-          #   fixed_json_str = fix_json_string(json_str)
-          #   begin
-          #     outputs = JSON.parse(fixed_json_str)
-          #   rescue JSON::ParserError => e
-          #     Rails.logger.error("[EssayGradingService] Failed to parse fixed text_chunks as JSON: #{e.message}, fixed text: #{fixed_json_str}, task_id: #{task_id}")
-          #     # return false
-          #   end
-          # end
-        else
-          Rails.logger.error("[EssayGradingService] No valid outputs found in workflow_finished or text_chunk for task_id: #{task_id}")
-          return false
-        end
-      end
-
-      # unless outputs.is_a?(Hash)
-      #   Rails.logger.error("[EssayGradingService] Outputs is not a hash: #{outputs}, task_id: #{task_id}")
-      #   return false
-      # end
-
-      if context == 'grading'
-        num_of_suggestions = get_number_of_suggestion(outputs)
-        @essay_grading.update(
-          grading: @essay_grading.grading.merge('data' => outputs,
-                                               'number_of_suggestion' => num_of_suggestions)
-        )
-      elsif context == 'general_context'
-        @essay_grading.update(
-          general_context: @essay_grading.general_context.merge('data' => outputs)
-        )
-      end
-
-      # Rails.logger.info("[EssayGradingService] Successfully processed #{context} response, outputs: #{outputs}, task_id: #{task_id}")
-      true
-    rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Error processing streaming response for #{context}: #{e.message}, task_id: #{task_id}")
-      Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
-      false
-    end
+  def revised_essay_completion_payload
+    {
+      inputs: {
+        essay: @essay_grading.essay,
+        topic: @essay_grading.topic,
+        guide: @essay_grading.essay_assignment.revised_essay_type_label
+      },
+      response_mode: 'blocking',
+      user: @user_id
+    }
   end
 
-  # Method to fix common JSON syntax errors
-  def fix_json_string(json_str)
-    # Step 1: Remove trailing commas
-    json_str = json_str.gsub(/,\s*}/, '}').gsub(/,\s*]/, ']')
+  def execute_completion(app_key, payload)
+    RestClient::Request.execute(
+      method: :post,
+      url: COMPLETION_API_URL,
+      payload: payload.to_json,
+      headers: headers(app_key),
+      timeout: TIMEOUT,
+      open_timeout: 100
+    )
+  rescue RestClient::ExceptionWithResponse => e
+    Rails.logger.error("Exception when calling completion API: #{e.response}")
+    nil
+  rescue StandardError => e
+    Rails.logger.error("Standard error when calling completion API: #{e.message}")
+    nil
+  end
 
-    # Step 2: Add missing quotes around keys
-    json_str = json_str.gsub(/([{,]\s*)(\w+)(:)/) { |match| "#{$1}\"#{$2}\"#{$3}" }
+  def process_response(response, context)
+    return false unless response && response.code == 200
 
-    # Step 3: Fix unclosed objects and arrays
-    open_braces = json_str.scan(/{/).count
-    close_braces = json_str.scan(/}/).count
-    open_brackets = json_str.scan(/\[/).count
-    close_brackets = json_str.scan(/\]/).count
+    result = JSON.parse(response.body)
+    if result.dig('data', 'status').present? && result.dig('data', 'status') != 'succeeded'
+      Rails.logger.error("#{context} workflow returned non-succeeded status: #{result.dig('data', 'status')} / #{result.dig('data', 'error')}")
+      return false
+    end
 
-    json_str += '}' * (open_braces - close_braces) if open_braces > close_braces
-    json_str += ']' * (open_brackets - close_brackets) if open_brackets > close_brackets
+    num_of_suggestions = get_number_of_suggestion(result['data']['outputs']) if context == 'grading'
 
-    # Step 4: Fix missing quotes around values that should be strings
-    json_str = json_str.gsub(/(:)\s*([^,\]\}\s]+)([,\]\}])/) do |match|
-      if $2.match?(/^\d+$/) || $2.match?(/^(true|false|null)$/)
-        "#{$1} #{$2}#{$3}"
-      else
-        "#{$1} \"#{$2}\"#{$3}"
+    if context == 'grading'
+      return false if result.dig('data', 'outputs').blank?
+
+      @essay_grading.update(
+        grading: @essay_grading.grading.merge('data' => result['data']['outputs'],
+                                              'number_of_suggestion' => num_of_suggestions)
+      )
+    elsif context == 'general_context'
+      return false if result.dig('data', 'outputs').blank?
+
+      @essay_grading.update(
+        general_context: @essay_grading.general_context.merge('data' => result['data']['outputs'])
+      )
+    elsif context == 'revised_essay'
+      revised_outputs =
+        if result.dig('data', 'outputs').present?
+          result['data']['outputs']
+        elsif result['answer'].present?
+          { 'text' => result['answer'] }
+        end
+
+      return false if revised_outputs.blank?
+
+      @essay_grading.update(
+        revised_essay: @essay_grading.revised_essay.merge('data' => revised_outputs)
+      )
+    end
+
+    true
+  end
+
+  def process_streaming_workflow_response(response_body)
+    finished_payload = nil
+
+    response_body.to_s.each_line do |raw_line|
+      line = raw_line.strip
+      next if line.empty? || !line.start_with?('data: ')
+
+      begin
+        data = JSON.parse(line.delete_prefix('data: ').strip)
+      rescue JSON::ParserError
+        next
+      end
+
+      case data['event']
+      when 'workflow_finished'
+        finished_payload = data['data']
+        break
+      when 'workflow_failed'
+        Rails.logger.error("Streaming workflow failed event: #{data}")
       end
     end
 
-    # Step 5: Replace malformed key-value pairs (e.g., "corrshould need -> should provide")
-    json_str = json_str.gsub(/("\w+":\s*)(\w+\s*->\s*[^\,\]\}]+)/) do |match|
-      key, value = $1, $2
-      corrected_value = value.split('->').last.strip
-      "#{key}\"#{corrected_value}\""
-    end
+    return nil if finished_payload.blank?
 
-    # Step 6: Fix incomplete objects (e.g., "errors": })
-    json_str = json_str.gsub(/"errors":\s*}/, '"errors": {}')
-
-    # Step 7: Ensure the entire JSON is wrapped in braces
-    json_str = "{#{json_str}}" unless json_str.start_with?('{')
-
-    Rails.logger.debug("[EssayGradingService] Fixed JSON string: #{json_str}")
-    json_str
+    Struct.new(:code, :body).new(200, { data: finished_payload }.to_json)
   end
 
   def get_number_of_suggestion(result)
-    # Rails.logger.debug("[EssayGradingService] result: #{result}")
-    return 0 unless result.is_a?(Hash) && result['text'].present?
-
-    begin
-      json = JSON.parse(result['text'])
-      if @essay_grading.category == 'sentence_builder'
-        count_sentence_builder_errors(json)
-      else
-        count_errors(json)
-      end
-    rescue JSON::ParserError => e
-      Rails.logger.error("[EssayGradingService] Failed to parse result text as JSON: #{e.message}")
-      Rails.logger.error("[EssayGradingService] Result text: #{result}")
-      0
-    # begin
-    #   if @essay_grading.category == 'sentence_builder'
-    #     count_sentence_builder_errors(result)
-    #   else
-    #     count_errors(result)
-    #   end
-    rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Error counting suggestions: #{e.message}")
-      0
+    json = JSON.parse(result['text'])
+    if @essay_grading.category == 'sentence_builder'
+      count_sentence_builder_errors(json)
+    else
+      count_errors(json)
     end
   end
 
   def count_sentence_builder_errors(hash)
     count = 0
-    hash['results']&.each do |result|
+    hash['results'].each do |result|
       if result['errors'].is_a?(Array)
+        # 只計算 error1 不等於 'Correct' 的錯誤
         count += result['errors'].count { |error| error['error1'] != 'Correct' }
       end
     end
@@ -423,92 +258,16 @@ class EssayGradingService
   end
 
   def update_final_status
-    if @grading_success && (@general_context_app_key.blank? || @general_context_success)
+    if @grading_success &&
+       (@general_context_app_key.blank? || @general_context_success) &&
+       (@revised_essay_app_key.blank? || @revised_essay_success)
       @essay_grading.update(status: 'graded')
+
       @essay_grading.calculate_sentence_builder_score if @essay_grading.category == 'sentence_builder'
+
       @essay_grading.call_webhook
-      Rails.logger.info("[EssayGradingService] Status updated to 'graded' for essay grading ID: #{@essay_grading.id}")
     else
       @essay_grading.update(status: 'stopped')
-      Rails.logger.error("[EssayGradingService] Workflow failed, status updated to 'stopped' for essay grading ID: #{@essay_grading.id}")
-      # 发送通知邮件给管理员
-      begin
-        AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
-      rescue StandardError => e
-        Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
-      end
     end
-  end
-
-  def is_ielts_task_1?
-    @essay_grading.essay_assignment.rubric&.dig('name') == 'IELTS Task 1'
-  end
-
-  def build_ielts_task_1_inputs(workflow_type)
-    graph_input = build_ielts_graph_input(workflow_type)
-
-    inputs = if workflow_type == 'general_context'
-               {
-                 Essay: @essay_grading.essay,
-                 essaytopic: @essay_grading.topic,
-                 graph: graph_input
-               }
-             else
-               {
-                 Essay: @essay_grading.essay,
-                 essay_topic: @essay_grading.topic,
-                 graph: graph_input
-               }
-             end
-
-    Rails.logger.info("[EssayGradingService] Building IELTS Task 1 inputs for #{workflow_type} workflow, assignment #{@essay_grading.essay_assignment.id}")
-    Rails.logger.info("[EssayGradingService] Graph input: #{graph_input}")
-    Rails.logger.info("[EssayGradingService] Essay length: #{inputs[:Essay]&.length}")
-    Rails.logger.info("[EssayGradingService] Topic: #{inputs[:essay_topic] || inputs[:essaytopic]}")
-    inputs
-  end
-
-  def build_ielts_graph_input(workflow_type)
-    return nil unless @essay_grading.essay_assignment.graph_image.attached?
-
-    graph_url = @essay_grading.essay_assignment.graph_image.url
-    app_key = case workflow_type
-              when 'grading'
-                @grading_app_key
-              when 'general_context'
-                @general_context_app_key
-              else
-                @grading_app_key
-              end
-
-    Rails.logger.info("[EssayGradingService] Using app_key for #{workflow_type}: #{app_key&.first(10)}...")
-
-    upload_service = DifyFileUploadService.new(app_key, @user_id)
-    upload_result = upload_service.upload_from_url(graph_url, 'image')
-
-    if upload_result.success?
-      Rails.logger.info("[EssayGradingService] Successfully uploaded graph to Dify for #{workflow_type}, upload_file_id: #{upload_result.upload_file_id}")
-      [{
-        'type' => 'image',
-        'transfer_method' => 'local_file',
-        'upload_file_id' => upload_result.upload_file_id
-      }]
-    else
-      Rails.logger.error("[EssayGradingService] Failed to upload graph to Dify for #{workflow_type}: #{upload_result.error_message}")
-      Rails.logger.warn("[EssayGradingService] Falling back to remote URL for graph in #{workflow_type}")
-      [{
-        'type' => 'image',
-        'transfer_method' => 'remote_url',
-        'url' => graph_url
-      }]
-    end
-  rescue StandardError => e
-    Rails.logger.error("[EssayGradingService] Error building graph input for #{workflow_type}: #{e.message}")
-    Rails.logger.warn("[EssayGradingService] Falling back to remote URL for graph in #{workflow_type}")
-    [{
-      'type' => 'image',
-      'transfer_method' => 'remote_url',
-      'url' => graph_url
-    }]
   end
 end

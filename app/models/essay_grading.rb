@@ -22,6 +22,7 @@
 #  submission_class_number     :string
 #  submission_school_id        :uuid
 #  submission_academic_year_id :uuid
+#  revised_essay               :jsonb            not null
 #
 # Indexes
 #
@@ -33,11 +34,11 @@
 #  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
-  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :listening, :sentence_builder,
+  store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder,
                  :speaking_pronunciation_sentences, :supplement_practice
   store_accessor :general_context, :app_key, :data
 
-  store_accessor :meta, :newsfeed_id, :transformed_newsfeed
+  store_accessor :meta, :newsfeed_id, :transformed_newsfeed, :teacher_review, :teacher_review_history
 
   # 關聯
   belongs_to :general_user
@@ -45,30 +46,15 @@ class EssayGrading < ApplicationRecord
   belongs_to :submission_school, class_name: 'School', optional: true
   belongs_to :submission_academic_year, class_name: 'SchoolAcademicYear', optional: true
   delegate :category, to: :essay_assignment
-  
-  # 补充练习记录关联
-  has_many :supplement_practice_records, dependent: :destroy
-  has_one :submitted_supplement_practice_record, 
-          -> { where(status: :submitted) },
-          class_name: 'SupplementPracticeRecord'
 
   # 狀態枚舉
-  # 新增 draft 狀態，用於學生「先保存草稿，不立即批改」
   enum status: { pending: 0, graded: 1, stopped: 2, draft: 3 }
 
-  # 狀態為 draft 時，不執行工作流；
-  # 從 draft 變為其他狀態（例如 pending）時才執行工作流
-  after_create :run_workflow, if: :should_run_workflow_on_create?
-  after_update :run_workflow, if: :should_run_workflow_on_submit?
-  after_create :calculate_comprehension_score, if: :is_comprehension?
-  after_update :calculate_comprehension_score, if: :is_comprehension?
-  after_create :calculate_listening_score, if: :is_listening?
-  after_update :calculate_listening_score, if: :is_listening?
-  # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
-  after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
-  after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
+  after_create :run_workflow, if: :should_run_workflow_after_create?
+  after_create :calculate_comprehension_score, if: :should_calculate_comprehension_after_create?
+  after_create :calculate_speaking_pronunciation_score, if: :should_calculate_pronunciation_after_create?
 
-  has_one_attached :file, service: :microsoft
+  has_one_attached :file, service: ApplicationRecord.preferred_microsoft_storage_service
 
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
@@ -78,19 +64,6 @@ class EssayGrading < ApplicationRecord
 
     define_method("#{key}=") do |value|
       self.comprehension = (comprehension || {}).merge(key.to_s => value)
-    end
-  end
-
-  # 动态定义 listening getter 和 setter（与 comprehension 相同字段，操作 grading['listening']）
-  # 方法名加 listening_ 前缀，避免与 comprehension 及数据库 score 等冲突
-  %i[questions questions_count full_score score].each do |key|
-    method_name = :"listening_#{key}"
-    define_method(method_name) do
-      listening && listening[key.to_s]
-    end
-
-    define_method(:"#{method_name}=") do |value|
-      self.listening = (listening || {}).merge(key.to_s => value)
     end
   end
 
@@ -107,10 +80,6 @@ class EssayGrading < ApplicationRecord
     category == 'comprehension'
   end
 
-  def is_listening?
-    category == 'listening'
-  end
-
   def is_speaking_pronunciation?
     category == 'speaking_pronunciation'
   end
@@ -119,29 +88,31 @@ class EssayGrading < ApplicationRecord
     %w[essay speaking_essay speaking_conversation sentence_builder].include?(category)
   end
 
-  # 是否需要計算發音分數（僅 speaking_pronunciation，且不是 draft）
-  def should_calculate_speaking_pronunciation?
-    is_speaking_pronunciation? && !draft?
-  end
-
-  # 建立時，如果是需要跑 workflow 的類型，且不是 draft，就直接排隊跑工作流
-  def should_run_workflow_on_create?
+  def should_run_workflow_after_create?
     need_to_run_workflow? && !draft?
   end
 
-  # 從 draft 轉成非 draft（例如 pending）時，才觸發一次工作流
-  # 這樣「保存草稿」不會批改，「正式提交」才會批改
-  def should_run_workflow_on_submit?
-    return false unless need_to_run_workflow?
-    return false unless saved_change_to_status?
+  def should_calculate_comprehension_after_create?
+    is_comprehension? && !draft?
+  end
 
-    status_before, status_after = saved_change_to_status
-    status_before == 'draft' && status_after != 'draft'
+  def should_calculate_pronunciation_after_create?
+    is_speaking_pronunciation? && !draft?
   end
 
   def run_workflow
     # EssayGradingService.new(general_user_id, self).run_workflows
     EssayGradingJob.perform_async(id)
+  end
+
+  def run_pending_processing!
+    if need_to_run_workflow?
+      EssayGradingJob.perform_async(id)
+    elsif is_comprehension?
+      calculate_comprehension_score
+    elsif is_speaking_pronunciation?
+      calculate_speaking_pronunciation_score
+    end
   end
 
   def modify_url
@@ -156,28 +127,28 @@ class EssayGrading < ApplicationRecord
     return nil
     return essay if essay.present?
 
-    # begin
-    #   response = RestClient::Request.execute(
-    #     method: :post,
-    #     url: 'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
-    #     payload: { audio_url: file.url }.to_json,
-    #     headers: { content_type: :json, accept: :json },
-    #     open_timeout: 60,   # 设置连接超时时间为 60 秒
-    #     read_timeout: 300   # 设置读取超时时间为 120 秒
-    #   )
+    begin
+      response = RestClient::Request.execute(
+        method: :post,
+        url: 'https://pormhub.m2mda.com/api/open_ai/transcribe_audio',
+        payload: { audio_url: file.url }.to_json,
+        headers: { content_type: :json, accept: :json },
+        open_timeout: 60,   # 设置连接超时时间为 60 秒
+        read_timeout: 300   # 设置读取超时时间为 120 秒
+      )
 
-    #   # 处理成功的响应
-    #   response = JSON.parse(response.body) # 返回解析后的JSON数据
-    #   self['essay'] = response['text']
-    #   save
-    # rescue RestClient::ExceptionWithResponse => e
-    #   # 处理失败的响应
-    #   error_response = e.response
-    #   raise "API request failed with response: #{error_response.code} #{error_response.body}"
-    # rescue StandardError => e
-    #   # 处理其他错误
-    #   raise "An error occurred: #{e.message}"
-    # end
+      # 处理成功的响应
+      response = JSON.parse(response.body) # 返回解析后的JSON数据
+      self['essay'] = response['text']
+      save
+    rescue RestClient::ExceptionWithResponse => e
+      # 处理失败的响应
+      error_response = e.response
+      raise "API request failed with response: #{error_response.code} #{error_response.body}"
+    rescue StandardError => e
+      # 处理其他错误
+      raise "An error occurred: #{e.message}"
+    end
   end
 
   def run_workflow_sync
@@ -185,21 +156,24 @@ class EssayGrading < ApplicationRecord
     EssayGradingService.new(general_user_id, self).run_workflows
   end
 
-  # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading
-  def rerun_workflow
-    # 更新状态为pending
-    self.status = :pending
-    save!
-
-    # 运行工作流
-    run_workflow
+  def revised_essay_app_key
+    revised_essay.is_a?(Hash) ? revised_essay['app_key'] : nil
   end
 
-  # 重新运行补充练习工作流
-  def run_supplement_practice_workflow
-    if essay_assignment && essay_assignment.category == 'essay'
-      EssayGradingSupplementPracticeService.new(general_user_id, self).run_workflow
-    end
+  def revised_essay_data
+    revised_essay.is_a?(Hash) ? revised_essay['data'] : nil
+  end
+
+  def teacher_review_hash
+    teacher_review.is_a?(Hash) ? teacher_review : {}
+  end
+
+  def teacher_review_present?
+    teacher_review_hash.present?
+  end
+
+  def teacher_review_history_array
+    teacher_review_history.is_a?(Array) ? teacher_review_history : []
   end
 
   # 定義遞歸方法來計算所有 errors 的數量
@@ -231,40 +205,22 @@ class EssayGrading < ApplicationRecord
   end
 
   def get_news_feed
-    # 同一個 EssayGrading 實例在單次請求/流程內多次呼叫時，避免重複請求
-    return @__news_feed_memo if defined?(@__news_feed_memo)
-
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
     if essay_assignment.get_news_feed.present?
       news_feed = essay_assignment.get_news_feed
       result = {}
       result['data'] = news_feed.key?('data') ? news_feed['data'] : news_feed
-      @__news_feed_memo = result
-      return @__news_feed_memo
+      return result
     end
 
-    if self['meta']['newsfeed_id'].nil?
-      @__news_feed_memo = nil
-      return @__news_feed_memo
-    end
+    return nil if self['meta']['newsfeed_id'].nil?
 
-    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}/form.json")
-
-    # 检查 essay_assignment 和 meta.level 是否存在
-    if essay_assignment&.meta&.key?(:level) && essay_assignment.meta[:level].present?
-      query_params = URI.decode_www_form(uri.query || '').to_h
-      query_params['level'] = essay_assignment.meta[:level]
-      uri.query = URI.encode_www_form(query_params)
-    end
-
+    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
     response = Net::HTTP.get_response(uri)
 
-    unless response.is_a?(Net::HTTPSuccess)
-      @__news_feed_memo = nil
-      return @__news_feed_memo
-    end
+    return unless response.is_a?(Net::HTTPSuccess)
 
-    @__news_feed_memo = JSON.parse(response.body)
+    JSON.parse(response.body)
   end
 
   def calculate_speaking_pronunciation_score
@@ -281,141 +237,34 @@ class EssayGrading < ApplicationRecord
 
     # 设置总分
 
-    # self['score'] = ((total_score.to_f / self['grading']['speaking_pronunciation_sentences'].count)).round
-    # self['status'] = 'graded'
-    # save
-
-    new_score = (total_score.to_f / grading['speaking_pronunciation_sentences'].count).round
-
-    # 关键：用 update_columns，直接写数据库，不触发回调
-    update_columns(score: new_score, status: EssayGrading.statuses[:graded])
+    self['score'] = ((total_score.to_f / self['grading']['speaking_pronunciation_sentences'].count)).round
+    self['status'] = 'graded'
+    save
   end
 
   def calculate_comprehension_score
     # 初始化分数
     score = 0
-    all_blanks_count = 0
 
     # 遍历所有问题
     questions.each do |question|
-      if question['type'] == 'fill_in_the_blanks' && !essay_assignment.meta['fill_in_the_blanks_visible']
-        next;
-      end
       # 比较正确答案和用户答案
-      if question['type'] == 'fill_in_the_blanks' 
-        # 填空题：需要比较 blanks 数组中的每个答案
-        blanks = question['blanks'] || []
-        user_answer_str = question['user_answer']
-        
-        # 如果 blanks 为空或 user_answer 为空，跳过
-        next if blanks.empty? || user_answer_str.blank?
-        
-        begin
-          # 解析 user_answer JSON 字符串
-          user_answers = JSON.parse(user_answer_str)
-          
-          # 如果用户没有填写任何答案，跳过
-          next if user_answers.empty?
-          
-          # 创建一个 blank_id 到正确答案的映射，方便查找
-          blanks_map = blanks.each_with_object({}) do |blank, hash|
-            hash[blank['id']] = blank['answer'].to_s.strip.downcase
-          end
-          
-          # 统计用户填写的 blank 中有多少个正确答案
-          correct_count = user_answers.count do |blank_id, user_answer|
-            # 检查该 blank_id 是否在题目中存在
-            correct_answer = blanks_map[blank_id]
-            
-            # 如果 blank_id 不存在于题目中，不算正确（可能是无效的 blank_id）
-            next false if correct_answer.nil?
-            
-            # 不区分大小写比较
-            user_answer_str = user_answer.to_s.strip.downcase
-            correct_answer == user_answer_str
-          end
-          
-          # 答对多少个 blank 就得多少分
-          score += correct_count
-          all_blanks_count += blanks.count
-        rescue JSON::ParserError => e
-          # 如果 JSON 解析失败，记录错误但不影响其他题目
-          Rails.logger.warn("Failed to parse user_answer for fill_in_the_blanks question: #{e.message}")
-        end
-      else
-        all_blanks_count += 1
-        if question['answer'] == question['user_answer']
-          # 如果答案正确，分数增加1
-          score += 1
-        end
+      if question['answer'] == question['user_answer']
+        # 如果答案正确，分数增加1
+        score += 1
       end
     end
 
-    # 保存当前状态，用于判断是否需要设置为 graded
-    current_status = status
-    puts "current_status: #{current_status}"
+    # 返回最终分数
+    self['grading']['comprehension']['score'] = score
+    self['grading']['comprehension']['questions_count'] = questions.count
+    self['grading']['comprehension']['full_score'] = questions.count
+    self['status'] = 'graded'
+    self['score'] = score
+    save
 
-    # 更新 grading JSONB 字段
-    updated_grading = grading.dup
-    updated_grading['comprehension'] ||= {}
-    updated_grading['comprehension']['score'] = score
-    updated_grading['comprehension']['questions_count'] = all_blanks_count #questions.count
-    updated_grading['comprehension']['full_score'] = all_blanks_count #questions.count
-
-    # 确定最终状态：如果当前状态是 draft，保持 draft 状态；否则设置为 graded
-    final_status = current_status == 'draft' ? EssayGrading.statuses[:draft] : EssayGrading.statuses[:graded]
-
-    # 关键：用 update_columns，直接写数据库，不触发回调，避免无限递归
-    update_columns(
-      grading: updated_grading,
-      score: score,
-      status: final_status
-    )
-
-    # 呼叫 webhook（仅在非 draft 状态时调用）
-    # call_webhook unless current_status == 'draft'
-  end
-
-  # 與 calculate_comprehension_score 相同模式：依題目計分、回寫 grading.listening、update_columns 避免回調循環
-  def calculate_listening_score
-    listening_block = grading&.dig('listening')
-    listening_block = {} unless listening_block.is_a?(Hash)
-    listening_block = listening_block.stringify_keys
-    raw_questions = Array(listening_block['questions'])
-
-    score = 0
-    full_score = 0
-    scored_questions = []
-
-    raw_questions.each do |raw|
-      q = raw.is_a?(Hash) ? raw.stringify_keys : {}
-      pts, possible, merged = listening_score_one_question(q)
-      score += pts
-      full_score += possible
-      scored_questions << merged
-    end
-
-    percentage = full_score.positive? ? ((score.to_f / full_score) * 100).round : 0
-
-    current_status = status
-    updated_grading = grading.deep_dup
-    base_listening = updated_grading['listening'].is_a?(Hash) ? updated_grading['listening'].deep_dup.stringify_keys : {}
-    updated_grading['listening'] = base_listening.merge(
-      'questions' => scored_questions,
-      'score' => score,
-      'full_score' => full_score,
-      'percentage' => percentage
-    )
-
-    final_status = current_status == 'draft' ? EssayGrading.statuses[:draft] : EssayGrading.statuses[:graded]
-
-    update_columns(
-      grading: updated_grading,
-      score: score,
-      status: final_status
-    )
-
-    # call_webhook unless current_status == 'draft'
+    # 呼叫 webhook
+    call_webhook
   end
 
   def calculate_sentence_builder_score
@@ -456,7 +305,7 @@ class EssayGrading < ApplicationRecord
     save
 
     # 返回 full_score 和 score
-    { full_score: total_score, score: score }
+    { full_score: total_score, score: }
   end
 
   def call_webhook
@@ -488,9 +337,6 @@ class EssayGrading < ApplicationRecord
     if category == 'comprehension'
       payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
-    elsif category == 'listening'
-      payload[:record]['Full Score'] = grading.dig('listening', 'full_score')
-      payload[:record][:Score] = grading.dig('listening', 'score')
     elsif category == 'sentence_builder'
       payload[:record]['Full Score'] = grading['full_score']
       payload[:record][:Score] = grading['score']
@@ -603,9 +449,6 @@ class EssayGrading < ApplicationRecord
     if category == 'comprehension'
       payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
-    elsif category == 'listening'
-      payload[:record]['Full Score'] = grading.dig('listening', 'full_score')
-      payload[:record][:Score] = grading.dig('listening', 'score')
     else
       grading_data = JSON.parse(grading['data']['text'])
       payload[:record]['Overall Score'] = grading_data['Overall Score']
@@ -649,99 +492,6 @@ class EssayGrading < ApplicationRecord
   end
 
   private
-
-  # listening：回傳 [得分, 滿分, 帶 is_correct 的題目 Hash]
-  def listening_score_one_question(q)
-    type = q['type'].to_s
-    if type == 'fill_in_the_blanks' && q['blanks'].is_a?(Array) && q['blanks'].any?
-      return listening_score_multi_blanks_question(q)
-    end
-
-    possible = 1
-    correct = if type == 'multiple_choice'
-                listening_mcq_correct?(q)
-              else
-                listening_fib_simple_correct?(q)
-              end
-    [correct ? 1 : 0, possible, q.merge('is_correct' => correct)]
-  end
-
-  # 與阅读理解 blanks 一致：user_answer 為 JSON 物件，鍵為 blank id
-  def listening_score_multi_blanks_question(q)
-    blanks = q['blanks'] || []
-    user_answer_str = q['user_answer']
-
-    return [0, 0, q.merge('is_correct' => false)] if blanks.empty? || user_answer_str.blank?
-
-    begin
-      user_answers = JSON.parse(user_answer_str.to_s)
-      unless user_answers.is_a?(Hash)
-        return [0, blanks.size, q.merge('is_correct' => false)]
-      end
-
-      return [0, blanks.size, q.merge('is_correct' => false)] if user_answers.blank?
-
-      blanks_map = blanks.each_with_object({}) do |blank, hash|
-        next unless blank.is_a?(Hash)
-
-        bk = blank.stringify_keys
-        id_key = bk['id']
-        next if id_key.nil?
-
-        hash[id_key.to_s] = bk['answer'].to_s.strip.downcase
-      end
-
-      correct_count = user_answers.count do |blank_id, user_answer|
-        correct_answer = blanks_map[blank_id.to_s] || blanks_map[blank_id]
-        next false if correct_answer.nil?
-
-        user_answer.to_s.strip.downcase == correct_answer
-      end
-
-      all_correct = correct_count == blanks.size
-      [correct_count, blanks.size, q.merge('is_correct' => all_correct)]
-    rescue JSON::ParserError => e
-      Rails.logger.warn("Listening: parse blanks user_answer failed: #{e.message}")
-      [0, blanks.size, q.merge('is_correct' => false)]
-    end
-  end
-
-  # 與前端 normalizeAnswer（essay-checker mock-schema）對齊：小寫、去標點、壓縮空白
-  def listening_normalize_answer(value)
-    return '' if value.blank?
-
-    value.to_s.downcase.gsub(/[.,\/#!$%^&*;:{}=\-_`~()]/, '').gsub(/\s+/, ' ').strip
-  end
-
-  def listening_mcq_correct?(q)
-    ua = listening_normalize_answer(q['user_answer'])
-    return false if ua.blank?
-
-    correct_key = q['answer'].to_s
-    opts = q['options'] || {}
-    return false unless opts.is_a?(Hash)
-
-    return true if listening_normalize_answer(correct_key) == ua
-
-    label = opts[correct_key] || opts[correct_key.to_sym]
-    return true if label.present? && ua == listening_normalize_answer(label.to_s)
-
-    opts.each do |k, v|
-      next unless ua == listening_normalize_answer(k.to_s) || ua == listening_normalize_answer(v.to_s)
-
-      return listening_normalize_answer(k.to_s) == listening_normalize_answer(correct_key)
-    end
-
-    false
-  end
-
-  def listening_fib_simple_correct?(q)
-    ua = listening_normalize_answer(q['user_answer'])
-    return false if ua.blank?
-
-    valid = [q['answer']] + Array(q['accepted_answers'])
-    valid.compact.any? { |a| listening_normalize_answer(a) == ua }
-  end
 
   # 獲取提交時的學生信息
   # @return [Hash, nil] 包含提交時學生信息的哈希，如果無法獲取則返回 nil

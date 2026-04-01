@@ -31,7 +31,7 @@ class School < ApplicationRecord
   has_many :general_users, through: :teacher_assignments
 
   # 附件
-  has_one_attached :logo, service: :microsoft
+  has_one_attached :logo, service: preferred_microsoft_storage_service
 
   # 驗證
   validates :name, presence: true

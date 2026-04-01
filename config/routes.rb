@@ -73,6 +73,8 @@ Rails.application.routes.draw do
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
           get 'test_email'
+          patch 'teacher_review'
+          patch 'teacher_review_restore'
           get 'download_report'
           get 'download_supplement_practice'
         end
@@ -88,7 +90,7 @@ Rails.application.routes.draw do
           end
         end
       end
-      
+
       # 补充练习记录独立路由
       resources :supplement_practice_records, only: [:show], param: :id do
         collection do
@@ -530,11 +532,11 @@ Rails.application.routes.draw do
             get :creators
           end
         end
-        
+
         # Essay Gradings Management for Admin
         resources :essay_gradings, only: [:show] do
-          collection do 
-            get :speaking_times_data 
+          collection do
+            get :speaking_times_data
           end
           member do
             post :rerun_workflow
