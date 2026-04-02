@@ -1156,6 +1156,7 @@ module Api
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
           sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
+          score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
           draw_essay_report_footer(pdf, palette)
           draw_essay_report_header(pdf, palette, school_logo_url)
           draw_essay_report_info_grid(
@@ -1164,7 +1165,9 @@ module Api
             assignment_label: json_data['assignment'].presence || 'Essay',
             rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
             account_label: essay_grading.general_user.show_in_report_name.to_s,
-            overall_score_label: extract_overall_score_label(sentences)
+            level_label: json_data['level'].presence || essay_grading.essay_assignment.level.presence || 'N/A',
+            overall_score_label: extract_overall_score_label(score_payload),
+            report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report'
           )
           draw_essay_report_title_box(pdf, palette, json_data['topic'])
 
@@ -1198,7 +1201,7 @@ module Api
           draw_essay_report_score(
             pdf,
             palette,
-            sentences,
+            score_payload,
             section_index,
             simplified: report_type == 'simplified'
           )
@@ -1259,7 +1262,7 @@ module Api
         pdf.move_cursor_to header_top - header_height - 22
       end
 
-      def draw_essay_report_info_grid(pdf, palette, assignment_label:, rubric_label:, account_label:, overall_score_label:)
+      def draw_essay_report_info_grid(pdf, palette, assignment_label:, rubric_label:, account_label:, level_label:, overall_score_label:, report_label:)
         table_data = [
           [
             { content: "<b>Assignment</b><br/>#{assignment_label}", inline_format: true },
@@ -1267,7 +1270,11 @@ module Api
           ],
           [
             { content: "<b>Account</b><br/>#{account_label}", inline_format: true },
-            { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true }
+            { content: "<b>Level</b><br/>#{level_label}", inline_format: true }
+          ],
+          [
+            { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true },
+            { content: "<b>Report Type</b><br/>#{report_label}", inline_format: true }
           ]
         ]
 
@@ -1288,7 +1295,7 @@ module Api
           }
         ) do
           cells.style(leading: 0, valign: :center)
-          rows(0..1).style(height: 48)
+          rows(0..2).style(height: 48)
         end
         pdf.move_down 18
       end
@@ -1499,6 +1506,7 @@ module Api
           'account' => essay_grading.general_user.show_in_report_name,
           'assignment' => assignment.assignment,
           'rubric' => assignment.rubric['name'],
+          'level' => assignment.level.presence || assignment.meta['level'].presence,
           'graph_image_url' => extract_task1_graph_image_url(assignment),
           'report_type' => report_type
         }
@@ -1822,17 +1830,17 @@ module Api
         pdf.move_down 18
       end
 
-      def draw_essay_report_score(pdf, palette, sentences, section_index, simplified:)
+      def draw_essay_report_score(pdf, palette, score_payload, section_index, simplified:)
         title = simplified ? 'Score' : 'Score Breakdown'
         draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: #{title}")
-        return if sentences['Overall Score'].blank?
+        return if score_payload[:overall_score].blank?
 
         pdf.fill_color palette[:primary]
-        pdf.text "Overall Score #{extract_overall_score_label(sentences)}", size: 16, style: :bold, align: :center
+        pdf.text "Overall Score #{extract_overall_score_label(score_payload)}", size: 16, style: :bold, align: :center
         pdf.fill_color palette[:text]
         pdf.move_down 14
 
-        rows = extract_score_rows(sentences)
+        rows = extract_score_rows(score_payload)
 
         if simplified
           rows.each do |row|
@@ -1840,7 +1848,7 @@ module Api
             pdf.move_down 4
           end
         else
-          table_rows = [['Criterion', 'Score', 'Comment']] + rows.map { |row| [row[:criterion], row[:score_label], row[:comment].to_s] }
+          table_rows = [['Criterion', 'Score', 'Feedback']] + rows.map { |row| [row[:criterion], row[:score_label], row[:comment].to_s] }
           pdf.table(
             table_rows,
             header: true,
@@ -1909,28 +1917,91 @@ module Api
              .reject(&:blank?)
       end
 
-      def extract_score_rows(sentences)
-        sentences.each_with_object([]) do |(key, value), rows|
+      def extract_essay_report_score_payload(*sources)
+        sources.each do |source|
+          normalized = normalize_essay_report_score_payload(source)
+          return normalized if normalized[:overall_score].present? || normalized[:criteria].present?
+        end
+
+        {
+          overall_score: nil,
+          full_score: nil,
+          criteria: []
+        }
+      end
+
+      def normalize_essay_report_score_payload(source)
+        source_hash = source.is_a?(Hash) ? source.deep_stringify_keys : {}
+        return normalize_nested_score_payload(source_hash) if source_hash['criteria'].is_a?(Hash) || source_hash['overall_score'].present?
+
+        normalize_legacy_score_payload(source_hash)
+      end
+
+      def normalize_nested_score_payload(source_hash)
+        criteria_rows = source_hash.fetch('criteria', {}).each_with_object([]) do |(criterion_name, criterion_value), rows|
+          next unless criterion_value.is_a?(Hash)
+
+          normalized_value = criterion_value.deep_stringify_keys
+          criterion_score = normalized_value['score'].presence || normalized_value['value'].presence || normalized_value['points'].presence
+          criterion_full_score = normalized_value['full_score'].presence || source_hash['full_score'].presence
+          criterion_comment = normalized_value['comment'].presence || normalized_value['feedback'].presence || normalized_value['explanation'].presence
+
+          rows << {
+            criterion: criterion_name.to_s,
+            score_label: build_score_label(criterion_score, criterion_full_score),
+            comment: criterion_comment.to_s
+          }
+        end
+
+        {
+          overall_score: source_hash['overall_score'].presence || source_hash['Overall Score'].presence,
+          full_score: source_hash['full_score'].presence || source_hash['Full Score'].presence,
+          criteria: criteria_rows
+        }
+      end
+
+      def normalize_legacy_score_payload(source_hash)
+        rows = source_hash.each_with_object([]) do |(key, value), result|
           next unless key.to_s.start_with?('Criterion')
           next unless value.is_a?(Hash)
 
-          full_score = value['Full Score'] || 'N/A'
-          value.each do |criterion_name, criterion_value|
-            next if ['Full Score', 'explanation'].include?(criterion_name)
+          normalized_value = value.deep_stringify_keys
+          full_score = normalized_value['Full Score'].presence || source_hash['Full Score'].presence
+          comment = normalized_value['explanation'].presence || normalized_value['comment'].presence || normalized_value['feedback'].presence
 
-            rows << {
-              criterion: criterion_name,
-              score_label: "#{criterion_value} / #{full_score}",
-              comment: value['explanation']
+          normalized_value.each do |criterion_name, criterion_value|
+            next if ['Full Score', 'explanation', 'comment', 'feedback'].include?(criterion_name)
+
+            result << {
+              criterion: criterion_name.to_s,
+              score_label: build_score_label(criterion_value, full_score),
+              comment: comment.to_s
             }
           end
         end
+
+        {
+          overall_score: source_hash['Overall Score'].presence || source_hash['overall_score'].presence,
+          full_score: source_hash['Full Score'].presence || source_hash['full_score'].presence,
+          criteria: rows
+        }
       end
 
-      def extract_overall_score_label(sentences)
-        return 'N/A' if sentences['Overall Score'].blank?
+      def build_score_label(score, full_score)
+        return score.to_s if full_score.blank?
+        return full_score.to_s if score.blank?
 
-        "#{sentences['Overall Score']} / #{sentences['Full Score']}"
+        "#{score} / #{full_score}"
+      end
+
+      def extract_score_rows(score_payload)
+        Array(score_payload[:criteria])
+      end
+
+      def extract_overall_score_label(score_payload)
+        return 'N/A' if score_payload[:overall_score].blank?
+
+        build_score_label(score_payload[:overall_score], score_payload[:full_score])
       end
 
       def extract_task1_graph_image_url(assignment, json_data = nil)
