@@ -306,15 +306,10 @@ module Api
 
       def create
         set_essay_assignment_by_code
-        grading_params = essay_grading_params
-        prepared_attachment = prepare_audio_attachment_for_persistence(
-          category: @essay_assignment.category,
-          uploaded_file: grading_params[:file]
-        )
 
-        @essay_grading = @essay_assignment.essay_gradings.new(
-          essay_grading_attributes_for_persistence(@essay_assignment.category, grading_params)
-        )
+        # puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
+
+        @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
@@ -323,28 +318,24 @@ module Api
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
           @essay_grading.general_context ||= {}
           @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
-          @essay_grading.revised_essay ||= {}
-          @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
         end
 
-        begin
-          EssayGrading.transaction do
-            @essay_grading.save!
-            persist_uploaded_attachment!(
-              essay_grading: @essay_grading,
-              category: @essay_assignment.category,
-              uploaded_file: grading_params[:file],
-              prepared_attachment:
-            )
-          end
-
+        if @essay_grading.save
+          # 檢查是否有對應的作業分配，如果有則更新分配狀態
+          # 只有非草稿狀態的提交才更新分配狀態
           update_assignment_status_if_needed unless @essay_grading.status == 'draft'
-          render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :created
-        rescue ActiveRecord::RecordInvalid
+
+          # Track assignment submission（非 draft 才記錄正式提交）
+          # unless @essay_grading.status == 'draft'
+          #   # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
+          #   ahoy.authenticate(current_general_user) if current_general_user
+          #   ahoy.track 'Assignment Submitted',
+          #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
+          # end
+          render json: { success: true, essay_grading: @essay_grading }, status: :created
+        else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
-      ensure
-        prepared_attachment&.close!
       end
 
       def teacher_review
