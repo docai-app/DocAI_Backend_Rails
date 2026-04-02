@@ -35,7 +35,7 @@
 #
 class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :sentence_builder,
-                 :speaking_pronunciation_sentences, :supplement_practice
+                 :speaking_pronunciation_sentences, :supplement_practice, :listening
   store_accessor :general_context, :app_key, :data
 
   store_accessor :meta, :newsfeed_id, :transformed_newsfeed, :teacher_review, :teacher_review_history
@@ -50,9 +50,14 @@ class EssayGrading < ApplicationRecord
   # 狀態枚舉
   enum status: { pending: 0, graded: 1, stopped: 2, draft: 3 }
 
-  after_create :run_workflow, if: :should_run_workflow_after_create?
-  after_create :calculate_comprehension_score, if: :should_calculate_comprehension_after_create?
-  after_create :calculate_speaking_pronunciation_score, if: :should_calculate_pronunciation_after_create?
+  after_create_commit :run_workflow, if: :should_run_workflow_after_create?
+  after_create_commit :calculate_comprehension_score, if: :should_calculate_comprehension_after_create?
+  after_create_commit :calculate_listening_score, if: :should_calculate_listening_after_create?
+  after_create_commit :calculate_speaking_pronunciation_score, if: :should_calculate_pronunciation_after_create?
+  after_update_commit :run_workflow, if: :should_run_workflow_after_update?
+  after_update_commit :calculate_comprehension_score, if: :should_calculate_comprehension_after_update?
+  after_update_commit :calculate_listening_score, if: :should_calculate_listening_after_update?
+  after_update_commit :calculate_speaking_pronunciation_score, if: :should_calculate_pronunciation_after_update?
 
   has_one_attached :file, service: ApplicationRecord.preferred_microsoft_storage_service
 
@@ -84,6 +89,10 @@ class EssayGrading < ApplicationRecord
     category == 'speaking_pronunciation'
   end
 
+  def is_listening?
+    category == 'listening'
+  end
+
   def need_to_run_workflow?
     %w[essay speaking_essay speaking_conversation sentence_builder].include?(category)
   end
@@ -96,8 +105,28 @@ class EssayGrading < ApplicationRecord
     is_comprehension? && !draft?
   end
 
+  def should_calculate_listening_after_create?
+    is_listening? && !draft?
+  end
+
   def should_calculate_pronunciation_after_create?
     is_speaking_pronunciation? && !draft?
+  end
+
+  def should_run_workflow_after_update?
+    need_to_run_workflow? && submitted_from_draft_on_update?
+  end
+
+  def should_calculate_comprehension_after_update?
+    is_comprehension? && submitted_from_draft_on_update?
+  end
+
+  def should_calculate_listening_after_update?
+    is_listening? && submitted_from_draft_on_update?
+  end
+
+  def should_calculate_pronunciation_after_update?
+    is_speaking_pronunciation? && submitted_from_draft_on_update?
   end
 
   def run_workflow
@@ -110,6 +139,8 @@ class EssayGrading < ApplicationRecord
       EssayGradingJob.perform_async(id)
     elsif is_comprehension?
       calculate_comprehension_score
+    elsif is_listening?
+      calculate_listening_score
     elsif is_speaking_pronunciation?
       calculate_speaking_pronunciation_score
     end
@@ -267,6 +298,25 @@ class EssayGrading < ApplicationRecord
     call_webhook
   end
 
+  def calculate_listening_score
+    listening_data = grading['listening'].is_a?(Hash) ? grading['listening'] : {}
+    listening_questions = listening_data['questions'].is_a?(Array) ? listening_data['questions'] : []
+
+    score = listening_questions.count do |question|
+      listening_answer_correct?(question)
+    end
+
+    self['grading']['listening'] ||= {}
+    self['grading']['listening']['score'] = score
+    self['grading']['listening']['questions_count'] = listening_questions.count
+    self['grading']['listening']['full_score'] = listening_questions.count
+    self['status'] = 'graded'
+    self['score'] = score
+    save
+
+    call_webhook
+  end
+
   def calculate_sentence_builder_score
     return { full_score: nil, score: nil } if self['status'] != 'graded'
 
@@ -337,6 +387,9 @@ class EssayGrading < ApplicationRecord
     if category == 'comprehension'
       payload[:record]['Full Score'] = grading.dig('comprehension', 'full_score')
       payload[:record][:Score] = grading.dig('comprehension', 'score')
+    elsif category == 'listening'
+      payload[:record]['Full Score'] = grading.dig('listening', 'full_score')
+      payload[:record][:Score] = grading.dig('listening', 'score')
     elsif category == 'sentence_builder'
       payload[:record]['Full Score'] = grading['full_score']
       payload[:record][:Score] = grading['score']
@@ -492,6 +545,35 @@ class EssayGrading < ApplicationRecord
   end
 
   private
+
+  def submitted_from_draft_on_update?
+    status_change = previous_changes['status']
+    return false if status_change.blank?
+
+    previous_status, current_status = status_change
+    draft_values = ['draft', self.class.statuses['draft']]
+
+    draft_values.include?(previous_status) && !draft_values.include?(current_status)
+  end
+
+  def listening_answer_correct?(question)
+    valid_answers = [question['answer'], *Array(question['accepted_answers'])].filter_map do |answer|
+      normalized_grading_answer(answer)
+    end
+
+    user_answer = normalized_grading_answer(question['user_answer'])
+    user_answer.present? && valid_answers.include?(user_answer)
+  end
+
+  def normalized_grading_answer(value)
+    value
+      &.to_s
+      &.downcase
+      &.gsub(/[.,\/#!$%\^&\*;:{}=\-_`~()]/, '')
+      &.gsub(/\s+/, ' ')
+      &.strip
+      &.presence
+  end
 
   # 獲取提交時的學生信息
   # @return [Hash, nil] 包含提交時學生信息的哈希，如果無法獲取則返回 nil

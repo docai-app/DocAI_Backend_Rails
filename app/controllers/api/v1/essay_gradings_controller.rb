@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require 'open-uri'
 require 'prawn/table'
+require 'stringio'
 
 module Api
   module V1
@@ -62,20 +64,7 @@ module Api
           user = @essay_grading.general_user
           school_logo_url = user.aienglish_user? ? user.school_logo_url(:small) : nil
 
-          # 處理學校 Logo
-          if school_logo_url.present?
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # Logo 尺寸調整為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              pdf.move_down 20
-            rescue StandardError => e
-              Rails.logger.error("Error loading school logo: #{e.message}")
-            end
-          else
-            pdf.move_down 20
-          end
+          draw_standard_report_logo(pdf, school_logo_url)
 
           # Title
           pdf.move_down 10
@@ -391,8 +380,6 @@ module Api
         set_essay_grading
 
         grading_params = essay_grading_params
-        previous_status = @essay_grading.status
-
         prepared_attachment = prepare_audio_attachment_for_persistence(
           category: @essay_grading.category,
           uploaded_file: grading_params[:file]
@@ -415,9 +402,6 @@ module Api
               prepared_attachment:
             )
 
-            if previous_status == 'draft' && @essay_grading.pending?
-              @essay_grading.run_pending_processing!
-            end
           end
 
           render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :ok
@@ -631,25 +615,7 @@ module Api
           pdf.fill_color '000000'
           draw_standard_report_footer(pdf)
 
-          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
-          if school_logo_url.present?
-            # 下載 logo 到臨時文件
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 20
-            rescue StandardError => e
-              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-              Rails.logger.error("Error loading school logo: #{e.message}")
-              # 不需要移動光標，因為沒有添加 logo
-            end
-          else
-            # 沒有 logo 時正常開始內容
-            pdf.move_down 20
-          end
+          draw_standard_report_logo(pdf, school_logo_url)
 
           # 开始内容部分
           # pdf.move_down 10
@@ -766,25 +732,7 @@ module Api
           pdf.fill_color '000000'
           draw_standard_report_footer(pdf)
 
-          # 如果有學校 logo，在左上角添加 logo（在報告標題之前）
-          if school_logo_url.present?
-            # 下載 logo 到臨時文件
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # 在左上角顯示 logo，寬度為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              # 向下移動一定距離，以便文本不會與 logo 重疊
-              pdf.move_down 20
-            rescue StandardError => e
-              # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-              Rails.logger.error("Error loading school logo: #{e.message}")
-              # 不需要移動光標，因為沒有添加 logo
-            end
-          else
-            # 沒有 logo 時正常開始內容
-            pdf.move_down 20
-          end
+          draw_standard_report_logo(pdf, school_logo_url)
 
           # 开始内容部分
           # pdf.move_down 20
@@ -896,6 +844,108 @@ module Api
 
       # def generate_speaking_conversation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
 
+      def generate_listening_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
+          font_path = Rails.root.join('app/assets/fonts')
+
+          pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf')
+            },
+            'Arial' => {
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
+            }
+          )
+
+          pdf.font('Arial')
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
+          pdf.fill_color '000000'
+          draw_standard_report_footer(pdf)
+          draw_standard_report_logo(pdf, school_logo_url)
+
+          pdf.text 'Assessment Report (Listening)', size: 20, style: :bold, align: :center
+          pdf.stroke_color '444444'
+          pdf.move_down 25
+
+          pdf.text 'Assignment Information', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
+
+          info_data = [
+            ['Assignment:', json_data['assignment'] || 'N/A'],
+            ['Title:', json_data['title'] || json_data['topic'] || essay_grading.essay_assignment.title || 'N/A'],
+            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
+            ['Level:', json_data['level'] || 'N/A'],
+            ['Play Count:', json_data['listening_play_count'].to_s]
+          ]
+
+          info_data.each do |label, value|
+            pdf.formatted_text [
+              { text: label, styles: [:bold], size: 12 },
+              { text: " #{value}", size: 12 }
+            ]
+            pdf.move_down 4
+          end
+          pdf.move_down 25
+
+          if json_data['article'].present?
+            pdf.text 'Listening Transcript', size: 15, style: :bold
+            pdf.stroke_horizontal_rule
+            pdf.move_down 12
+            json_data['article'].to_s.split(/\n{2,}/).each do |paragraph|
+              next if paragraph.strip.blank?
+
+              pdf.text paragraph.strip, size: 12, leading: 4
+              pdf.move_down 10
+            end
+            pdf.move_down 14
+          end
+
+          questions = Array(json_data['listening_questions'])
+          if questions.any?
+            pdf.text 'Listening Questions', size: 15, style: :bold
+            pdf.stroke_horizontal_rule
+            pdf.move_down 12
+
+            questions.each_with_index do |question, index|
+              next unless question.is_a?(Hash)
+
+              pdf.text "#{index + 1}. #{question['question']}", size: 13, style: :bold
+              pdf.move_down 5
+
+              if question['options'].is_a?(Hash)
+                question['options'].each do |key, option|
+                  pdf.text "  #{key}: #{option}", size: 11
+                end
+                pdf.move_down 5
+              end
+
+              pdf.fill_color '000000'
+              pdf.text "My Answer: #{question['user_answer'].presence || 'No answer'}", style: :bold, size: 11
+              pdf.fill_color listening_answer_correct_for_report?(question) ? '008000' : 'C62828'
+              pdf.text "Correct Answer: #{question['answer']}", style: :bold, size: 11
+              pdf.fill_color '000000'
+              pdf.move_down 14
+            end
+          end
+
+          listening = json_data['listening'].is_a?(Hash) ? json_data['listening'] : {}
+          pdf.text 'Final Result', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 10
+          pdf.formatted_text [
+            { text: 'Overall Score: ', styles: [:bold], size: 12 },
+            { text: "#{listening['score'] || 0} / #{listening['full_score'] || questions.count}", size: 12 }
+          ]
+          pdf.move_down 30
+        end
+      end
+
       def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil, report_type = 'full')
         Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
@@ -990,7 +1040,7 @@ module Api
 
           begin
             require 'open-uri'
-            logo_tempfile = URI.open(school_logo_url)
+            logo_tempfile = cached_remote_image_io(school_logo_url)
             pdf.bounding_box([logo_panel_x + 8, header_top - 6], width: logo_panel_width - 16, height: header_height - 12) do
               pdf.image logo_tempfile,
                         fit: [pdf.bounds.width, pdf.bounds.height],
@@ -1077,7 +1127,7 @@ module Api
 
         begin
           require 'open-uri'
-          chart_image = URI.open(image_url)
+          chart_image = cached_remote_image_io(image_url)
           pdf.image chart_image, fit: [pdf.bounds.width, 220], position: :center
           pdf.move_down 24
         rescue StandardError => e
@@ -1399,19 +1449,7 @@ module Api
           draw_standard_report_footer(pdf)
 
           # 處理學校 Logo
-          if school_logo_url.present?
-            begin
-              require 'open-uri'
-              logo_tempfile = URI.open(school_logo_url)
-              # Logo 尺寸調整為 50 點
-              pdf.image logo_tempfile, at: [0, pdf.cursor], width: 50
-              pdf.move_down 20
-            rescue StandardError => e
-              Rails.logger.error("Error loading school logo: #{e.message}")
-            end
-          else
-            pdf.move_down 20
-          end
+          draw_standard_report_logo(pdf, school_logo_url)
 
           # Title
           # pdf.move_down 10
@@ -1543,6 +1581,8 @@ module Api
         # 根據不同類型生成不同報告
         if assignment.category == 'comprehension'
           generate_comprehension_pdf(json_data, essay_grading, school_logo_url, submission_info)
+        elsif assignment.category == 'listening'
+          generate_listening_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category == 'speaking_pronunciation' # 新增對 speaking_pronunciation 的專門處理
           generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('essay')
@@ -1574,11 +1614,30 @@ module Api
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
-          newsfeed = essay_grading.get_news_feed
+          newsfeed = cached_news_feed_for(essay_grading)
           if newsfeed.present?
-            json_data['title'] = newsfeed['data']['title']
-            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
+            json_data['title'] = extract_news_feed_title(newsfeed)
+            json_data['article'] = extract_news_feed_body(newsfeed)
           end
+        elsif assignment.category == 'listening'
+          listening_payload = essay_grading.grading['listening'].is_a?(Hash) ? essay_grading.grading['listening'] : {}
+          json_data['listening'] = listening_payload
+          json_data['listening_questions'] = Array(listening_payload['questions']).presence ||
+                                             Array(assignment.meta['listening_questions'])
+          json_data['listening_play_count'] = listening_payload['play_count'] || 0
+          json_data['level'] = listening_payload['level'].presence ||
+                               assignment.meta.dig('listening', 'level').presence ||
+                               assignment.level.presence ||
+                               assignment.meta['level'].presence
+
+          newsfeed = cached_news_feed_for(essay_grading)
+          if newsfeed.present?
+            json_data['title'] = extract_news_feed_title(newsfeed)
+            json_data['article'] = extract_news_feed_body(newsfeed)
+          end
+
+          json_data['article'] ||= assignment.meta['listening_transcript'].presence ||
+                                   sanitize_report_transcript(assignment.meta['listening_ssml_transcript'])
         elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
           json_data['data'] = { 'text' => effective_score_data.to_json }
@@ -1602,6 +1661,77 @@ module Api
 
       def normalized_report_type
         params[:report_type] == 'simplified' ? 'simplified' : 'full'
+      end
+
+      def draw_standard_report_logo(pdf, school_logo_url, width: 50, move_down: 20)
+        if school_logo_url.present?
+          begin
+            pdf.image cached_remote_image_io(school_logo_url), at: [0, pdf.cursor], width: width
+            pdf.move_down move_down
+          rescue StandardError => e
+            Rails.logger.error("Error loading school logo: #{e.message}")
+          end
+        else
+          pdf.move_down move_down
+        end
+      end
+
+      def cached_remote_image_io(url)
+        StringIO.new(cached_remote_asset_bytes(url))
+      end
+
+      def cached_remote_asset_bytes(url)
+        @remote_asset_bytes_cache ||= {}
+        @remote_asset_bytes_cache[url] ||= URI.open(url, &:read)
+      end
+
+      def cached_news_feed_for(essay_grading)
+        @news_feed_cache ||= {}
+        key = [
+          essay_grading.essay_assignment_id,
+          essay_grading.essay_assignment.newsfeed_id,
+          essay_grading.essay_assignment.level,
+          essay_grading.newsfeed_id
+        ].compact.join(':')
+        @news_feed_cache[key] ||= essay_grading.get_news_feed
+      end
+
+      def extract_news_feed_title(newsfeed)
+        news_feed_payload(newsfeed)['title']
+      end
+
+      def extract_news_feed_body(newsfeed)
+        payload = news_feed_payload(newsfeed)
+        payload['content'].presence ||
+          payload['text'].presence ||
+          payload['transcript'].presence ||
+          sanitize_report_transcript(payload['ssml_transcript']) ||
+          payload['plain_transcript'].presence
+      end
+
+      def news_feed_payload(newsfeed)
+        return {} unless newsfeed.is_a?(Hash)
+
+        payload = newsfeed['data']
+        payload.is_a?(Hash) ? payload : newsfeed
+      end
+
+      def listening_answer_correct_for_report?(question)
+        accepted_answers = Array(question['accepted_answers']).presence || [question['answer']]
+        user_answer = normalized_report_answer(question['user_answer'])
+        accepted_answers.any? { |answer| normalized_report_answer(answer) == user_answer }
+      end
+
+      def normalized_report_answer(value)
+        value.to_s.strip.downcase.gsub(/\s+/, ' ')
+      end
+
+      def sanitize_report_transcript(value)
+        text = value.to_s
+        return nil if text.blank?
+
+        stripped = text.gsub(/<[^>]+>/, ' ').gsub(/\s+/, ' ').strip
+        stripped.presence
       end
 
       def teacher_review_params
