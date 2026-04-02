@@ -453,8 +453,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
     t.jsonb "meta", default: {}, null: false
     t.boolean "answer_visible", default: true, null: false
     t.string "remark"
-    t.string "essay_type"
     t.uuid "community_id"
+    t.string "essay_type"
     t.index ["category"], name: "index_essay_assignments_on_category"
     t.index ["code"], name: "index_essay_assignments_on_code", unique: true
     t.index ["community_id"], name: "index_essay_assignments_on_community_id"

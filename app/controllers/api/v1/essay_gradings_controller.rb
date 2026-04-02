@@ -1381,7 +1381,6 @@ module Api
             assignment_label: json_data['assignment'].presence || 'Essay',
             rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
             account_label: essay_grading.general_user.show_in_report_name.to_s,
-            level_label: json_data['level'].presence || essay_grading.essay_assignment.level.presence || 'N/A',
             overall_score_label: extract_overall_score_label(score_payload),
             report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report'
           )
@@ -1454,7 +1453,8 @@ module Api
 
           begin
             logo_tempfile = URI.open(school_logo_url)
-            pdf.bounding_box([logo_panel_x + 8, header_top - 6], width: logo_panel_width - 16, height: header_height - 12) do
+            # Reduce padding around the logo so it appears larger within the panel.
+            pdf.bounding_box([logo_panel_x + 4, header_top - 2], width: logo_panel_width - 8, height: header_height - 4) do
               pdf.image logo_tempfile,
                         fit: [pdf.bounds.width, pdf.bounds.height],
                         position: :center,
@@ -1478,15 +1478,15 @@ module Api
         pdf.move_cursor_to header_top - header_height - 22
       end
 
-      def draw_essay_report_info_grid(pdf, palette, assignment_label:, rubric_label:, account_label:, level_label:, overall_score_label:, report_label:)
+      def draw_essay_report_info_grid(pdf, palette, assignment_label:, rubric_label:, account_label:, overall_score_label:, report_label:)
         table_data = [
           [
-            { content: "<b>Assignment</b><br/>#{assignment_label}", inline_format: true },
-            { content: "<b>Rubric</b><br/>#{rubric_label}", inline_format: true }
+            # Span across both columns and keep left alignment.
+            { content: "<b>Assignment</b><br/>#{assignment_label}", inline_format: true, colspan: 2, align: :left },
           ],
           [
             { content: "<b>Account</b><br/>#{account_label}", inline_format: true },
-            { content: "<b>Level</b><br/>#{level_label}", inline_format: true }
+            { content: "<b>Rubric</b><br/>#{rubric_label}", inline_format: true }
           ],
           [
             { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true },
