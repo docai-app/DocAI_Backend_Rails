@@ -1,0 +1,318 @@
+{
+    "title": "管理员作业管理API文档",
+    "description": "提供作业概览、管理、搜索、过滤和编辑功能的完整API接口",
+    "base_url": "/api/admin/v1/essay_assignments",
+    "authentication": "需要管理员认证 (authenticate_user!)",
+    "endpoints": {
+        "overview": {
+            "method": "GET",
+            "path": "/api/admin/v1/essay_assignments/overview",
+            "description": "获取作业概览统计信息",
+            "parameters": {},
+            "response": {
+                "success": true,
+                "data": {
+                    "overview": {
+                        "total_assignments": "作业总数",
+                        "total_submissions": "总提交数量",
+                        "recent_assignments": "最近30天创建的作业数量",
+                        "category_stats": {
+                            "Essay": "作文类作业数量",
+                            "Comprehension": "阅读理解类作业数量",
+                            "Speaking conversation": "口语对话类作业数量"
+                        },
+                        "category_percentages": {
+                            "Essay": "作文类作业百分比",
+                            "Comprehension": "阅读理解类作业百分比"
+                        },
+                        "submission_stats": {
+                            "pending": "待处理提交数量",
+                            "graded": "已评分提交数量",
+                            "grading": "评分中提交数量"
+                        },
+                        "top_assignments": [
+                            {
+                                "id": "作业ID",
+                                "title": "作业标题",
+                                "topic": "作业主题",
+                                "submissions_count": "提交数量"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        "list": {
+            "method": "GET",
+            "path": "/api/admin/v1/essay_assignments",
+            "description": "获取作业列表，支持搜索、过滤、排序和分页",
+            "parameters": {
+                "search": "搜索关键词（匹配标题、主题、作业内容、代码、创建者昵称、邮箱）",
+                "category": "作业类别过滤",
+                "creator_id": "创建者ID过滤",
+                "start_date": "开始日期过滤 (YYYY-MM-DD)",
+                "end_date": "结束日期过滤 (YYYY-MM-DD)",
+                "sort_by": "排序字段 (created_at|submissions_count|creator)",
+                "sort_order": "排序方向 (asc|desc)",
+                "page": "页码",
+                "per_page": "每页数量"
+            },
+            "response": {
+                "success": true,
+                "data": {
+                    "assignments": [
+                        {
+                            "id": "作业ID",
+                            "title": "作业标题",
+                            "topic": "作业主题",
+                            "assignment": "作业内容",
+                            "category": "作业类别",
+                            "code": "作业代码",
+                            "answer_visible": "答案是否可见",
+                            "remark": "备注",
+                            "created_at": "创建时间",
+                            "updated_at": "更新时间",
+                            "submissions_count": "提交数量",
+                            "creator": {
+                                "id": "创建者ID",
+                                "nickname": "创建者昵称",
+                                "email": "创建者邮箱"
+                            },
+                            "community": {
+                                "id": "社区ID",
+                                "name": "社区名称",
+                                "code": "社区代码"
+                            },
+                            "meta": "元数据",
+                            "rubric": "评分标准"
+                        }
+                    ],
+                    "pagination": {
+                        "current_page": "当前页码",
+                        "total_pages": "总页数",
+                        "total_count": "总记录数",
+                        "per_page": "每页数量"
+                    }
+                }
+            }
+        },
+        "show": {
+            "method": "GET",
+            "path": "/api/admin/v1/essay_assignments/:id",
+            "description": "获取单个作业详情及统计信息",
+            "parameters": {
+                "id": "作业ID"
+            },
+            "response": {
+                "success": true,
+                "data": {
+                    "assignment": {
+                        "id": "作业ID",
+                        "title": "作业标题",
+                        "topic": "作业主题",
+                        "assignment": "作业内容",
+                        "category": "作业类别",
+                        "code": "作业代码",
+                        "answer_visible": "答案是否可见",
+                        "remark": "备注",
+                        "hints": "提示",
+                        "created_at": "创建时间",
+                        "updated_at": "更新时间",
+                        "creator": {
+                            "id": "创建者ID",
+                            "nickname": "创建者昵称",
+                            "email": "创建者邮箱"
+                        },
+                        "community": "社区信息（如果有）",
+                        "meta": "元数据",
+                        "rubric": "评分标准",
+                        "graph_image_url": "图表图片URL",
+                        "statistics": {
+                            "total_submissions": "总提交数量",
+                            "submissions_stats": {
+                                "pending": "待处理数量",
+                                "graded": "已评分数量",
+                                "grading": "评分中数量"
+                            },
+                            "recent_submissions": [
+                                {
+                                    "id": "提交ID",
+                                    "status": "状态",
+                                    "created_at": "创建时间",
+                                    "student": {
+                                        "id": "学生ID",
+                                        "nickname": "学生昵称",
+                                        "email": "学生邮箱"
+                                    },
+                                    "score": "分数",
+                                    "using_time": "用时"
+                                }
+                            ],
+                            "daily_submissions": "按日期的提交统计"
+                        }
+                    }
+                }
+            }
+        },
+        "submissions": {
+            "method": "GET",
+            "path": "/api/admin/v1/essay_assignments/:id/submissions",
+            "description": "获取指定作业的所有提交记录",
+            "parameters": {
+                "id": "作业ID",
+                "status": "状态过滤",
+                "student_search": "学生搜索关键词",
+                "start_date": "开始日期过滤",
+                "end_date": "结束日期过滤",
+                "sort_by": "排序字段 (created_at|student_name|score)",
+                "sort_order": "排序方向 (asc|desc)",
+                "page": "页码",
+                "per_page": "每页数量"
+            },
+            "response": {
+                "success": true,
+                "data": {
+                    "submissions": [
+                        {
+                            "id": "提交ID",
+                            "status": "状态",
+                            "score": "分数",
+                            "using_time": "用时",
+                            "created_at": "创建时间",
+                            "updated_at": "更新时间",
+                            "student": {
+                                "id": "学生ID",
+                                "nickname": "学生昵称",
+                                "email": "学生邮箱",
+                                "class_name": "班级名称",
+                                "class_no": "班级号码"
+                            },
+                            "submission_class_name": "提交时班级名称",
+                            "submission_class_number": "提交时班级号码",
+                            "meta": "元数据"
+                        }
+                    ],
+                    "pagination": "分页信息"
+                }
+            }
+        },
+        "update": {
+            "method": "PATCH/PUT",
+            "path": "/api/admin/v1/essay_assignments/:id",
+            "description": "更新作业信息",
+            "parameters": {
+                "id": "作业ID",
+                "essay_assignment": {
+                    "title": "作业标题",
+                    "topic": "作业主题",
+                    "assignment": "作业内容",
+                    "answer_visible": "答案是否可见",
+                    "remark": "备注",
+                    "hints": "提示",
+                    "meta": "元数据对象",
+                    "rubric": "评分标准对象"
+                }
+            },
+            "response": {
+                "success": true,
+                "message": "Assignment updated successfully",
+                "data": {
+                    "assignment": "更新后的作业信息"
+                }
+            }
+        },
+        "categories": {
+            "method": "GET",
+            "path": "/api/admin/v1/essay_assignments/categories",
+            "description": "获取可用的作业类别列表",
+            "parameters": {},
+            "response": {
+                "success": true,
+                "data": {
+                    "categories": [
+                        {
+                            "value": "essay",
+                            "label": "Essay",
+                            "count": "该类别的作业数量"
+                        },
+                        {
+                            "value": "comprehension",
+                            "label": "Comprehension",
+                            "count": "该类别的作业数量"
+                        }
+                    ]
+                }
+            }
+        },
+        "creators": {
+            "method": "GET",
+            "path": "/api/admin/v1/essay_assignments/creators",
+            "description": "获取创建过作业的用户列表",
+            "parameters": {},
+            "response": {
+                "success": true,
+                "data": {
+                    "creators": [
+                        {
+                            "id": "用户ID",
+                            "nickname": "用户昵称",
+                            "email": "用户邮箱",
+                            "assignments_count": "该用户创建的作业数量"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "features": {
+        "搜索功能": "支持对作业标题、主题、内容、代码、创建者进行模糊搜索",
+        "过滤功能": "支持按类别、创建者、日期范围过滤",
+        "排序功能": "支持按创建时间、提交数量、创建者排序",
+        "分页功能": "支持自定义每页数量的分页",
+        "统计功能": "提供丰富的数据统计和分析",
+        "编辑功能": "支持更新作业基本信息和设置",
+        "提交管理": "可查看和管理每个作业的所有提交记录"
+    },
+    "error_responses": {
+        "401": {
+            "description": "未认证或认证失败",
+            "response": {
+                "success": false,
+                "message": "Authentication required"
+            }
+        },
+        "403": {
+            "description": "权限不足",
+            "response": {
+                "success": false,
+                "message": "Access denied"
+            }
+        },
+        "404": {
+            "description": "资源未找到",
+            "response": {
+                "success": false,
+                "message": "Assignment not found"
+            }
+        },
+        "422": {
+            "description": "参数验证失败",
+            "response": {
+                "success": false,
+                "message": "Failed to update assignment",
+                "errors": [
+                    "具体的错误信息数组"
+                ]
+            }
+        }
+    },
+    "usage_examples": {
+        "获取作业概览": "GET /api/admin/v1/essay_assignments/overview",
+        "搜索作业": "GET /api/admin/v1/essay_assignments?search=IELTS&category=essay",
+        "获取特定创建者的作业": "GET /api/admin/v1/essay_assignments?creator_id=12345",
+        "按提交数量排序": "GET /api/admin/v1/essay_assignments?sort_by=submissions_count&sort_order=desc",
+        "获取作业详情": "GET /api/admin/v1/essay_assignments/abc123",
+        "查看作业提交": "GET /api/admin/v1/essay_assignments/abc123/submissions?status=graded",
+        "更新作业": "PATCH /api/admin/v1/essay_assignments/abc123"
+    }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background-color: #f8f9fa;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      padding: 15px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .info-table td,
+    .info-table th {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    .info-table tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    .info-table th {
+      padding-top: 12px;
+      padding-bottom: 12px;
+      text-align: left;
+      background-color: #4CAF50;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Assignment Stopped Notification</h2>
+    </div>
+
+    <div class="content">
+      <p>Hello Admin,</p>
+
+      <p>An assignment has been stopped due to an error. Please find the details below:</p>
+
+      <table class="info-table">
+        <tr>
+          <th>Field</th>
+          <th>Details</th>
+        </tr>
+        <tr>
+          <td>User Email</td>
+          <td><%= @user.email %></td>
+        </tr>
+        <tr>
+          <td>User Nickname</td>
+          <td><%= @user.nickname %></td>
+        </tr>
+        <tr>
+          <td>Assignment Title</td>
+          <td><%= @assignment.title %></td>
+        </tr>
+        <tr>
+          <td>Assignment ID</td>
+          <td><%= @assignment.id %></td>
+        </tr>
+        <tr>
+          <td>Essay Grading ID</td>
+          <td><%= @essay_grading.id %></td>
+        </tr>
+        <tr>
+          <td>Stopped At</td>
+          <td><%= Time.current %></td>
+        </tr>
+        <tr>
+          <td>AIEnglish 頁面</td>
+          <td><a href="https://aienglish.docai.net/essay/assignment/<%= @assignment.id %>" target="_blank">點擊查看</a></td>
+        </tr>
+        <tr>
+          <td>管理後台 頁面</td>
+          <td><a href="https://aienglish-admin.docai.net/submissions?assignmentId=<%= @assignment.id %>" target="_blank">點擊查看</a></td>
+        </tr>
+      </table>
+
+      <p>Please check the system and take necessary actions.</p>
+    </div>
+
+    <div class="footer">
+      <p>This is an automated message from AI ENGLISH system.</p>
+    </div>
+  </div>
+</body>
+
+</html>

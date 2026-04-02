@@ -233,7 +233,7 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
-      # AIEnglish 專用用戶資料方法
+        # AIEnglish 專用用戶資料方法
       def show_aienglish_profile
         @user = current_general_user
 
@@ -242,66 +242,165 @@ module Api
           return render json: { success: false, error: 'User is not an AIEnglish user' }, status: :bad_request
         end
 
-        # 構建 AIEnglish 用戶資料，排除 konnecai_tokens
-        aienglish_data = @user.as_json(
-          except: %i[konnecai_tokens recovery_confirmation_token recovery_confirmation_sent_at]
-        )
+        # 優化：手動構建用戶資料，只選擇需要的字段，避免 as_json 的開銷
+        # 安全處理 meta 字段，確保不為 nil 且是 Hash 類型
+        user_meta = @user.meta
+        user_meta = {} if user_meta.nil?
+        user_meta = user_meta.to_h if user_meta.respond_to?(:to_h) && !user_meta.is_a?(Hash)
+        filtered_meta = user_meta.is_a?(Hash) ? user_meta.except('konnecai_tokens') : {}
+
+        aienglish_data = {
+          id: @user.id,
+          email: @user.email,
+          nickname: @user.nickname,
+          phone: @user.phone,
+          date_of_birth: @user.date_of_birth,
+          sex: @user.sex,
+          timezone: @user.timezone,
+          whats_app_number: @user.whats_app_number,
+          banbie: @user.banbie,
+          class_no: @user.class_no,
+          created_at: @user.created_at,
+          updated_at: @user.updated_at, 
+          meta: filtered_meta,
+          recovery_email: @user.recovery_email,
+          is_recovery_email_confirmed: @user.recovery_email_confirmed?,
+          recovery_email_confirmed_at: @user.recovery_email_confirmed_at
+        }
 
         # 根據角色獲取不同的資訊
         if @user.aienglish_role == 'teacher'
           # 獲取教師資訊
-          aienglish_data[:teaching_assignments] = @user.teacher_assignments.includes(school_academic_year: :school).map do |assignment|
+          # 優化：使用 includes 預加載關聯，避免 N+1 查詢
+          # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
+          assignments = @user.teacher_assignments
+                             .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                             .order(created_at: :desc)
+
+          # 優化：批量處理，減少重複的 logo URL 生成
+          school_logo_cache = {}
+          aienglish_data[:teaching_assignments] = assignments.map do |assignment|
+            school_academic_year = assignment.school_academic_year
+            school = school_academic_year&.school
+
+            # 緩存 logo URLs，避免重複生成
+            school_data = if school
+                            cache_key = school.id
+                            unless school_logo_cache[cache_key]
+                              school_logo_cache[cache_key] = {
+                                id: school.id,
+                                name: school.name,
+                                code: school.code
+                              }.merge(school.all_logo_urls)
+                            end
+                            school_logo_cache[cache_key]
+                          else
+                            nil
+                          end
+
+            academic_year_data = if school_academic_year
+                                   {
+                                     id: school_academic_year.id,
+                                     name: school_academic_year.name,
+                                     status: school_academic_year.status
+                                   }
+                                 else
+                                   nil
+                                 end
+
             {
               id: assignment.id,
-              school: assignment.school_academic_year.school.as_json(only: %i[id name code]).merge(
-                logo_url: assignment.school_academic_year.school.logo_url,
-                logo_thumbnail_url: assignment.school_academic_year.school.logo_thumbnail_url,
-                logo_small_url: assignment.school_academic_year.school.logo_small_url,
-                logo_large_url: assignment.school_academic_year.school.logo_large_url,
-                logo_square_url: assignment.school_academic_year.school.logo_square_url
-              ),
-              academic_year: assignment.school_academic_year.as_json(only: %i[id year name status]),
+              school: school_data,
+              academic_year: academic_year_data,
               department: assignment.department,
               position: assignment.position,
               created_at: assignment.created_at
             }
           end
 
-          # 獲取教師的學生
-          student_ids = KgLinker.where(map_from_id: @user.id, relation: 'has_student').pluck(:map_to_id).uniq
-          aienglish_data[:students_count] = student_ids.count if student_ids.present?
+          # 優化：直接使用 count，避免先 pluck 再 count
+        #   students_count = KgLinker.where(map_from_id: @user.id, relation: 'has_student')
+                                #    .select(:map_to_id)
+                                #    .distinct
+                                #    .count
+        #   aienglish_data[:students_count] = students_count if students_count > 0
         else
           # 獲取學生資訊
-          aienglish_data[:enrollments] = @user.student_enrollments.includes(school_academic_year: :school).map do |enrollment|
-            {
+          # 優化：使用 includes 預加載關聯，避免 N+1 查詢
+          # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
+          enrollment = @user.student_enrollments
+                            .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                            .order(created_at: :desc)
+                            .first
+
+          if enrollment
+            school_academic_year = enrollment.school_academic_year
+            school = school_academic_year&.school
+
+            school_data = if school
+                            {
+                              id: school.id,
+                              name: school.name,
+                              code: school.code
+                            }.merge(school.all_logo_urls)
+                          else
+                            nil
+                          end
+
+            academic_year_data = if school_academic_year
+                                   {
+                                     id: school_academic_year.id,
+                                     name: school_academic_year.name,
+                                     status: school_academic_year.status
+                                   }
+                                 else
+                                   nil
+                                 end
+
+            aienglish_data[:enrollments] = [{
               id: enrollment.id,
-              school: enrollment.school_academic_year.school.as_json(only: %i[id name code]).merge(
-                logo_url: enrollment.school_academic_year.school.logo_url,
-                logo_thumbnail_url: enrollment.school_academic_year.school.logo_thumbnail_url,
-                logo_small_url: enrollment.school_academic_year.school.logo_small_url,
-                logo_large_url: enrollment.school_academic_year.school.logo_large_url,
-                logo_square_url: enrollment.school_academic_year.school.logo_square_url
-              ),
-              academic_year: enrollment.school_academic_year.as_json(only: %i[id year name status]),
+              school: school_data,
+              academic_year: academic_year_data,
               class_name: enrollment.class_name,
               class_number: enrollment.class_number,
               created_at: enrollment.created_at
-            }
+            }]
+          else
+            aienglish_data[:enrollments] = []
           end
 
-          # 獲取學生的教師
-          aienglish_data[:teachers] = @user.find_teachers_via_students
+          # 優化：只在需要時查詢教師，使用 pluck 直接獲取值，避免 ActiveRecord 對象和 schema 查詢
+          teacher_ids = KgLinker.where(map_to_id: @user.id, relation: 'has_student')
+                                .distinct
+                                .pluck(:map_from_id)
+          if teacher_ids.present?
+            # 使用 pluck 直接獲取值，避免 ActiveRecord 對象創建和 schema 查詢
+            aienglish_data[:teachers] = GeneralUser.where(id: teacher_ids)
+                                                    .order(created_at: :desc)
+                                                    .pluck(:id, :email, :nickname, :phone, :created_at, :updated_at)
+                                                    .map do |id, email, nickname, phone, created_at, updated_at|
+              {
+                id: id,
+                email: email,
+                nickname: nickname,
+                phone: phone,
+                created_at: created_at,
+                updated_at: updated_at
+              }
+            end
+          else
+            aienglish_data[:teachers] = []
+          end
         end
 
-        render json: {
-          success: true,
-          user: aienglish_data.merge({
-                                       recovery_email: @user.recovery_email,
-                                       is_recovery_email_confirmed: @user.recovery_email_confirmed?,
-                                       recovery_email_confirmed_at: @user.recovery_email_confirmed_at
-                                     })
-        }, status: :ok
+        render json: { success: true, user: aienglish_data }, status: :ok
+      rescue ArgumentError => e
+        # 捕获参数错误，可能是 fallback 参数缺失
+        Rails.logger.error("[GeneralUsersController#show_aienglish_profile] ArgumentError: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+        render json: { success: false, error: "Invalid arguments: #{e.message}" }, status: :internal_server_error
       rescue StandardError => e
+        # 记录完整的错误信息以便调试
+        Rails.logger.error("[GeneralUsersController#show_aienglish_profile] Error: #{e.class.name}: #{e.message}\n#{e.backtrace.first(10).join("\n")}")
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 

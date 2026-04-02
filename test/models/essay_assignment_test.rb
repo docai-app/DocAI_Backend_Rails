@@ -29,7 +29,57 @@
 require 'test_helper'
 
 class EssayAssignmentTest < ActiveSupport::TestCase
-  # test "the truth" do
-  #   assert true
-  # end
+  def build_speaking_pronunciation_assignment(meta_overrides = {})
+    EssayAssignment.new(
+      general_user: general_users(:one),
+      category: :speaking_pronunciation,
+      assignment: 'S5 Essay',
+      topic: 'Pronunciation Drill',
+      rubric: {},
+      meta: {
+        'speaking_pronunciation_pass_score' => 60,
+        'speaking_pronunciation_sentences' => [{ 'sentence' => 'Hello world' }]
+      }.deep_merge(meta_overrides)
+    )
+  end
+
+  test 'requires at least one pronunciation sentence' do
+    assignment = build_speaking_pronunciation_assignment(
+      'speaking_pronunciation_sentences' => []
+    )
+
+    assert_not assignment.valid?
+    assert_includes assignment.errors[:base], 'Please add pronunciation sentences before saving.'
+  end
+
+  test 'requires every pronunciation sentence to be completed' do
+    assignment = build_speaking_pronunciation_assignment(
+      'speaking_pronunciation_sentences' => [
+        { 'sentence' => 'Hello world' },
+        { 'sentence' => '   ' }
+      ]
+    )
+
+    assert_not assignment.valid?
+    assert_includes assignment.errors[:base], 'Please complete every pronunciation sentence before saving.'
+  end
+
+  test 'enriches pronunciation sentences with ipa after save' do
+    raw_sentences = [{ 'sentence' => 'Hello world' }]
+    enriched_sentences = [{ 'sentence' => 'Hello world', 'ipa_transcript' => 'həˈloʊ wɝːld' }]
+    fake_transcriber = Minitest::Mock.new
+    fake_transcriber.expect(:enrich_sentences, enriched_sentences, [raw_sentences])
+
+    PronunciationIpaTranscriberService.stub(:new, fake_transcriber) do
+      assignment = build_speaking_pronunciation_assignment(
+        'speaking_pronunciation_sentences' => raw_sentences
+      )
+
+      assignment.save!
+
+      assert_equal enriched_sentences, assignment.reload.meta['speaking_pronunciation_sentences']
+    end
+
+    fake_transcriber.verify
+  end
 end

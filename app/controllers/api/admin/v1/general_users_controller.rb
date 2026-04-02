@@ -2,6 +2,7 @@
 
 require 'csv'
 require 'bcrypt'
+require 'set'
 
 module Api
   module Admin
@@ -333,7 +334,139 @@ module Api
           end
         end
 
+        #用AI优化的批量创建，失败时会返回错误的email列表
         def batch_create_aienglish_user
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          users_data = []
+          energy_insert_data = []
+          errors = []
+          inserted_users = []
+          failed_emails = []
+          all_emails = []
+          
+          # 第一步：收集所有数据并进行基础验证
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              password = row['password']&.strip
+              nickname = row['name']&.strip.to_s
+              banbie = row['class_name']&.strip.to_s
+              class_no = row['class_no']&.strip.to_s
+              
+              # 基础验证
+              if email.blank? || password.blank?
+                errors << { email: email || 'N/A', error: 'Email and password are required' }
+                failed_emails << email
+                next
+              end
+              
+              # 收集所有邮箱用于批量查询
+              all_emails << email
+              
+              # 处理 AI English features
+              aienglish_features = []
+              if row['aienglish_features'].present?
+                aienglish_features = begin
+                  JSON.parse(row['aienglish_features'].gsub(/[""""]/, '"'))
+                rescue StandardError
+                  []
+                end
+              end
+              
+              users_data << {
+                email: email,
+                password: password,
+                nickname: nickname,
+                banbie: banbie,
+                class_no: class_no,
+                aienglish_features: aienglish_features,
+                aienglish_role: row['role']&.strip
+              }
+            end
+          rescue StandardError => e
+            return render json: { success: false, error: "CSV parsing error: #{e.message}" }, status: :bad_request
+          end
+          
+          # 第二步：批量查询已存在的邮箱（性能优化关键点）
+          existing_emails_set = Set.new
+          if all_emails.any?
+            existing_emails_set = Set.new(
+              GeneralUser.where(email: all_emails.uniq).pluck(:email)
+            )
+          end
+          
+          # 第三步：过滤掉已存在的邮箱
+          valid_users_data = []
+          users_data.each do |user_data|
+            if existing_emails_set.include?(user_data[:email])
+              errors << { email: user_data[:email], error: 'Email already exists' }
+              failed_emails << user_data[:email]
+            else
+              valid_users_data << user_data
+            end
+          end
+          
+          # 第四步：批量创建用户
+          ActiveRecord::Base.transaction do
+            valid_users_data.each do |user_data|
+              begin
+                user = GeneralUser.new(
+                  email: user_data[:email],
+                  password: user_data[:password],
+                  password_confirmation: user_data[:password],
+                  nickname: user_data[:nickname],
+                  banbie: user_data[:banbie],
+                  class_no: user_data[:class_no]
+                )
+                
+                # 设置 meta 字段
+                user.aienglish_features_list = user_data[:aienglish_features] if user_data[:aienglish_features].any?
+                user.aienglish_role = user_data[:aienglish_role] if user_data[:aienglish_role].present?
+                
+                if user.save
+                  inserted_users << user
+                  # 准备 energy 数据
+                  energy_insert_data << {
+                    user_id: user.id,
+                    user_type: 'GeneralUser',
+                    value: 100,
+                    created_at: Time.now,
+                    updated_at: Time.now
+                  }
+                else
+                  errors << { email: user_data[:email], error: user.errors.full_messages.join(', ') }
+                  failed_emails << user_data[:email]
+                end
+              rescue StandardError => e
+                errors << { email: user_data[:email], error: e.message }
+                failed_emails << user_data[:email]
+              end
+            end
+            
+            # 批量插入 Energy 数据
+            Energy.insert_all(energy_insert_data) if energy_insert_data.any?
+          end
+          
+          # 返回结果
+          total_count = users_data.length
+          success_count = inserted_users.length
+          failed_count = failed_emails.length
+          
+          render json: {
+            success: errors.empty?,
+            total_processed: total_count,
+            successful_imports: success_count,
+            failed_imports: failed_count,
+            users: inserted_users.map { |u| { id: u.id, email: u.email, nickname: u.nickname } },
+            failed_emails: failed_emails,
+            errors: errors
+          }, status: errors.empty? ? :created : :partial_content
+        end
+
+        #原来的批量创建
+        def batch_create_aienglish_user_old
           file = params[:file]
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
 
@@ -402,7 +535,7 @@ module Api
           end
         end
 
-        def batch_update_aienglish_user
+        def batch_update_aienglish_user_old
           file = params[:file]
           return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
 
@@ -432,6 +565,13 @@ module Api
 
               # 更新 role 到 meta 欄位
               user.aienglish_role = row['role'] if row['role'].present?
+              user.nickname = row['nickname'] if row['nickname'].present?
+
+              user.banbie = row['class_name'] if row['class_name'].present?
+              user.class_no = row['class_no'] if row['class_no'].present?
+
+              user.password = row['password']&.strip if row['password'].present?
+              user.password_confirmation = row['password']&.strip if row['password'].present?
 
               if user.save
                 updated_users << user
@@ -448,6 +588,126 @@ module Api
           else
             render json: { success: false, errors: }, status: :unprocessable_entity
           end
+        end
+
+        def batch_update_aienglish_user
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          users_data = []
+          errors = []
+          updated_users = []
+          failed_emails = []
+          all_emails = []
+          
+          # 第一步：收集所有数据并进行基础验证
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              
+              # 基础验证
+              if email.blank?
+                errors << { email: 'N/A', error: 'Email is required' }
+                failed_emails << email
+                next
+              end
+              
+              # 收集所有邮箱用于批量查询
+              all_emails << email
+              
+              # 处理 AI English features
+              aienglish_features = []
+              if row['aienglish_features'].present?
+                aienglish_features = begin
+                  JSON.parse(row['aienglish_features'].gsub(/[""]/, '"'))
+                rescue StandardError
+                  []
+                end
+              end
+              
+              users_data << {
+                email: email,
+                nickname: row['nickname']&.strip,
+                banbie: row['class_name']&.strip,
+                class_no: row['class_no']&.strip,
+                password: row['password']&.strip,
+                aienglish_features: aienglish_features,
+                aienglish_role: row['role']&.strip
+              }
+            end
+          rescue StandardError => e
+            return render json: { success: false, error: "CSV parsing error: #{e.message}" }, status: :bad_request
+          end
+          
+          # 第二步：批量查询现有用户（性能优化关键点）
+          existing_users_map = {}
+          if all_emails.any?
+            GeneralUser.where(email: all_emails.uniq).find_each do |user|
+              existing_users_map[user.email] = user
+            end
+          end
+          
+          # 第三步：验证用户存在性并准备更新数据
+          valid_users_data = []
+          users_data.each do |user_data|
+            user = existing_users_map[user_data[:email]]
+            unless user
+              errors << { email: user_data[:email], error: 'User not found' }
+              failed_emails << user_data[:email]
+              next
+            end
+            
+            user_data[:user] = user
+            valid_users_data << user_data
+          end
+          
+          # 第四步：批量更新用户
+          ActiveRecord::Base.transaction do
+            valid_users_data.each do |user_data|
+              begin
+                user = user_data[:user]
+                
+                # 更新用户信息
+                user.nickname = user_data[:nickname] if user_data[:nickname].present?
+                user.banbie = user_data[:banbie] if user_data[:banbie].present?
+                user.class_no = user_data[:class_no] if user_data[:class_no].present?
+                
+                if user_data[:password].present?
+                  user.password = user_data[:password]
+                  user.password_confirmation = user_data[:password]
+                end
+                
+                # 设置 meta 字段
+                user.aienglish_features_list = user_data[:aienglish_features] if user_data[:aienglish_features].any?
+                user.aienglish_role = user_data[:aienglish_role] if user_data[:aienglish_role].present?
+                
+                if user.save
+                  updated_users << user
+                else
+                  errors << { email: user_data[:email], error: user.errors.full_messages.join(', ') }
+                  failed_emails << user_data[:email]
+                end
+              rescue StandardError => e
+                errors << { email: user_data[:email], error: e.message }
+                failed_emails << user_data[:email]
+              end
+            end
+          end
+          
+          # 返回结果
+          total_count = users_data.length
+          success_count = updated_users.length
+          failed_count = failed_emails.length
+          
+          render json: {
+            success: errors.empty?,
+            total_processed: total_count,
+            successful_imports: success_count,
+            failed_imports: failed_count,
+            users: updated_users.map { |u| { id: u.id, email: u.email, nickname: u.nickname } },
+            failed_emails: failed_emails,
+            errors: errors
+          }, status: errors.empty? ? :ok : :partial_content
         end
 
         def lock_user
@@ -470,6 +730,116 @@ module Api
           end
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        # 批量锁定用户 - 从CSV文件中读取邮箱并锁定对应用户
+        def batch_lock_users
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          locked_users = []
+          failed_emails = []
+          errors = []
+          processed_emails = Set.new
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              
+              # 跳过空邮箱或已处理的邮箱
+              next if email.blank? || processed_emails.include?(email)
+              processed_emails.add(email)
+              
+              # 查找用户
+              user = GeneralUser.find_by(email: email)
+              if user.nil?
+                failed_emails << email
+                errors << { email: email, error: 'User not found' }
+                next
+              end
+              
+              # 锁定用户
+              if user.update(locked_at: Time.current)
+                locked_users << { id: user.id, email: user.email }
+              else
+                failed_emails << email
+                errors << { email: email, error: 'Failed to lock user' }
+              end
+            end
+
+            result = {
+              success: true,
+              summary: {
+                total_processed: processed_emails.size,
+                locked_count: locked_users.size,
+                failed_count: failed_emails.size
+              },
+              locked_users: locked_users,
+              failed_emails: failed_emails,
+              errors: errors
+            }
+
+            render json: result, status: :ok
+          rescue CSV::MalformedCSVError => e
+            render json: { success: false, error: "CSV format error: #{e.message}" }, status: :bad_request
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
+        # 批量解锁用户 - 从CSV文件中读取邮箱并解锁对应用户
+        def batch_unlock_users
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          unlocked_users = []
+          failed_emails = []
+          errors = []
+          processed_emails = Set.new
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase
+              
+              # 跳过空邮箱或已处理的邮箱
+              next if email.blank? || processed_emails.include?(email)
+              processed_emails.add(email)
+              
+              # 查找用户
+              user = GeneralUser.find_by(email: email)
+              if user.nil?
+                failed_emails << email
+                errors << { email: email, error: 'User not found' }
+                next
+              end
+              
+              # 解锁用户
+              if user.update(locked_at: nil, failed_attempts: 0, unlock_token: nil)
+                unlocked_users << { id: user.id, email: user.email }
+              else
+                failed_emails << email
+                errors << { email: email, error: 'Failed to unlock user' }
+              end
+            end
+
+            result = {
+              success: true,
+              summary: {
+                total_processed: processed_emails.size,
+                unlocked_count: unlocked_users.size,
+                failed_count: failed_emails.size
+              },
+              unlocked_users: unlocked_users,
+              failed_emails: failed_emails,
+              errors: errors
+            }
+
+            render json: result, status: :ok
+          rescue CSV::MalformedCSVError => e
+            render json: { success: false, error: "CSV format error: #{e.message}" }, status: :bad_request
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
         end
 
         def add_students_relation_by_emails
@@ -518,6 +888,204 @@ module Api
           render json: { success: true, message: 'Done' }, status: :ok
         rescue StandardError => e
           render json: { success: false, message: e.message, errors: }, status: :internal_server_error
+        end
+
+        def check_emails_existence
+          file = params[:file]
+          return render json: { success: false, error: 'File not found' }, status: :bad_request if file.nil?
+
+          existing_emails = []
+          non_existing_emails = []
+          invalid_emails = []
+          processed_emails = Set.new # 用于去重
+
+          begin
+            CSV.foreach(file.path, headers: true) do |row|
+              email = row['email']&.strip&.downcase || row['Email']&.strip&.downcase
+              
+              # 跳过空邮箱或已处理的邮箱
+              next if email.blank? || processed_emails.include?(email)
+              
+              processed_emails.add(email)
+              
+              # 简单的邮箱格式验证
+              if email.match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
+                if GeneralUser.exists?(email: email)
+                  existing_emails << email
+                else
+                  non_existing_emails << email
+                end
+              else
+                invalid_emails << email
+              end
+            end
+
+            result = {
+              success: true,
+              summary: {
+                total_processed: processed_emails.size,
+                existing_count: existing_emails.size,
+                non_existing_count: non_existing_emails.size,
+                invalid_count: invalid_emails.size
+              },
+              existing_emails: existing_emails,
+              non_existing_emails: non_existing_emails,
+              invalid_emails: invalid_emails
+            }
+
+            render json: result, status: :ok
+          rescue CSV::MalformedCSVError => e
+            render json: { success: false, error: "CSV format error: #{e.message}" }, status: :bad_request
+          rescue StandardError => e
+            render json: { success: false, error: e.message }, status: :internal_server_error
+          end
+        end
+
+        # AI English 用户统计API - 统计角色数量和功能特性使用情况
+        def aienglish_statistics
+          begin
+            # 获取所有有meta数据的用户（性能优化：只查询需要的字段）
+            users = GeneralUser.where.not(meta: nil).select(:id, :meta, :created_at)
+            
+            # 初始化统计数据
+            role_stats = {
+              'teacher' => 0,
+              'student' => 0,
+              'unknown' => 0
+            }
+            
+            # 定义功能特性列表
+            features_list = [
+              'essay',
+              'comprehension', 
+              'speaking_essay',
+              'speaking_conversation',
+              'sentence_builder',
+              'speaking_pronunciation'
+            ]
+            
+            # 初始化功能特性统计
+            feature_stats = {
+              'teacher' => {},
+              'student' => {},
+              'total' => {}
+            }
+            
+            # 为每个角色和总计初始化功能特性计数
+            features_list.each do |feature|
+              feature_stats['teacher'][feature] = 0
+              feature_stats['student'][feature] = 0
+              feature_stats['total'][feature] = 0
+            end
+            
+            # 遍历用户进行统计
+            users.find_each do |user|
+              # 安全地获取用户角色
+              role = user.meta&.dig('aienglish_role') || 'unknown'
+              role = 'unknown' unless role_stats.key?(role)
+              
+              # 统计角色数量
+              role_stats[role] += 1
+              
+              # 获取用户的功能特性列表
+              user_features = user.meta&.dig('aienglish_features_list') || []
+              
+              # 如果功能特性是字符串，尝试解析为数组
+              if user_features.is_a?(String)
+                begin
+                  user_features = JSON.parse(user_features)
+                rescue JSON::ParserError
+                  user_features = []
+                end
+              end
+              
+              # 确保是数组格式
+              user_features = Array(user_features)
+              
+              # 统计每个功能特性的使用情况
+              features_list.each do |feature|
+                if user_features.include?(feature)
+                  # 为对应角色增加计数
+                  if role != 'unknown'
+                    feature_stats[role][feature] += 1
+                  end
+                  # 总计增加计数
+                  feature_stats['total'][feature] += 1
+                end
+              end
+            end
+            
+            # 计算总用户数
+            total_users = role_stats.values.sum
+            
+            # 构建响应数据
+            result = {
+              success: true,
+              statistics: {
+                # 角色统计
+                role_distribution: {
+                  teacher_count: role_stats['teacher'],
+                  student_count: role_stats['student'],
+                  unknown_count: role_stats['unknown'],
+                  total_count: total_users
+                },
+                
+                # 功能特性使用统计
+                feature_usage: {
+                  by_role: {
+                    teacher: feature_stats['teacher'],
+                    student: feature_stats['student']
+                  },
+                  total: feature_stats['total']
+                },
+                
+                # 计算使用率百分比
+                usage_percentage: {
+                  teacher: {},
+                  student: {},
+                  total: {}
+                }
+              },
+              
+              # 元数据
+              metadata: {
+                features_list: features_list,
+                generated_at: Time.current.iso8601,
+                total_analyzed_users: total_users
+              }
+            }
+            
+            # 计算使用率百分比（避免除零错误）
+            if role_stats['teacher'] > 0
+              features_list.each do |feature|
+                percentage = (feature_stats['teacher'][feature].to_f / role_stats['teacher'] * 100).round(2)
+                result[:statistics][:usage_percentage][:teacher][feature] = percentage
+              end
+            end
+            
+            if role_stats['student'] > 0
+              features_list.each do |feature|
+                percentage = (feature_stats['student'][feature].to_f / role_stats['student'] * 100).round(2)
+                result[:statistics][:usage_percentage][:student][feature] = percentage
+              end
+            end
+            
+            if total_users > 0
+              features_list.each do |feature|
+                percentage = (feature_stats['total'][feature].to_f / total_users * 100).round(2)
+                result[:statistics][:usage_percentage][:total][feature] = percentage
+              end
+            end
+            
+            render json: result, status: :ok
+            
+          rescue StandardError => e
+            render json: { 
+              success: false, 
+              error: e.message,
+              details: "Error occurred while generating AI English statistics"
+            }, status: :internal_server_error
+          end
         end
 
         private

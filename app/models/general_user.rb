@@ -74,6 +74,15 @@ class GeneralUser < ApplicationRecord
   has_many :essay_gradings
   has_many :essay_assignments
 
+  # 作業分配關聯
+  has_many :assignment_student_assignments, dependent: :destroy
+  has_many :assigned_essay_assignments, through: :assignment_student_assignments, source: :essay_assignment
+
+  # Community 关联
+  has_many :created_communities, class_name: 'Community', dependent: :destroy
+  has_many :community_memberships, dependent: :destroy
+  has_many :joined_communities, through: :community_memberships, source: :community
+
   has_many :student_enrollments, dependent: :destroy
   has_many :school_academic_years, through: :student_enrollments
 
@@ -361,6 +370,8 @@ class GeneralUser < ApplicationRecord
     # 如果是教師，通過teaching assignment獲取學校
     elsif aienglish_role == 'teacher' && current_teaching_assignment.present?
       return current_teaching_assignment.school_academic_year.school
+    elsif aienglish_role == 'teacher' && teacher_assignments.present?
+      return teacher_assignments.first.school_academic_year.school
     end
 
     # 如果沒有找到學校關聯，返回nil
@@ -388,6 +399,83 @@ class GeneralUser < ApplicationRecord
     else
       school.logo_url
     end
+  end
+
+  # Community 相关方法
+  
+  # 加入Community
+  def join_community(code)
+    community = Community.find_by_code(code)
+    return { success: false, error: 'Community not found' } unless community
+    
+    if community.add_member(self)
+      { success: true, community: community }
+    else
+      { success: false, error: 'Already a member or failed to join' }
+    end
+  end
+  
+  # 离开Community
+  def leave_community(community)
+    community.remove_member(self)
+  end
+  
+  # 检查是否为Community成员
+  def member_of?(community)
+    community.member?(self)
+  end
+  
+  # 检查是否为Community创建者
+  def creator_of?(community)
+    community.creator?(self)
+  end
+  
+  # 获取用户可访问的所有Community（创建的+加入的）
+  def accessible_communities
+    Community.where(
+      'general_user_id = :user_id OR id IN (SELECT community_id FROM community_memberships WHERE general_user_id = :user_id)',
+      user_id: id
+    ).distinct
+  end
+
+  # 作業分配相關方法
+  def pending_assignments
+    assigned_essay_assignments
+      .joins(:assignment_student_assignments)
+      .where(assignment_student_assignments: { 
+        general_user_id: id, 
+        status: [:assigned, :overdue] 
+      })
+      .where('assignment_student_assignments.deadline > ? OR assignment_student_assignments.deadline IS NULL', Time.current)
+  end
+
+  def overdue_assignments
+    assigned_essay_assignments
+      .joins(:assignment_student_assignments)
+      .where(assignment_student_assignments: { 
+        general_user_id: id, 
+        status: :overdue 
+      })
+      .where('assignment_student_assignments.deadline < ?', Time.current)
+  end
+
+  def completed_assignments
+    assigned_essay_assignments
+      .joins(:assignment_student_assignments)
+      .where(assignment_student_assignments: { 
+        general_user_id: id, 
+        status: :completed 
+      })
+  end
+
+  # 獲取所有分配的作業（包括狀態信息）
+  def my_assignments(status: nil)
+    query = assignment_student_assignments
+              .includes(:essay_assignment)
+              .order('assignment_student_assignments.created_at DESC')
+    
+    query = query.where(status: status) if status.present?
+    query
   end
 
   # Validations for recovery_email

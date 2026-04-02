@@ -4,7 +4,7 @@ local:
     host:     <%= ENV["DEV_DB_HOST"] %>
     encoding: unicode
     database: <%= ENV["DEV_DB"] %>
-    pool:     20
+    pool:     25
     username: <%= ENV["DEV_DB_USERNAME"] %>
     password: <%= ENV["DEV_DB_PASSWORD"] %>
     sslmode: require
@@ -14,7 +14,7 @@ local:
     host:     <%= ENV["DEV_VECTOR_DB_HOST"] %>
     encoding: unicode
     database: <%= ENV["DEV_VECTOR_DB"] %>
-    pool:     20
+    pool:     25
     username: <%= ENV["DEV_VECTOR_DB_USERNAME"] %>
     password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
     sslmode: require
@@ -27,7 +27,7 @@ development:
     host:     <%= ENV["DEV_DB_HOST"] %>
     encoding: unicode
     database: <%= ENV["DEV_DB"] %>
-    pool:     20
+    pool:     25
     username: <%= ENV["DEV_DB_USERNAME"] %>
     password: <%= ENV["DEV_DB_PASSWORD"] %>
     sslmode: require
@@ -37,7 +37,7 @@ development:
     host:     <%= ENV["DEV_VECTOR_DB_HOST"] %>
     encoding: unicode
     database: <%= ENV["DEV_VECTOR_DB"] %>
-    pool:     20
+    pool:     25
     username: <%= ENV["DEV_VECTOR_DB_USERNAME"] %>
     password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
     sslmode: require
@@ -50,7 +50,7 @@ production:
     host:     <%= ENV["DEV_DB_HOST"] %>
     encoding: unicode
     database: <%= ENV["DEV_DB"] %>
-    pool:     20
+    pool:     25
     username: <%= ENV["DEV_DB_USERNAME"] %>
     password: <%= ENV["DEV_DB_PASSWORD"] %>
     sslmode: require
@@ -60,7 +60,7 @@ production:
     host:     <%= ENV["DEV_VECTOR_DB_HOST"] %>
     encoding: unicode
     database: <%= ENV["DEV_VECTOR_DB"] %>
-    pool:     20
+    pool:     25
     username: <%= ENV["DEV_VECTOR_DB_USERNAME"] %>
     password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
     sslmode: require

@@ -30,6 +30,7 @@ module Schools
 
       ActiveRecord::Base.transaction do
         process_patterns
+        # binding.pry
         true
       rescue StandardError => e
         errors.add(:base, e.message)

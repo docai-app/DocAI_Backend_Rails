@@ -10,7 +10,7 @@ module Api
                                             assign_teachers student_stats teacher_stats
                                             academic_year_students class_students
                                             academic_year_teachers department_teachers
-                                            academic_years]
+                                            academic_years remove_student]
 
         # GET /admin/v1/schools
         # 獲取所有學校的列表
@@ -543,6 +543,43 @@ module Api
           Rails.logger.error("Error fetching academic year students: #{e.message}")
           Rails.logger.error(e.backtrace.join("\n"))
           render json: { status: 'error', errors: ['處理請求時發生內部錯誤'] }, status: :internal_server_error
+        end
+
+        # DELETE /admin/v1/schools/:code/academic_years/:academic_year_id/students/:id
+        # 從指定學年移除學生（刪除該學年的註冊記錄）
+        # @param code [String] 學校代碼
+        # @param academic_year_id [Integer] 學年ID
+        # @param id [Integer] GeneralUser ID（學生ID）
+        # @return [JSON] 操作結果
+        def remove_student
+          # 查找指定學年
+          academic_year = @school.school_academic_years.find_by(id: params[:academic_year_id])
+          return render json: { status: 'error', errors: ["找不到學年ID: #{params[:academic_year_id]}"] }, status: :not_found unless academic_year
+
+          # 查找用戶
+          user = GeneralUser.find_by(id: params[:id])
+          return render json: { status: 'error', errors: ["找不到用戶ID: #{params[:id]}"] }, status: :not_found unless user
+
+          # 查找註冊記錄
+          enrollment = StudentEnrollment.find_by(general_user: user, school_academic_year: academic_year)
+          return render json: { status: 'error', errors: ['該學生不屬於此學年'] }, status: :not_found unless enrollment
+
+          # 刪除註冊記錄
+          enrollment.destroy!
+
+          render json: {
+            status: 'success',
+            message: '已從學年中移除學生',
+            data: {
+              removed_student_id: user.id,
+              academic_year_id: academic_year.id
+            }
+          }, status: :ok
+        rescue ActiveRecord::RecordNotFound
+          render json: { status: 'error', errors: ['找不到指定的資源'] }, status: :not_found
+        rescue StandardError => e
+          Rails.logger.error("移除學生時發生錯誤: #{e.message}")
+          render json: { status: 'error', errors: [e.message] }, status: :internal_server_error
         end
 
         # GET /admin/v1/schools/:code/academic_years/:academic_year_id/classes/:class_name/students

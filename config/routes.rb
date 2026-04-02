@@ -30,25 +30,74 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      post 'unisound/eval', to: 'unisound#create'
+
       # 後備Email確認
       get 'recovery_email_confirmations/show'
 
       # ********** Essay grading ********
       resources :essay_assignments, only: %i[index show create update destroy] do
-        resources :essay_gradings, only: [:create]
+        resources :essay_gradings, only: [:create] do
+          collection do
+            post :batch_upload_pdfs
+            post :batch_create
+          end
+        end
         member do
           get 'read'
           get 'show_only'
           get 'download_reports', to: 'essay_gradings#download_reports'
+          post 'generate_sample_essay'
+          get 'statistics', to: 'assignment_statistics#show'
+          post 'send_reminders', to: 'assignment_reminders#create'
         end
         collection do
           post :parse_vocab_csv
+          get 'by_community/:community_id', to: 'essay_assignments#by_community'
+          get 'distribution_options', to: 'assignment_distributions#distribution_options'
+          get 'my_assignments', to: 'my_assignments#index'
+        end
+        resources :distributions, controller: 'assignment_distributions', except: [:new, :edit] do
+          collection do
+            post 'add_students', to: 'assignment_distributions#add_students'
+            post 'remove_students', to: 'assignment_distributions#remove_students'
+          end
+        end
+        # 补充练习记录路由（通过作业ID查询）
+        resources :supplement_practice_records, only: [], param: :id do
+          collection do
+            get '', to: 'supplement_practice_records#by_assignment_id'
+          end
         end
       end
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
+          get 'test_email'
+          patch 'teacher_review'
+          patch 'teacher_review_restore'
           get 'download_report'
           get 'download_supplement_practice'
+        end
+        # 补充练习记录路由
+        member do
+          get 'supplement_practice', to: 'supplement_practice_records#show_questions'
+          post 'supplement_practice/draft', to: 'supplement_practice_records#create_draft'
+          post 'supplement_practice/submit', to: 'supplement_practice_records#submit'
+        end
+        resources :supplement_practice_records, only: [:index], param: :id do
+          collection do
+            get 'by_assignment', to: 'supplement_practice_records#by_assignment'
+          end
+        end
+      end
+
+      # 补充练习记录独立路由
+      resources :supplement_practice_records, only: [:show], param: :id do
+        collection do
+          get 'my_records', to: 'supplement_practice_records#my_records'
+        end
+        member do
+          get 'download_report', to: 'supplement_practice_records#download_report'
         end
       end
 
@@ -57,6 +106,20 @@ Rails.application.routes.draw do
         member do
           post 'add_students'
           post 'remove_students'
+        end
+      end
+
+      # ********** Community API *********
+      resources :communities do
+        member do
+          delete 'leave'
+          get 'members'
+          get 'stats'
+          get 'essay_assignments'
+        end
+        collection do
+          post 'join_by_code'
+          get 'search_by_code'
         end
       end
 
@@ -395,6 +458,7 @@ Rails.application.routes.draw do
     namespace :admin do
       namespace :v1 do
         resources :entities, only: %i[index show create update destroy]
+        get 'school-impact-report', to: 'school_impact_reports#show'
         resources :users, only: %i[index show create update destroy] do
           collection do
             post 'lock', to: 'users#lock_user'
@@ -418,6 +482,10 @@ Rails.application.routes.draw do
             post 'aienglish/batch', to: 'general_users#batch_create_aienglish_user'
             put ':id/aienglish/update', to: 'general_users#update_aienglish_user'
             put 'aienglish/batch/update', to: 'general_users#batch_update_aienglish_user'
+            post 'check_emails_existence', to: 'general_users#check_emails_existence'
+            get 'aienglish/statistics', to: 'general_users#aienglish_statistics'
+            post 'batch_lock', to: 'general_users#batch_lock_users'
+            post 'batch_unlock', to: 'general_users#batch_unlock_users'
           end
         end
         resources :schools, param: :code do
@@ -432,6 +500,7 @@ Rails.application.routes.draw do
             get :teacher_stats
             get :academic_years
             get 'academic_years/:academic_year_id/students', to: 'schools#academic_year_students'
+            delete 'academic_years/:academic_year_id/students/:id', to: 'schools#remove_student'
             get 'academic_years/:academic_year_id/classes/:class_name/students', to: 'schools#class_students'
             get 'academic_years/:academic_year_id/teachers', to: 'schools#academic_year_teachers'
             get 'academic_years/:academic_year_id/departments/:department/teachers', to: 'schools#department_teachers'
@@ -451,6 +520,29 @@ Rails.application.routes.draw do
         end
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
+
+        # Essay Assignments Management for Admin
+        resources :essay_assignments, only: %i[index show update] do
+          member do
+            get :submissions
+          end
+          collection do
+            get :overview
+            get :categories
+            get :creators
+          end
+        end
+
+        # Essay Gradings Management for Admin
+        resources :essay_gradings, only: [:show] do
+          collection do
+            get :speaking_times_data
+          end
+          member do
+            post :rerun_workflow
+            post :rerun_supplement_practice_workflow
+          end
+        end
 
         # Activity Logs for Admin
         resources :activity_logs, only: [:index]

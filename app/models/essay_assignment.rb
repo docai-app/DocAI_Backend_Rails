@@ -18,6 +18,7 @@
 #  hints                :string
 #  meta                 :jsonb            not null
 #  answer_visible       :boolean          default(TRUE), not null
+#  essay_type           :string
 #  remark               :string
 #
 # Indexes
@@ -29,17 +30,94 @@
 class EssayAssignment < ApplicationRecord
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
-                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level
+                 :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level, :sample_essay,
+                 :listening
 
-  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening]
 
   before_create :generate_unique_code
   before_save :normalize_level
   after_save :check_and_generate_vocab_examples
   after_save :check_and_post_speaking_pronunciation_sentences
+  validate :validate_speaking_pronunciation_sentences
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
+  belongs_to :community, optional: true
+
+  # 作業分配關聯
+  has_many :assignment_distributions, dependent: :destroy
+  has_many :assignment_student_assignments, dependent: :destroy
+  has_many :assigned_students, through: :assignment_student_assignments, source: :general_user
+
+  # 補充練習記錄關聯
+  has_many :supplement_practice_records, dependent: :destroy
+
+  # 檔案附件 - 為IELTS看圖作文添加圖片上傳功能
+  has_one_attached :graph_image, service: :microsoft
+
+  # 驗證
+  validates :topic, presence: true
+  validates :assignment, presence: true
+  validates :category, presence: true
+  validates :title, presence: true
+  validates :rubric, presence: true
+
+  # IELTS看圖作文的圖片格式驗證
+  validates :graph_image, content_type: { in: ['image/jpeg'],
+                                          message: 'must be a JPEG image' },
+                          size: { less_than: 10.megabytes,
+                                  message: 'must be less than 10MB' },
+                          allow_blank: true
+
+  # 將 essay_gradings 中的 app_key 重新獲取一次
+  # @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
+  # @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+  def update_essay_gradings_app_key
+    essay_gradings.each do |essay_grading|
+      essay_grading.grading['app_key'] = rubric['app_key']['grading']
+      essay_grading.general_context['app_key'] = rubric['app_key']['general_context']
+      essay_grading.save!
+    end
+  end
+
+  # 返回圖片的完整URL - 參考School模型的logo_url實現
+  def graph_image_url
+    return nil unless graph_image.attached?
+
+    begin
+      graph_image.url
+    rescue StandardError => e
+      Rails.logger.error "[EssayAssignment#graph_image_url] Failed to generate URL for assignment #{id}: #{e.message}"
+      nil
+    end
+  end
+
+  REVISED_ESSAY_WORKFLOW_MAP = {
+    'discuss_both_views' => 'essay_revised_argumentative_writing_app_key',
+    'outweigh_questions' => 'essay_revised_argumentative_writing_app_key',
+    'discussion_plus_opinion' => 'essay_revised_argumentative_writing_app_key',
+    'causes_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'effects_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'problems_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'causes_and_effects_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'problems_and_solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'compare_and_contrast_essay' => 'essay_revised_compare_and_contrast_writing_app_key'
+  }.freeze
+
+  ESSAY_TYPE_LABELS = {
+    'discuss_both_views' => 'Discuss Both Views (Balanced Discussion)',
+    'outweigh_questions' => 'Outweigh Questions (Argumentative)',
+    'discussion_plus_opinion' => 'Discussion Plus Opinion (Personal Position)',
+    'causes_essay' => 'Causes Essay',
+    'effects_essay' => 'Effects Essay',
+    'problems_essay' => 'Problems Essay',
+    'causes_and_effects_essay' => 'Causes and Effects Essay',
+    'solutions_essay' => 'Solutions Essay',
+    'problems_and_solutions_essay' => 'Problems and Solutions Essay',
+    'compare_and_contrast_essay' => 'Compare and Contrast Essay'
+  }.freeze
 
   def get_news_feed
     # 如果 meta 中有 self_upload_newsfeed，直接返回該數據
@@ -48,7 +126,15 @@ class EssayAssignment < ApplicationRecord
     # 否則通過 newsfeed_id 請求外部 API
     return nil if meta['newsfeed_id'].nil?
 
-    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}")
+    uri = URI.parse("https://ggform.examhero.com/api/v1/news_feeds/#{newsfeed_id}/form.json")
+
+    # 检查 essay_assignment 和 meta.level 是否存在
+    if meta&.key?('level') && meta['level'].present?
+      query_params = URI.decode_www_form(uri.query || '').to_h
+      query_params['level'] = meta['level']
+      uri.query = URI.encode_www_form(query_params)
+    end
+
     response = Net::HTTP.get_response(uri)
 
     return unless response.is_a?(Net::HTTPSuccess)
@@ -81,6 +167,32 @@ class EssayAssignment < ApplicationRecord
     end
   end
 
+  def revised_essay_workflow_app_key
+    env_key = REVISED_ESSAY_WORKFLOW_MAP[essay_type]
+    return nil if env_key.blank?
+
+    ENV[env_key]
+  end
+
+  def revised_essay_type_label
+    ESSAY_TYPE_LABELS[essay_type].presence || essay_type.to_s.humanize
+  end
+
+  def validate_speaking_pronunciation_sentences
+    return unless speaking_pronunciation?
+
+    sentences = normalized_speaking_pronunciation_sentences
+
+    if sentences.empty?
+      errors.add(:base, 'Please add pronunciation sentences before saving.')
+      return
+    end
+
+    return if sentences.length == raw_speaking_pronunciation_sentences.length
+
+    errors.add(:base, 'Please complete every pronunciation sentence before saving.')
+  end
+
   def check_and_generate_vocab_examples
     # 只針對 sentence_builder 類型處理
     return unless category == 'sentence_builder'
@@ -107,6 +219,28 @@ class EssayAssignment < ApplicationRecord
     SentenceBuilderExampleJob.perform_async(id)
   end
 
+  def raw_speaking_pronunciation_sentences
+    meta_hash = meta.is_a?(Hash) ? meta : {}
+    raw_sentences = meta_hash['speaking_pronunciation_sentences'] || meta_hash[:speaking_pronunciation_sentences]
+    raw_sentences.is_a?(Array) ? raw_sentences : []
+  end
+
+  def normalized_speaking_pronunciation_sentences
+    raw_speaking_pronunciation_sentences.filter_map do |item|
+      sentence =
+        case item
+        when Hash
+          item['sentence'] || item[:sentence]
+        else
+          nil
+        end
+
+      next if sentence.blank?
+
+      item.merge('sentence' => sentence.to_s.strip)
+    end
+  end
+
   def check_and_post_speaking_pronunciation_sentences
     # 只針對 speaking_pronunciation 類型處理
     return unless category == 'speaking_pronunciation'
@@ -126,26 +260,43 @@ class EssayAssignment < ApplicationRecord
                     item.is_a?(Hash) && item['sentence'].present?
                   end
 
-    # 遍歷每個 sentence 並調用 API
-    current_sentences.each do |sentence_obj|
-      sentence = sentence_obj['sentence']
-      response = Net::HTTP.post(
-        URI('https://pronunciation.m2mda.com/pinyin'),
-        { language: 'en', sentence: }.to_json,
-        'Content-Type' => 'application/json'
-      )
+    enriched_sentences = pronunciation_ipa_transcriber.enrich_sentences(current_sentences)
+    return if enriched_sentences == current_sentences
 
-      if response.is_a?(Net::HTTPSuccess)
-        result = JSON.parse(response.body)
-        puts "API Response: #{result}"
-        # 更新 sentence_obj 中的字段
-        sentence_obj.merge!(result)
-      else
-        puts "Failed to fetch pronunciation for sentence: #{sentence}"
-      end
-    end
+    update_column(:meta, meta.merge('speaking_pronunciation_sentences' => enriched_sentences))
+  end
 
-    # 保存更新后的 meta
-    update(meta: meta.merge('speaking_pronunciation_sentences' => current_sentences))
+  def pronunciation_ipa_transcriber
+    @pronunciation_ipa_transcriber ||= PronunciationIpaTranscriberService.new
+  end
+
+  # 作業分配相關方法
+  def distributed?
+    assignment_distributions.active.exists?
+  end
+
+  def assigned_to_student?(student)
+    assignment_student_assignments.where(general_user: student).exists?
+  end
+
+  # 獲取所有被分配的學生（去重）
+  def all_assigned_students
+    GeneralUser.where(id: assignment_student_assignments.select(:general_user_id).distinct)
+  end
+
+  # 獲取作業統計
+  def assignment_statistics
+    total = assignment_student_assignments.count
+    completed = assignment_student_assignments.completed.count
+    pending = assignment_student_assignments.assigned.count
+    overdue = assignment_student_assignments.overdue.count
+    
+    {
+      total: total,
+      completed: completed,
+      pending: pending,
+      overdue: overdue,
+      completion_rate: total.zero? ? 0.0 : (completed.to_f / total * 100).round(2)
+    }
   end
 end

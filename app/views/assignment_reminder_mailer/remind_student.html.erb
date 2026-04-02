@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <style type="text/css">
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333333;
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #dddddd;
+    }
+    .header h2 {
+      color: #6366f1;
+      margin: 0;
+    }
+    .content {
+      padding: 20px 0;
+      line-height: 1.6;
+    }
+    .content h1 {
+      font-size: 22px;
+      color: #333333;
+      margin-bottom: 20px;
+    }
+    .content p {
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    .assignment-info {
+      background-color: #f9fafb;
+      border-left: 4px solid #6366f1;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .assignment-info h3 {
+      margin-top: 0;
+      color: #1f2937;
+      font-size: 18px;
+    }
+    .deadline-info {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 4px;
+    }
+    .deadline-info.overdue {
+      background-color: #fee2e2;
+      border-left: 4px solid #ef4444;
+    }
+    .deadline-info.urgent {
+      background-color: #fef3c7;
+      border-left: 4px solid #f59e0b;
+    }
+    .button-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+    .button {
+      background-color: #6366f1;
+      color: #ffffff;
+      padding: 15px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: bold;
+      display: inline-block;
+    }
+    .button:hover {
+      background-color: #4f46e5;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #dddddd;
+      font-size: 12px;
+      color: #777777;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>AI ENGLISH</h2>
+    </div>
+    <div class="content">
+      <h1>Assignment Reminder</h1>
+      <p>Dear <%= @student.nickname || @student.email %>,</p>
+      <p>You have an assignment that has not been submitted yet.</p>
+      
+      <div class="assignment-info">
+        <h3><%= @essay_assignment.title %></h3>
+        <% if @essay_assignment.topic.present? %>
+          <p style="color: #6b7280; margin-top: 10px;"><%= @essay_assignment.topic %></p>
+        <% end %>
+        
+        <% if @deadline.present? %>
+          <div class="deadline-info <%= @days_remaining.present? && @days_remaining <= 0 ? 'overdue' : (@days_remaining.present? && @days_remaining <= 3 ? 'urgent' : '') %>">
+            <p style="margin: 0; font-weight: bold;">
+              Deadline: <%= @deadline.strftime('%B %d, %Y at %I:%M %p') %>
+            </p>
+            <% if @days_remaining.present? %>
+              <% if @days_remaining <= 0 %>
+                <p style="margin: 5px 0 0 0; color: #dc2626; font-weight: bold;">This assignment is overdue.</p>
+              <% elsif @days_remaining <= 3 %>
+                <p style="margin: 5px 0 0 0; color: #d97706; font-weight: bold;">
+                  Time remaining: <%= @days_remaining %> <%= @days_remaining == 1 ? 'day' : 'days' %>
+                </p>
+              <% else %>
+                <p style="margin: 5px 0 0 0; color: #059669;">
+                  Time remaining: <%= @days_remaining %> <%= @days_remaining == 1 ? 'day' : 'days' %>
+                </p>
+              <% end %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="button-container">
+        <a href="<%= @assignment_url %>" class="button">View Assignment Details</a>
+      </div>
+
+      <p>Please complete this assignment as soon as possible.</p>
+      <p>Thank you</p>
+    </div>
+    <div class="footer">
+      <p>&copy; <%= Time.now.year %> AI ENGLISH. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

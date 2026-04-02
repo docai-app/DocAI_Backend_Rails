@@ -4,30 +4,30 @@ module GeneralUsers
   class SessionsController < Devise::SessionsController
     respond_to :json
 
-    def create
-      self.resource = warden.authenticate(auth_options)
+    # def create
+    #   self.resource = warden.authenticate(auth_options)
 
-      if resource && warden.authenticated?(resource_name)
-        sign_in(resource_name, resource)
+    #   if resource && warden.authenticated?(resource_name)
+    #     sign_in(resource_name, resource)
 
-        if resource.persisted?
-          strategy_name = if warden.winning_strategy
-                            warden.winning_strategy.class.name.demodulize.underscore.sub(/_authenticatable$/, '')
-                          else
-                            'unknown'
-                          end
+    #     if resource.persisted?
+    #       strategy_name = if warden.winning_strategy
+    #                         warden.winning_strategy.class.name.demodulize.underscore.sub(/_authenticatable$/, '')
+    #                       else
+    #                         'unknown'
+    #                       end
 
-          ahoy.authenticate(resource) if resource.persisted?
+    #       ahoy.authenticate(resource) if resource.persisted?
 
-          ahoy.track 'GeneralUser Signed In', { strategy: strategy_name }
-          Rails.logger.info "[SessionsController] Tracked 'GeneralUser Signed In' for general_user ID: #{resource.id}, strategy: #{strategy_name}"
-        end
+    #       ahoy.track 'GeneralUser Signed In', { strategy: strategy_name }
+    #       Rails.logger.info "[SessionsController] Tracked 'GeneralUser Signed In' for general_user ID: #{resource.id}, strategy: #{strategy_name}"
+    #     end
 
-        respond_with resource, location: after_sign_in_path_for(resource)
-      else
-        login_failed
-      end
-    end
+    #     respond_with resource, location: after_sign_in_path_for(resource)
+    #   else
+    #     login_failed
+    #   end
+    # end
 
     private
 

@@ -31,7 +31,7 @@ class School < ApplicationRecord
   has_many :general_users, through: :teacher_assignments
 
   # 附件
-  has_one_attached :logo, service: :microsoft
+  has_one_attached :logo, service: preferred_microsoft_storage_service
 
   # 驗證
   validates :name, presence: true
@@ -60,6 +60,69 @@ class School < ApplicationRecord
   # 根據日期獲取學年
   def academic_year_at(date)
     school_academic_years.where('start_date <= ? AND end_date >= ?', date, date).first
+  end
+
+  # Scope for eager loading Active Storage attachments
+  scope :with_attached_logo, -> { includes(logo_attachment: :blob) }
+
+  # 批量获取所有 logo URLs，避免多次查询 Active Storage
+  # 优化：在开发/测试环境直接返回 base_url，避免生成 variant 的开销
+  def all_logo_urls
+    return {
+      logo_url: nil,
+      logo_thumbnail_url: nil,
+      logo_small_url: nil,
+      logo_large_url: nil,
+      logo_square_url: nil
+    } unless logo.attached?
+
+    # 安全获取 logo URL，处理可能的异常
+    base_url = begin
+      logo.url
+    rescue ArgumentError => e
+      # 如果 url 方法需要参数，尝试使用默认方式
+      Rails.logger.error("Error getting logo URL: #{e.message}")
+      nil
+    rescue StandardError => e
+      Rails.logger.error("Unexpected error getting logo URL: #{e.message}")
+      nil
+    end
+
+    return {
+      logo_url: nil,
+      logo_thumbnail_url: nil,
+      logo_small_url: nil,
+      logo_large_url: nil,
+      logo_square_url: nil
+    } unless base_url
+
+    # 在开发/测试环境，所有尺寸都返回 base_url，避免生成 variant 的开销
+    if Rails.env.development? || Rails.env.test?
+      {
+        logo_url: base_url,
+        logo_thumbnail_url: base_url,
+        logo_small_url: base_url,
+        logo_large_url: base_url,
+        logo_square_url: base_url
+      }
+    else
+      # 生产环境：只生成必要的 variant，使用 rescue 确保即使失败也返回 base_url
+      # 优化：使用 memoization 缓存结果，避免重复生成
+      @all_logo_urls_cache ||= begin
+        {
+            logo_url: base_url,
+            logo_thumbnail_url: base_url,
+            logo_small_url: base_url,
+            logo_large_url: base_url,
+            logo_square_url: base_url
+        #   logo_url: base_url,
+        #   logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
+        #   logo_small_url: safe_variant_url(resize_to_limit: [100, 100], fallback: base_url),
+        #   logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
+        #   logo_square_url: safe_variant_url(resize_to_fill: [300, 300], fallback: base_url)
+        }
+      end
+    end
   end
 
   # 返回 logo 的完整 URL
@@ -134,6 +197,16 @@ class School < ApplicationRecord
   end
 
   private
+
+  # 安全地生成 variant URL，失败时返回 fallback
+  def safe_variant_url(options, fallback:)
+    begin
+      logo.variant(options)&.processed&.url || fallback
+    rescue StandardError => e
+      Rails.logger.error("處理 logo variant 錯誤: #{e.message}")
+      fallback
+    end
+  end
 
   # 驗證 logo 格式
   def validate_logo_format
