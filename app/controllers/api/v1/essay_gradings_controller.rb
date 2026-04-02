@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require 'open-uri'
 require 'prawn/table'
+require 'stringio'
 
 module Api
   module V1
@@ -10,8 +12,9 @@ module Api
 
       def download_report
         set_essay_grading
-        json_data = prepare_report_data(@essay_grading)
-        pdf = generate_pdf(json_data, @essay_grading)
+        report_type = normalized_report_type
+        json_data = prepare_report_data(@essay_grading, report_type)
+        pdf = generate_pdf(json_data, @essay_grading, report_type)
         send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf',
                               disposition: 'inline'
       end
@@ -35,7 +38,7 @@ module Api
         html_content = markdown.render(supplement_text)
 
         # 生成 PDF
-        pdf = Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+        pdf = Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
           pdf.font_families.update(
@@ -60,6 +63,7 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          draw_standard_report_footer(pdf)
 
           # school_logo_url = @essay_grading.
           user = @essay_grading.general_user
@@ -548,17 +552,12 @@ module Api
       def download_reports
         essay_assignment = EssayAssignment.find(params[:id])
         essay_gradings = essay_assignment.essay_gradings.where(status: 'graded').includes(:general_user)
-        newsfeed_cache = {}
-        # 批量下載保留 logo，但以 URL 做快取，避免重複下載
-        report_options = { logo_cache: {} }
+        report_type = normalized_report_type
 
         zip_data = Zip::OutputStream.write_buffer do |zip|
           essay_gradings.each_with_index do |grading, index|
             puts "Generating report for grading: #{grading.id}, #{index}"
-            started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-            report = generate_report(grading, newsfeed_cache, report_options)
-            elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
-            # puts "[download_reports] generated grading_id=#{grading.id} in #{elapsed_ms}ms"
+            report = generate_report(grading, report_type)
             # 使用 index 确保文件名唯一
             zip.put_next_entry("report_#{grading.general_user.nickname}_#{index + 1}.pdf")
             zip.write(report)
@@ -727,7 +726,7 @@ module Api
       end
 
       def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
-        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
           pdf.font_families.update(
@@ -752,6 +751,7 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          draw_standard_report_footer(pdf)
 
           render_school_logo(pdf, school_logo_url)
 
@@ -885,7 +885,7 @@ module Api
       end
 
       def generate_listening_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
-        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
           pdf.font_families.update(
@@ -910,6 +910,7 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          draw_standard_report_footer(pdf)
 
           render_school_logo(pdf, school_logo_url)
 
@@ -922,12 +923,13 @@ module Api
           pdf.move_down 12
 
           listening = json_data['listening'] || {}
+          listening_questions = Array(json_data['listening_questions']).presence || Array(listening['questions'])
           info_data = [
             ['Assignment:', json_data['assignment'] || 'N/A'],
             ['Topic:', json_data['topic'] || 'N/A'],
             ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
-            ['Level:', listening['level'] || essay_grading.essay_assignment.meta.dig('listening', 'level') || 'N/A'],
-            ['Play Count:', (listening['play_count'] || 0).to_s]
+            ['Level:', json_data['level'] || 'N/A'],
+            ['Play Count:', (json_data['listening_play_count'] || 0).to_s]
           ]
 
           info_data.each do |label, value|
@@ -950,7 +952,7 @@ module Api
           pdf.text 'Listening Questions', size: 18, style: :bold
           pdf.move_down 10
 
-          Array(listening['questions']).each_with_index do |question, index|
+          listening_questions.each_with_index do |question, index|
             pdf.text "#{index + 1}. #{question['question']}", size: 14, style: :bold
             pdf.move_down 5
 
@@ -992,7 +994,7 @@ module Api
       end
 
       def generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
-        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
           pdf.font_families.update(
@@ -1017,6 +1019,7 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          draw_standard_report_footer(pdf)
 
           render_school_logo(pdf, school_logo_url)
 
@@ -1130,9 +1133,14 @@ module Api
 
       # def generate_speaking_conversation_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
 
-      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
-        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+      def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil, report_type = 'full')
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
+          palette = {
+            primary: '1F3A5F',
+            border: 'D7DCE3',
+            text: '000000'
+          }
 
           pdf.font_families.update(
             'NotoSans' => {
@@ -1140,28 +1148,22 @@ module Api
               bold: font_path.join('NotoSansTC-Bold.ttf')
             },
             'DejaVuSans' => {
-              normal: font_path.join('DejaVuSans.ttf'),
-              bold: font_path.join('DejaVuSans.ttf'), # Fallback to normal for bold
-              italic: font_path.join('DejaVuSans.ttf'), # Fallback to normal for italic
-              bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
+              normal: font_path.join('DejaVuSans.ttf')
             },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
-              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
+              bold: font_path.join('ARIALBD.ttf')
             }
           )
 
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          draw_essay_report_footer(pdf, palette)
 
           render_school_logo(pdf, school_logo_url)
 
-          # 开始内容部分
-          pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold,
-                                                                                              align: :center
+          pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold, align: :center
           pdf.stroke_color '444444'
           pdf.move_down 25
 
@@ -1188,194 +1190,43 @@ module Api
             ]
             pdf.move_down 4
           end
-          pdf.move_down 15
+          pdf.move_down 18
 
-          # 如果有graph_image_url， 
-          if essay_grading.essay_assignment.graph_image_url.present?
-            # 下載 logo 到臨時文件
-            begin
-                pdf.text 'Reference Chart/Graph:', size: 15, style: :bold
-                pdf.stroke_color '444444'
-                pdf.stroke_horizontal_rule
-                pdf.move_down 4
-                require 'open-uri'
-                logo_tempfile = URI.open(essay_grading.essay_assignment.graph_image_url)
-                # 在左上角顯示 logo，寬度為 50 點
-                image_info = pdf.image logo_tempfile, at: [0, pdf.cursor], width: pdf.bounds.width
-                # 向下移動一定距離，以便文本不會與 logo 重疊
-                pdf.move_down image_info.height
-            rescue StandardError => e
-                # 如果獲取 logo 失敗，記錄錯誤但繼續生成 PDF
-                Rails.logger.error("Error loading school logo: #{e.message}")
-                # 不需要移動光標，因為沒有添加 logo
-            end
-        end
-        pdf.move_down 10
+          graph_image_url = extract_task1_graph_image_url(essay_grading.essay_assignment, json_data)
+          if graph_image_url.present?
+            draw_essay_report_section_title(pdf, palette, 'Reference Chart/Graph')
+            draw_essay_report_task1_image(pdf, graph_image_url)
+          end
 
-          # 解析 JSON 数据
           sentences = JSON.parse(json_data['data']['text'])
-          # # 分數
-          # pdf.text "Score: #{sentences['Overall Score']} / #{sentences['Full Score']}", size: 14
-          # pdf.move_down 30
+          section_index = 1
 
-          # Overview
-          pdf.text 'Assessment Overview', size: 15, style: :bold
-          pdf.stroke_horizontal_rule
-          pdf.move_down 12
-
-          # 添加 Part I 标题
-          pdf.text 'Part I: Grammar', size: 18, style: :bold, align: :left
-          pdf.move_down 20
-
-          # 缩进 sentences 部分
-          pdf.indent(20) do
-            sentences.each do |key, value|
-              next unless key.start_with?('Sentence') || key.start_with?('sentence')
-
-              # 句子标题
-              pdf.text "#{key}:", size: 14, style: :bold, color: '003366'
-              pdf.move_down 5
-
-              # 句子内容（带错误单词高亮）
-              sentence_text = value['sentence']
-              errors = value['errors']
-
-              formatted_text = sentence_text
-
-              # 标准化 errors 格式
-              normalized_errors = {}
-
-              # 检查 errors 的格式并进行标准化处理
-              if errors.is_a?(Hash) && !errors.empty?
-                normalized_errors = if errors.keys.first.to_s.start_with?('error')
-                                      # 正常格式: {"error1" => {...}, "error2" => {...}}
-                                      errors
-                                    else
-                                      # 非标准格式: {"word" => ..., "corr" => ..., ...}
-                                      # 将其转换为标准格式
-                                      { 'error1' => errors }
-                                    end
-              end
-
-              normalized_errors.each_value do |error_value|
-                error_word = error_value['word']
-                formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
-                  "<color rgb='FF0000'>#{match}</color>"
-                end
-              end
-
-              pdf.text formatted_text, size: 12, inline_format: true
-              pdf.move_down 10
-
-              if normalized_errors.any?
-                pdf.indent(20) do
-                  normalized_errors.each_value do |error_value|
-                    category = error_value['category']
-                    error_word = error_value['word']
-                    explanation = error_value['explanation']
-                    correction = error_value['corr']
-
-                    # 从 corr 中提取正确的词
-                    correct_word = nil
-                    if correction.present? && correction.include?('->')
-                      # 尝试从 "modernised -> modern" 格式中提取
-                      correct_word = correction.split('->').last.strip
-                    end
-
-                    # 显示新格式的错误信息
-                    category_display = convert_category(essay_grading.essay_assignment.category, category)
-                    if correct_word.present?
-                      pdf.text "<b>Mistake: #{error_word} -> #{correct_word} <color rgb='0000FF'>(#{category_display})</color></b>",
-                               size: 11, inline_format: true
-                    else
-                      pdf.text "<b>Mistake: #{error_word} <color rgb='0000FF'>(#{category_display})</color></b>",
-                               size: 11, inline_format: true
-                    end
-
-                    # 显示解释
-                    pdf.text explanation, size: 10
-                    pdf.move_down 8
-
-                    # pdf.text "• #{error_word}<color rgb='0000FF'>(#{convert_category(essay_grading.essay_assignment.category, category)})</color>: #{explanation}",
-                    #          size: 10, inline_format: true
-                    pdf.move_down 5
-                  end
-                end
-                pdf.move_down 10
-              end
-
-              pdf.move_down 15
-            end
+          if report_type == 'full'
+            draw_essay_report_grammar(pdf, palette, sentences, essay_grading, section_index)
+            section_index += 1
           end
 
-          pdf.text 'Part II: General Context', size: 18, style: :bold, align: :left
-          pdf.move_down 20
-          if json_data['general_context'].present?
-            pdf.text (json_data['general_context']).to_s, size: 12, leading: 5
-          else
-            pdf.text (sentences['Overall coherence']).to_s, size: 12, leading: 5
-          end
-          if json_data['overall_comment'].present?
-            pdf.text 'Overall Comment:', size: 14, style: :bold, color: '003366'
-            pdf.text (json_data['overall_comment']).to_s, size: 12, leading: 5
-            pdf.move_down 20
-          end
-          if json_data['detailedFeedback'].present?
-            pdf.text 'Detailed Feedback and Suggestions:', size: 14, style: :bold, color: '003366'
-            pdf.text (json_data['detailedFeedback']).to_s, size: 12, leading: 5
-          end
-          pdf.move_down 20
+          draw_essay_report_general_context(
+            pdf,
+            palette,
+            json_data,
+            section_index,
+            fallback_text: sentences['Overall coherence']
+          )
+          section_index += 1
 
-          if params[:role] == 'teacher' && essay_grading.essay_assignment.category == 'essay'
-            pdf.text 'Part III: Score', size: 18, style: :bold, align: :left
-            pdf.move_down 20
-            if sentences['Overall Score']
-              pdf.text "Overall Score #{sentences['Overall Score']}/#{sentences['Full Score']}", size: 16, style: :bold,
-                                                                                                 color: '003366', align: :center
-
-              sentences.each do |key, value|
-                next unless key.start_with?('Criterion')
-
-                value.each do |criterion_name, criterion_value|
-                  next if ['Full Score', 'explanation'].include?(criterion_name)
-
-                  pdf.text "#{criterion_name}:", size: 14, style: :bold, color: '003366'
-                  pdf.move_down 5
-
-                  full_score = value['Full Score'] || 'N/A'
-                  score = criterion_value
-
-                  pdf.text "Score: #{score} / #{full_score}", size: 12
-                  pdf.move_down 10
-
-                  if value['explanation']
-                    pdf.indent(20) do
-                      pdf.text value['explanation'], size: 10
-                      pdf.move_down 15
-                    end
-                  end
-
-                  pdf.stroke_horizontal_rule
-                  pdf.move_down 15
-                end
-              end
-            end
-          end
-
-          # Final Result
-          # pdf.text 'Final Result', size: 15, style: :bold
-          # pdf.stroke_horizontal_rule
-          # pdf.move_down 10
-          # pdf.formatted_text [
-          #   { text: 'Overall Score: ', styles: [:bold], size: 12 },
-          #   { text: (sentences['Overall Score']).to_s, size: 12 }
-          # ]
-          # pdf.move_down 30
+          draw_essay_report_score(
+            pdf,
+            palette,
+            sentences,
+            section_index,
+            simplified: report_type == 'simplified'
+          )
         end
       end
 
       def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
-        Prawn::Document.new(page_size: 'A4', margin: 40) do |pdf|
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
 
           pdf.font_families.update(
@@ -1400,6 +1251,7 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          draw_standard_report_footer(pdf)
 
           render_school_logo(pdf, school_logo_url)
 
@@ -1510,13 +1362,14 @@ module Api
         end
       end
 
-      def generate_report(grading, newsfeed_cache = nil, options = {})
-        json_data = prepare_report_data(grading, newsfeed_cache)
-        pdf = generate_pdf(json_data, grading, options)
+      def generate_report(grading, report_type = 'full')
+        grading = EssayGrading.includes(:essay_assignment).find(grading.id)
+        json_data = prepare_report_data(grading, report_type)
+        pdf = generate_pdf(json_data, grading, report_type)
         pdf.render
       end
 
-      def generate_pdf(json_data, essay_grading, options = {})
+      def generate_pdf(json_data, essay_grading, report_type = 'full')
         assignment = essay_grading.essay_assignment
         raise "Essay assignment not found for grading ID #{essay_grading.id}" if assignment.nil?
 
@@ -1525,7 +1378,7 @@ module Api
 
         # 只有 AI English 用戶才會有學校 logo
         school_logo_url = user.aienglish_user? ? user.school_logo_url(:small) : nil
-        @report_logo_cache = options[:logo_cache] if options.is_a?(Hash)
+        @report_logo_cache ||= {}
 
         # 準備用戶顯示資訊（優先使用提交班級資訊）
         submission_info = prepare_submission_info(essay_grading)
@@ -1538,41 +1391,54 @@ module Api
         elsif assignment.category == 'speaking_pronunciation' # 新增對 speaking_pronunciation 的專門處理
           generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('essay')
-          generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info)
+          generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info, report_type)
         elsif assignment.category.include?('sentence_builder')
           generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('speaking_conversation')
-          generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info)
+          generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info, report_type)
         else
           generate_pdf_from_json(json_data)
         end
       end
 
-      def prepare_report_data(essay_grading, newsfeed_cache = nil)
+      def prepare_report_data(essay_grading, report_type = 'full')
         assignment = essay_grading.essay_assignment
         json_data = {
           'topic' => assignment.topic,
           'account' => essay_grading.general_user.show_in_report_name,
-          'assignment' => assignment.assignment
+          'assignment' => assignment.assignment,
+          'rubric' => assignment.rubric['name'],
+          'graph_image_url' => extract_task1_graph_image_url(assignment),
+          'report_type' => report_type
         }
 
         if assignment.category == 'comprehension'
           json_data['comprehension'] = essay_grading.grading['comprehension']
-          newsfeed = cached_news_feed(essay_grading, newsfeed_cache)
+          newsfeed = cached_news_feed(essay_grading, @news_feed_cache ||= {})
           if newsfeed.present?
-            json_data['title'] = newsfeed['data']['title']
-            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
+            json_data['title'] = extract_news_feed_title(newsfeed)
+            json_data['article'] = extract_news_feed_body(newsfeed)
           end
         elsif assignment.category == 'listening'
-          json_data['listening'] = essay_grading.grading['listening']
-          newsfeed = cached_news_feed(essay_grading, newsfeed_cache)
+          listening_payload = essay_grading.grading['listening'].is_a?(Hash) ? essay_grading.grading['listening'] : {}
+          json_data['listening'] = listening_payload
+          json_data['listening_questions'] = Array(listening_payload['questions']).presence ||
+                                             Array(assignment.meta['listening_questions'])
+          json_data['listening_play_count'] = listening_payload['play_count'] || 0
+          json_data['level'] = listening_payload['level'].presence ||
+                               assignment.meta.dig('listening', 'level').presence ||
+                               assignment.level.presence ||
+                               assignment.meta['level'].presence
+
+          newsfeed = cached_news_feed(essay_grading, @news_feed_cache ||= {})
           if newsfeed.present?
-            json_data['title'] = newsfeed['data']['title']
-            json_data['article'] = newsfeed['data']['content'] || newsfeed['data']['text']
-          else
-            json_data['article'] = assignment.meta['listening_transcript'] ||
-                                   assignment.meta.dig('listening', 'transcript')
+            json_data['title'] = extract_news_feed_title(newsfeed)
+            json_data['article'] = extract_news_feed_body(newsfeed)
           end
+
+          json_data['article'] ||= assignment.meta['listening_transcript'].presence ||
+                                   assignment.meta.dig('listening', 'transcript').presence ||
+                                   sanitize_report_transcript(assignment.meta['listening_ssml_transcript'])
         elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
           if essay_grading.general_context['data'].present?
@@ -1592,6 +1458,8 @@ module Api
               if general_context['studentFeedback'].present?
                 json_data['detailedFeedback'] =
                   general_context['studentFeedback']['detailedFeedback']
+                json_data['general_context_sections'] =
+                  general_context['studentFeedback']['sections'] if general_context['studentFeedback']['sections'].present?
               end
             rescue JSON::ParserError => e
               # JSON 解析失败时尝试正则回退提取（处理 AI 返回的含未转义引号、字面换行等畸形 JSON）
@@ -1671,6 +1539,321 @@ module Api
           # 单份下载时失败保持旧行为：不额外位移
           nil
         end
+      end
+
+      def normalized_report_type
+        params[:report_type] == 'simplified' ? 'simplified' : 'full'
+      end
+
+      def extract_news_feed_title(newsfeed)
+        news_feed_payload(newsfeed)['title']
+      end
+
+      def extract_news_feed_body(newsfeed)
+        payload = news_feed_payload(newsfeed)
+        payload['content'].presence ||
+          payload['text'].presence ||
+          payload['transcript'].presence ||
+          sanitize_report_transcript(payload['ssml_transcript']) ||
+          payload['plain_transcript'].presence
+      end
+
+      def news_feed_payload(newsfeed)
+        return {} unless newsfeed.is_a?(Hash)
+
+        payload = newsfeed['data']
+        payload.is_a?(Hash) ? payload : newsfeed
+      end
+
+      def sanitize_report_transcript(value)
+        text = value.to_s
+        return nil if text.blank?
+
+        stripped = text.gsub(/<[^>]+>/, ' ').gsub(/\s+/, ' ').strip
+        stripped.presence
+      end
+
+      def draw_essay_report_task1_image(pdf, image_url)
+        return if image_url.blank?
+
+        begin
+          chart_image = URI.open(image_url)
+          pdf.image chart_image, fit: [pdf.bounds.width, 220], position: :center
+          pdf.move_down 24
+        rescue StandardError => e
+          Rails.logger.error("Error loading IELTS Task 1 image: #{e.message}")
+        end
+      end
+
+      def draw_essay_report_section_title(pdf, palette, title)
+        pdf.fill_color palette[:primary]
+        pdf.text title, size: 15, style: :bold
+        pdf.fill_color palette[:text]
+        pdf.stroke_color palette[:border]
+        pdf.move_down 6
+        pdf.stroke_horizontal_rule
+        pdf.move_down 10
+      end
+
+      def draw_essay_report_grammar(pdf, palette, sentences, essay_grading, section_index)
+        draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: Grammar")
+
+        pdf.indent(20) do
+          grammar_sentence_entries(sentences).each do |key, value|
+            pdf.text "#{key}:", size: 12, style: :bold, color: palette[:text]
+            pdf.move_down 4
+
+            sentence_text = value['sentence'].to_s
+            normalized_errors = grammar_error_entries(value['errors'])
+
+            formatted_text = sentence_text.dup
+            normalized_errors.each do |_, error_value|
+              error_word = error_value['word'].to_s
+              next if error_word.blank?
+
+              formatted_text.gsub!(/\b#{Regexp.escape(error_word)}\b/) do |match|
+                "<color rgb='FF0000'>#{match}</color>"
+              end
+            end
+
+            pdf.text formatted_text, size: 11, inline_format: true, color: palette[:text]
+            pdf.move_down 8
+
+            if normalized_errors.any?
+              pdf.indent(16) do
+                normalized_errors.each do |_, error_value|
+                  category_display = convert_category(essay_grading.essay_assignment.category, error_value['category'])
+                  correction = error_value['corr'].to_s
+                  if correction.include?('->')
+                    correct_word = correction.split('->').last.to_s.strip
+                    pdf.text "<b>Mistake: #{error_value['word']} -> #{correct_word} <color rgb='1F3A5F'>(#{category_display})</color></b>",
+                             size: 10.5, inline_format: true, color: palette[:text]
+                  else
+                    pdf.text "<b>Mistake: #{error_value['word']} <color rgb='1F3A5F'>(#{category_display})</color></b>",
+                             size: 10.5, inline_format: true, color: palette[:text]
+                  end
+                  pdf.move_down 3
+                  pdf.text error_value['explanation'].to_s, size: 10, color: palette[:text]
+                  pdf.move_down 8
+                end
+              end
+            end
+
+            pdf.move_down 14
+          end
+        end
+
+        pdf.move_down 18
+      end
+
+      def grammar_sentence_entries(sentences)
+        return [] unless sentences.is_a?(Hash)
+
+        sentences
+          .select { |key, value| key.to_s.start_with?('Sentence', 'sentence') && value.is_a?(Hash) }
+          .sort_by do |key, _|
+            numeric_part = key.to_s.match(/(\d+)/)&.captures&.first
+            numeric_part.present? ? numeric_part.to_i : Float::INFINITY
+          end
+      end
+
+      def grammar_error_entries(errors)
+        return {} unless errors.is_a?(Hash) && errors.present?
+
+        normalized_errors =
+          if errors.keys.first.to_s.start_with?('error')
+            errors
+          else
+            { 'error1' => errors }
+          end
+
+        normalized_errors.sort_by do |key, _|
+          numeric_part = key.to_s.match(/(\d+)/)&.captures&.first
+          numeric_part.present? ? numeric_part.to_i : Float::INFINITY
+        end
+      end
+
+      def draw_essay_report_general_context(pdf, palette, json_data, section_index, fallback_text:)
+        draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: Overall Comments")
+
+        overall_text = json_data['overall_comment'].presence || json_data['general_context'].presence || fallback_text.presence
+        section_titles = {
+          'content' => 'Content',
+          'organisation' => 'Organisation',
+          'oneStrength' => 'One Strength',
+          'oneKeyAreaForImprovement' => 'One Key Area for Improvement',
+          'logicAndCoherence' => 'Logic & Coherence'
+        }
+
+        if json_data['general_context_sections'].present?
+          if overall_text.present?
+            pdf.text overall_text.to_s, size: 12, leading: 5, color: palette[:text]
+            pdf.move_down 14
+          end
+
+          section_titles.each do |key, label|
+            value = json_data['general_context_sections'][key]
+            next if value.blank?
+
+            pdf.text label, size: 12, style: :bold, color: palette[:text]
+            pdf.move_down 4
+            draw_essay_report_bullets(pdf, normalize_report_points(value))
+            pdf.move_down 10
+          end
+        elsif json_data['detailedFeedback'].present?
+          if overall_text.present?
+            pdf.text 'Overall Feedback', size: 12, style: :bold, color: palette[:text]
+            pdf.move_down 4
+            pdf.text overall_text.to_s, size: 12, leading: 5, color: palette[:text]
+            pdf.move_down 14
+          end
+
+          pdf.text 'Detailed Feedback', size: 12, style: :bold, color: palette[:text]
+          pdf.move_down 4
+          pdf.text json_data['detailedFeedback'].to_s, size: 12, leading: 5, color: palette[:text]
+        elsif overall_text.present?
+          pdf.text 'Overall Feedback', size: 12, style: :bold, color: palette[:text]
+          pdf.move_down 4
+          pdf.text overall_text.to_s, size: 12, leading: 5, color: palette[:text]
+        end
+
+        pdf.move_down 18
+      end
+
+      def draw_essay_report_score(pdf, palette, sentences, section_index, simplified:)
+        title = simplified ? 'Score' : 'Score Breakdown'
+        draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: #{title}")
+        return if sentences['Overall Score'].blank?
+
+        pdf.fill_color palette[:primary]
+        pdf.text "Overall Score #{extract_overall_score_label(sentences)}", size: 16, style: :bold, align: :center
+        pdf.fill_color palette[:text]
+        pdf.move_down 14
+
+        rows = extract_score_rows(sentences)
+
+        if simplified
+          rows.each do |row|
+            pdf.text "• #{row[:criterion]}: #{row[:score_label]}", size: 11, color: palette[:text]
+            pdf.move_down 4
+          end
+        else
+          table_rows = [['Criterion', 'Score', 'Comment']] + rows.map { |row| [row[:criterion], row[:score_label], row[:comment].to_s] }
+          pdf.table(
+            table_rows,
+            header: true,
+            width: pdf.bounds.width,
+            cell_style: { size: 10, padding: 8, border_color: palette[:border], text_color: palette[:text], valign: :center, leading: 0 }
+          ) do
+            row(0).background_color = palette[:primary]
+            row(0).text_color = 'FFFFFF'
+            row(0).font_style = :bold
+            columns(0).width = 170
+            columns(1).width = 60
+            columns(2).width = pdf.bounds.width - 230
+            columns(1).align = :center
+          end
+        end
+      end
+
+      def draw_essay_report_bullets(pdf, points)
+        pdf.indent(12) do
+          points.each do |point|
+            pdf.formatted_text [
+              { text: '• ', color: '000000', styles: [:bold], size: 11 },
+              { text: point.to_s, color: '000000', size: 10.5 }
+            ], leading: 3
+            pdf.move_down 4
+          end
+        end
+      end
+
+      def draw_essay_report_footer(pdf, _palette)
+        pdf.repeat(:all, dynamic: true) do
+          pdf.canvas do
+            pdf.fill_color '000000'
+            pdf.text_box "Page #{pdf.page_number}",
+                         at: [pdf.bounds.right - 104, 50],
+                         width: 58,
+                         height: 12,
+                         size: 8,
+                         align: :right,
+                         valign: :center
+          end
+        end
+      end
+
+      def draw_standard_report_footer(pdf)
+        pdf.repeat(:all, dynamic: true) do
+          pdf.canvas do
+            pdf.fill_color '000000'
+            pdf.text_box "Page #{pdf.page_number}",
+                         at: [pdf.bounds.right - 104, 50],
+                         width: 58,
+                         height: 12,
+                         size: 8,
+                         align: :right,
+                         valign: :center
+          end
+        end
+      end
+
+      def normalize_report_points(value)
+        return value if value.is_a?(Array)
+
+        value.to_s
+             .split(/\r?\n+/)
+             .map { |line| line.to_s.gsub(/\A[•●\-\*]\s*/, '').strip }
+             .reject(&:blank?)
+      end
+
+      def extract_score_rows(sentences)
+        sentences.each_with_object([]) do |(key, value), rows|
+          next unless key.to_s.start_with?('Criterion')
+          next unless value.is_a?(Hash)
+
+          full_score = value['Full Score'] || 'N/A'
+          value.each do |criterion_name, criterion_value|
+            next if ['Full Score', 'explanation'].include?(criterion_name)
+
+            rows << {
+              criterion: criterion_name,
+              score_label: "#{criterion_value} / #{full_score}",
+              comment: value['explanation']
+            }
+          end
+        end
+      end
+
+      def extract_overall_score_label(sentences)
+        return 'N/A' if sentences['Overall Score'].blank?
+
+        "#{sentences['Overall Score']} / #{sentences['Full Score']}"
+      end
+
+      def extract_task1_graph_image_url(assignment, json_data = nil)
+        candidates = [
+          json_data&.dig('graph_image_url'),
+          assignment.try(:graph_image_url),
+          assignment.meta['graph_image_url'],
+          assignment.meta.dig('ielts_task1', 'graph_image_url'),
+          assignment.meta.dig('ielts_task1', 'graph_file_url'),
+          assignment.meta.dig('self_upload_newsfeed', 'graph_image_url')
+        ]
+
+        candidates.compact.find(&:present?)
+      rescue StandardError
+        nil
+      end
+
+      def to_roman(number)
+        {
+          1 => 'I',
+          2 => 'II',
+          3 => 'III',
+          4 => 'IV',
+          5 => 'V'
+        }[number] || number.to_s
       end
 
       # 準備提交資訊（優先使用submission的班級資訊）
