@@ -69,7 +69,7 @@ class EssayGrading < ApplicationRecord
   after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
   after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
 
-  has_one_attached :file, service: ApplicationRecord.preferred_microsoft_storage_service
+  has_one_attached :file, service: :microsoft#ApplicationRecord.preferred_microsoft_storage_service
 
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
