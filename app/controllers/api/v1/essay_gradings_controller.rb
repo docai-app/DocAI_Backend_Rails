@@ -1136,11 +1136,7 @@ module Api
       def generate_essay_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil, report_type = 'full')
         Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
-          palette = {
-            primary: '1F3A5F',
-            border: 'D7DCE3',
-            text: '000000'
-          }
+          palette = essay_report_palette
 
           pdf.font_families.update(
             'NotoSans' => {
@@ -1159,38 +1155,18 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
+          sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
           draw_essay_report_footer(pdf, palette)
-
-          render_school_logo(pdf, school_logo_url)
-
-          pdf.text "Assessment Report (#{essay_grading.essay_assignment.category.humanize})", size: 20, style: :bold, align: :center
-          pdf.stroke_color '444444'
-          pdf.move_down 25
-
-          # Section Title
-          pdf.text 'Assignment Information', size: 15, style: :bold
-          pdf.stroke_color '444444'
-          pdf.stroke_horizontal_rule
-          pdf.move_down 12
-
-          info_data = [
-            ['Assignment:', json_data['assignment'] || 'N/A'],
-            ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A']
-            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
-            # ['Teacher:', submission_info || 'N/A'],
-            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
-            # ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
-          ]
-
-          info_data.each do |label, value|
-            pdf.formatted_text [
-              { text: label, styles: [:bold], size: 12 },
-              { text: " #{value}", size: 12 }
-            ]
-            pdf.move_down 4
-          end
-          pdf.move_down 18
+          draw_essay_report_header(pdf, palette, school_logo_url)
+          draw_essay_report_info_grid(
+            pdf,
+            palette,
+            assignment_label: json_data['assignment'].presence || 'Essay',
+            rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
+            account_label: essay_grading.general_user.show_in_report_name.to_s,
+            overall_score_label: extract_overall_score_label(sentences)
+          )
+          draw_essay_report_title_box(pdf, palette, json_data['topic'])
 
           graph_image_url = extract_task1_graph_image_url(essay_grading.essay_assignment, json_data)
           if graph_image_url.present?
@@ -1198,7 +1174,6 @@ module Api
             draw_essay_report_task1_image(pdf, graph_image_url)
           end
 
-          sentences = JSON.parse(json_data['data']['text'])
           section_index = 1
 
           if report_type == 'full'
@@ -1215,6 +1190,11 @@ module Api
           )
           section_index += 1
 
+          if json_data['revised_essay'].present?
+            draw_essay_report_revised_essay(pdf, palette, json_data['revised_essay'], section_index)
+            section_index += 1
+          end
+
           draw_essay_report_score(
             pdf,
             palette,
@@ -1223,6 +1203,117 @@ module Api
             simplified: report_type == 'simplified'
           )
         end
+      end
+
+      def essay_report_palette
+        {
+          primary: '1F3A5F',
+          accent: 'D9E6F2',
+          soft: 'F7FAFC',
+          text: '000000',
+          muted: '52606D',
+          border: 'D9E6F2'
+        }
+      end
+
+      def draw_essay_report_header(pdf, palette, school_logo_url)
+        header_left = pdf.bounds.left
+        header_right = pdf.bounds.right
+        header_top = pdf.bounds.top
+        header_height = 86
+        has_logo = school_logo_url.present?
+        logo_panel_width = has_logo ? 138 : 0
+        logo_panel_x = header_right - logo_panel_width
+        blue_width = has_logo ? (logo_panel_x - header_left) : pdf.bounds.width
+
+        pdf.fill_color palette[:primary]
+        pdf.fill_rectangle [header_left, header_top], blue_width, header_height
+
+        if has_logo
+          pdf.fill_color 'FFFFFF'
+          pdf.fill_rectangle [logo_panel_x, header_top], logo_panel_width, header_height
+
+          begin
+            logo_tempfile = URI.open(school_logo_url)
+            pdf.bounding_box([logo_panel_x + 8, header_top - 6], width: logo_panel_width - 16, height: header_height - 12) do
+              pdf.image logo_tempfile,
+                        fit: [pdf.bounds.width, pdf.bounds.height],
+                        position: :center,
+                        vposition: :center
+            end
+          rescue StandardError => e
+            Rails.logger.error("Error loading school logo: #{e.message}")
+          end
+        end
+
+        pdf.fill_color 'FFFFFF'
+        pdf.text_box 'AI English Assessment Report',
+                     at: [header_left + 18, header_top - 10],
+                     width: blue_width - 36,
+                     height: header_height - 20,
+                     size: 22,
+                     style: :bold,
+                     valign: :center
+
+        pdf.fill_color palette[:text]
+        pdf.move_cursor_to header_top - header_height - 22
+      end
+
+      def draw_essay_report_info_grid(pdf, palette, assignment_label:, rubric_label:, account_label:, overall_score_label:)
+        table_data = [
+          [
+            { content: "<b>Assignment</b><br/>#{assignment_label}", inline_format: true },
+            { content: "<b>Rubric</b><br/>#{rubric_label}", inline_format: true }
+          ],
+          [
+            { content: "<b>Account</b><br/>#{account_label}", inline_format: true },
+            { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true }
+          ]
+        ]
+
+        pdf.table(
+          table_data,
+          width: pdf.bounds.width,
+          column_widths: [pdf.bounds.width / 2.0, pdf.bounds.width / 2.0],
+          cell_style: {
+            background_color: palette[:soft],
+            border_color: palette[:border],
+            border_width: 0.8,
+            padding: [10, 18, 10, 18],
+            inline_format: true,
+            size: 10,
+            text_color: palette[:text],
+            valign: :center,
+            leading: 0
+          }
+        ) do
+          cells.style(leading: 0, valign: :center)
+          rows(0..1).style(height: 48)
+        end
+        pdf.move_down 18
+      end
+
+      def draw_essay_report_title_box(pdf, palette, topic)
+        pdf.fill_color palette[:primary]
+        pdf.text 'Title', size: 13, style: :bold
+        pdf.fill_color palette[:text]
+        pdf.move_down 8
+
+        content = topic.to_s
+        content_width = pdf.bounds.width - 28
+        content_height = pdf.height_of(content, width: content_width, size: 11, leading: 0)
+        box_height = content_height + 20
+
+        pdf.fill_color palette[:soft]
+        pdf.stroke_color palette[:border]
+        pdf.rounded_rectangle [pdf.bounds.left, pdf.cursor], pdf.bounds.width, box_height, 10
+        pdf.fill_and_stroke
+        pdf.fill_color palette[:text]
+        pdf.bounding_box([pdf.bounds.left + 14, pdf.cursor - 10], width: content_width, height: content_height) do
+          pdf.text content, size: 11, leading: 0, color: '000000'
+        end
+        pdf.move_down(box_height - 4)
+        pdf.move_down 22
       end
 
       def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
@@ -1717,6 +1808,17 @@ module Api
           pdf.text overall_text.to_s, size: 12, leading: 5, color: palette[:text]
         end
 
+        pdf.move_down 18
+      end
+
+      def draw_essay_report_revised_essay(pdf, palette, revised_essay, section_index)
+        draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: Revised Essay")
+        revised_essay.to_s.split("\n\n").each do |paragraph|
+          next if paragraph.strip.blank?
+
+          pdf.text paragraph, size: 12, leading: 6, color: palette[:text]
+          pdf.move_down 10
+        end
         pdf.move_down 18
       end
 
