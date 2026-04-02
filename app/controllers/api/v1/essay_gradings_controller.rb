@@ -940,6 +940,69 @@ module Api
         pdf
       end
 
+      def draw_unified_report_header(
+        pdf,
+        palette,
+        json_data,
+        school_logo_url,
+        overall_score_label_override: nil,
+        show_rubric_override: nil,
+        required_score_label_override: nil,
+        assignment_type_label_override: nil
+      )
+        # Unify the report top section across all report types (essay/comprehension/listening/etc).
+        sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
+        score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
+
+        report_label = json_data['report_type'] == 'simplified' ? 'Simplified Report' : 'Full Report'
+        overall_score_label = extract_overall_score_label(score_payload)
+
+        # Keep "Overall Score" consistent with the original report content.
+        if json_data['comprehension'].is_a?(Hash)
+          comprehension = json_data['comprehension']
+          if comprehension['score'].present? || comprehension['full_score'].present?
+            overall_score_label = "#{comprehension['score'] || 0} / #{comprehension['full_score'] || 0}"
+          end
+        elsif json_data['listening'].is_a?(Hash)
+          listening = json_data['listening']
+          if listening['score'].present? || listening['full_score'].present?
+            overall_score_label = "#{listening['score'] || 0} / #{listening['full_score'] || 0}"
+          end
+        end
+
+        # sentence_builder fallback:
+        # sentence_builder 的整体分数可能不在 overall_score/full_score 结构里，
+        # 而是直接以 score/full_score 的形式存在。
+        if overall_score_label == 'N/A' && json_data['score'].is_a?(Hash)
+          sb_score = json_data['score']['score'] || json_data['score'][:score]
+          sb_full = json_data['score']['full_score'] || json_data['score'][:full_score]
+          if sb_score.present? || sb_full.present?
+            overall_score_label = "#{sb_score || 0} / #{sb_full || 0}"
+          end
+        end
+
+        overall_score_label = overall_score_label_override if overall_score_label_override.present?
+
+        rubric_label = json_data['rubric'].presence || ''
+        show_rubric = show_rubric_override.nil? ? rubric_label.present? : show_rubric_override
+
+        draw_essay_report_footer(pdf, palette)
+        draw_essay_report_header(pdf, palette, school_logo_url)
+        draw_essay_report_info_grid(
+          pdf,
+          palette,
+          assignment_label: json_data['assignment'].presence || 'Essay',
+          rubric_label: rubric_label,
+          account_label: json_data['account'].to_s,
+          overall_score_label: overall_score_label,
+          report_label: report_label,
+          show_rubric: show_rubric,
+          required_score_label: required_score_label_override,
+          assignment_type_label: assignment_type_label_override
+        )
+        draw_essay_report_title_box(pdf, palette, json_data['topic'])
+      end
+
       def generate_comprehension_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
@@ -966,40 +1029,16 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-          draw_standard_report_footer(pdf)
-
-          render_school_logo(pdf, school_logo_url)
-
-          # 开始内容部分
-          # pdf.move_down 10
-          pdf.text "Assessment Report (#{essay_grading.category.humanize})", size: 20, style: :bold, align: :center
+          palette = essay_report_palette
+          draw_unified_report_header(
+            pdf,
+            palette,
+            json_data,
+            school_logo_url,
+            show_rubric_override: false,
+            assignment_type_label_override: 'Comprehension'
+          )
           pdf.stroke_color '444444'
-          pdf.move_down 25
-
-          # Section Title
-          pdf.text 'Assignment Information', size: 15, style: :bold
-          pdf.stroke_color '444444'
-          pdf.stroke_horizontal_rule
-          pdf.move_down 12
-
-          info_data = [
-            ['Assignment:', json_data['assignment'] || 'N/A'],
-            ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A']
-            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
-            # ['Teacher:', submission_info || 'N/A'],
-            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
-            # ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
-          ]
-
-          info_data.each do |label, value|
-            pdf.formatted_text [
-              { text: label, styles: [:bold], size: 12 },
-              { text: " #{value}", size: 12 }
-            ]
-            pdf.move_down 4
-          end
-          pdf.move_down 25
 
           # binding.pry
           comprehension = json_data['comprehension']
@@ -1125,36 +1164,19 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-          draw_standard_report_footer(pdf)
-
-          render_school_logo(pdf, school_logo_url)
-
-          pdf.text "Assessment Report (#{essay_grading.category.humanize})", size: 20, style: :bold, align: :center
+          palette = essay_report_palette
+          draw_unified_report_header(
+            pdf,
+            palette,
+            json_data,
+            school_logo_url,
+            show_rubric_override: false,
+            assignment_type_label_override: 'Listening'
+          )
           pdf.stroke_color '444444'
-          pdf.move_down 25
-
-          pdf.text 'Assignment Information', size: 15, style: :bold
-          pdf.stroke_horizontal_rule
-          pdf.move_down 12
 
           listening = json_data['listening'] || {}
           listening_questions = Array(json_data['listening_questions']).presence || Array(listening['questions'])
-          info_data = [
-            ['Assignment:', json_data['assignment'] || 'N/A'],
-            ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
-            ['Level:', json_data['level'] || 'N/A'],
-            ['Play Count:', (json_data['listening_play_count'] || 0).to_s]
-          ]
-
-          info_data.each do |label, value|
-            pdf.formatted_text [
-              { text: label, styles: [:bold], size: 12 },
-              { text: " #{value}", size: 12 }
-            ]
-            pdf.move_down 4
-          end
-          pdf.move_down 20
 
           if json_data['article'].present?
             pdf.text 'Listening Passage', size: 15, style: :bold
@@ -1234,40 +1256,23 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-          draw_standard_report_footer(pdf)
+          palette = essay_report_palette
+          sb_overall_score = essay_grading['grading']&.dig('score')
+          sb_full_score = essay_grading['grading']&.dig('full_score')
+          sb_overall_score_label_override =
+            if sb_overall_score.present? && sb_full_score.present?
+              "#{sb_overall_score} / #{sb_full_score}"
+            end
 
-          render_school_logo(pdf, school_logo_url)
-
-          # 开始内容部分
-          # pdf.move_down 20
-          pdf.text "Assessment Report (#{essay_grading.category.humanize})", size: 20, style: :bold, align: :center
+          draw_unified_report_header(
+            pdf,
+            palette,
+            json_data,
+            school_logo_url,
+            overall_score_label_override: sb_overall_score_label_override,
+            assignment_type_label_override: 'Sentence Builder'
+          )
           pdf.stroke_color '444444'
-          pdf.move_down 25
-
-          # Section Title
-          pdf.text 'Assignment Information', size: 15, style: :bold
-          pdf.stroke_color '444444'
-          pdf.stroke_horizontal_rule
-          pdf.move_down 12
-
-          info_data = [
-            ['Assignment:', json_data['assignment'] || 'N/A'],
-            ['Topic:', json_data['topic'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A']
-            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
-            # ['Teacher:', submission_info || 'N/A'],
-            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
-            # ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
-          ]
-
-          info_data.each do |label, value|
-            pdf.formatted_text [
-              { text: label, styles: [:bold], size: 12 },
-              { text: " #{value}", size: 12 }
-            ]
-            pdf.move_down 4
-          end
-          pdf.move_down 25
 
           # Overview
           pdf.text 'Assessment Overview', size: 15, style: :bold
@@ -1373,6 +1378,10 @@ module Api
           sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
           grammar_sentences = effective_grammar_sentences(essay_grading, sentences)
           score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
+
+          assignment_type_label =
+            essay_grading.category.to_s == 'speaking_conversation' ? 'Speaking Conversation' : 'Essay'
+
           draw_essay_report_footer(pdf, palette)
           draw_essay_report_header(pdf, palette, school_logo_url)
           draw_essay_report_info_grid(
@@ -1382,7 +1391,8 @@ module Api
             rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
             account_label: essay_grading.general_user.show_in_report_name.to_s,
             overall_score_label: extract_overall_score_label(score_payload),
-            report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report'
+            report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report',
+            assignment_type_label: assignment_type_label
           )
           draw_essay_report_title_box(pdf, palette, json_data['topic'])
 
@@ -1478,20 +1488,50 @@ module Api
         pdf.move_cursor_to header_top - header_height - 22
       end
 
-      def draw_essay_report_info_grid(pdf, palette, assignment_label:, rubric_label:, account_label:, overall_score_label:, report_label:)
-        table_data = [
-          [
-            # Span across both columns and keep left alignment.
-            { content: "<b>Assignment</b><br/>#{assignment_label}", inline_format: true, colspan: 2, align: :left },
-          ],
+      def draw_essay_report_info_grid(
+        pdf,
+        palette,
+        assignment_label:,
+        rubric_label:,
+        account_label:,
+        overall_score_label:,
+        report_label:,
+        show_rubric: true,
+        required_score_label: nil,
+        assignment_type_label: nil
+      )
+        account_row = if show_rubric
           [
             { content: "<b>Account</b><br/>#{account_label}", inline_format: true },
             { content: "<b>Rubric</b><br/>#{rubric_label}", inline_format: true }
-          ],
-          [
-            { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true },
-            { content: "<b>Report Type</b><br/>#{report_label}", inline_format: true }
           ]
+        else
+          [
+            { content: "<b>Account</b><br/>#{account_label}", inline_format: true, colspan: 2, align: :left }
+          ]
+        end
+
+        table_data = [
+          [
+            # Span across both columns and keep left alignment.
+            { content: "<b>Assignment</b><br/>#{assignment_label}", inline_format: true, colspan: 2, align: :left }
+          ],
+          account_row
+        ]
+
+        if assignment_type_label.present?
+          table_data << [
+            { content: "<b>Assignment Type</b><br/>#{assignment_type_label}", inline_format: true, colspan: 2, align: :left }
+          ]
+        end
+
+        table_data << [
+          { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true },
+          if required_score_label.present?
+            { content: "<b>Required Score</b><br/>#{required_score_label}", inline_format: true }
+          else
+            { content: "<b>Report Type</b><br/>#{report_label}", inline_format: true }
+          end
         ]
 
         pdf.table(
@@ -1564,40 +1604,21 @@ module Api
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-          draw_standard_report_footer(pdf)
+          palette = essay_report_palette
+          speaking_overall_score_label = "#{essay_grading['score'].to_i}%"
+          required_score_label = "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"
 
-          render_school_logo(pdf, school_logo_url)
-
-          # Title
-          # pdf.move_down 10
-          pdf.text 'Assessment Report (Pronunciation)', size: 20, style: :bold, align: :center
+          draw_unified_report_header(
+            pdf,
+            palette,
+            json_data,
+            school_logo_url,
+            overall_score_label_override: speaking_overall_score_label,
+            show_rubric_override: false,
+            required_score_label_override: required_score_label,
+            assignment_type_label_override: 'Speaking Pronunciation'
+          )
           pdf.stroke_color '444444'
-          # pdf.stroke_horizontal_rule
-          pdf.move_down 25
-
-          # Section Title
-          pdf.text 'Assignment Information', size: 15, style: :bold
-          pdf.stroke_color '444444'
-          pdf.stroke_horizontal_rule
-          pdf.move_down 12
-
-          info_data = [
-            ['Assignment:', json_data['assignment'] || 'N/A'],
-            ['Account:', essay_grading.general_user.show_in_report_name || 'N/A'],
-            # ['Class / Group:', essay_grading.general_user.banbie || 'N/A'],
-            # ['Teacher:', submission_info || 'N/A'],
-            # ['Date:', Time.zone.today.strftime('%B %d, %Y')],
-            ['Required Score:', "#{essay_grading.essay_assignment.speaking_pronunciation_pass_score || 60}%"]
-          ]
-
-          info_data.each do |label, value|
-            pdf.formatted_text [
-              { text: label, styles: [:bold], size: 12 },
-              { text: " #{value}", size: 12 }
-            ]
-            pdf.move_down 4
-          end
-          pdf.move_down 25
 
           # Overview
           pdf.text 'Assessment Overview', size: 15, style: :bold
