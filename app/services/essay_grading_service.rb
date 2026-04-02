@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 # app/services/essay_grading_service.rb
+require 'rest-client'
 require 'json'
 require 'net/http'
 
 class EssayGradingService
   API_URL = 'https://aienglish-dify.docai.net/v1/workflows/run'
+  COMPLETION_API_URL = 'https://aienglish-dify.docai.net/v1/completion-messages'
   TIMEOUT = 300 # Timeout duration in seconds (5 minutes)
   MAX_RETRIES = 3 # Maximum retry attempts for errors
 
@@ -14,8 +16,10 @@ class EssayGradingService
     @essay_grading = essay_grading
     @grading_app_key = essay_grading.grading['app_key']
     @general_context_app_key = essay_grading.general_context['app_key']
+    @revised_essay_app_key = essay_grading.revised_essay_app_key
     @grading_success = false
     @general_context_success = false
+    @revised_essay_success = false
   end
 
   def run_workflows
@@ -37,6 +41,12 @@ class EssayGradingService
       # Rails.logger.info("[EssayGradingService] General context workflow response received: #{general_context_response.size} chunks, task_id: #{general_context_task_id}")
       @general_context_success = process_streaming_response(general_context_response, general_context_task_id, 'general_context')
       Rails.logger.info("[EssayGradingService] General context workflow success: #{@general_context_success}")
+    end
+
+    unless @revised_essay_app_key.blank?
+      revised_essay_response = execute_completion(@revised_essay_app_key, revised_essay_completion_payload)
+      @revised_essay_success = process_completion_response(revised_essay_response)
+      Rails.logger.info("[EssayGradingService] Revised essay workflow success: #{@revised_essay_success}")
     end
 
     # Final status update
@@ -197,6 +207,13 @@ class EssayGradingService
     }
   end
 
+  def completion_headers(app_key)
+    {
+      'Authorization' => "Bearer #{app_key}",
+      'Content-Type' => 'application/json'
+    }
+  end
+
   def grading_request_payload
     inputs = if @essay_grading.essay_assignment.category == 'sentence_builder'
                { sentence_builder: @essay_grading.sentence_builder_for_dify.to_json }
@@ -244,6 +261,18 @@ class EssayGradingService
 
     Rails.logger.info("[EssayGradingService] Full general context payload: #{payload.to_json}")
     payload
+  end
+
+  def revised_essay_completion_payload
+    {
+      inputs: {
+        essay: @essay_grading.essay,
+        topic: @essay_grading.topic,
+        guide: @essay_grading.essay_assignment.revised_essay_type_label
+      },
+      response_mode: 'blocking',
+      user: @user_id
+    }
   end
 
   def process_streaming_response(response_data, task_id, context)
@@ -328,6 +357,44 @@ class EssayGradingService
       Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
       false
     end
+  end
+
+  def execute_completion(app_key, payload)
+    RestClient::Request.execute(
+      method: :post,
+      url: COMPLETION_API_URL,
+      payload: payload.to_json,
+      headers: completion_headers(app_key),
+      timeout: TIMEOUT,
+      open_timeout: 100
+    )
+  rescue RestClient::ExceptionWithResponse => e
+    Rails.logger.error("[EssayGradingService] Exception when calling completion API: #{e.response}")
+    nil
+  rescue StandardError => e
+    Rails.logger.error("[EssayGradingService] Standard error when calling completion API: #{e.message}")
+    nil
+  end
+
+  def process_completion_response(response)
+    return false unless response && response.code == 200
+
+    result = JSON.parse(response.body)
+    revised_outputs =
+      if result.dig('data', 'outputs').present?
+        result['data']['outputs']
+      elsif result['answer'].present?
+        { 'text' => result['answer'] }
+      end
+
+    return false if revised_outputs.blank?
+
+    @essay_grading.update(
+      revised_essay: @essay_grading.revised_essay.merge('data' => revised_outputs)
+    )
+  rescue StandardError => e
+    Rails.logger.error("[EssayGradingService] Error processing revised essay response: #{e.message}")
+    false
   end
 
   # Method to fix common JSON syntax errors
@@ -423,7 +490,9 @@ class EssayGradingService
   end
 
   def update_final_status
-    if @grading_success && (@general_context_app_key.blank? || @general_context_success)
+    if @grading_success &&
+       (@general_context_app_key.blank? || @general_context_success) &&
+       (@revised_essay_app_key.blank? || @revised_essay_success)
       @essay_grading.update(status: 'graded')
       @essay_grading.calculate_sentence_builder_score if @essay_grading.category == 'sentence_builder'
       @essay_grading.call_webhook

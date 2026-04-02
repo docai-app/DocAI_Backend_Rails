@@ -220,19 +220,9 @@ module Api
         EssayAssignment.categories.invert
 
         # binding.pry
-        grading_json = begin
-          JSON.parse(@essay_grading.grading['data']['text'])
-        rescue StandardError
-          {}
-        end
-        scores = grading_json.each_with_object({}) do |(key, value), result|
-          next unless key.start_with?('Criterion') && value.is_a?(Hash)
-
-          value.each do |criterion_key, criterion_value|
-            # 排除不需要的键
-            result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
-          end
-        end
+        grading_json = effective_score_sentences(@essay_grading)
+        score_payload = extract_essay_report_score_payload(grading_json)
+        scores = extract_scores_from_sentences(grading_json)
 
         if @essay_grading.category == 'comprehension'
           score = @essay_grading.grading.dig('comprehension', 'score'),
@@ -245,8 +235,8 @@ module Api
           full_score = 100
           # binding.pry
         else
-          score = @essay_grading.grading['score']
-          full_score = @essay_grading.grading['full_score']
+          score = score_payload[:overall_score] || @essay_grading.grading['score']
+          full_score = score_payload[:full_score] || @essay_grading.grading['full_score']
         end
 
         render json: {
@@ -264,6 +254,9 @@ module Api
             scores:,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
+            revised_essay: @essay_grading.revised_essay,
+            teacher_review: @essay_grading.teacher_review_hash,
+            teacher_review_history: teacher_can_edit_review?(@essay_grading) ? @essay_grading.teacher_review_history_array : [],
             essay: @essay_grading.essay,
             meta: @essay_grading.meta,
             using_time: @essay_grading.using_time,
@@ -282,6 +275,7 @@ module Api
               app_key: @essay_grading.essay_assignment.app_key,
               name: @essay_grading.essay_assignment.name,
               category: @essay_grading.essay_assignment.category,
+              essay_type: @essay_grading.essay_assignment.essay_type,
               remark: @essay_grading.essay_assignment.remark,
               answer_visible: @essay_grading.essay_assignment.answer_visible,
               newsfeed_id: @essay_grading.essay_assignment.newsfeed_id,
@@ -312,10 +306,15 @@ module Api
 
       def create
         set_essay_assignment_by_code
+        grading_params = essay_grading_params
+        prepared_attachment = prepare_audio_attachment_for_persistence(
+          category: @essay_assignment.category,
+          uploaded_file: grading_params[:file]
+        )
 
-        # puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
-
-        @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
+        @essay_grading = @essay_assignment.essay_gradings.new(
+          essay_grading_attributes_for_persistence(@essay_assignment.category, grading_params)
+        )
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
@@ -324,24 +323,127 @@ module Api
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
           @essay_grading.general_context ||= {}
           @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+          @essay_grading.revised_essay ||= {}
+          @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
         end
 
-        if @essay_grading.save
-          # 檢查是否有對應的作業分配，如果有則更新分配狀態
-          # 只有非草稿狀態的提交才更新分配狀態
-          update_assignment_status_if_needed unless @essay_grading.status == 'draft'
+        begin
+          EssayGrading.transaction do
+            @essay_grading.save!
+            persist_uploaded_attachment!(
+              essay_grading: @essay_grading,
+              category: @essay_assignment.category,
+              uploaded_file: grading_params[:file],
+              prepared_attachment:
+            )
+          end
 
-          # Track assignment submission（非 draft 才記錄正式提交）
-          # unless @essay_grading.status == 'draft'
-          #   # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
-          #   ahoy.authenticate(current_general_user) if current_general_user
-          #   ahoy.track 'Assignment Submitted',
-          #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
-          # end
-          render json: { success: true, essay_grading: @essay_grading }, status: :created
+          update_assignment_status_if_needed unless @essay_grading.status == 'draft'
+          render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :created
+        rescue ActiveRecord::RecordInvalid
+          render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+        end
+      ensure
+        prepared_attachment&.close!
+      end
+
+      def teacher_review
+        set_essay_grading
+
+        unless teacher_can_edit_review?(@essay_grading)
+          render json: { success: false, error: 'You do not have permission to edit this grading.' }, status: :forbidden
+          return
+        end
+
+        teacher_review_payload = build_teacher_review_payload(teacher_review_params.to_h)
+        merged_review = @essay_grading.teacher_review_hash.deep_dup
+
+        merged_review['score'] = teacher_review_payload['score'] if teacher_review_payload['score'].present?
+        merged_review['grammar'] = teacher_review_payload['grammar'] if teacher_review_payload['grammar'].present?
+        merged_review['general_context'] = teacher_review_payload['general_context'] if teacher_review_payload['general_context'].present?
+        merged_review['revised_essay'] = teacher_review_payload['revised_essay'] if teacher_review_payload['revised_essay'].present?
+        merged_review['confirmed'] = true
+        merged_review['confirmed_at'] = Time.current.as_json
+        merged_review['confirmed_by'] = {
+          'id' => current_general_user.id,
+          'email' => current_general_user.email,
+          'nickname' => current_general_user.nickname
+        }
+
+        next_meta = (@essay_grading.meta || {}).deep_dup
+        next_meta['teacher_review'] = merged_review
+        history = @essay_grading.teacher_review_history_array.deep_dup
+        history << build_teacher_review_history_entry(merged_review)
+        next_meta['teacher_review_history'] = history
+
+        if @essay_grading.update(meta: next_meta)
+          render json: { success: true, teacher_review: merged_review, teacher_review_history: history }, status: :ok
         else
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue ActionController::ParameterMissing => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      def teacher_review_restore
+        set_essay_grading
+
+        unless teacher_can_edit_review?(@essay_grading)
+          render json: { success: false, error: 'You do not have permission to edit this grading.' }, status: :forbidden
+          return
+        end
+
+        next_meta = (@essay_grading.meta || {}).deep_dup
+        original_history = @essay_grading.teacher_review_history_array.deep_dup
+        history = original_history.deep_dup
+        source = params[:source].to_s
+        current_review = @essay_grading.teacher_review_hash.deep_dup
+
+        history << build_teacher_review_history_entry(current_review) if current_review.present?
+
+        if source == 'ai_original'
+          next_meta.delete('teacher_review')
+        else
+          version_id = params[:version_id].to_s
+          selected_version = original_history.find { |item| item.is_a?(Hash) && item['version_id'].to_s == version_id }
+          if selected_version.blank?
+            render json: { success: false, error: 'Selected teacher review version was not found.' }, status: :not_found
+            return
+          end
+
+          restored_review = selected_version.deep_dup
+          restored_review.delete('version_id')
+          restored_review.delete('saved_at')
+          restored_review.delete('saved_by')
+          restored_review['confirmed'] = true
+          restored_review['confirmed_at'] = Time.current.as_json
+          restored_review['confirmed_by'] = {
+            'id' => current_general_user.id,
+            'email' => current_general_user.email,
+            'nickname' => current_general_user.nickname
+          }
+          restored_review['restored_from_version_id'] = version_id
+          restored_review['restored_at'] = Time.current.as_json
+
+          next_meta['teacher_review'] = restored_review
+          history << build_teacher_review_history_entry(restored_review)
+        end
+
+        next_meta['teacher_review_history'] = history
+
+        if @essay_grading.update(meta: next_meta)
+          render json: {
+            success: true,
+            teacher_review: @essay_grading.teacher_review_hash,
+            teacher_review_history: history
+          }, status: :ok
+        else
+          render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+        end
+      rescue StandardError => e
+        render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
       # 批量上传PDF文件并创建作业评分
@@ -490,6 +592,8 @@ module Api
             grading.grading['app_key'] = essay_assignment.rubric['app_key']['grading']
             grading.general_context ||= {}
             grading.general_context['app_key'] = essay_assignment.rubric['app_key']['general_context']
+            grading.revised_essay ||= {}
+            grading.revised_essay['app_key'] = essay_assignment.revised_essay_workflow_app_key
           end
 
           if grading.save
@@ -529,24 +633,45 @@ module Api
       # 編輯 / 更新單一 EssayGrading（包括切換 draft / 提交）
       def update
         set_essay_grading_wiht_role
+        grading_params = essay_grading_params
+        prepared_attachment = prepare_audio_attachment_for_persistence(
+          category: @essay_grading.category,
+          uploaded_file: grading_params[:file]
+        )
 
-        if @essay_grading.update(essay_grading_params)
-          # 如果狀態從 draft 變為非 draft，需要更新分配狀態
-          if @essay_grading.saved_change_to_status? && 
-             @essay_grading.status != 'draft' && 
+        if prepared_attachment.nil? && should_normalize_existing_speaking_attachment?(@essay_grading, grading_params)
+          prepared_attachment = SpeakingAudioAttachmentNormalizerService.normalize_blob(@essay_grading.file.blob)
+        end
+
+        begin
+          EssayGrading.transaction do
+            @essay_grading.update!(
+              essay_grading_attributes_for_persistence(@essay_grading.category, grading_params)
+            )
+
+            persist_uploaded_attachment!(
+              essay_grading: @essay_grading,
+              category: @essay_grading.category,
+              uploaded_file: grading_params[:file],
+              prepared_attachment:
+            )
+          end
+
+          if @essay_grading.saved_change_to_status? &&
+             @essay_grading.status != 'draft' &&
              @essay_grading.status_before_last_save == 'draft'
-            # 需要設置 @essay_assignment 以便 update_assignment_status_if_needed 使用
             @essay_assignment = @essay_grading.essay_assignment
             update_assignment_status_if_needed
           end
 
-          render json: { success: true, essay_grading: @essay_grading }, status: :ok
-        else
-          render json: { success: false, errors: @essay_grading.errors.full_messages },
-                 status: :unprocessable_entity
+          render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :ok
+        rescue ActiveRecord::RecordInvalid
+          render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         end
       rescue StandardError => e
         render json: { success: false, error: e.message }, status: :internal_server_error
+      ensure
+        prepared_attachment&.close!
       end
 
       def download_reports
@@ -663,6 +788,96 @@ module Api
           meta: %i[newsfeed_id sample_essay audiobase64s files listening_form_id],
           sentence_builder: %i[vocab sentence]
         )
+      end
+
+      def teacher_review_params
+        permitted = params.require(:teacher_review).permit(
+          score: [data: {}],
+          general_context: [
+            :Feedback,
+            {
+              studentFeedback: [
+                :overall,
+                :detailedFeedback,
+                {
+                  sections: [
+                    :content,
+                    :organisation,
+                    :oneStrength,
+                    :oneKeyAreaForImprovement,
+                    :logicAndCoherence
+                  ]
+                }
+              ]
+            }
+          ],
+          revised_essay: [:text],
+          grammar: [
+            {
+              sentences: [
+                :sentence_id,
+                :position,
+                :sentence_text,
+                {
+                  errors: [
+                    :error_id,
+                    :category,
+                    :selected_text,
+                    :start_index,
+                    :end_index,
+                    :correction,
+                    :explanation
+                  ]
+                }
+              ]
+            }
+          ]
+        )
+
+        raw_score_data = params.dig(:teacher_review, :score, :data)
+        if raw_score_data.present?
+          normalized_score_data = normalize_teacher_review_score_data(raw_score_data)
+          permitted[:score] = { data: normalized_score_data } if normalized_score_data.present?
+        end
+
+        permitted
+      end
+
+      def essay_grading_attributes_for_persistence(category, grading_params)
+        category == 'speaking_essay' ? grading_params.except(:file) : grading_params
+      end
+
+      def prepare_audio_attachment_for_persistence(category:, uploaded_file:)
+        return nil unless category == 'speaking_essay'
+        return nil if uploaded_file.blank?
+
+        SpeakingAudioAttachmentNormalizerService.normalize_uploaded_file(uploaded_file)
+      end
+
+      def persist_uploaded_attachment!(essay_grading:, category:, uploaded_file:, prepared_attachment:)
+        if category == 'speaking_essay'
+          return if prepared_attachment.nil?
+
+          essay_grading.file.attach(
+            io: prepared_attachment.tempfile,
+            filename: prepared_attachment.filename,
+            content_type: prepared_attachment.content_type
+          )
+          raise 'Failed to attach normalized speaking essay audio.' unless essay_grading.file.attached?
+          return
+        end
+
+        return if uploaded_file.blank?
+
+        essay_grading.file.attach(uploaded_file)
+        raise 'Failed to attach uploaded audio file.' unless essay_grading.file.attached?
+      end
+
+      def should_normalize_existing_speaking_attachment?(essay_grading, grading_params)
+        essay_grading.category == 'speaking_essay' &&
+          grading_params[:file].blank? &&
+          essay_grading.file.attached? &&
+          essay_grading.file.blob.content_type.to_s != 'audio/mp3'
       end
 
       def pagination_meta(object)
@@ -1156,6 +1371,7 @@ module Api
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
           sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
+          grammar_sentences = effective_grammar_sentences(essay_grading, sentences)
           score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
           draw_essay_report_footer(pdf, palette)
           draw_essay_report_header(pdf, palette, school_logo_url)
@@ -1180,7 +1396,7 @@ module Api
           section_index = 1
 
           if report_type == 'full'
-            draw_essay_report_grammar(pdf, palette, sentences, essay_grading, section_index)
+            draw_essay_report_grammar(pdf, palette, grammar_sentences, essay_grading, section_index)
             section_index += 1
           end
 
@@ -1500,6 +1716,10 @@ module Api
 
       def prepare_report_data(essay_grading, report_type = 'full')
         assignment = essay_grading.essay_assignment
+        effective_score_data = effective_score_sentences(essay_grading)
+        effective_general_context = effective_general_context_data(essay_grading)
+        effective_revised_essay = effective_revised_essay_text(essay_grading)
+
         json_data = {
           'topic' => assignment.topic,
           'account' => essay_grading.general_user.show_in_report_name,
@@ -1507,7 +1727,9 @@ module Api
           'rubric' => assignment.rubric['name'],
           'level' => assignment.level.presence || assignment.meta['level'].presence,
           'graph_image_url' => extract_task1_graph_image_url(assignment),
-          'report_type' => report_type
+          'report_type' => report_type,
+          'data' => { 'text' => effective_score_data.to_json },
+          'score' => effective_score_data
         }
 
         if assignment.category == 'comprehension'
@@ -1539,36 +1761,21 @@ module Api
                                    sanitize_report_transcript(assignment.meta['listening_ssml_transcript'])
         elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
-          if essay_grading.general_context['data'].present?
+          json_data['data'] = { 'text' => effective_score_data.to_json }
+          json_data['score'] = effective_score_data
 
-            text = essay_grading.general_context['data']['text']
-            fixed_json = fix_json_newlines(text)
-
-            begin
-              general_context = JSON.parse(fixed_json)
-              json_data['general_context'] = general_context['Feedback'] if general_context['Feedback'].present?
-
-              # 2025-05-11 新增以下
-              if general_context['studentFeedback'].present?
-                json_data['overall_comment'] =
-                  general_context['studentFeedback']['overall']
+          if effective_general_context.present?
+            json_data['general_context'] = effective_general_context['Feedback'] if effective_general_context['Feedback'].present?
+            if effective_general_context['studentFeedback'].present?
+              json_data['overall_comment'] = effective_general_context['studentFeedback']['overall']
+              json_data['detailedFeedback'] = effective_general_context['studentFeedback']['detailedFeedback']
+              if effective_general_context['studentFeedback']['sections'].present?
+                json_data['general_context_sections'] = effective_general_context['studentFeedback']['sections']
               end
-              if general_context['studentFeedback'].present?
-                json_data['detailedFeedback'] =
-                  general_context['studentFeedback']['detailedFeedback']
-                json_data['general_context_sections'] =
-                  general_context['studentFeedback']['sections'] if general_context['studentFeedback']['sections'].present?
-              end
-            rescue JSON::ParserError => e
-              # JSON 解析失败时尝试正则回退提取（处理 AI 返回的含未转义引号、字面换行等畸形 JSON）
-              fallback = extract_general_context_fallback(text)
-              if fallback.present?
-                json_data['overall_comment'] = fallback['overall'] if fallback['overall'].present?
-                json_data['detailedFeedback'] = fallback['detailedFeedback'] if fallback['detailedFeedback'].present?
-              end
-              Rails.logger.warn("Failed to parse general_context JSON for essay_grading #{essay_grading.id}, used fallback extraction: #{e.message}")
             end
           end
+
+          json_data['revised_essay'] = effective_revised_essay if effective_revised_essay.present?
         end
 
         json_data
@@ -2001,6 +2208,270 @@ module Api
         return 'N/A' if score_payload[:overall_score].blank?
 
         build_score_label(score_payload[:overall_score], score_payload[:full_score])
+      end
+
+      def teacher_can_edit_review?(essay_grading)
+        return false unless current_general_user&.aienglish_role == 'teacher'
+
+        assignment_owner_id = essay_grading.essay_assignment&.general_user_id
+        return true if assignment_owner_id.blank?
+
+        assignment_owner_id == current_general_user.id
+      end
+
+      def build_teacher_review_payload(payload)
+        result = {}
+
+        if payload['score'].present?
+          score_data = payload.dig('score', 'data')
+          result['score'] = {
+            'data' => score_data.is_a?(Hash) ? score_data.deep_dup : {}
+          }
+        end
+
+        if payload['general_context'].present?
+          general_context = payload['general_context'].deep_dup
+          if general_context['Feedback'].present?
+            result['general_context'] = {
+              'Feedback' => general_context['Feedback'].to_s
+            }
+          else
+            student_feedback = general_context['studentFeedback'].is_a?(Hash) ? general_context['studentFeedback'].deep_dup : {}
+            sections = student_feedback['sections'].is_a?(Hash) ? student_feedback['sections'].deep_dup : {}
+            student_feedback['sections'] = sections
+            student_feedback['detailedFeedback'] = build_general_context_detailed_feedback(student_feedback) if student_feedback['detailedFeedback'].blank?
+            result['general_context'] = {
+              'studentFeedback' => student_feedback
+            }
+          end
+        end
+
+        if payload['revised_essay'].present?
+          result['revised_essay'] = {
+            'text' => payload.dig('revised_essay', 'text').to_s
+          }
+        end
+
+        if payload['grammar'].present?
+          sentences = payload.dig('grammar', 'sentences')
+          result['grammar'] = {
+            'sentences' => Array(sentences).filter_map.with_index(1) do |sentence, sentence_index|
+              next unless sentence.is_a?(Hash)
+
+              {
+                'sentence_id' => sentence['sentence_id'].presence || "sentence_#{sentence_index}",
+                'position' => sentence['position'].presence || sentence_index,
+                'sentence_text' => sentence['sentence_text'].to_s,
+                'errors' => Array(sentence['errors']).filter_map.with_index(1) do |error, error_index|
+                  next unless error.is_a?(Hash)
+
+                  {
+                    'error_id' => error['error_id'].presence || "sentence_#{sentence_index}_error_#{error_index}",
+                    'category' => error['category'].to_s,
+                    'selected_text' => error['selected_text'].to_s,
+                    'start_index' => error['start_index'].nil? ? nil : error['start_index'].to_i,
+                    'end_index' => error['end_index'].nil? ? nil : error['end_index'].to_i,
+                    'correction' => error['correction'].to_s,
+                    'explanation' => error['explanation'].to_s
+                  }
+                end
+              }
+            end
+          }
+        end
+
+        result
+      end
+
+      def build_teacher_review_history_entry(review_hash)
+        history_entry = review_hash.deep_dup
+        history_entry['version_id'] ||= SecureRandom.uuid
+        history_entry['saved_at'] = Time.current.as_json
+        history_entry['saved_by'] = {
+          'id' => current_general_user.id,
+          'email' => current_general_user.email,
+          'nickname' => current_general_user.nickname
+        }
+        history_entry
+      end
+
+      def normalize_teacher_review_score_data(raw_score_data)
+        score_hash =
+          case raw_score_data
+          when ActionController::Parameters
+            raw_score_data.to_unsafe_h
+          when Hash
+            raw_score_data.deep_dup
+          else
+            {}
+          end
+
+        if score_hash.key?('criteria') || score_hash.key?(:criteria)
+          normalized = {}
+          overall_score = score_hash['overall_score'] || score_hash[:overall_score] || score_hash['Overall Score']
+          full_score = score_hash['full_score'] || score_hash[:full_score] || score_hash['Full Score']
+          normalized['overall_score'] = overall_score.to_s if overall_score.present?
+          normalized['full_score'] = full_score.to_s if full_score.present?
+
+          criteria_hash = score_hash['criteria'] || score_hash[:criteria]
+          if criteria_hash.is_a?(Hash) || criteria_hash.is_a?(ActionController::Parameters)
+            normalized['criteria'] =
+              criteria_hash.to_h.each_with_object({}) do |(criterion_name, criterion_value), result|
+                next unless criterion_value.is_a?(Hash) || criterion_value.is_a?(ActionController::Parameters)
+
+                criterion_hash = criterion_value.to_h.each_with_object({}) do |(criterion_key, criterion_val), inner|
+                  next unless criterion_val.is_a?(String) || criterion_val.is_a?(Numeric)
+
+                  inner[criterion_key.to_s] = criterion_val.to_s
+                end
+                result[criterion_name.to_s] = criterion_hash if criterion_hash.present?
+              end
+          end
+
+          return normalized
+        end
+
+        allowed_root_keys = ['Overall Score', 'Full Score']
+        normalized = score_hash.slice(*allowed_root_keys).transform_values { |value| value.to_s }
+
+        score_hash.each do |key, value|
+          next unless key.to_s.start_with?('Criterion')
+          next unless value.is_a?(Hash) || value.is_a?(ActionController::Parameters)
+
+          criterion_hash =
+            case value
+            when ActionController::Parameters
+              value.to_unsafe_h
+            else
+              value.deep_dup
+            end
+
+          normalized[key] = criterion_hash.each_with_object({}) do |(criterion_key, criterion_value), result|
+            next unless criterion_value.is_a?(String) || criterion_value.is_a?(Numeric)
+
+            result[criterion_key.to_s] = criterion_value.to_s
+          end
+        end
+
+        normalized
+      end
+
+      def build_general_context_detailed_feedback(student_feedback)
+        overall = student_feedback['overall'].to_s.strip
+        sections = student_feedback['sections'].is_a?(Hash) ? student_feedback['sections'] : {}
+        section_labels = {
+          'content' => 'Content',
+          'organisation' => 'Organisation',
+          'oneStrength' => 'One Strength',
+          'oneKeyAreaForImprovement' => 'One Key Area for Improvement',
+          'logicAndCoherence' => 'Logic & Coherence'
+        }
+
+        parts = []
+        parts << overall if overall.present?
+        section_labels.each do |key, label|
+          value = sections[key].to_s.strip
+          next if value.blank?
+
+          parts << "#{label}\n#{value}"
+        end
+        parts.join("\n\n")
+      end
+
+      def extract_scores_from_sentences(grading_json)
+        if grading_json['criteria'].is_a?(Hash)
+          return grading_json['criteria'].each_with_object({}) do |(criterion_name, criterion_value), result|
+            next unless criterion_value.is_a?(Hash)
+
+            result[criterion_name] =
+              criterion_value['score'] || criterion_value[:score] || criterion_value['value'] || criterion_value[:value]
+          end
+        end
+
+        grading_json.each_with_object({}) do |(key, value), result|
+          next unless key.to_s.start_with?('Criterion') && value.is_a?(Hash)
+
+          value.each do |criterion_key, criterion_value|
+            result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
+          end
+        end
+      end
+
+      def effective_score_sentences(essay_grading)
+        teacher_review_score = essay_grading.teacher_review_hash.dig('score', 'data')
+        return teacher_review_score if teacher_review_score.is_a?(Hash) && teacher_review_score.present?
+
+        JSON.parse(essay_grading.grading.dig('data', 'text').to_s)
+      rescue StandardError
+        {}
+      end
+
+      def effective_grammar_sentences(essay_grading, fallback_sentences = {})
+        teacher_review_sentences = essay_grading.teacher_review_hash.dig('grammar', 'sentences')
+        if teacher_review_sentences.is_a?(Array) && teacher_review_sentences.present?
+          return teacher_review_sentences.each_with_index.each_with_object({}) do |(sentence, index), result|
+            next unless sentence.is_a?(Hash)
+
+            errors = Array(sentence['errors']).filter_map.with_index(1) do |error, error_index|
+              next unless error.is_a?(Hash)
+
+              selected_text = error['selected_text'].to_s
+              correction = error['correction'].to_s
+
+              [
+                "error#{error_index}",
+                {
+                  'word' => selected_text,
+                  'corr' => correction.present? ? "#{selected_text} -> #{correction}" : selected_text,
+                  'category' => error['category'].to_s,
+                  'explanation' => error['explanation'].to_s
+                }
+              ]
+            end.to_h
+
+            result["Sentence #{index + 1}"] = {
+              'sentence' => sentence['sentence_text'].to_s,
+              'errors' => errors
+            }
+          end
+        end
+
+        fallback_sentences.is_a?(Hash) ? fallback_sentences : {}
+      end
+
+      def effective_general_context_data(essay_grading)
+        teacher_review_general_context = essay_grading.teacher_review_hash['general_context']
+        return teacher_review_general_context if teacher_review_general_context.is_a?(Hash) && teacher_review_general_context.present?
+
+        raw_general_context_text = essay_grading.general_context.dig('data', 'text').to_s
+        return nil if raw_general_context_text.blank?
+
+        fixed_json = fix_json_newlines(raw_general_context_text)
+        JSON.parse(fixed_json)
+      rescue JSON::ParserError
+        fallback = extract_general_context_fallback(raw_general_context_text)
+        if fallback.present?
+          {
+            'studentFeedback' => {
+              'overall' => fallback['overall'],
+              'detailedFeedback' => fallback['detailedFeedback']
+            }.compact
+          }
+        else
+          { 'Feedback' => raw_general_context_text.presence }.compact
+        end
+      rescue StandardError
+        { 'Feedback' => raw_general_context_text.presence }.compact
+      end
+
+      def effective_revised_essay_text(essay_grading)
+        teacher_review_text = essay_grading.teacher_review_hash.dig('revised_essay', 'text').to_s
+        return teacher_review_text if teacher_review_text.present?
+
+        revised_essay_data = essay_grading.revised_essay['data']
+        return nil unless revised_essay_data.present?
+
+        revised_essay_data['text'].to_s.presence || revised_essay_data['answer'].to_s.presence
       end
 
       def extract_task1_graph_image_url(assignment, json_data = nil)

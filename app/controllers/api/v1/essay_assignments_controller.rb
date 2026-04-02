@@ -84,6 +84,7 @@ module Api
           title: @essay_assignment.title,
           hints: @essay_assignment.hints,
           category: @essay_assignment.category,
+          essay_type: @essay_assignment.essay_type,
           answer_visible: @essay_assignment.answer_visible,
           remark: @essay_assignment.remark,
           code: @essay_assignment.code,
@@ -128,12 +129,7 @@ module Api
           # 優化：只在需要時解析 JSON，並緩存結果
           grading_json = nil
           if grading_text.present? && !is_sentence_builder && !is_comprehension && !is_speaking_pronunciation && !is_listening  
-            begin
-              grading_json = JSON.parse(grading_text)
-            rescue StandardError => e
-              Rails.logger.warn "Error parsing grading JSON for EssayGrading #{eg.id}: #{e.message}"
-              grading_json = {}
-            end
+            grading_json = effective_assignment_grading_json(eg, grading_text)
           end
 
           # 初始化變量
@@ -205,17 +201,26 @@ module Api
             overall_score = listening_data['score']
           elsif grading_json
             # 提取每個 criterion 的分數和總分
-            scores = grading_json.each_with_object({}) do |(key, value), result|
-              next unless key.start_with?('Criterion') && value.is_a?(Hash)
+            if grading_json['criteria'].is_a?(Hash)
+              scores = grading_json['criteria'].each_with_object({}) do |(criterion_name, criterion_value), result|
+                next unless criterion_value.is_a?(Hash)
 
-              value.each do |criterion_key, criterion_value|
-                result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
+                result[criterion_name] = criterion_value['score'] || criterion_value[:score] || criterion_value['value'] || criterion_value[:value]
               end
-            end
+              overall_score = normalize_assignment_score(grading_json['overall_score'] || grading_json['Overall Score'])
+              the_full_score = normalize_assignment_score(grading_json['full_score'] || grading_json['Full Score'])
+            else
+              scores = grading_json.each_with_object({}) do |(key, value), result|
+                next unless key.start_with?('Criterion') && value.is_a?(Hash)
 
-            # 提取 Overall Score
-            overall_score = grading_json['Overall Score']
-            the_full_score = grading_json['Full Score']
+                value.each do |criterion_key, criterion_value|
+                  result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
+                end
+              end
+
+              overall_score = normalize_assignment_score(grading_json['Overall Score'])
+              the_full_score = normalize_assignment_score(grading_json['Full Score'])
+            end
           end
 
           # 優化：使用預加載的關聯，避免額外查詢
@@ -516,6 +521,7 @@ module Api
           :title,
           :hints,
           :category,
+          :essay_type,
           :answer_visible,
           :remark,
           :graph_image,
@@ -552,6 +558,33 @@ module Api
         end
 
         permitted_params
+      end
+
+      def effective_assignment_grading_json(essay_grading, fallback_grading_text = nil)
+        teacher_review_score = if essay_grading.respond_to?(:teacher_review_hash)
+                                 essay_grading.teacher_review_hash.dig('score', 'data')
+                               elsif essay_grading.respond_to?(:meta) && essay_grading.meta.is_a?(Hash)
+                                 essay_grading.meta.dig('teacher_review', 'score', 'data')
+                               end
+        return teacher_review_score if teacher_review_score.is_a?(Hash) && teacher_review_score.present?
+
+        grading_text = fallback_grading_text
+        if grading_text.blank? && essay_grading.respond_to?(:grading)
+          grading_hash = essay_grading.grading.is_a?(Hash) ? essay_grading.grading.deep_stringify_keys : {}
+          grading_text = grading_hash.dig('data', 'text')
+        end
+
+        JSON.parse(grading_text)
+      rescue StandardError => e
+        Rails.logger.warn "Error parsing effective grading JSON for EssayGrading #{essay_grading.try(:id)}: #{e.message}"
+        {}
+      end
+
+      def normalize_assignment_score(raw_score)
+        return nil if raw_score == 'null' || raw_score.nil?
+        return raw_score.to_f if raw_score.to_s.include?('.')
+
+        raw_score.to_i
       end
 
       def pagination_meta(object)

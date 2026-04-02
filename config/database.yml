@@ -7,7 +7,7 @@ local:
     pool:     25
     username: <%= ENV["DEV_DB_USERNAME"] %>
     password: <%= ENV["DEV_DB_PASSWORD"] %>
-    sslmode: <%= ENV.fetch("DEV_DB_SSLMODE", "disable") %>
+    sslmode: require
     template: template0
   vector_db:
     adapter:  postgresql
@@ -17,7 +17,7 @@ local:
     pool:     25
     username: <%= ENV["DEV_VECTOR_DB_USERNAME"] %>
     password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
-    sslmode: <%= ENV.fetch("DEV_VECTOR_DB_SSLMODE", "disable") %>
+    sslmode: require
     template: template0
     database_tasks: false
 
@@ -30,7 +30,7 @@ development:
     pool:     25
     username: <%= ENV["DEV_DB_USERNAME"] %>
     password: <%= ENV["DEV_DB_PASSWORD"] %>
-    sslmode: <%= ENV.fetch("DEV_DB_SSLMODE", "disable") %>
+    sslmode: require
     template: template0
   vector_db:
     adapter:  postgresql
@@ -40,7 +40,7 @@ development:
     pool:     25
     username: <%= ENV["DEV_VECTOR_DB_USERNAME"] %>
     password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
-    sslmode: <%= ENV.fetch("DEV_VECTOR_DB_SSLMODE", "disable") %>
+    sslmode: require
     template: template0
     database_tasks: false
 

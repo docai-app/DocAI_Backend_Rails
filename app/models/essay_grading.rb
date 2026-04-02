@@ -36,8 +36,9 @@ class EssayGrading < ApplicationRecord
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :listening, :sentence_builder,
                  :speaking_pronunciation_sentences, :supplement_practice
   store_accessor :general_context, :app_key, :data
+  store_accessor :revised_essay, :app_key, :data
 
-  store_accessor :meta, :newsfeed_id, :transformed_newsfeed
+  store_accessor :meta, :newsfeed_id, :transformed_newsfeed, :teacher_review, :teacher_review_history
 
   # 關聯
   belongs_to :general_user
@@ -68,7 +69,7 @@ class EssayGrading < ApplicationRecord
   after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
   after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
 
-  has_one_attached :file, service: :microsoft
+  has_one_attached :file, service: ApplicationRecord.preferred_microsoft_storage_service
 
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
@@ -183,6 +184,26 @@ class EssayGrading < ApplicationRecord
   def run_workflow_sync
     transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
     EssayGradingService.new(general_user_id, self).run_workflows
+  end
+
+  def revised_essay_app_key
+    revised_essay.is_a?(Hash) ? revised_essay['app_key'] : nil
+  end
+
+  def revised_essay_data
+    revised_essay.is_a?(Hash) ? revised_essay['data'] : nil
+  end
+
+  def teacher_review_hash
+    teacher_review.is_a?(Hash) ? teacher_review : {}
+  end
+
+  def teacher_review_present?
+    teacher_review_hash.present?
+  end
+
+  def teacher_review_history_array
+    teacher_review_history.is_a?(Array) ? teacher_review_history : []
   end
 
   # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading

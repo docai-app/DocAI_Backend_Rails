@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_02_06_084740) do
+ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -453,6 +453,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_06_084740) do
     t.jsonb "meta", default: {}, null: false
     t.boolean "answer_visible", default: true, null: false
     t.string "remark"
+    t.string "essay_type"
     t.uuid "community_id"
     t.index ["category"], name: "index_essay_assignments_on_category"
     t.index ["code"], name: "index_essay_assignments_on_code", unique: true
@@ -478,6 +479,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_06_084740) do
     t.string "submission_class_number"
     t.uuid "submission_school_id"
     t.uuid "submission_academic_year_id"
+    t.jsonb "revised_essay", default: {}, null: false
     t.index ["essay_assignment_id"], name: "index_essay_gradings_on_essay_assignment_id"
   end
 

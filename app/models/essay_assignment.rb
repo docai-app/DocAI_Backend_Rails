@@ -32,6 +32,32 @@ class EssayAssignment < ApplicationRecord
                  :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level, :sample_essay,
                  :listening
 
+  REVISED_ESSAY_WORKFLOW_MAP = {
+    'discuss_both_views' => 'essay_revised_argumentative_writing_app_key',
+    'outweigh_questions' => 'essay_revised_argumentative_writing_app_key',
+    'discussion_plus_opinion' => 'essay_revised_argumentative_writing_app_key',
+    'causes_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'effects_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'problems_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
+    'causes_and_effects_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'problems_and_solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
+    'compare_and_contrast_essay' => 'essay_revised_compare_and_contrast_writing_app_key'
+  }.freeze
+
+  ESSAY_TYPE_LABELS = {
+    'discuss_both_views' => 'Discuss Both Views (Balanced Discussion)',
+    'outweigh_questions' => 'Outweigh Questions (Argumentative)',
+    'discussion_plus_opinion' => 'Discussion Plus Opinion (Personal Position)',
+    'causes_essay' => 'Causes Essay',
+    'effects_essay' => 'Effects Essay',
+    'problems_essay' => 'Problems Essay',
+    'causes_and_effects_essay' => 'Causes and Effects Essay',
+    'solutions_essay' => 'Solutions Essay',
+    'problems_and_solutions_essay' => 'Problems and Solutions Essay',
+    'compare_and_contrast_essay' => 'Compare and Contrast Essay'
+  }.freeze
+
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening]
 
   before_create :generate_unique_code
@@ -137,6 +163,17 @@ class EssayAssignment < ApplicationRecord
       random_code = SecureRandom.hex(3)
       break random_code unless self.class.exists?(code: random_code)
     end
+  end
+
+  def revised_essay_workflow_app_key
+    env_key = REVISED_ESSAY_WORKFLOW_MAP[essay_type]
+    return nil if env_key.blank?
+
+    ENV[env_key]
+  end
+
+  def revised_essay_type_label
+    ESSAY_TYPE_LABELS[essay_type].presence || essay_type.to_s.humanize
   end
 
   def check_and_generate_vocab_examples

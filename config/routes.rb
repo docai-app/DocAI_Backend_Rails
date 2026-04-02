@@ -73,6 +73,8 @@ Rails.application.routes.draw do
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
           get 'test_email'
+          patch 'teacher_review'
+          patch 'teacher_review_restore'
           get 'download_report'
           get 'download_supplement_practice'
         end
