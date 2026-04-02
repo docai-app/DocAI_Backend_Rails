@@ -1290,12 +1290,11 @@ module Api
             inline_format: true,
             size: 10,
             text_color: palette[:text],
-            valign: :center,
-            leading: 0
+            valign: :top,
+            leading: 2
           }
         ) do
-          cells.style(leading: 0, valign: :center)
-          rows(0..2).style(height: 48)
+          cells.style(valign: :top, leading: 2, min_height: 48)
         end
         pdf.move_down 18
       end
