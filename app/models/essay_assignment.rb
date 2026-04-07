@@ -33,16 +33,16 @@ class EssayAssignment < ApplicationRecord
                  :listening
 
   REVISED_ESSAY_WORKFLOW_MAP = {
-    'discuss_both_views' => 'essay_revised_argumentative_writing_app_key',
-    'outweigh_questions' => 'essay_revised_argumentative_writing_app_key',
-    'discussion_plus_opinion' => 'essay_revised_argumentative_writing_app_key',
-    'causes_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
-    'effects_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
-    'problems_essay' => 'essay_revised_causes_effects_problems_writing_app_key',
-    'causes_and_effects_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
-    'solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
-    'problems_and_solutions_essay' => 'essay_revised_cause_effect_solution_hybrid_writing_app_key',
-    'compare_and_contrast_essay' => 'essay_revised_compare_and_contrast_writing_app_key'
+    'discuss_both_views' => 'app-zEjN5PjYVQLKQcmDFGGAOXZC',
+    'outweigh_questions' => 'app-zEjN5PjYVQLKQcmDFGGAOXZC',
+    'discussion_plus_opinion' => 'app-zEjN5PjYVQLKQcmDFGGAOXZC',
+    'causes_essay' => 'app-x5AG2tZufeO2yT0rIYSPZxlP',
+    'effects_essay' => 'app-x5AG2tZufeO2yT0rIYSPZxlP',
+    'problems_essay' => 'app-x5AG2tZufeO2yT0rIYSPZxlP',
+    'causes_and_effects_essay' => 'app-2Hkxl2VawFTiAOyQUdmoqodE',
+    'solutions_essay' => 'app-2Hkxl2VawFTiAOyQUdmoqodE',
+    'problems_and_solutions_essay' => 'app-2Hkxl2VawFTiAOyQUdmoqodE',
+    'compare_and_contrast_essay' => 'app-EBDukshGNAM6yzaNoN8God3w'
   }.freeze
 
   ESSAY_TYPE_LABELS = {
@@ -167,9 +167,10 @@ class EssayAssignment < ApplicationRecord
 
   def revised_essay_workflow_app_key
     env_key = REVISED_ESSAY_WORKFLOW_MAP[essay_type]
+    # puts "revised_essay_workflow_app_key: #{env_key} #{essay_type}"
     return nil if env_key.blank?
 
-    ENV[env_key]
+    env_key
   end
 
   def revised_essay_type_label

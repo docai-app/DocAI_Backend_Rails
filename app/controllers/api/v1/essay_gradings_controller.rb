@@ -318,8 +318,8 @@ module Api
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
           @essay_grading.general_context ||= {}
           @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
-        end
-
+          @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
+        end 
         if @essay_grading.save
           # 檢查是否有對應的作業分配，如果有則更新分配狀態
           # 只有非草稿狀態的提交才更新分配狀態
