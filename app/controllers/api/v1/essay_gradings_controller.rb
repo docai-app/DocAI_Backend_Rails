@@ -809,6 +809,8 @@ module Api
                 :sentence_id,
                 :position,
                 :sentence_text,
+                :corrected_sentence,
+                :is_correct,
                 {
                   errors: [
                     :error_id,
@@ -2274,6 +2276,12 @@ module Api
                 'sentence_id' => sentence['sentence_id'].presence || "sentence_#{sentence_index}",
                 'position' => sentence['position'].presence || sentence_index,
                 'sentence_text' => sentence['sentence_text'].to_s,
+                'corrected_sentence' => sentence['corrected_sentence'].to_s,
+                'is_correct' => if sentence['is_correct'].nil?
+                                  nil
+                                else
+                                  ActiveModel::Type::Boolean.new.cast(sentence['is_correct'])
+                                end,
                 'errors' => Array(sentence['errors']).filter_map.with_index(1) do |error, error_index|
                   next unless error.is_a?(Hash)
 
@@ -2281,8 +2289,8 @@ module Api
                     'error_id' => error['error_id'].presence || "sentence_#{sentence_index}_error_#{error_index}",
                     'category' => error['category'].to_s,
                     'selected_text' => error['selected_text'].to_s,
-                    'start_index' => error['start_index'].nil? ? nil : error['start_index'].to_i,
-                    'end_index' => error['end_index'].nil? ? nil : error['end_index'].to_i,
+                    'start_index' => error['start_index'].present? ? error['start_index'].to_i : nil,
+                    'end_index' => error['end_index'].present? ? error['end_index'].to_i : nil,
                     'correction' => error['correction'].to_s,
                     'explanation' => error['explanation'].to_s
                   }
