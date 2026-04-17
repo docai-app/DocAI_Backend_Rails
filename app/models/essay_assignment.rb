@@ -33,6 +33,7 @@ class EssayAssignment < ApplicationRecord
                  :listening
 
   REVISED_ESSAY_WORKFLOW_MAP = {
+    'opinion_agree_disagree' => 'app-7504Yy549InHGsKstZgRNjgk',
     'discuss_both_views' => 'app-zEjN5PjYVQLKQcmDFGGAOXZC',
     'outweigh_questions' => 'app-zEjN5PjYVQLKQcmDFGGAOXZC',
     'discussion_plus_opinion' => 'app-zEjN5PjYVQLKQcmDFGGAOXZC',
@@ -46,6 +47,7 @@ class EssayAssignment < ApplicationRecord
   }.freeze
 
   ESSAY_TYPE_LABELS = {
+    'opinion_agree_disagree' => 'Opinion (Agree/Disagree)',
     'discuss_both_views' => 'Discuss Both Views (Balanced Discussion)',
     'outweigh_questions' => 'Outweigh Questions (Argumentative)',
     'discussion_plus_opinion' => 'Discussion Plus Opinion (Personal Position)',
