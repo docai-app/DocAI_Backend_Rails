@@ -268,6 +268,7 @@ class EssayGradingService
       inputs: {
         essay: @essay_grading.essay,
         topic: @essay_grading.topic,
+        essay_type: @essay_grading.essay_assignment.revised_essay_type_label,
         guide: @essay_grading.essay_assignment.revised_essay_type_label
       },
       response_mode: 'blocking',

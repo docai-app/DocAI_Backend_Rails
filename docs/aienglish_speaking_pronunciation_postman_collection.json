@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "5c6c10f3-2ad2-4b46-a1fe-cf7bc1a7d801",
     "name": "AIEnglish Speaking Pronunciation API",
-    "description": "根据 aienglish_speaking_pronunciation_api_guide.md 生成。覆盖登录、用户资料、Assignment Code 校验、speaking_pronunciation 草稿与提交全链路。",
+    "description": "根据 aienglish_speaking_pronunciation_api_guide.md 生成。已补充每条请求的字段说明与示例要点，覆盖登录、鉴权、用户资料、Assignment Code 校验、speaking_pronunciation 草稿/提交/列表查询全链路。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -91,7 +91,7 @@
                 "sign_in.json"
               ]
             },
-            "description": "登录并从响应头 authorization 中提取 token。"
+            "description": "用途：登录并获取 token。\n\n请求体：\n- general_user.email（string，必填）：登录邮箱\n- general_user.password（string，必填）：登录密码\n\n成功后：从响应头 authorization 提取 token 并写入 collection variable `token`。"
           },
           "response": []
         },
@@ -146,7 +146,7 @@
                 "aienglish"
               ]
             },
-            "description": "获取 AIEnglish 角色、功能权限、学校信息。"
+            "description": "用途：获取当前用户资料与权限。\n\n常用返回字段：\n- user.id：用户 ID\n- user.email：邮箱\n- user.nickname：昵称\n- user.meta.aienglish_role：角色\n- user.meta.aienglish_features_list：可用功能列表"
           },
           "response": []
         },
@@ -203,7 +203,7 @@
                 "show_only.json"
               ]
             },
-            "description": "根据输入 code 校验作业是否存在、是否有权限，并返回 category 等基础信息。"
+            "description": "用途：校验 Assignment Code 是否可用，并返回作业基础信息。\n\n常用返回字段：\n- essay_assignment.id\n- essay_assignment.code\n- essay_assignment.category\n- essay_assignment.meta.speaking_pronunciation_pass_score\n- essay_assignment.meta.speaking_pronunciation_sentences"
           },
           "response": []
         }
@@ -235,7 +235,7 @@
                 "show_only.json"
               ]
             },
-            "description": "进入 speaking_pronunciation 上传页时调用。"
+            "description": "用途：进入 speaking_pronunciation 上传页时按 code 拉取 assignment。"
           },
           "response": []
         },
@@ -261,7 +261,7 @@
                 "{{grading_id}}.json"
               ]
             },
-            "description": "编辑草稿页先拿 grading 详情。"
+            "description": "用途：按 grading_id 获取单条作答详情（编辑页首步）。\n\n常用返回字段：\n- essay_grading.id\n- essay_grading.status\n- essay_grading.grading.speaking_pronunciation_sentences\n- essay_grading.essay_assignment"
           },
           "response": []
         },
@@ -288,7 +288,7 @@
                 "read.json"
               ]
             },
-            "description": "编辑草稿页配合 grading 详情再拉 assignment 信息。"
+            "description": "用途：编辑草稿页配合 grading 详情补拉 assignment 信息。"
           },
           "response": []
         }
@@ -328,7 +328,7 @@
                 "essay_gradings.json"
               ]
             },
-            "description": "首次创建 speaking_pronunciation 作答草稿。"
+            "description": "用途：首次创建 speaking_pronunciation 作答（草稿）。\n\n请求体关键字段：\n- essay_grading.status：draft 或 pending\n- essay_grading.grading.speaking_pronunciation_sentences[]：句子作答数组\n- sentence / speaking_times / score / result（建议保留 result.origin_data 便于排查）"
           },
           "response": []
         },
@@ -363,7 +363,7 @@
                 "essay_gradings.json"
               ]
             },
-            "description": "首次直接提交。"
+            "description": "用途：首次创建并直接提交（status=pending）。\n\n请求体结构同 Create Draft，只是 essay_grading.status 改为 pending。"
           },
           "response": []
         },
@@ -396,7 +396,8 @@
                 "essay_gradings",
                 "{{grading_id}}.json"
               ]
-            }
+            },
+            "description": "用途：按 grading_id 更新草稿（status=draft）。\n\n请求体结构同创建接口。常用于用户二次编辑后保存。"
           },
           "response": []
         },
@@ -429,17 +430,18 @@
                 "essay_gradings",
                 "{{grading_id}}.json"
               ]
-            }
+            },
+            "description": "用途：按 grading_id 更新并提交（status=pending）。\n\n请求体结构同更新草稿，仅 status 改为 pending。"
           },
           "response": []
         }
       ]
     },
     {
-      "name": "06 Draft List (speaking_pronunciation only)",
+      "name": "06 Grading List (speaking_pronunciation)",
       "item": [
         {
-          "name": "Get Draft List by Category + Status",
+          "name": "Get List by Category (All Status / Filter by Status)",
           "request": {
             "method": "GET",
             "header": [
@@ -449,7 +451,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/essay_gradings.json?category=speaking_pronunciation&status=draft&page=1&count=25",
+              "raw": "{{base_url}}/api/v1/essay_gradings.json?category=speaking_pronunciation&page=1&count=25",
               "host": [
                 "{{base_url}}"
               ],
@@ -465,7 +467,9 @@
                 },
                 {
                   "key": "status",
-                  "value": "draft"
+                  "value": "",
+                  "description": "可选：draft/pending/graded/stopped；不传或留空表示全部状态",
+                  "disabled": true
                 },
                 {
                   "key": "page",
@@ -477,7 +481,7 @@
                 }
               ]
             },
-            "description": "获取仅属于 speaking_pronunciation 且 draft 状态的数据。"
+            "description": "用途：获取 speaking_pronunciation 的作答记录列表。\n\nQuery 参数说明：\n- category（可选）：例如 speaking_pronunciation\n- status（可选）：draft/pending/graded/stopped\n  - 不传（或留空）= 返回全部状态\n  - 传具体状态 = 仅返回该状态\n- assignment_name（可选）：作业名模糊搜索\n- page（可选）：默认 1\n- count（可选）：默认 10\n\n常用返回字段：\n- essay_gradings[].id/topic/status/assignment_name/category/using_time/newsfeed_id\n- meta.current_page/next_page/prev_page/total_pages/total_count"
           },
           "response": []
         }

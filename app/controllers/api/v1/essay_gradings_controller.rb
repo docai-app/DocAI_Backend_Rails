@@ -319,6 +319,7 @@ module Api
           @essay_grading.general_context ||= {}
           @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
           @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
+          @essay_grading.revised_essay['essay_type'] = @essay_assignment.revised_essay_type_label
         end 
         if @essay_grading.save
           # 檢查是否有對應的作業分配，如果有則更新分配狀態
@@ -585,6 +586,7 @@ module Api
             grading.general_context['app_key'] = essay_assignment.rubric['app_key']['general_context']
             grading.revised_essay ||= {}
             grading.revised_essay['app_key'] = essay_assignment.revised_essay_workflow_app_key
+            grading.revised_essay['essay_type'] = essay_assignment.revised_essay_type_label
           end
 
           if grading.save
