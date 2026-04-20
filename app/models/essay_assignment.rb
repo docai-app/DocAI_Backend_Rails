@@ -60,6 +60,20 @@ class EssayAssignment < ApplicationRecord
     'compare_and_contrast_essay' => 'Compare and Contrast Essay'
   }.freeze
 
+  ESSAY_TYPE_LABELS_WITH_NUMBER = {
+    'opinion_agree_disagree' => 'Essay Type 1: Opinion (Agree/Disagree)',
+    'discuss_both_views' => 'Essay Type 2: Discuss Both Views (Balanced Discussion)',
+    'outweigh_questions' => 'Essay Type 3: Outweigh Questions (Argumentative)',
+    'discussion_plus_opinion' => 'Essay Type 4: Discussion Plus Opinion (Personal Position)',
+    'causes_essay' => 'Essay Type 5: Causes Essay',
+    'effects_essay' => 'Essay Type 6: Effects Essay',
+    'problems_essay' => 'Essay Type 7: Problems Essay',
+    'causes_and_effects_essay' => 'Essay Type 8: Causes and Effects Essay',
+    'solutions_essay' => 'Essay Type 9: Solutions Essay',
+    'problems_and_solutions_essay' => 'Essay Type 10: Problems and Solutions Essay',
+    'compare_and_contrast_essay' => 'Essay Type 11: Compare and Contrast Essay'
+  }.freeze
+
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening]
 
   before_create :generate_unique_code
@@ -177,6 +191,10 @@ class EssayAssignment < ApplicationRecord
 
   def revised_essay_type_label
     ESSAY_TYPE_LABELS[essay_type].presence || essay_type.to_s.humanize
+  end
+
+  def revised_essay_type_label_with_number
+    ESSAY_TYPE_LABELS_WITH_NUMBER[essay_type].presence || essay_type.to_s.humanize
   end
 
   def check_and_generate_vocab_examples
