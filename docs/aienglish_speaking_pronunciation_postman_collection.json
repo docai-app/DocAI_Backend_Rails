@@ -1,0 +1,491 @@
+{
+  "info": {
+    "_postman_id": "5c6c10f3-2ad2-4b46-a1fe-cf7bc1a7d801",
+    "name": "AIEnglish Speaking Pronunciation API",
+    "description": "根据 aienglish_speaking_pronunciation_api_guide.md 生成。已补充每条请求的字段说明与示例要点，覆盖登录、鉴权、用户资料、Assignment Code 校验、speaking_pronunciation 草稿/提交/列表查询全链路。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "student@example.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "your_password",
+      "type": "string"
+    },
+    {
+      "key": "assignment_code",
+      "value": "abc-mnop-xyz",
+      "type": "string"
+    },
+    {
+      "key": "assignment_id",
+      "value": "123",
+      "type": "string"
+    },
+    {
+      "key": "grading_id",
+      "value": "999",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Auth",
+      "item": [
+        {
+          "name": "Login - Get Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const authHeader = pm.response.headers.get('authorization');",
+                  "if (authHeader) {",
+                  "    pm.collectionVariables.set('token', authHeader);",
+                  "    console.log('Token saved to collection variable: token');",
+                  "} else {",
+                  "    console.warn('No authorization header found in response');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"general_user\": {\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/general_users/sign_in.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "general_users",
+                "sign_in.json"
+              ]
+            },
+            "description": "用途：登录并获取 token。\n\n请求体：\n- general_user.email（string，必填）：登录邮箱\n- general_user.password（string，必填）：登录密码\n\n成功后：从响应头 authorization 提取 token 并写入 collection variable `token`。"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/general_users/sign_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "general_users",
+                "sign_out"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 User Profile",
+      "item": [
+        {
+          "name": "Get AIEnglish Profile (Recommended)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/general_users/me/aienglish",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "general_users",
+                "me",
+                "aienglish"
+              ]
+            },
+            "description": "用途：获取当前用户资料与权限。\n\n常用返回字段：\n- user.id：用户 ID\n- user.email：邮箱\n- user.nickname：昵称\n- user.meta.aienglish_role：角色\n- user.meta.aienglish_features_list：可用功能列表"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User (Basic)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/general_users/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "general_users",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 Assignment Code Validation",
+      "item": [
+        {
+          "name": "Validate Assignment Code (show_only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_assignments/{{assignment_code}}/show_only.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_assignments",
+                "{{assignment_code}}",
+                "show_only.json"
+              ]
+            },
+            "description": "用途：校验 Assignment Code 是否可用，并返回作业基础信息。\n\n常用返回字段：\n- essay_assignment.id\n- essay_assignment.code\n- essay_assignment.category\n- essay_assignment.meta.speaking_pronunciation_pass_score\n- essay_assignment.meta.speaking_pronunciation_sentences"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 Speaking Pronunciation - Assignment / Grading Read",
+      "item": [
+        {
+          "name": "Get Assignment by Code (Upload Page)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_assignments/{{assignment_code}}/show_only.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_assignments",
+                "{{assignment_code}}",
+                "show_only.json"
+              ]
+            },
+            "description": "用途：进入 speaking_pronunciation 上传页时按 code 拉取 assignment。"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Draft/Submission Detail by Grading ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_gradings/{{grading_id}}.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_gradings",
+                "{{grading_id}}.json"
+              ]
+            },
+            "description": "用途：按 grading_id 获取单条作答详情（编辑页首步）。\n\n常用返回字段：\n- essay_grading.id\n- essay_grading.status\n- essay_grading.grading.speaking_pronunciation_sentences\n- essay_grading.essay_assignment"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Assignment by ID (Read)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_assignments/{{assignment_id}}/read.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_assignments",
+                "{{assignment_id}}",
+                "read.json"
+              ]
+            },
+            "description": "用途：编辑草稿页配合 grading 详情补拉 assignment 信息。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 Speaking Pronunciation - Create / Update",
+      "item": [
+        {
+          "name": "Create Draft (POST by Assignment Code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"essay_grading\": {\n    \"status\": \"draft\",\n    \"grading\": {\n      \"speaking_pronunciation_sentences\": [\n        {\n          \"sentence\": \"I like apples.\",\n          \"speaking_times\": 1,\n          \"score\": 92,\n          \"result\": {\n            \"pronunciation_accuracy\": 92,\n            \"real_transcript\": \"I like apples.\",\n            \"ipa_transcript\": \"aɪ laɪk ˈæpəlz\"\n          }\n        }\n      ]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_assignments/{{assignment_code}}/essay_gradings.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_assignments",
+                "{{assignment_code}}",
+                "essay_gradings.json"
+              ]
+            },
+            "description": "用途：首次创建 speaking_pronunciation 作答（草稿）。\n\n请求体关键字段：\n- essay_grading.status：draft 或 pending\n- essay_grading.grading.speaking_pronunciation_sentences[]：句子作答数组\n- sentence / speaking_times / score / result（建议保留 result.origin_data 便于排查）"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Submit (POST status=pending)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"essay_grading\": {\n    \"status\": \"pending\",\n    \"grading\": {\n      \"speaking_pronunciation_sentences\": [\n        {\n          \"sentence\": \"I like apples.\",\n          \"speaking_times\": 1,\n          \"score\": 92,\n          \"result\": {\n            \"pronunciation_accuracy\": 92,\n            \"real_transcript\": \"I like apples.\",\n            \"ipa_transcript\": \"aɪ laɪk ˈæpəlz\"\n          }\n        }\n      ]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_assignments/{{assignment_code}}/essay_gradings.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_assignments",
+                "{{assignment_code}}",
+                "essay_gradings.json"
+              ]
+            },
+            "description": "用途：首次创建并直接提交（status=pending）。\n\n请求体结构同 Create Draft，只是 essay_grading.status 改为 pending。"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Draft (PUT by Grading ID)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"essay_grading\": {\n    \"status\": \"draft\",\n    \"grading\": {\n      \"speaking_pronunciation_sentences\": [\n        {\n          \"sentence\": \"I like apples.\",\n          \"speaking_times\": 2,\n          \"score\": 95,\n          \"result\": {\n            \"pronunciation_accuracy\": 95,\n            \"real_transcript\": \"I really like apples.\",\n            \"ipa_transcript\": \"aɪ ˈrɪəli laɪk ˈæpəlz\"\n          }\n        }\n      ]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_gradings/{{grading_id}}.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_gradings",
+                "{{grading_id}}.json"
+              ]
+            },
+            "description": "用途：按 grading_id 更新草稿（status=draft）。\n\n请求体结构同创建接口。常用于用户二次编辑后保存。"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Submit (PUT status=pending)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"essay_grading\": {\n    \"status\": \"pending\",\n    \"grading\": {\n      \"speaking_pronunciation_sentences\": [\n        {\n          \"sentence\": \"I like apples.\",\n          \"speaking_times\": 2,\n          \"score\": 95,\n          \"result\": {\n            \"pronunciation_accuracy\": 95,\n            \"real_transcript\": \"I really like apples.\",\n            \"ipa_transcript\": \"aɪ ˈrɪəli laɪk ˈæpəlz\"\n          }\n        }\n      ]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_gradings/{{grading_id}}.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_gradings",
+                "{{grading_id}}.json"
+              ]
+            },
+            "description": "用途：按 grading_id 更新并提交（status=pending）。\n\n请求体结构同更新草稿，仅 status 改为 pending。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 Grading List (speaking_pronunciation)",
+      "item": [
+        {
+          "name": "Get List by Category (All Status / Filter by Status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/essay_gradings.json?category=speaking_pronunciation&page=1&count=25",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "essay_gradings.json"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "speaking_pronunciation"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "可选：draft/pending/graded/stopped；不传或留空表示全部状态",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "count",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "用途：获取 speaking_pronunciation 的作答记录列表。\n\nQuery 参数说明：\n- category（可选）：例如 speaking_pronunciation\n- status（可选）：draft/pending/graded/stopped\n  - 不传（或留空）= 返回全部状态\n  - 传具体状态 = 仅返回该状态\n- assignment_name（可选）：作业名模糊搜索\n- page（可选）：默认 1\n- count（可选）：默认 10\n\n常用返回字段：\n- essay_gradings[].id/topic/status/assignment_name/category/using_time/newsfeed_id\n- meta.current_page/next_page/prev_page/total_pages/total_count"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
