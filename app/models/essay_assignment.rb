@@ -43,7 +43,9 @@ class EssayAssignment < ApplicationRecord
     'causes_and_effects_essay' => 'app-2Hkxl2VawFTiAOyQUdmoqodE',
     'solutions_essay' => 'app-2Hkxl2VawFTiAOyQUdmoqodE',
     'problems_and_solutions_essay' => 'app-2Hkxl2VawFTiAOyQUdmoqodE',
-    'compare_and_contrast_essay' => 'app-EBDukshGNAM6yzaNoN8God3w'
+    'compare_and_contrast_essay' => 'app-EBDukshGNAM6yzaNoN8God3w',
+    'descriptive_essay' => 'app-Sx65owgHtosF35QOsjToIM7y',
+    'narrative_essay' => 'app-uQUCNy9WxiVE2tapyUgmQkkz'
   }.freeze
 
   ESSAY_TYPE_LABELS = {
@@ -57,7 +59,9 @@ class EssayAssignment < ApplicationRecord
     'causes_and_effects_essay' => 'Causes and Effects Essay',
     'solutions_essay' => 'Solutions Essay',
     'problems_and_solutions_essay' => 'Problems and Solutions Essay',
-    'compare_and_contrast_essay' => 'Compare and Contrast Essay'
+    'compare_and_contrast_essay' => 'Compare and Contrast Essay',
+    'descriptive_essay' => 'Descriptive Essay',
+    'narrative_essay' => 'Narrative Essay'
   }.freeze
 
   ESSAY_TYPE_LABELS_WITH_NUMBER = {
@@ -71,7 +75,9 @@ class EssayAssignment < ApplicationRecord
     'causes_and_effects_essay' => 'Essay Type 8: Causes and Effects Essay',
     'solutions_essay' => 'Essay Type 9: Solutions Essay',
     'problems_and_solutions_essay' => 'Essay Type 10: Problems and Solutions Essay',
-    'compare_and_contrast_essay' => 'Essay Type 11: Compare and Contrast Essay'
+    'compare_and_contrast_essay' => 'Essay Type 11: Compare and Contrast Essay',
+    'descriptive_essay' => 'Essay Type: Descriptive Essay',
+    'narrative_essay' => 'Essay Type: Narrative Essay'
   }.freeze
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening]
