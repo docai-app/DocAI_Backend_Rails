@@ -97,6 +97,10 @@ class GeneralUser < ApplicationRecord
   has_many :visits, class_name: 'Ahoy::Visit', dependent: :nullify # 或 :destroy，取決於您的數據保留策略
   has_many :events, class_name: 'Ahoy::Event', dependent: :nullify # 或 :destroy
 
+  scope :school_admins, lambda {
+    where("meta->>'aienglish_role' = ?", SchoolPortal::AIENGLISH_ROLE_SCHOOL_ADMIN)
+  }
+
   scope :search_query, lambda { |query|
     return nil if query.blank?
 
@@ -123,8 +127,9 @@ class GeneralUser < ApplicationRecord
     {
       'sub' => id,
       'iat' => Time.now.to_i,
-      'email' => email
-    }
+      'email' => email,
+      'scp' => (school_admin? ? 'school_admin' : nil)
+    }.compact
   end
 
   def consume_energy(marketplace_item_id, energy_cost)
@@ -241,6 +246,14 @@ class GeneralUser < ApplicationRecord
   # 確認是否具備AI English功能
   def aienglish_user?
     meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
+  end
+
+  def school_admin?
+    meta['aienglish_role'] == SchoolPortal::AIENGLISH_ROLE_SCHOOL_ADMIN
+  end
+
+  def portal_school_admin?
+    school_admin? && school_id.present?
   end
 
   # 獲取指定日期的班級信息
@@ -540,6 +553,8 @@ class GeneralUser < ApplicationRecord
   private
 
   def aienglish_features_must_be_valid
+    return if school_admin?
+
     # 確保 features list 存在於 meta 並且是合法的
     invalid_features = aienglish_features_list - VALID_AI_ENGLISH_FEATURES
     return if invalid_features.empty?

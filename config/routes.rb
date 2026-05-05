@@ -546,6 +546,35 @@ Rails.application.routes.draw do
 
         # Activity Logs for Admin
         resources :activity_logs, only: [:index]
+
+        resources :school_admin_accounts, only: %i[index create] do
+          member do
+            patch :toggle_status
+          end
+        end
+      end
+    end
+
+    %w[school school_admin].each do |school_portal_segment|
+      scope path: school_portal_segment, module: 'school' do
+        namespace :v1 do
+          post 'session', to: 'sessions#create'
+          delete 'session', to: 'sessions#destroy'
+          get 'snapshot', to: 'snapshots#show'
+          get 'me', to: 'profiles#show'
+          resources :students, only: %i[index show] do
+            member do
+              post :reset_password
+            end
+          end
+          resources :assignments, only: %i[index show] do
+            member do
+              get :submissions
+            end
+          end
+          resources :submissions, only: [:show]
+          resources :audit_logs, only: %i[index create]
+        end
       end
     end
 
