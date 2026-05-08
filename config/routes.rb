@@ -562,6 +562,8 @@ Rails.application.routes.draw do
           delete 'session', to: 'sessions#destroy'
           get 'snapshot', to: 'snapshots#show'
           get 'me', to: 'profiles#show'
+          resources :academic_years, only: [:index]
+          resources :teachers, only: [:index]
           resources :students, only: %i[index show] do
             member do
               post :reset_password

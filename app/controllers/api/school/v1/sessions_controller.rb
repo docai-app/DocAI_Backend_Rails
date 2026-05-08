@@ -13,6 +13,7 @@ module Api
           email = params[:email].to_s.strip.downcase
           password = params[:password].to_s
           user = GeneralUser.find_for_database_authentication(email: email)
+          puts "user: #{email} #{password} #{user.inspect}"
 
           unless user&.active_for_authentication? && user.valid_password?(password) && user.portal_school_admin?
             return render json: { success: false, error: 'Invalid email or password.' }, status: :unauthorized
