@@ -11,6 +11,7 @@ module SchoolPortal
     student_password_reset
     student_viewed
     assignment_list_viewed
+    assignment_statistics_viewed
     assignment_viewed
     submission_viewed
     audit_log_client_event

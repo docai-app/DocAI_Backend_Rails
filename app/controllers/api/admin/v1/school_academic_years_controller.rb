@@ -25,7 +25,7 @@ module Api
         # @param academic_year [Hash] 學年信息
         # @return [JSON] 新創建的學年信息
         def create
-          school = School.find_by(code: params[:school_code])
+          school = ::School.find_by(code: params[:school_code])
 
           unless school
             return render json: {

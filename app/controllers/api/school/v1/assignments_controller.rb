@@ -6,6 +6,52 @@ module Api
       class AssignmentsController < SchoolApiController
         before_action :set_scoped_assignment, only: %i[show submissions]
 
+        # GET .../assignments/statistics — 本校教師所創作業的聚合統計
+        def statistics
+          scope = assignments_scope
+          total_assignments = scope.count
+
+          assignment_ids = scope.select(:id)
+          total_submissions = EssayGrading.where(essay_assignment_id: assignment_ids).count
+
+          recent_since = 1.month.ago
+          recent_assignments = scope.where('essay_assignments.created_at >= ?', recent_since).count
+
+          avg_submissions = total_assignments.positive? ? (total_submissions.to_f / total_assignments).round(2) : 0.0
+
+          category_stats = Hash.new(0)
+          scope.group(:category).count.each do |key, count|
+            label = key.presence || '未分類'
+            category_stats[label] += count
+          end
+          category_stats = category_stats.to_h
+
+          total_cats = category_stats.values.sum.to_f
+          category_percentages = category_stats.transform_values do |c|
+            total_cats.positive? ? ((c / total_cats) * 100).round(1) : 0.0
+          end
+
+          SchoolPortal::AuditLogger.log!(
+            actor: current_general_user,
+            school: current_school,
+            action: 'assignment_statistics_viewed',
+            request: request
+          )
+
+          render json: {
+            success: true,
+            data: {
+              total_assignments: total_assignments,
+              total_submissions: total_submissions,
+              recent_assignments: recent_assignments,
+              recent_assignments_period_days: 30,
+              avg_submissions_per_assignment: avg_submissions,
+              category_stats: category_stats,
+              category_percentages: category_percentages
+            }
+          }, status: :ok
+        end
+
         def index
           scope = assignments_scope.includes(:general_user, :essay_gradings)
 
@@ -89,6 +135,7 @@ module Api
         end
 
         def submissions
+          assignment_category = @essay_assignment.category
           subs = @essay_assignment.essay_gradings.includes(:general_user)
 
           subs = subs.where(status: params[:status]) if params[:status].present?
@@ -126,24 +173,44 @@ module Api
           subs = subs.page(page).per(per_page)
 
           submissions_data = subs.map do |submission|
-            {
+            gu = submission.general_user
+            core = EssayGradingSubmissionPayloadBuilder.call(submission, assignment_category: assignment_category)
+
+            row = {
               id: submission.id,
               status: submission.status,
-              score: submission.score,
               using_time: submission.using_time,
               created_at: submission.created_at,
               updated_at: submission.updated_at,
               student: {
-                id: submission.general_user.id,
-                nickname: submission.general_user.nickname,
-                email: submission.general_user.email,
-                class_name: submission.general_user.banbie,
-                class_no: submission.general_user.class_no
+                id: gu.id,
+                nickname: gu.nickname,
+                email: gu.email,
+                class_name: gu.banbie,
+                class_no: gu.class_no
               },
               submission_class_name: submission.submission_class_name,
               submission_class_number: submission.submission_class_number,
-              meta: submission.meta
+              meta: submission.meta,
+              category: assignment_category
             }
+
+            if core
+              row[:newsfeed_id] = core[:newsfeed_id]
+              row[:number_of_suggestion] = core[:number_of_suggestion]
+              row[:questions_count] = core[:questions_count]
+              row[:play_count] = core[:play_count]
+              row[:full_score] = core[:full_score]
+              row[:the_full_score] = core[:the_full_score]
+              row[:overall_score] = core[:overall_score]
+              row[:scores] = core[:scores]
+              row[:score] = core[:score]
+            else
+              row[:scores] = {}
+              row[:score] = submission.score
+            end
+
+            row
           end
 
           render json: {

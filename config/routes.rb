@@ -547,7 +547,7 @@ Rails.application.routes.draw do
         # Activity Logs for Admin
         resources :activity_logs, only: [:index]
 
-        resources :school_admin_accounts, only: %i[index create] do
+        resources :school_admin_accounts, only: %i[index create update] do
           member do
             patch :toggle_status
           end
@@ -570,6 +570,9 @@ Rails.application.routes.draw do
             end
           end
           resources :assignments, only: %i[index show] do
+            collection do
+              get :statistics
+            end
             member do
               get :submissions
             end

@@ -26,7 +26,7 @@ module Api
         end
 
         def create
-          school = School.find(params.require(:school_id))
+          school = ::School.find(params.require(:school_id))
           email = params.require(:email).to_s.strip.downcase
           password = params.require(:password)
 
@@ -54,6 +54,37 @@ module Api
           render json: { success: false, error: 'School not found' }, status: :not_found
         end
 
+        def update
+          user = GeneralUser.school_admins.find(params[:id])
+
+          if params.key?(:school_id)
+            sid = params[:school_id]
+            if sid.blank?
+              render json: { success: false, error: 'school_id cannot be blank' }, status: :unprocessable_entity
+              return
+            end
+
+            school = ::School.find(sid)
+            user.school_id = school.id
+          end
+
+          user.email = params[:email].to_s.strip.downcase if params[:email].present?
+          user.nickname = params[:nickname] if params.key?(:nickname)
+
+          if params[:password].present?
+            user.password = params[:password]
+            user.password_confirmation = params[:password]
+          end
+
+          user.save!
+
+          render json: { success: true, data: { account: account_json(user.reload) } }, status: :ok
+        rescue ActiveRecord::RecordNotFound
+          render json: { success: false, error: 'Account or school not found' }, status: :not_found
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
+        end
+
         def toggle_status
           user = GeneralUser.school_admins.find(params[:id])
           if user.locked_at.present?
@@ -77,6 +108,8 @@ module Api
             email: user.email,
             nickname: user.nickname,
             school_id: user.school_id,
+            school_name: user.school&.name,
+            school_code: user.school&.code,
             locked_at: user.locked_at,
             active: user.locked_at.blank?,
             created_at: user.created_at
