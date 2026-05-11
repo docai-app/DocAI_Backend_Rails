@@ -35,6 +35,7 @@ require_dependency 'has_kg_linker'
 class GeneralUser < ApplicationRecord
   # Include Ahoy::Model for tracking events related to the user
   include Ahoy::Model
+  include HasWechatMiniprogramBinding
 
   self.primary_key = 'id'
 

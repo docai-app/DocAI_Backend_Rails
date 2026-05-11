@@ -429,6 +429,9 @@ Rails.application.routes.draw do
           delete 'me/recovery_email', to: 'user_recovery_emails#destroy'
           post 'me/recovery_email/resend_confirmation', to: 'user_recovery_emails#resend_confirmation'
           get 'me/recovery_email_confirmation', to: 'recovery_email_confirmations#show'
+          post 'wechat_miniprogram/bind', to: 'wechat_miniprogram#bind'
+          post 'wechat_miniprogram/login', to: 'wechat_miniprogram#login'
+          get 'wechat_miniprogram/binding', to: 'wechat_miniprogram#binding'
         end
       end
 

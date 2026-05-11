@@ -324,6 +324,7 @@ Devise.setup do |config|
       ['POST', %r{^/users/sign_in.json$}],
       ['POST', %r{^/general_users/sign_in$}],
       ['POST', %r{^/general_users/sign_in.json$}],
+      ['POST', %r{^/api/v1/general_users/wechat_miniprogram/login(\.json)?$}],
       ['POST', %r{^/api/school/v1/session(\.json)?$}],
       ['POST', %r{^/api/school_admin/v1/session(\.json)?$}]
     ]
