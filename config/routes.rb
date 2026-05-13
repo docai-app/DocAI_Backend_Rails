@@ -524,7 +524,7 @@ Rails.application.routes.draw do
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
 
-        # Essay Assignments Management for Admin
+        # Essay Assignments Management for Admin,index
         resources :essay_assignments, only: %i[index show update] do
           member do
             get :submissions
