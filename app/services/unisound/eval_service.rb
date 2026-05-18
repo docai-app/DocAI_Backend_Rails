@@ -93,14 +93,14 @@ module Unisound
       appkey = ENV['UNISOUND_APPKEY']&.strip
       return appkey if appkey.present?
 
-      if Rails.env.production?
-        raise Error.new(
-          'Server configuration is missing UniSound credentials.',
-          http_status: 503,
-          failure_kind: 'config',
-          request_id: @request_id
-        )
-      end
+      # if Rails.env.production?
+      #   raise Error.new(
+      #     'Server configuration is missing UniSound credentials.',
+      #     http_status: 503,
+      #     failure_kind: 'config',
+      #     request_id: @request_id
+      #   )
+      # end
 
       DEFAULT_APPKEY
     end
