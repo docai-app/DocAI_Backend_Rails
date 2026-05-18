@@ -223,10 +223,17 @@ module Api
         grading_json = effective_score_sentences(@essay_grading)
         score_payload = extract_essay_report_score_payload(grading_json)
         scores = extract_scores_from_sentences(grading_json)
+        speaking_report_scores = speaking_report_scores(@essay_grading)
 
-        if @essay_grading.category == 'comprehension'
-          score = @essay_grading.grading.dig('comprehension', 'score'),
-                  full_score = @essay_grading.grading.dig('comprehension', 'full_score')
+        if @essay_grading.category == 'speaking_essay' && speaking_report_scores.present?
+          score = speaking_report_scores['overall_band_score'] ||
+                  @essay_grading.grading['overall_score'] ||
+                  @essay_grading['score']
+          full_score = @essay_grading.grading['full_score'] || 9
+          scores = speaking_report_scores
+        elsif @essay_grading.category == 'comprehension'
+          score = @essay_grading.grading.dig('comprehension', 'score')
+          full_score = @essay_grading.grading.dig('comprehension', 'full_score')
         elsif @essay_grading.category == 'listening'
           score = @essay_grading.grading.dig('listening', 'score')
           full_score = @essay_grading.grading.dig('listening', 'full_score')
@@ -251,6 +258,7 @@ module Api
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count') || @essay_grading.grading.dig('listening', 'questions_count'),
             full_score:,
             score:,
+            overall_score: score,
             scores:,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
@@ -306,10 +314,19 @@ module Api
 
       def create
         set_essay_assignment_by_code
+        return if performed?
 
         # puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
 
-        @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
+        grading_params = essay_grading_params
+        prepared_attachment = prepare_audio_attachment_for_persistence(
+          category: @essay_assignment.category,
+          uploaded_file: grading_params[:file]
+        )
+
+        @essay_grading = @essay_assignment.essay_gradings.new(
+          essay_grading_attributes_for_persistence(@essay_assignment.category, grading_params)
+        )
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
@@ -318,9 +335,23 @@ module Api
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
           @essay_grading.general_context ||= {}
           @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+          @essay_grading.revised_essay ||= {}
           @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
-        end 
-        if @essay_grading.save
+        end
+
+        begin
+          EssayGrading.transaction do
+            @essay_grading.save!
+            persist_uploaded_attachment!(
+              essay_grading: @essay_grading,
+              category: @essay_assignment.category,
+              uploaded_file: grading_params[:file],
+              prepared_attachment:
+            )
+          end
+
+          run_speaking_essay_workflow_after_attachment(@essay_grading, force: true)
+
           # 檢查是否有對應的作業分配，如果有則更新分配狀態
           # 只有非草稿狀態的提交才更新分配狀態
           update_assignment_status_if_needed unless @essay_grading.status == 'draft'
@@ -333,9 +364,13 @@ module Api
           #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
           # end
           render json: { success: true, essay_grading: @essay_grading }, status: :created
-        else
+        rescue ActiveRecord::RecordInvalid
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
         end
+      ensure
+        prepared_attachment&.close!
       end
 
       def teacher_review
@@ -655,6 +690,11 @@ module Api
             update_assignment_status_if_needed
           end
 
+          run_speaking_essay_workflow_after_attachment(
+            @essay_grading,
+            force: grading_params[:file].present?
+          )
+
           render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :ok
         rescue ActiveRecord::RecordInvalid
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
@@ -837,26 +877,32 @@ module Api
       end
 
       def essay_grading_attributes_for_persistence(category, grading_params)
-        category == 'speaking_essay' ? grading_params.except(:file) : grading_params
+        grading_params.except(:file)
       end
 
       def prepare_audio_attachment_for_persistence(category:, uploaded_file:)
         return nil unless category == 'speaking_essay'
-        return nil if uploaded_file.blank?
 
-        SpeakingAudioAttachmentNormalizerService.normalize_uploaded_file(uploaded_file)
+        # Deepgram and Dify can receive common browser audio directly. Azure is handled
+        # in the scoring worker, so the request path should not depend on ffmpeg.
+        nil
       end
 
       def persist_uploaded_attachment!(essay_grading:, category:, uploaded_file:, prepared_attachment:)
         if category == 'speaking_essay'
-          return if prepared_attachment.nil?
+          if uploaded_file.blank?
+            if essay_grading.status != 'draft' && !essay_grading.file.attached?
+              essay_grading.errors.add(:file, 'is required for speaking essay submission')
+              raise ActiveRecord::RecordInvalid.new(essay_grading)
+            end
+
+            return
+          end
 
           essay_grading.file.attach(
-            io: prepared_attachment.tempfile,
-            filename: prepared_attachment.filename,
-            content_type: prepared_attachment.content_type
+            uploaded_file
           )
-          raise 'Failed to attach normalized speaking essay audio.' unless essay_grading.file.attached?
+          raise 'Failed to attach speaking essay audio.' unless essay_grading.file.attached?
           return
         end
 
@@ -867,10 +913,17 @@ module Api
       end
 
       def should_normalize_existing_speaking_attachment?(essay_grading, grading_params)
-        essay_grading.category == 'speaking_essay' &&
-          grading_params[:file].blank? &&
-          essay_grading.file.attached? &&
-          essay_grading.file.blob.content_type.to_s != 'audio/mp3'
+        false
+      end
+
+      def run_speaking_essay_workflow_after_attachment(essay_grading, force: false)
+        return unless essay_grading.category == 'speaking_essay'
+        return if essay_grading.status == 'draft'
+        return unless force ||
+                      (essay_grading.saved_change_to_status? &&
+                       essay_grading.status_before_last_save == 'draft')
+
+        essay_grading.run_workflow
       end
 
       def pagination_meta(object)
@@ -2415,6 +2468,14 @@ module Api
             result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
           end
         end
+      end
+
+      def speaking_report_scores(essay_grading)
+        scores = essay_grading.grading.dig('speaking_report', 'scores') ||
+                 essay_grading.grading['speaking_scores'] ||
+                 essay_grading.grading['scores']
+
+        scores.is_a?(Hash) ? scores.deep_stringify_keys : {}
       end
 
       def effective_score_sentences(essay_grading)

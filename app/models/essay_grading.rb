@@ -127,12 +127,15 @@ class EssayGrading < ApplicationRecord
 
   # 建立時，如果是需要跑 workflow 的類型，且不是 draft，就直接排隊跑工作流
   def should_run_workflow_on_create?
+    return false if category == 'speaking_essay'
+
     need_to_run_workflow? && !draft?
   end
 
   # 從 draft 轉成非 draft（例如 pending）時，才觸發一次工作流
   # 這樣「保存草稿」不會批改，「正式提交」才會批改
   def should_run_workflow_on_submit?
+    return false if category == 'speaking_essay'
     return false unless need_to_run_workflow?
     return false unless saved_change_to_status?
 
@@ -182,7 +185,12 @@ class EssayGrading < ApplicationRecord
   end
 
   def run_workflow_sync
-    transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
+    if category == 'speaking_essay'
+      SpeakingEssay::AudioAnalysisService.new(self).call
+      reload
+    else
+      transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
+    end
     EssayGradingService.new(general_user_id, self).run_workflows
   end
 
@@ -515,6 +523,16 @@ class EssayGrading < ApplicationRecord
     elsif category == 'sentence_builder'
       payload[:record]['Full Score'] = grading['full_score']
       payload[:record][:Score] = grading['score']
+    elsif category == 'speaking_essay'
+      speaking_scores = grading.dig('speaking_report', 'scores') || grading['scores'] || {}
+      payload[:record]['Full Score'] = grading['full_score'] || 9
+      payload[:record][:Score] = speaking_scores['overall_band_score'] || grading['overall_score'] || score
+      payload[:record][:Rubric] = essay_assignment.rubric['name']
+      speaking_scores.each do |criterion_name, criterion_value|
+        next if criterion_name == 'overall_band_score'
+
+        payload[:record][criterion_name] = criterion_value
+      end
     else
       grading_data = JSON.parse(grading['data']['text'])
       payload[:record][:Score] = grading_data['Overall Score']
