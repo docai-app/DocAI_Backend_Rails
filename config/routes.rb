@@ -429,6 +429,9 @@ Rails.application.routes.draw do
           delete 'me/recovery_email', to: 'user_recovery_emails#destroy'
           post 'me/recovery_email/resend_confirmation', to: 'user_recovery_emails#resend_confirmation'
           get 'me/recovery_email_confirmation', to: 'recovery_email_confirmations#show'
+          post 'wechat_miniprogram/bind', to: 'wechat_miniprogram#bind'
+          post 'wechat_miniprogram/login', to: 'wechat_miniprogram#login'
+          get 'wechat_miniprogram/binding', to: 'wechat_miniprogram#binding'
         end
       end
 
@@ -521,7 +524,7 @@ Rails.application.routes.draw do
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
 
-        # Essay Assignments Management for Admin
+        # Essay Assignments Management for Admin,index
         resources :essay_assignments, only: %i[index show update] do
           member do
             get :submissions
@@ -546,6 +549,40 @@ Rails.application.routes.draw do
 
         # Activity Logs for Admin
         resources :activity_logs, only: [:index]
+
+        resources :school_admin_accounts, only: %i[index create update] do
+          member do
+            patch :toggle_status
+          end
+        end
+      end
+    end
+
+    %w[school school_admin].each do |school_portal_segment|
+      scope path: school_portal_segment, module: 'school' do
+        namespace :v1 do
+          post 'session', to: 'sessions#create'
+          delete 'session', to: 'sessions#destroy'
+          get 'snapshot', to: 'snapshots#show'
+          get 'me', to: 'profiles#show'
+          resources :academic_years, only: [:index]
+          resources :teachers, only: [:index]
+          resources :students, only: %i[index show] do
+            member do
+              post :reset_password
+            end
+          end
+          resources :assignments, only: %i[index show] do
+            collection do
+              get :statistics
+            end
+            member do
+              get :submissions
+            end
+          end
+          resources :submissions, only: [:show]
+          resources :audit_logs, only: %i[index create]
+        end
       end
     end
 

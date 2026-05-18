@@ -92,7 +92,7 @@ module Api
         # 設置當前操作的學校
         # @param code [String] 從路由參數中獲取的學校代碼
         def set_school
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
 
           # 如果找不到學校，返回 404 錯誤
           return if @school

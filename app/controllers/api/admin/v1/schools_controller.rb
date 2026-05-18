@@ -16,7 +16,7 @@ module Api
         # 獲取所有學校的列表
         # @return [JSON] 所有學校的詳細信息
         def index
-          @schools = School.all.order(created_at: :desc)
+          @schools = ::School.all.order(created_at: :desc)
 
           # 分頁處理
           @schools = @schools.page(params[:page] || 1).per(params[:per_page] || 20)
@@ -316,7 +316,7 @@ module Api
 
         # 通過 email 分配學生到學校
         def assign_student_by_email
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
@@ -358,7 +358,7 @@ module Api
 
         # 通過 email 分配教師到學校
         def assign_teacher_by_email
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
@@ -403,7 +403,7 @@ module Api
 
         # 通過 ai_english_user_id 分配學生到學校
         def assign_student_by_id
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
@@ -445,7 +445,7 @@ module Api
 
         # 通過 ai_english_user_id 分配教師到學校
         def assign_teacher_by_id
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           @academic_year = @school.school_academic_years.find_by(name: params[:academic_year_name])
@@ -764,7 +764,7 @@ module Api
         # @param update_existing [Boolean] 是否更新已存在的記錄
         # @return [JSON] 升班結果
         def promote_students
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           begin
@@ -822,7 +822,7 @@ module Api
         # @param class_name [String] 可選的班級名稱過濾
         # @return [JSON] 更新結果
         def update_assignments_academic_year
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           begin
@@ -862,7 +862,7 @@ module Api
         # PUT /admin/v1/schools/:code/enrollments/:enrollment_id
         # 更新學生註冊信息
         def update_enrollment
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
           return render json: { success: false, error: '找不到指定的學校' }, status: :not_found unless @school
 
           begin
@@ -897,7 +897,7 @@ module Api
         # 設置當前學校
         # @param code [String] 學校代碼
         def set_school
-          @school = School.find_by(code: params[:code])
+          @school = ::School.find_by(code: params[:code])
 
           return if @school
 

@@ -323,7 +323,10 @@ Devise.setup do |config|
       ['POST', %r{^/users/sign_in$}],
       ['POST', %r{^/users/sign_in.json$}],
       ['POST', %r{^/general_users/sign_in$}],
-      ['POST', %r{^/general_users/sign_in.json$}]
+      ['POST', %r{^/general_users/sign_in.json$}],
+      ['POST', %r{^/api/v1/general_users/wechat_miniprogram/login(\.json)?$}],
+      ['POST', %r{^/api/school/v1/session(\.json)?$}],
+      ['POST', %r{^/api/school_admin/v1/session(\.json)?$}]
     ]
     jwt.revocation_requests = [
       ['DELETE', %r{^/sign_out$}],
@@ -331,7 +334,9 @@ Devise.setup do |config|
       ['DELETE', %r{^/users/sign_out.json$}],
       ['DELETE', %r{^/general_users/sign_out$}],
       ['DELETE', %r{^/general_users/sign_out.json$}],
-      ['DELETE', %r{^/api/v1/general_users.json$}]
+      ['DELETE', %r{^/api/v1/general_users.json$}],
+      ['DELETE', %r{^/api/school/v1/session(\.json)?$}],
+      ['DELETE', %r{^/api/school_admin/v1/session(\.json)?$}]
     ]
     jwt.expiration_time = 14.day.to_i
   end

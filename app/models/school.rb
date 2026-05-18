@@ -30,6 +30,15 @@ class School < ApplicationRecord
   has_many :general_users, through: :student_enrollments
   has_many :general_users, through: :teacher_assignments
 
+  has_many :school_admin_general_users,
+           lambda {
+             where("general_users.meta->>'aienglish_role' = ?", SchoolPortal::AIENGLISH_ROLE_SCHOOL_ADMIN)
+           },
+           class_name: 'GeneralUser',
+           foreign_key: :school_id,
+           inverse_of: :school,
+           dependent: :nullify
+
   # 附件
   has_one_attached :logo, service: :microsoft
 

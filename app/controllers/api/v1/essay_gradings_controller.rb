@@ -620,6 +620,7 @@ module Api
             grading.general_context['app_key'] = essay_assignment.rubric['app_key']['general_context']
             grading.revised_essay ||= {}
             grading.revised_essay['app_key'] = essay_assignment.revised_essay_workflow_app_key
+            grading.revised_essay['essay_type'] = essay_assignment.revised_essay_type_label_with_number
           end
 
           if grading.save

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
+ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -595,8 +595,10 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
     t.datetime "recovery_email_confirmed_at"
     t.string "recovery_confirmation_token"
     t.datetime "recovery_confirmation_sent_at"
+    t.uuid "school_id"
     t.index ["email"], name: "index_general_users_on_email", unique: true
     t.index ["recovery_email"], name: "index_general_users_on_recovery_email"
+    t.index ["school_id"], name: "index_general_users_on_school_id"
   end
 
   create_table "general_users_roles", id: false, force: :cascade do |t|
@@ -891,6 +893,21 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
     t.index ["school_id"], name: "index_school_academic_years_on_school_id"
   end
 
+  create_table "school_admin_audit_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "actor_id", null: false
+    t.string "actor_role", default: "school_admin", null: false
+    t.uuid "school_id", null: false
+    t.string "action", null: false
+    t.string "target_type"
+    t.string "target_id"
+    t.jsonb "metadata", default: {}, null: false
+    t.string "ip_address"
+    t.text "user_agent"
+    t.datetime "created_at", null: false
+    t.index ["school_id", "created_at"], name: "index_school_admin_audit_logs_on_school_id_and_created_at"
+    t.index ["school_id"], name: "index_school_admin_audit_logs_on_school_id"
+  end
+
   create_table "schools", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name", null: false
     t.string "code", null: false
@@ -1172,6 +1189,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
   add_foreign_key "general_user_feeds", "user_marketplace_items"
   add_foreign_key "general_user_files", "general_users"
   add_foreign_key "general_user_files", "user_marketplace_items"
+  add_foreign_key "general_users", "schools"
   add_foreign_key "groups", "general_users", column: "owner_id"
   add_foreign_key "identities", "users"
   add_foreign_key "links", "link_sets"
@@ -1188,6 +1206,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_02_120000) do
   add_foreign_key "projects", "users"
   add_foreign_key "purchases", "marketplace_items"
   add_foreign_key "school_academic_years", "schools"
+  add_foreign_key "school_admin_audit_logs", "general_users", column: "actor_id"
+  add_foreign_key "school_admin_audit_logs", "schools"
   add_foreign_key "storyboard_item_associations", "storyboard_items"
   add_foreign_key "storyboard_item_associations", "storyboards"
   add_foreign_key "storyboard_items", "users"
