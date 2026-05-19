@@ -6,6 +6,11 @@ require 'tempfile'
 
 module SpeakingEssay
   class AzurePronunciationAssessor
+    # Azure Speech SDK 的 AudioConfig(filename=...) 仅支持 PCM WAV (16kHz / 16-bit / mono)。
+    # 这里统一用 ffmpeg 转一次，避免 webm/m4a/mp3 或不规范 WAV 头导致 SPXERR_INVALID_HEADER。
+    AZURE_AUDIO_SAMPLE_RATE = 16_000
+    AZURE_AUDIO_CHANNELS = 1
+
     def call(audio_path:, reference_text:)
       raise 'AZURE_SPEECH_KEY is missing.' if ENV['AZURE_SPEECH_KEY'].blank?
       raise 'AZURE_SPEECH_REGION is missing.' if ENV['AZURE_SPEECH_REGION'].blank?
@@ -15,21 +20,23 @@ module SpeakingEssay
       reference_file.write(reference_text.to_s)
       reference_file.close
 
-      stdout, stderr, status = Open3.capture3(
-        env,
-        python_bin,
-        script_path,
-        '--audio',
-        audio_path,
-        '--reference',
-        reference_file.path,
-        '--locale',
-        ENV.fetch('AZURE_SPEECH_LOCALE', 'en-US')
-      )
+      with_pcm_wav(audio_path) do |pcm_wav_path|
+        stdout, stderr, status = Open3.capture3(
+          env,
+          python_bin,
+          script_path,
+          '--audio',
+          pcm_wav_path,
+          '--reference',
+          reference_file.path,
+          '--locale',
+          ENV.fetch('AZURE_SPEECH_LOCALE', 'en-US')
+        )
 
-      raise "Azure pronunciation failed: #{stderr.presence || stdout}" unless status.success?
+        raise "Azure pronunciation failed: #{stderr.presence || stdout}" unless status.success?
 
-      normalize(JSON.parse(stdout))
+        return normalize(JSON.parse(stdout))
+      end
     rescue JSON::ParserError => e
       raise "Azure pronunciation returned invalid JSON: #{e.message}"
     ensure
@@ -53,6 +60,43 @@ module SpeakingEssay
 
     def script_path
       Rails.root.join('script', 'azure_pronunciation_continuous.py').to_s
+    end
+
+    def ffmpeg_bin
+      ENV.fetch('FFMPEG_BIN', 'ffmpeg')
+    end
+
+    def with_pcm_wav(source_path)
+      wav_file = Tempfile.new(['speaking-azure', '.wav'], binmode: true)
+      wav_file.close
+
+      # 限制 ffmpeg 单线程，避免 sidekiq 多并发时它自身又开多线程抢核
+      # 音频转码本质是 IO + 简单 DSP，单线程足够，120s 录音通常 < 2s 完成
+      _stdout, stderr, status = Open3.capture3(
+        ffmpeg_bin,
+        '-y',
+        '-nostdin',
+        '-loglevel', 'error',
+        '-threads', '1',
+        '-i', source_path.to_s,
+        '-ac', AZURE_AUDIO_CHANNELS.to_s,
+        '-ar', AZURE_AUDIO_SAMPLE_RATE.to_s,
+        '-acodec', 'pcm_s16le',
+        '-f', 'wav',
+        wav_file.path
+      )
+
+      unless status.success?
+        raise "Azure pronunciation failed: ffmpeg transcode error: #{stderr.to_s.strip}"
+      end
+
+      yield wav_file.path
+    rescue Errno::ENOENT => e
+      raise "Azure pronunciation failed: ffmpeg is not available (#{e.message}). " \
+            'Install ffmpeg in the runtime image or set FFMPEG_BIN.'
+    ensure
+      wav_file&.close
+      wav_file&.unlink
     end
 
     def normalize(raw)

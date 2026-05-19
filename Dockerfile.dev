@@ -6,16 +6,18 @@ RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
 #     && apt-get clean \
 #     && rm -rf /var/lib/apt/lists/* \
 #     && apt-get install -y xfonts-encodings libfontenc1 xfonts-utils xfonts-75dpi xfonts-base
-RUN apt-get install -y ttf-wqy-zenhei \
-  && apt-get install -y libmagickwand-dev imagemagick \
-  && apt-get update -qq \
-  && apt-get install -qq --no-install-recommends \
+# 开发镜像未装 wkhtmltopdf，无需 xfonts-*（约 9MB，慢网下易超时）
+RUN apt-get update -qq \
+  && apt-get install -y --no-install-recommends \
+  -o Acquire::Retries=5 \
+  -o Acquire::http::Timeout=120 \
+  fonts-wqy-zenhei \
+  libmagickwand-dev \
+  imagemagick \
   nodejs \
-  xfonts-encodings \
-  libfontenc1 \
-  xfonts-utils \
-  xfonts-75dpi \
-  xfonts-base \
+  python3 \
+  python3-pip \
+  ffmpeg \
   fontconfig \
   libjpeg62-turbo \
   libopencc-dev \
@@ -55,7 +57,9 @@ RUN npm install -g yarn@1
 WORKDIR /docai-rails
 COPY Gemfile /docai-rails/Gemfile
 COPY Gemfile.lock /docai-rails/Gemfile.lock
-RUN bundle install
+COPY script/requirements.txt /docai-rails/script/requirements.txt
+RUN bundle install \
+  && pip3 install --no-cache-dir -r /docai-rails/script/requirements.txt
 COPY . /docai-rails
 
 # RUN SECRET_KEY_BASE=1 RAILS_ENV=production bundle exec rake assets:precompile
