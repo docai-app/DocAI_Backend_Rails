@@ -132,13 +132,31 @@ module SpeakingEssay
       raw = pronunciation_metrics[:raw_provider_payload]
       return pronunciation_metrics.except(:raw_provider_payload) unless raw.is_a?(Hash)
 
+      assessment = raw.dig('aggregated_result', 'PronunciationAssessment') || {}
+      words = raw.dig('aggregated_result', 'NBest', 0, 'Words') || []
+
       {
         'provider_name' => raw['provider_name'],
         'mode' => raw['mode'],
-        'reference_text_used' => raw['reference_text_used'],
         'segment_count' => raw['segment_count'],
-        'aggregated_result' => raw['aggregated_result']
+        'aggregate_scores' => {
+          'pronunciation_score' => assessment['PronScore'],
+          'accuracy_score' => assessment['AccuracyScore'],
+          'fluency_score' => assessment['FluencyScore'],
+          'prosody_score' => assessment['ProsodyScore'],
+          'completeness_score' => assessment['CompletenessScore']
+        }.compact,
+        'problem_word_count' => words.count { |word| azure_problem_word?(word) }
       }
+    end
+
+    def azure_problem_word?(word)
+      assessment = word['PronunciationAssessment'] || {}
+      issue = assessment['ErrorType'].to_s
+      raw_score = assessment['AccuracyScore']
+
+      issue.present? && issue != 'None' ||
+        (raw_score.present? && raw_score.to_f < ENV.fetch('SPEAKING_ESSAY_PROMPT_LOW_PRONUNCIATION_THRESHOLD', '70').to_f)
     end
   end
 end

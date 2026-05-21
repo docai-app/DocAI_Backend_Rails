@@ -287,6 +287,26 @@ Backend 固定傳以下 variables 到 Dify speaking scoring workflow：
 
 Dify workflow start node 必須使用完全相同的 variable names。
 
+重要：`deepgram_json` 和 `azure_pronunciation_json` 不是 raw provider payload。
+它們是 backend 為 Dify prompt 生成的 compact summary，目的是降低 token / context 壓力。
+
+- `deepgram_json` 保留 transcript confidence、word count、segment count、duration、low confidence words 等摘要。
+- `speech_metrics_json` 保留 total words、duration、WPM、filler、repetition、pause count、longest pauses；不傳完整 segment list。
+- `azure_pronunciation_json` 保留 Azure aggregate score、segment count、problem word count 等摘要。
+- `pronunciation_metrics_json` 保留 overall / accuracy / fluency / prosody / completeness scores，以及有限數量的 problem words；不傳全部 word-level feedback。
+
+完整 Deepgram words / segments 仍保存在 `grading.transcript` 給 frontend transcript UI 使用。
+完整 provider raw payload 只在 `SPEAKING_ESSAY_STORE_RAW_PROVIDER_PAYLOADS=true` 時保存於 backend debug 欄位，不應放進 Dify prompt。
+
+可調 env：
+
+```bash
+SPEAKING_ESSAY_PROMPT_WORD_FEEDBACK_LIMIT=30
+SPEAKING_ESSAY_PROMPT_PAUSE_LIMIT=12
+SPEAKING_ESSAY_PROMPT_LOW_CONFIDENCE_THRESHOLD=0.75
+SPEAKING_ESSAY_PROMPT_LOW_PRONUNCIATION_THRESHOLD=70
+```
+
 ## 7. Dify output contract
 
 Dify 必須回傳 JSON。可以放在 outputs 的 `speaking_report`, `result_json`, `text`, 或整個 outputs hash 裡。最穩定建議回：

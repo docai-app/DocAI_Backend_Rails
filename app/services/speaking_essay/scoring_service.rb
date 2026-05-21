@@ -70,10 +70,10 @@ module SpeakingEssay
         prompt_title: @essay_grading.topic.to_s,
         cue_card: cue_card_text,
         transcript_text:,
-        deepgram_json: compact_json(analysis['deepgram'] || {}),
-        speech_metrics_json: compact_json(speech_metrics),
-        azure_pronunciation_json: compact_json(analysis['azure_pronunciation'] || {}),
-        pronunciation_metrics_json: compact_json(pronunciation_metrics),
+        deepgram_json: compact_json(deepgram_prompt_payload(analysis, speech_metrics)),
+        speech_metrics_json: compact_json(speech_prompt_metrics(speech_metrics)),
+        azure_pronunciation_json: compact_json(azure_prompt_payload(analysis, pronunciation_metrics)),
+        pronunciation_metrics_json: compact_json(pronunciation_prompt_metrics(pronunciation_metrics)),
         heuristic_scores_json: compact_json(heuristic_scores(speech_metrics, pronunciation_metrics))
       }
     end
@@ -85,6 +85,120 @@ module SpeakingEssay
 
     def compact_json(value)
       JSON.generate(value || {})
+    end
+
+    def deepgram_prompt_payload(analysis, speech_metrics)
+      analysis = (analysis || {}).deep_stringify_keys
+      deepgram = (analysis['deepgram'] || {}).deep_stringify_keys
+      transcript = (analysis['transcript'] || {}).deep_stringify_keys
+      words = Array(transcript['words'].presence || deepgram['words'])
+
+      {
+        provider_name: deepgram['provider_name'] || 'deepgram',
+        language_code: deepgram['language_code'],
+        transcript_confidence: deepgram['confidence'] || transcript['confidence'],
+        word_count: words.length,
+        segment_count: Array(transcript['segments'].presence || deepgram['segments']).length,
+        duration_seconds: (speech_metrics || {}).deep_stringify_keys['duration_seconds'],
+        low_confidence_words: low_confidence_words(words)
+      }.compact
+    end
+
+    def speech_prompt_metrics(speech_metrics)
+      metrics = (speech_metrics || {}).deep_stringify_keys
+      pauses = Array(metrics['pauses'])
+
+      metrics.slice(
+        'total_words',
+        'duration_seconds',
+        'words_per_minute',
+        'filler_count',
+        'filler_terms',
+        'repeated_terms',
+        'pause_count'
+      ).merge(
+        'longest_pauses' => longest_pauses(pauses),
+        'omitted_pause_count' => [pauses.length - prompt_pause_limit, 0].max
+      )
+    end
+
+    def azure_prompt_payload(analysis, pronunciation_metrics)
+      analysis = (analysis || {}).deep_stringify_keys
+      azure = (analysis['azure_pronunciation'] || {}).deep_stringify_keys
+      metrics = pronunciation_prompt_metrics(pronunciation_metrics)
+
+      {
+        provider_name: azure['provider_name'] || metrics['provider_name'] || 'azure_speech',
+        mode: azure['mode'],
+        segment_count: azure['segment_count'],
+        aggregate_scores: metrics.except('provider_name', 'word_level_feedback', 'problem_words', 'omitted_word_feedback_count'),
+        problem_words: metrics['problem_words'],
+        omitted_word_feedback_count: metrics['omitted_word_feedback_count']
+      }.compact
+    end
+
+    def pronunciation_prompt_metrics(pronunciation_metrics)
+      metrics = (pronunciation_metrics || {}).deep_stringify_keys
+      word_feedback = Array(metrics['word_level_feedback'])
+
+      metrics.slice(
+        'provider_name',
+        'overall_score',
+        'raw_pronunciation_score',
+        'accuracy_score',
+        'fluency_score',
+        'prosody_score',
+        'completeness_score'
+      ).merge(
+        'problem_words' => problem_words(word_feedback),
+        'omitted_word_feedback_count' => [word_feedback.length - prompt_word_feedback_limit, 0].max
+      )
+    end
+
+    def low_confidence_words(words)
+      threshold = ENV.fetch('SPEAKING_ESSAY_PROMPT_LOW_CONFIDENCE_THRESHOLD', '0.75').to_f
+
+      Array(words).filter_map do |word|
+        item = word.respond_to?(:deep_stringify_keys) ? word.deep_stringify_keys : {}
+        confidence = item['confidence']
+        next if confidence.nil? || confidence.to_f >= threshold
+
+        {
+          'word' => item['word'] || item['token'],
+          'confidence' => confidence,
+          'start' => item['start'],
+          'end' => item['end']
+        }.compact
+      end.first(prompt_word_feedback_limit)
+    end
+
+    def longest_pauses(pauses)
+      Array(pauses).map { |pause| pause.respond_to?(:deep_stringify_keys) ? pause.deep_stringify_keys : {} }
+                   .sort_by { |pause| -pause['duration'].to_f }
+                   .first(prompt_pause_limit)
+    end
+
+    def problem_words(word_feedback)
+      Array(word_feedback).map { |word| word.respond_to?(:deep_stringify_keys) ? word.deep_stringify_keys : {} }
+                          .select { |word| problematic_word?(word) }
+                          .sort_by { |word| word['raw_score'].to_f }
+                          .first(prompt_word_feedback_limit)
+    end
+
+    def problematic_word?(word)
+      issue = word['issue'].to_s
+      raw_score = word['raw_score']
+
+      issue.present? && issue != 'None' ||
+        (raw_score.present? && raw_score.to_f < ENV.fetch('SPEAKING_ESSAY_PROMPT_LOW_PRONUNCIATION_THRESHOLD', '70').to_f)
+    end
+
+    def prompt_word_feedback_limit
+      ENV.fetch('SPEAKING_ESSAY_PROMPT_WORD_FEEDBACK_LIMIT', '30').to_i
+    end
+
+    def prompt_pause_limit
+      ENV.fetch('SPEAKING_ESSAY_PROMPT_PAUSE_LIMIT', '12').to_i
     end
 
     def heuristic_scores(speech_metrics, pronunciation_metrics)
