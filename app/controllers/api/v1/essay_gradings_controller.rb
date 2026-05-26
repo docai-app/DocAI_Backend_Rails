@@ -223,10 +223,17 @@ module Api
         grading_json = effective_score_sentences(@essay_grading)
         score_payload = extract_essay_report_score_payload(grading_json)
         scores = extract_scores_from_sentences(grading_json)
+        speaking_report_scores = speaking_report_scores(@essay_grading)
 
-        if @essay_grading.category == 'comprehension'
-          score = @essay_grading.grading.dig('comprehension', 'score'),
-                  full_score = @essay_grading.grading.dig('comprehension', 'full_score')
+        if @essay_grading.category == 'speaking_essay' && speaking_report_scores.present?
+          score = speaking_report_scores['overall_band_score'] ||
+                  @essay_grading.grading['overall_score'] ||
+                  @essay_grading['score']
+          full_score = @essay_grading.grading['full_score'] || 9
+          scores = speaking_report_scores
+        elsif @essay_grading.category == 'comprehension'
+          score = @essay_grading.grading.dig('comprehension', 'score')
+          full_score = @essay_grading.grading.dig('comprehension', 'full_score')
         elsif @essay_grading.category == 'listening'
           score = @essay_grading.grading.dig('listening', 'score')
           full_score = @essay_grading.grading.dig('listening', 'full_score')
@@ -251,6 +258,7 @@ module Api
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count') || @essay_grading.grading.dig('listening', 'questions_count'),
             full_score:,
             score:,
+            overall_score: score,
             scores:,
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
@@ -306,10 +314,19 @@ module Api
 
       def create
         set_essay_assignment_by_code
+        return if performed?
 
         # puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
 
-        @essay_grading = @essay_assignment.essay_gradings.new(essay_grading_params)
+        grading_params = essay_grading_params
+        prepared_attachment = prepare_audio_attachment_for_persistence(
+          category: @essay_assignment.category,
+          uploaded_file: grading_params[:file]
+        )
+
+        @essay_grading = @essay_assignment.essay_gradings.new(
+          essay_grading_attributes_for_persistence(@essay_assignment.category, grading_params)
+        )
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
@@ -318,10 +335,23 @@ module Api
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
           @essay_grading.general_context ||= {}
           @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
+          @essay_grading.revised_essay ||= {}
           @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
-          @essay_grading.revised_essay['essay_type'] = @essay_assignment.revised_essay_type_label_with_number
-        end 
-        if @essay_grading.save
+        end
+
+        begin
+          EssayGrading.transaction do
+            @essay_grading.save!
+            persist_uploaded_attachment!(
+              essay_grading: @essay_grading,
+              category: @essay_assignment.category,
+              uploaded_file: grading_params[:file],
+              prepared_attachment:
+            )
+          end
+
+          run_speaking_essay_workflow_after_attachment(@essay_grading, force: true)
+
           # 檢查是否有對應的作業分配，如果有則更新分配狀態
           # 只有非草稿狀態的提交才更新分配狀態
           update_assignment_status_if_needed unless @essay_grading.status == 'draft'
@@ -334,9 +364,13 @@ module Api
           #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
           # end
           render json: { success: true, essay_grading: @essay_grading }, status: :created
-        else
+        rescue ActiveRecord::RecordInvalid
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
+        rescue StandardError => e
+          render json: { success: false, error: e.message }, status: :internal_server_error
         end
+      ensure
+        prepared_attachment&.close!
       end
 
       def teacher_review
@@ -657,6 +691,11 @@ module Api
             update_assignment_status_if_needed
           end
 
+          run_speaking_essay_workflow_after_attachment(
+            @essay_grading,
+            force: grading_params[:file].present?
+          )
+
           render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :ok
         rescue ActiveRecord::RecordInvalid
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
@@ -839,26 +878,32 @@ module Api
       end
 
       def essay_grading_attributes_for_persistence(category, grading_params)
-        category == 'speaking_essay' ? grading_params.except(:file) : grading_params
+        grading_params.except(:file)
       end
 
       def prepare_audio_attachment_for_persistence(category:, uploaded_file:)
         return nil unless category == 'speaking_essay'
-        return nil if uploaded_file.blank?
 
-        SpeakingAudioAttachmentNormalizerService.normalize_uploaded_file(uploaded_file)
+        # Deepgram and Dify can receive common browser audio directly. Azure is handled
+        # in the scoring worker, so the request path should not depend on ffmpeg.
+        nil
       end
 
       def persist_uploaded_attachment!(essay_grading:, category:, uploaded_file:, prepared_attachment:)
         if category == 'speaking_essay'
-          return if prepared_attachment.nil?
+          if uploaded_file.blank?
+            if essay_grading.status != 'draft' && !essay_grading.file.attached?
+              essay_grading.errors.add(:file, 'is required for speaking essay submission')
+              raise ActiveRecord::RecordInvalid.new(essay_grading)
+            end
+
+            return
+          end
 
           essay_grading.file.attach(
-            io: prepared_attachment.tempfile,
-            filename: prepared_attachment.filename,
-            content_type: prepared_attachment.content_type
+            uploaded_file
           )
-          raise 'Failed to attach normalized speaking essay audio.' unless essay_grading.file.attached?
+          raise 'Failed to attach speaking essay audio.' unless essay_grading.file.attached?
           return
         end
 
@@ -869,10 +914,17 @@ module Api
       end
 
       def should_normalize_existing_speaking_attachment?(essay_grading, grading_params)
-        essay_grading.category == 'speaking_essay' &&
-          grading_params[:file].blank? &&
-          essay_grading.file.attached? &&
-          essay_grading.file.blob.content_type.to_s != 'audio/mp3'
+        false
+      end
+
+      def run_speaking_essay_workflow_after_attachment(essay_grading, force: false)
+        return unless essay_grading.category == 'speaking_essay'
+        return if essay_grading.status == 'draft'
+        return unless force ||
+                      (essay_grading.saved_change_to_status? &&
+                       essay_grading.status_before_last_save == 'draft')
+
+        essay_grading.run_workflow
       end
 
       def pagination_meta(object)
@@ -1372,10 +1424,23 @@ module Api
           pdf.fill_color '000000'
           sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
           grammar_sentences = effective_grammar_sentences(essay_grading, sentences)
-          score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
+      
 
+          category = essay_grading.category.to_s
           assignment_type_label =
-            essay_grading.category.to_s == 'speaking_conversation' ? 'Speaking Conversation' : 'Essay'
+          category == 'speaking_conversation' ? 'Speaking Conversation' : category == 'speaking_essay' ? 'Speaking Essay' : 'Essay'
+
+          score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
+          if category == 'speaking_essay' 
+            if essay_grading.grading['speaking_report'].present?
+              speaking_score_payload = {
+                overall_score: essay_grading.grading['score'],
+                full_score: essay_grading.grading['full_score'],
+              } 
+            else
+              speaking_score_payload = score_payload
+            end
+          end
 
           draw_essay_report_footer(pdf, palette)
           draw_essay_report_header(pdf, palette, school_logo_url)
@@ -1385,7 +1450,7 @@ module Api
             assignment_label: json_data['assignment'].presence || 'Essay',
             rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
             account_label: essay_grading.general_user.show_in_report_name.to_s,
-            overall_score_label: extract_overall_score_label(score_payload),
+            overall_score_label: extract_overall_score_label(category == 'speaking_essay' ? speaking_score_payload : score_payload),
             report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report',
             assignment_type_label: assignment_type_label
           )
@@ -1418,13 +1483,25 @@ module Api
             section_index += 1
           end
 
-          draw_essay_report_score(
-            pdf,
-            palette,
-            score_payload,
-            section_index,
-            simplified: report_type == 'simplified'
-          )
+          if category == 'speaking_essay'
+            draw_speaking_essay_report_score(
+              pdf,
+              palette,
+              score_payload,
+              speaking_score_payload,
+              section_index,
+              speaking_report: essay_grading.grading['speaking_report'],
+              simplified: report_type == 'simplified'
+            )
+          else
+            draw_essay_report_score(
+              pdf,
+              palette,
+              score_payload,
+              section_index,
+              simplified: report_type == 'simplified'
+            )
+          end
         end
       end
 
@@ -1997,7 +2074,7 @@ module Api
       def draw_essay_report_general_context(pdf, palette, json_data, section_index, fallback_text:)
         draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: Overall Comments")
 
-        overall_text = json_data['overall_comment'].presence || json_data['general_context'].presence || fallback_text.presence
+        overall_text = json_data['overall_comment'].presence || fallback_text.presence || json_data['general_context'].presence 
         section_titles = {
           'content' => 'Content',
           'organisation' => 'Organisation',
@@ -2086,6 +2163,109 @@ module Api
             columns(1).align = :center
           end
         end
+      end
+
+      def draw_speaking_essay_report_score(pdf, palette, score_payload, speaking_score_payload, section_index, speaking_report: nil, simplified:)
+        title = simplified ? 'Score' : 'Score Breakdown'
+        draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: #{title}")
+
+        normalized_speaking_report = normalize_speaking_report_for_pdf(speaking_report)
+        rows =
+          if normalized_speaking_report.present?
+            extract_speaking_report_score_rows(normalized_speaking_report)
+          else
+            extract_score_rows(score_payload)
+          end
+
+        puts "normalized_speaking_report: #{normalized_speaking_report}"
+        overall_score_label =
+          if speaking_report.present?
+            extract_overall_score_label(speaking_score_payload)
+          elsif normalized_speaking_report.present?
+            speaking_overall_score_label(normalized_speaking_report['scores'])
+          else
+            extract_overall_score_label(score_payload)
+          end
+
+        return if overall_score_label == 'N/A' && rows.empty?
+
+        pdf.fill_color palette[:primary]
+        pdf.text "Overall Score #{overall_score_label}", size: 16, style: :bold, align: :center
+        pdf.fill_color palette[:text]
+        pdf.move_down 14
+
+        if simplified
+          rows.each do |row|
+            pdf.text "• #{row[:criterion]}: #{row[:score_label]}", size: 11, color: palette[:text]
+            pdf.move_down 4
+          end
+        else
+          table_rows = [['Criterion', 'Score', 'Feedback']] + rows.map { |row| [row[:criterion], row[:score_label], row[:comment].to_s] }
+          pdf.table(
+            table_rows,
+            header: true,
+            width: pdf.bounds.width,
+            cell_style: { size: 10, padding: 8, border_color: palette[:border], text_color: palette[:text], valign: :center, leading: 0 }
+          ) do
+            row(0).background_color = palette[:primary]
+            row(0).text_color = 'FFFFFF'
+            row(0).font_style = :bold
+            columns(0).width = 170
+            columns(1).width = 60
+            columns(2).width = pdf.bounds.width - 230
+            columns(1).align = :center
+          end
+        end
+      end
+
+      def normalize_speaking_report_for_pdf(speaking_report)
+        return nil unless speaking_report.is_a?(Hash)
+
+        report = speaking_report.deep_stringify_keys
+        scores = report['scores']
+        return nil unless scores.is_a?(Hash) && scores.present?
+
+        report
+      end
+
+      def extract_speaking_report_score_rows(speaking_report)
+        scores = speaking_report['scores'].deep_stringify_keys
+        evidence =
+          if speaking_report['evidence'].is_a?(Hash)
+            speaking_report['evidence'].deep_stringify_keys
+          else
+            {}
+          end
+
+        scores.filter_map do |key, score_value|
+          next if speaking_report_aggregate_score_key?(key)
+          next if score_value.nil? || score_value.to_s.strip.blank?
+
+          feedback = Array(evidence[key]).map(&:to_s).map(&:strip).reject(&:blank?).join(' ')
+
+          {
+            criterion: format_speaking_report_criterion_label(key),
+            score_label: score_value.to_s,
+            comment: feedback
+          }
+        end
+      end
+
+      def speaking_report_aggregate_score_key?(key)
+        key.to_s == 'overall_band_score'
+      end
+
+      def format_speaking_report_criterion_label(key)
+        key.to_s.tr('_', ' ')
+      end
+
+      def speaking_overall_score_label(scores)
+        return nil unless scores.is_a?(Hash)
+
+        overall = scores['overall_band_score'] || scores[:overall_band_score]
+        return nil if overall.nil? || overall.to_s.strip.blank?
+
+        overall.to_s
       end
 
       def draw_essay_report_bullets(pdf, points)
@@ -2417,6 +2597,14 @@ module Api
             result[criterion_key] = criterion_value unless ['Full Score', 'explanation'].include?(criterion_key)
           end
         end
+      end
+
+      def speaking_report_scores(essay_grading)
+        scores = essay_grading.grading.dig('speaking_report', 'scores') ||
+                 essay_grading.grading['speaking_scores'] ||
+                 essay_grading.grading['scores']
+
+        scores.is_a?(Hash) ? scores.deep_stringify_keys : {}
       end
 
       def effective_score_sentences(essay_grading)

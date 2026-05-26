@@ -2,21 +2,29 @@ FROM ruby:3.1.0
 
 RUN mkdir /usr/local/nvm
 ENV NVM_DIR /usr/local/nvm
-ENV NODE_VERSION 14.18.1
-RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash \
+# Node 14 已 EOL，升级到 Node 20 LTS
+ENV NODE_VERSION 20.18.0
+RUN curl https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash \
     && . $NVM_DIR/nvm.sh \
     && nvm install $NODE_VERSION \
     && nvm alias default $NODE_VERSION \
     && nvm use default
 
-ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
+ENV NODE_PATH $NVM_DIR/versions/node/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
-RUN apt-get update -qq && apt-get install -y fonts-wqy-zenhei \
-    && apt-get install -y libmagickwand-dev imagemagick \
-    && apt-get install -y xvfb libxi6 libgconf-2-4 \
-    && apt-get install -qq --no-install-recommends \
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends \
+    fonts-wqy-zenhei \
+    libmagickwand-dev \
+    imagemagick \
+    xvfb \
+    libxi6 \
+    libgconf-2-4 \
     nodejs \
+    python3 \
+    python3-pip \
+    ffmpeg \
     xfonts-encodings \
     libfontenc1 \
     xfonts-utils \
@@ -74,7 +82,9 @@ RUN dpkg -i wkhtmltox_0.12.6.1-2.bullseye_amd64.deb
 WORKDIR /docai-rails
 COPY Gemfile /docai-rails/Gemfile
 COPY Gemfile.lock /docai-rails/Gemfile.lock
-RUN bundle install
+COPY script/requirements.txt /docai-rails/script/requirements.txt
+RUN bundle install \
+    && pip3 install --no-cache-dir -r /docai-rails/script/requirements.txt
 COPY . /docai-rails
 
 CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 -ac +extension RANDR &"]

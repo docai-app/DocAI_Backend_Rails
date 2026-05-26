@@ -20,6 +20,7 @@ class EssayGradingService
     @grading_success = false
     @general_context_success = false
     @revised_essay_success = false
+    @speaking_scoring_success = !speaking_essay?
   end
 
   def run_workflows
@@ -47,6 +48,11 @@ class EssayGradingService
       revised_essay_response = execute_completion(@revised_essay_app_key, revised_essay_completion_payload)
       @revised_essay_success = process_completion_response(revised_essay_response)
       Rails.logger.info("[EssayGradingService] Revised essay workflow success: #{@revised_essay_success}")
+    end
+
+    if speaking_essay? && core_workflows_successful?
+      @speaking_scoring_success = SpeakingEssay::ScoringService.new(@essay_grading.reload).call
+      Rails.logger.info("[EssayGradingService] Speaking essay scoring workflow success: #{@speaking_scoring_success}")
     end
 
     # Final status update
@@ -493,7 +499,8 @@ class EssayGradingService
   def update_final_status
     if @grading_success &&
        (@general_context_app_key.blank? || @general_context_success) &&
-       (@revised_essay_app_key.blank? || @revised_essay_success)
+       (@revised_essay_app_key.blank? || @revised_essay_success) &&
+       @speaking_scoring_success
       @essay_grading.update(status: 'graded')
       @essay_grading.calculate_sentence_builder_score if @essay_grading.category == 'sentence_builder'
       @essay_grading.call_webhook
@@ -512,6 +519,16 @@ class EssayGradingService
 
   def is_ielts_task_1?
     @essay_grading.essay_assignment.rubric&.dig('name') == 'IELTS Task 1'
+  end
+
+  def speaking_essay?
+    @essay_grading.category == 'speaking_essay'
+  end
+
+  def core_workflows_successful?
+    @grading_success &&
+      (@general_context_app_key.blank? || @general_context_success) &&
+      (@revised_essay_app_key.blank? || @revised_essay_success)
   end
 
   def build_ielts_task_1_inputs(workflow_type)

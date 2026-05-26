@@ -13,6 +13,7 @@ class EssayGradingSubmissionPayloadBuilder
     @is_sentence_builder = assignment_category == 'sentence_builder'
     @is_comprehension = assignment_category == 'comprehension'
     @is_speaking_pronunciation = assignment_category == 'speaking_pronunciation'
+    @is_speaking_essay = assignment_category == 'speaking_essay'
     @is_listening = assignment_category == 'listening'
   end
 
@@ -96,6 +97,17 @@ class EssayGradingSubmissionPayloadBuilder
     elsif @is_listening
       the_full_score = listening_data['full_score']
       overall_score = listening_data['score']
+    elsif @is_speaking_essay
+      the_full_score = 9
+      overall_score  = 0
+      speaking_report_scores = speaking_report_scores(@eg)
+      if speaking_report_scores.present?
+        overall_score = speaking_report_scores['overall_band_score'] ||
+                  @eg.grading['overall_score'] ||
+                    @eg['score']
+          the_full_score = @eg.grading['full_score'] || 9
+          scores = speaking_report_scores
+      end
     elsif grading_json
       if grading_json['criteria'].is_a?(Hash)
         scores = grading_json['criteria'].each_with_object({}) do |(criterion_name, criterion_value), result|
@@ -168,6 +180,14 @@ class EssayGradingSubmissionPayloadBuilder
   rescue StandardError => e
     Rails.logger.warn "Error parsing effective grading JSON for EssayGrading #{essay_grading.try(:id)}: #{e.message}"
     {}
+  end
+
+  def speaking_report_scores(essay_grading)
+    scores = essay_grading.grading.dig('speaking_report', 'scores') ||
+             essay_grading.grading['speaking_scores'] ||
+             essay_grading.grading['scores']
+
+    scores.is_a?(Hash) ? scores.deep_stringify_keys : {}
   end
 
   def normalize_assignment_score(raw_score)
