@@ -1424,10 +1424,23 @@ module Api
           pdf.fill_color '000000'
           sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
           grammar_sentences = effective_grammar_sentences(essay_grading, sentences)
-          score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
+      
 
+          category = essay_grading.category.to_s
           assignment_type_label =
-            essay_grading.category.to_s == 'speaking_conversation' ? 'Speaking Conversation' : 'Essay'
+          category == 'speaking_conversation' ? 'Speaking Conversation' : category == 'speaking_essay' ? 'Speaking Essay' : 'Essay'
+
+          score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
+          if category == 'speaking_essay' 
+            if essay_grading.grading['speaking_report'].present?
+              speaking_score_payload = {
+                overall_score: essay_grading.grading['score'],
+                full_score: essay_grading.grading['full_score'],
+              } 
+            else
+              speaking_score_payload = score_payload
+            end
+          end
 
           draw_essay_report_footer(pdf, palette)
           draw_essay_report_header(pdf, palette, school_logo_url)
@@ -1437,7 +1450,7 @@ module Api
             assignment_label: json_data['assignment'].presence || 'Essay',
             rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
             account_label: essay_grading.general_user.show_in_report_name.to_s,
-            overall_score_label: extract_overall_score_label(score_payload),
+            overall_score_label: extract_overall_score_label(category == 'speaking_essay' ? speaking_score_payload : score_payload),
             report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report',
             assignment_type_label: assignment_type_label
           )
@@ -1470,13 +1483,25 @@ module Api
             section_index += 1
           end
 
-          draw_essay_report_score(
-            pdf,
-            palette,
-            score_payload,
-            section_index,
-            simplified: report_type == 'simplified'
-          )
+          if category == 'speaking_essay'
+            draw_speaking_essay_report_score(
+              pdf,
+              palette,
+              score_payload,
+              speaking_score_payload,
+              section_index,
+              speaking_report: essay_grading.grading['speaking_report'],
+              simplified: report_type == 'simplified'
+            )
+          else
+            draw_essay_report_score(
+              pdf,
+              palette,
+              score_payload,
+              section_index,
+              simplified: report_type == 'simplified'
+            )
+          end
         end
       end
 
@@ -2049,7 +2074,7 @@ module Api
       def draw_essay_report_general_context(pdf, palette, json_data, section_index, fallback_text:)
         draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: Overall Comments")
 
-        overall_text = json_data['overall_comment'].presence || json_data['general_context'].presence || fallback_text.presence
+        overall_text = json_data['overall_comment'].presence || fallback_text.presence || json_data['general_context'].presence 
         section_titles = {
           'content' => 'Content',
           'organisation' => 'Organisation',
@@ -2138,6 +2163,109 @@ module Api
             columns(1).align = :center
           end
         end
+      end
+
+      def draw_speaking_essay_report_score(pdf, palette, score_payload, speaking_score_payload, section_index, speaking_report: nil, simplified:)
+        title = simplified ? 'Score' : 'Score Breakdown'
+        draw_essay_report_section_title(pdf, palette, "Section #{to_roman(section_index)}: #{title}")
+
+        normalized_speaking_report = normalize_speaking_report_for_pdf(speaking_report)
+        rows =
+          if normalized_speaking_report.present?
+            extract_speaking_report_score_rows(normalized_speaking_report)
+          else
+            extract_score_rows(score_payload)
+          end
+
+        puts "normalized_speaking_report: #{normalized_speaking_report}"
+        overall_score_label =
+          if speaking_report.present?
+            extract_overall_score_label(speaking_score_payload)
+          elsif normalized_speaking_report.present?
+            speaking_overall_score_label(normalized_speaking_report['scores'])
+          else
+            extract_overall_score_label(score_payload)
+          end
+
+        return if overall_score_label == 'N/A' && rows.empty?
+
+        pdf.fill_color palette[:primary]
+        pdf.text "Overall Score #{overall_score_label}", size: 16, style: :bold, align: :center
+        pdf.fill_color palette[:text]
+        pdf.move_down 14
+
+        if simplified
+          rows.each do |row|
+            pdf.text "• #{row[:criterion]}: #{row[:score_label]}", size: 11, color: palette[:text]
+            pdf.move_down 4
+          end
+        else
+          table_rows = [['Criterion', 'Score', 'Feedback']] + rows.map { |row| [row[:criterion], row[:score_label], row[:comment].to_s] }
+          pdf.table(
+            table_rows,
+            header: true,
+            width: pdf.bounds.width,
+            cell_style: { size: 10, padding: 8, border_color: palette[:border], text_color: palette[:text], valign: :center, leading: 0 }
+          ) do
+            row(0).background_color = palette[:primary]
+            row(0).text_color = 'FFFFFF'
+            row(0).font_style = :bold
+            columns(0).width = 170
+            columns(1).width = 60
+            columns(2).width = pdf.bounds.width - 230
+            columns(1).align = :center
+          end
+        end
+      end
+
+      def normalize_speaking_report_for_pdf(speaking_report)
+        return nil unless speaking_report.is_a?(Hash)
+
+        report = speaking_report.deep_stringify_keys
+        scores = report['scores']
+        return nil unless scores.is_a?(Hash) && scores.present?
+
+        report
+      end
+
+      def extract_speaking_report_score_rows(speaking_report)
+        scores = speaking_report['scores'].deep_stringify_keys
+        evidence =
+          if speaking_report['evidence'].is_a?(Hash)
+            speaking_report['evidence'].deep_stringify_keys
+          else
+            {}
+          end
+
+        scores.filter_map do |key, score_value|
+          next if speaking_report_aggregate_score_key?(key)
+          next if score_value.nil? || score_value.to_s.strip.blank?
+
+          feedback = Array(evidence[key]).map(&:to_s).map(&:strip).reject(&:blank?).join(' ')
+
+          {
+            criterion: format_speaking_report_criterion_label(key),
+            score_label: score_value.to_s,
+            comment: feedback
+          }
+        end
+      end
+
+      def speaking_report_aggregate_score_key?(key)
+        key.to_s == 'overall_band_score'
+      end
+
+      def format_speaking_report_criterion_label(key)
+        key.to_s.tr('_', ' ')
+      end
+
+      def speaking_overall_score_label(scores)
+        return nil unless scores.is_a?(Hash)
+
+        overall = scores['overall_band_score'] || scores[:overall_band_score]
+        return nil if overall.nil? || overall.to_s.strip.blank?
+
+        overall.to_s
       end
 
       def draw_essay_report_bullets(pdf, points)
