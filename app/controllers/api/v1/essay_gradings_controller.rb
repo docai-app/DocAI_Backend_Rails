@@ -2177,7 +2177,7 @@ module Api
             extract_score_rows(score_payload)
           end
 
-        puts "normalized_speaking_report: #{normalized_speaking_report}"
+        # puts "normalized_speaking_report: #{normalized_speaking_report}"
         overall_score_label =
           if speaking_report.present?
             extract_overall_score_label(speaking_score_payload)
