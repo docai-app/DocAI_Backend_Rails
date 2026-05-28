@@ -1450,7 +1450,12 @@ module Api
             assignment_label: json_data['assignment'].presence || 'Essay',
             rubric_label: json_data['rubric'].presence || essay_grading.essay_assignment.rubric['name'].to_s,
             account_label: essay_grading.general_user.show_in_report_name.to_s,
-            overall_score_label: extract_overall_score_label(category == 'speaking_essay' ? speaking_score_payload : score_payload),
+            overall_score_label: speaking_essay_report_overall_score_label(
+              essay_grading,
+              category,
+              speaking_score_payload,
+              score_payload
+            ),
             report_label: report_type == 'simplified' ? 'Simplified Report' : 'Full Report',
             assignment_type_label: assignment_type_label
           )
@@ -1483,7 +1488,7 @@ module Api
             section_index += 1
           end
 
-          if category == 'speaking_essay'
+          if category == 'speaking_essay' && speaking_essay_score_breakdown_visible?(essay_grading)
             draw_speaking_essay_report_score(
               pdf,
               palette,
@@ -1493,7 +1498,7 @@ module Api
               speaking_report: essay_grading.grading['speaking_report'],
               simplified: report_type == 'simplified'
             )
-          else
+          elsif category != 'speaking_essay'
             draw_essay_report_score(
               pdf,
               palette,
@@ -2266,6 +2271,41 @@ module Api
         return nil if overall.nil? || overall.to_s.strip.blank?
 
         overall.to_s
+      end
+
+      def speaking_essay_score_breakdown_visible?(essay_grading)
+        # Teacher batch export always includes scores; single download still respects role/score_visible.
+        return true if batch_report_download?
+        return true if report_viewer_is_teacher?
+
+        assignment_score_visible?(essay_grading.essay_assignment)
+      end
+
+      def batch_report_download?
+        action_name == 'download_reports'
+      end
+
+      def speaking_essay_report_overall_score_label(essay_grading, category, speaking_score_payload, score_payload)
+        if category == 'speaking_essay' && !speaking_essay_score_breakdown_visible?(essay_grading)
+          return 'N/A'
+        end
+
+        extract_overall_score_label(category == 'speaking_essay' ? speaking_score_payload : score_payload)
+      end
+
+      def report_viewer_is_teacher?
+        return true if params[:role].to_s == 'teacher'
+        return true if current_general_user&.aienglish_role == 'teacher'
+
+        false
+      end
+
+      def assignment_score_visible?(assignment)
+        return false unless assignment
+
+        meta = assignment.meta
+        value = meta.is_a?(Hash) ? (meta['score_visible'] || meta[:score_visible]) : nil
+        ActiveModel::Type::Boolean.new.cast(value)
       end
 
       def draw_essay_report_bullets(pdf, points)
