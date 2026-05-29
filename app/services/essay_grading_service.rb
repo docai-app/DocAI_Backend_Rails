@@ -24,7 +24,7 @@ class EssayGradingService
   end
 
   def run_workflows
-    # Rails.logger.info("[EssayGradingService] Starting run_workflows for essay grading ID: #{@essay_grading.id}")
+    @essay_grading.clear_grading_errors!
 
     # Run grading workflow with streaming
     grading_task_id = "#{@essay_grading.id}_grading"
@@ -33,6 +33,7 @@ class EssayGradingService
     # Rails.logger.info("[EssayGradingService] Grading workflow response received: #{grading_response.size} chunks, task_id: #{grading_task_id}")
     @grading_success = process_streaming_response(grading_response, grading_task_id, 'grading')
     Rails.logger.info("[EssayGradingService] Grading workflow success: #{@grading_success}")
+    record_workflow_error('grading', 'Grading workflow returned no valid outputs.', task_id: grading_task_id) unless @grading_success
 
     # Run general_context workflow (if @general_context_app_key is not nil)
     unless @general_context_app_key.blank?
@@ -42,23 +43,40 @@ class EssayGradingService
       # Rails.logger.info("[EssayGradingService] General context workflow response received: #{general_context_response.size} chunks, task_id: #{general_context_task_id}")
       @general_context_success = process_streaming_response(general_context_response, general_context_task_id, 'general_context')
       Rails.logger.info("[EssayGradingService] General context workflow success: #{@general_context_success}")
+      unless @general_context_success
+        record_workflow_error(
+          'general_context',
+          'General context workflow returned no valid outputs.',
+          task_id: general_context_task_id
+        )
+      end
     end
 
     unless @revised_essay_app_key.blank?
       revised_essay_response = execute_completion(@revised_essay_app_key, revised_essay_completion_payload)
       @revised_essay_success = process_completion_response(revised_essay_response)
       Rails.logger.info("[EssayGradingService] Revised essay workflow success: #{@revised_essay_success}")
+      record_workflow_error('revised_essay', 'Revised essay workflow failed.') unless @revised_essay_success
     end
 
     if speaking_essay? && core_workflows_successful?
       @speaking_scoring_success = SpeakingEssay::ScoringService.new(@essay_grading.reload).call
       Rails.logger.info("[EssayGradingService] Speaking essay scoring workflow success: #{@speaking_scoring_success}")
+      record_workflow_error('speaking_scoring', 'Speaking essay scoring workflow failed.') unless @speaking_scoring_success
     end
 
     # Final status update
     # Rails.logger.info("[EssayGradingService] Updating final status for essay grading ID: #{@essay_grading.id}")
     update_final_status
     # Rails.logger.info("[EssayGradingService] Completed run_workflows for essay grading ID: #{@essay_grading.id}")
+  rescue StandardError => e
+    message = "Unexpected error during essay grading workflows: #{e.message}"
+    Rails.logger.error("[EssayGradingService] #{message}")
+    Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
+    record_workflow_error('run_workflows', message, error_class: e.class.name)
+    @essay_grading.record_grading_failure_summary!(failed_steps: ['run_workflows'], message: e.message)
+    @essay_grading.update(status: 'stopped') if @essay_grading.pending?
+    raise
   end
 
   private
@@ -81,7 +99,14 @@ class EssayGradingService
 
       http.request(request) do |response|
         if response.code.to_i != 200
-          Rails.logger.error("[EssayGradingService] Streaming request failed with code #{response.code}: #{response.body}, task_id: #{task_id}")
+          message = "Streaming request failed with code #{response.code}"
+          Rails.logger.error("[EssayGradingService] #{message}: #{response.body}, task_id: #{task_id}")
+          record_workflow_error(
+            workflow_stage_from_task_id(task_id),
+            message,
+            task_id: task_id,
+            response_body: response.body.to_s.truncate(500)
+          )
           return [[], task_id]
         end
 
@@ -141,11 +166,20 @@ class EssayGradingService
         return execute_workflow_blocking(app_key, payload, task_id)
       end
     rescue Net::ReadTimeout => e
-      Rails.logger.error("[EssayGradingService] Timeout error during streaming workflow: #{e.message}, task_id: #{task_id}")
+      message = "Timeout error during streaming workflow: #{e.message}"
+      Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
+      record_workflow_error(workflow_stage_from_task_id(task_id), message, task_id: task_id)
       return [[], task_id]
     rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Standard error during streaming workflow: #{e.message}, task_id: #{task_id}")
+      message = "Standard error during streaming workflow: #{e.message}"
+      Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
       Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
+      record_workflow_error(
+        workflow_stage_from_task_id(task_id),
+        message,
+        task_id: task_id,
+        error_class: e.class.name
+      )
       return [[], task_id]
     end
 
@@ -173,7 +207,14 @@ class EssayGradingService
     begin
       response = http.request(request)
       if response.code.to_i != 200
-        Rails.logger.error("[EssayGradingService] Blocking request failed with code #{response.code}: #{response.body}, task_id: #{task_id}")
+        message = "Blocking request failed with code #{response.code}"
+        Rails.logger.error("[EssayGradingService] #{message}: #{response.body}, task_id: #{task_id}")
+        record_workflow_error(
+          workflow_stage_from_task_id(task_id),
+          message,
+          task_id: task_id,
+          response_body: response.body.to_s.truncate(500)
+        )
         return [[], task_id]
       end
 
@@ -184,20 +225,33 @@ class EssayGradingService
       begin
         data = JSON.parse(body)
         if data['error'].present?
-          Rails.logger.error("[EssayGradingService] Dify API error in blocking response: #{data['error']}, task_id: #{task_id}")
+          message = "Dify API error in blocking response: #{data['error']}"
+          Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
+          record_workflow_error(workflow_stage_from_task_id(task_id), message, task_id: task_id)
           return [[], task_id]
         end
         response_data << { 'event' => 'workflow_finished', 'data' => data }
       rescue JSON::ParserError => e
-        Rails.logger.error("[EssayGradingService] Failed to parse blocking response: #{e.message}, body: #{body}, task_id: #{task_id}")
+        message = "Failed to parse blocking response: #{e.message}"
+        Rails.logger.error("[EssayGradingService] #{message}, body: #{body}, task_id: #{task_id}")
+        record_workflow_error(workflow_stage_from_task_id(task_id), message, task_id: task_id)
         return [[], task_id]
       end
     rescue Net::ReadTimeout => e
-      Rails.logger.error("[EssayGradingService] Timeout error during blocking workflow: #{e.message}, task_id: #{task_id}")
+      message = "Timeout error during blocking workflow: #{e.message}"
+      Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
+      record_workflow_error(workflow_stage_from_task_id(task_id), message, task_id: task_id)
       return [[], task_id]
     rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Standard error during blocking workflow: #{e.message}, task_id: #{task_id}")
+      message = "Standard error during blocking workflow: #{e.message}"
+      Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
       Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
+      record_workflow_error(
+        workflow_stage_from_task_id(task_id),
+        message,
+        task_id: task_id,
+        error_class: e.class.name
+      )
       return [[], task_id]
     end
 
@@ -284,7 +338,10 @@ class EssayGradingService
 
   def process_streaming_response(response_data, task_id, context)
     # Rails.logger.info("[EssayGradingService] Processing streaming response for #{context}, received #{response_data.size} chunks, task_id: #{task_id}")
-    return false if response_data.empty?
+    if response_data.empty?
+      record_workflow_error(context, 'Workflow response was empty.', task_id: task_id)
+      return false
+    end
 
     begin
       outputs = nil
@@ -295,7 +352,9 @@ class EssayGradingService
         # Rails.logger.info("[EssayGradingService] Found #{workflow_finished_chunks.size} workflow_finished chunks for task_id: #{task_id}")
         workflow_finished_chunks.each do |chunk|
           if chunk['data']['error'].present?
-            Rails.logger.error("[EssayGradingService] Dify API error in streaming response: #{chunk['data']['error']}, task_id: #{task_id}")
+            message = "Dify API error in streaming response: #{chunk['data']['error']}"
+            Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
+            record_workflow_error(context, message, task_id: task_id)
             return false
           end
 
@@ -335,7 +394,9 @@ class EssayGradingService
           #   end
           # end
         else
-          Rails.logger.error("[EssayGradingService] No valid outputs found in workflow_finished or text_chunk for task_id: #{task_id}")
+          message = 'No valid outputs found in workflow_finished or text_chunk'
+          Rails.logger.error("[EssayGradingService] #{message} for task_id: #{task_id}")
+          record_workflow_error(context, message, task_id: task_id)
           return false
         end
       end
@@ -360,8 +421,10 @@ class EssayGradingService
       # Rails.logger.info("[EssayGradingService] Successfully processed #{context} response, outputs: #{outputs}, task_id: #{task_id}")
       true
     rescue StandardError => e
-      Rails.logger.error("[EssayGradingService] Error processing streaming response for #{context}: #{e.message}, task_id: #{task_id}")
+      message = "Error processing streaming response for #{context}: #{e.message}"
+      Rails.logger.error("[EssayGradingService] #{message}, task_id: #{task_id}")
       Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
+      record_workflow_error(context, message, task_id: task_id, error_class: e.class.name)
       false
     end
   end
@@ -384,7 +447,10 @@ class EssayGradingService
   end
 
   def process_completion_response(response)
-    return false unless response && response.code == 200
+    unless response && response.code == 200
+      record_workflow_error('revised_essay', 'Revised essay completion API returned an invalid response.')
+      return false
+    end
 
     result = JSON.parse(response.body)
     revised_outputs =
@@ -394,13 +460,19 @@ class EssayGradingService
         { 'text' => result['answer'] }
       end
 
-    return false if revised_outputs.blank?
+    if revised_outputs.blank?
+      record_workflow_error('revised_essay', 'Revised essay workflow returned no outputs.')
+      return false
+    end
 
     @essay_grading.update(
       revised_essay: @essay_grading.revised_essay.merge('data' => revised_outputs)
     )
+    true
   rescue StandardError => e
-    Rails.logger.error("[EssayGradingService] Error processing revised essay response: #{e.message}")
+    message = "Error processing revised essay response: #{e.message}"
+    Rails.logger.error("[EssayGradingService] #{message}")
+    record_workflow_error('revised_essay', message, error_class: e.class.name)
     false
   end
 
@@ -506,14 +578,16 @@ class EssayGradingService
       @essay_grading.call_webhook
       Rails.logger.info("[EssayGradingService] Status updated to 'graded' for essay grading ID: #{@essay_grading.id}")
     else
+      failed_steps = workflow_failed_steps
+      @essay_grading.record_grading_failure_summary!(failed_steps:)
       @essay_grading.update(status: 'stopped')
       Rails.logger.error("[EssayGradingService] Workflow failed, status updated to 'stopped' for essay grading ID: #{@essay_grading.id}")
       # 发送通知邮件给管理员
-      begin
-        AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
-      rescue StandardError => e
-        Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
-      end
+      # begin
+      #   AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
+      # rescue StandardError => e
+      #   Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
+      # end
     end
   end
 
@@ -529,6 +603,26 @@ class EssayGradingService
     @grading_success &&
       (@general_context_app_key.blank? || @general_context_success) &&
       (@revised_essay_app_key.blank? || @revised_essay_success)
+  end
+
+  def workflow_failed_steps
+    steps = []
+    steps << 'grading' unless @grading_success
+    steps << 'general_context' if @general_context_app_key.present? && !@general_context_success
+    steps << 'revised_essay' if @revised_essay_app_key.present? && !@revised_essay_success
+    steps << 'speaking_scoring' if speaking_essay? && core_workflows_successful? && !@speaking_scoring_success
+    steps
+  end
+
+  def workflow_stage_from_task_id(task_id)
+    suffix = task_id.to_s.sub(/\A#{Regexp.escape(@essay_grading.id.to_s)}_/, '')
+    suffix.presence || 'workflow'
+  end
+
+  def record_workflow_error(stage, message, **details)
+    @essay_grading.record_grading_error!(stage:, message:, details:)
+  rescue StandardError => e
+    Rails.logger.error("[EssayGradingService] Failed to persist grading error for #{@essay_grading.id}: #{e.message}")
   end
 
   def build_ielts_task_1_inputs(workflow_type)

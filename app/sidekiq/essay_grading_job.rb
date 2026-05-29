@@ -6,10 +6,19 @@ class EssayGradingJob
 
   sidekiq_retries_exhausted do |msg, ex|
     essay_grading = EssayGrading.find_by(id: msg['args']&.first)
-    next unless essay_grading&.category == 'speaking_essay'
+    next unless essay_grading
     next if essay_grading.draft?
 
-    Rails.logger.error("[EssayGradingJob] Speaking essay retries exhausted for #{essay_grading.id}: #{ex.message}")
+    Rails.logger.error("[EssayGradingJob] Retries exhausted for #{essay_grading.id}: #{ex.message}")
+    essay_grading.record_grading_error!(
+      stage: 'job_retries_exhausted',
+      message: ex.message,
+      details: { error_class: ex.class.name, job_class: 'EssayGradingJob' }
+    )
+    essay_grading.record_grading_failure_summary!(
+      failed_steps: ['job_retries_exhausted'],
+      message: ex.message
+    )
     essay_grading.update(status: 'stopped')
 
     begin
@@ -23,7 +32,8 @@ class EssayGradingJob
     essay_grading = EssayGrading.find(essay_grading_id)
 
     if essay_grading.category == 'speaking_essay'
-      prepare_speaking_essay_audio!(essay_grading)
+      return unless prepare_speaking_essay_audio!(essay_grading)
+
       essay_grading.reload
     else
       essay_grading.transcribe_audio # function 自己有判斷需唔需要
@@ -38,7 +48,10 @@ class EssayGradingJob
   private
 
   def prepare_speaking_essay_audio!(essay_grading)
-    SpeakingEssay::AudioAnalysisService.new(essay_grading).call
+    result = SpeakingEssay::AudioAnalysisService.new(essay_grading).call
+    return false if result == false
+
+    true
   rescue StandardError => e
     Rails.logger.error("[EssayGradingJob] Speaking essay audio analysis failed for #{essay_grading.id}: #{e.message}")
     Rails.logger.error("[EssayGradingJob] #{e.backtrace.first(5).join("\n")}") if e.backtrace

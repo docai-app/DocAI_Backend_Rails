@@ -4,18 +4,38 @@ require 'tempfile'
 
 module SpeakingEssay
   class AudioAnalysisService
+    BLANK_TRANSCRIPT_MESSAGE = 'Speaking essay transcript is blank after Deepgram transcription.'
+    MISSING_AUDIO_MESSAGE = 'Speaking essay audio file is missing.'
+
     def initialize(essay_grading)
       @essay_grading = essay_grading
     end
 
     def call
       return true unless speaking_essay?
-      raise 'Speaking essay audio file is missing.' unless @essay_grading.file.attached?
+
+      unless @essay_grading.file.attached?
+        stop_for_audio_analysis_failure!(
+          message: MISSING_AUDIO_MESSAGE,
+          details: { error_class: 'MissingAudio' }
+        )
+        return false
+      end
 
       with_audio_tempfile do |audio_path, content_type|
         deepgram_result = DeepgramTranscriber.new.call(audio_path:, content_type:)
         transcript_text = deepgram_result[:transcript_text].presence || @essay_grading.essay.to_s.strip
-        raise 'Speaking essay transcript is blank after Deepgram transcription.' if transcript_text.blank?
+        if transcript_text.blank?
+          stop_for_audio_analysis_failure!(
+            message: BLANK_TRANSCRIPT_MESSAGE,
+            details: {
+              error_class: 'BlankTranscript',
+              deepgram_transcript: deepgram_result[:transcript_text].to_s,
+              essay_fallback_present: @essay_grading.essay.to_s.strip.present?
+            }
+          )
+          return false
+        end
 
         speech_metrics = SpeechMetricsBuilder.new.call(deepgram_result:)
         pronunciation_metrics = AzurePronunciationAssessor.new.call(
@@ -32,9 +52,81 @@ module SpeakingEssay
       end
 
       true
+    rescue StandardError => e
+      Rails.logger.error("[SpeakingEssay::AudioAnalysisService] Failed for essay_grading #{@essay_grading.id}: #{e.message}")
+      Rails.logger.error("[SpeakingEssay::AudioAnalysisService] #{e.backtrace.first(5).join("\n")}") if e.backtrace
+
+      if stop_instead_of_raise?(e)
+        stop_for_audio_analysis_failure!(
+          message: e.message,
+          details: audio_analysis_error_details(e)
+        )
+        return false
+      end
+
+      @essay_grading.record_grading_error!(
+        stage: 'speaking_audio_analysis',
+        message: e.message,
+        details: { error_class: e.class.name }
+      )
+      raise
     end
 
     private
+
+    def stop_instead_of_raise?(error)
+      message = error.message.to_s
+
+      message == MISSING_AUDIO_MESSAGE ||
+        message == 'DEEPGRAM_API_KEY is missing.' ||
+        message.start_with?('Audio file not found:') ||
+        message.start_with?('Deepgram transcription failed:') ||
+        message.start_with?('Deepgram returned invalid JSON:')
+    end
+
+    def audio_analysis_error_details(error)
+      message = error.message.to_s
+      details = { error_class: error.class.name }
+
+      if message.start_with?('Deepgram transcription failed:')
+        details[:error_class] = 'DeepgramHttpError'
+        details[:http_status] = Regexp.last_match(1) if message =~ /HTTP (\d+)/
+        details[:response_body] = message.sub(/\ADeepgram transcription failed: HTTP \d+\s*/, '').truncate(500)
+      elsif message.start_with?('Deepgram returned invalid JSON:')
+        details[:error_class] = 'DeepgramInvalidJson'
+      elsif message.start_with?('Audio file not found:')
+        details[:error_class] = 'AudioFileNotFound'
+      elsif message == 'DEEPGRAM_API_KEY is missing.'
+        details[:error_class] = 'MissingDeepgramApiKey'
+      end
+
+      details
+    end
+
+    def stop_for_audio_analysis_failure!(message:, details: {})
+      Rails.logger.error(
+        "[SpeakingEssay::AudioAnalysisService] #{message} (essay_grading #{@essay_grading.id})"
+      )
+
+      @essay_grading.record_grading_error!(
+        stage: 'speaking_audio_analysis',
+        message:,
+        details:
+      )
+      @essay_grading.record_grading_failure_summary!(
+        failed_steps: ['speaking_audio_analysis'],
+        message:
+      )
+      @essay_grading.update!(status: 'stopped')
+
+      begin
+        AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
+      rescue StandardError => e
+        Rails.logger.error(
+          "[SpeakingEssay::AudioAnalysisService] Failed to send stopped notification: #{e.message}"
+        )
+      end
+    end
 
     def speaking_essay?
       @essay_grading.category == 'speaking_essay'

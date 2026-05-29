@@ -78,6 +78,26 @@ module Api
           }, status: :ok
         end
                 
+        # GET /api/admin/v1/essay_gradings/pending_or_stopped
+        # Optional filter: ?status=pending or ?status=stopped
+        def pending_or_stopped
+          base_scope = EssayGrading.pending_or_stopped
+          meta_counts = pending_or_stopped_meta_counts(base_scope)
+
+          filtered_scope = apply_pending_or_stopped_status_filter(base_scope)
+          return if performed?
+
+          essay_gradings = filtered_scope
+                           .includes(:essay_assignment, :general_user)
+                           .submitted_recent_first
+
+          render json: {
+            success: true,
+            meta: meta_counts.merge(filtered_status: params[:status].presence),
+            essay_gradings: essay_gradings.map { |grading| pending_or_stopped_grading_json(grading) }
+          }, status: :ok
+        end
+
         # GET /api/admin/v1/essay_gradings/:id
         def show
           # 预加载 essay_assignment 关联以获取 category 信息
@@ -195,11 +215,76 @@ module Api
 
         def check_stopped_status
           unless @essay_grading.stopped?
-            render json: { 
-              success: false, 
+            render json: {
+              success: false,
               message: 'Essay grading is not in stopped status'
             }, status: :unprocessable_entity
           end
+        end
+
+        def apply_pending_or_stopped_status_filter(scope)
+          return scope if params[:status].blank?
+
+          status_param = params[:status].to_s.downcase
+          status_param = 'stopped' if status_param == 'stop'
+
+          allowed_statuses = %w[pending stopped]
+          unless allowed_statuses.include?(status_param)
+            render json: {
+              success: false,
+              error: "Invalid status. Valid values are: #{allowed_statuses.join(', ')}"
+            }, status: :bad_request
+            return nil
+          end
+
+          scope.where(status: status_param)
+        end
+
+        def pending_or_stopped_meta_counts(base_scope)
+          pending_count = base_scope.pending.count
+          stopped_count = base_scope.stopped.count
+
+          {
+            total: pending_count + stopped_count,
+            pending: pending_count,
+            stopped: stopped_count
+          }
+        end
+
+        def pending_or_stopped_grading_json(grading)
+          assignment = grading.essay_assignment
+          user = grading.general_user
+          grading_meta = grading.meta.is_a?(Hash) ? grading.meta : {}
+
+          {
+            id: grading.id,
+            topic: grading.topic,
+            status: grading.status,
+            created_at: grading.created_at,
+            updated_at: grading.updated_at,
+            using_time: grading.using_time,
+            submission_class_name: grading.submission_class_name,
+            submission_class_number: grading.submission_class_number,
+            last_grading_error: grading_meta['last_grading_error'],
+            grading_failure: grading_meta['grading_failure'],
+            grading_errors: grading_meta['grading_errors'],
+            general_user: {
+              id: user.id,
+              nickname: user.nickname,
+              email: user.email,
+              class_name: user.banbie,
+              class_no: user.class_no
+            },
+            essay_assignment: assignment && {
+              id: assignment.id,
+              code: assignment.code,
+              assignment: assignment.assignment,
+              title: assignment.title,
+              topic: assignment.topic,
+              category: assignment.category,
+              remark: assignment.remark
+            }
+          }
         end
       end
     end

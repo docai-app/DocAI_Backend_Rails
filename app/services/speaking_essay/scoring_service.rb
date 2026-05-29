@@ -44,6 +44,11 @@ module SpeakingEssay
     rescue StandardError => e
       Rails.logger.error("[SpeakingEssay::ScoringService] Failed for essay_grading #{@essay_grading.id}: #{e.message}")
       Rails.logger.error("[SpeakingEssay::ScoringService] #{e.backtrace.first(5).join("\n")}") if e.backtrace
+      @essay_grading.record_grading_error!(
+        stage: 'speaking_scoring',
+        message: e.message,
+        details: { error_class: e.class.name }
+      )
       false
     end
 

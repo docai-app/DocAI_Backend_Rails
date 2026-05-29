@@ -57,6 +57,9 @@ class EssayGrading < ApplicationRecord
   # 新增 draft 狀態，用於學生「先保存草稿，不立即批改」
   enum status: { pending: 0, graded: 1, stopped: 2, draft: 3 }
 
+  scope :pending_or_stopped, -> { where(status: %i[pending stopped]) }
+  scope :submitted_recent_first, -> { order(created_at: :desc, updated_at: :desc) }
+
   # 狀態為 draft 時，不執行工作流；
   # 從 draft 變為其他狀態（例如 pending）時才執行工作流
   after_create :run_workflow, if: :should_run_workflow_on_create?
@@ -186,7 +189,8 @@ class EssayGrading < ApplicationRecord
 
   def run_workflow_sync
     if category == 'speaking_essay'
-      SpeakingEssay::AudioAnalysisService.new(self).call
+      return unless SpeakingEssay::AudioAnalysisService.new(self).call
+
       reload
     else
       transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
@@ -214,13 +218,47 @@ class EssayGrading < ApplicationRecord
     teacher_review_history.is_a?(Array) ? teacher_review_history : []
   end
 
+  def record_grading_error!(stage:, message:, details: {})
+    next_meta = (meta || {}).deep_dup
+    entry = {
+      'stage' => stage.to_s,
+      'message' => message.to_s,
+      'occurred_at' => Time.current.iso8601,
+      'details' => normalize_grading_error_details(details)
+    }
+
+    errors = Array(next_meta['grading_errors'])
+    errors << entry
+    next_meta['grading_errors'] = errors.last(20)
+    next_meta['last_grading_error'] = entry
+
+    update_columns(meta: next_meta, updated_at: Time.current)
+  end
+
+  def record_grading_failure_summary!(failed_steps:, message: nil)
+    next_meta = (meta || {}).deep_dup
+    next_meta['grading_failure'] = {
+      'occurred_at' => Time.current.iso8601,
+      'failed_steps' => Array(failed_steps).map(&:to_s),
+      'message' => message.presence || "Workflow failed: #{Array(failed_steps).join(', ')}"
+    }
+    update_columns(meta: next_meta, updated_at: Time.current)
+  end
+
+  def clear_grading_errors!
+    next_meta = (meta || {}).deep_dup
+    next_meta.delete('grading_errors')
+    next_meta.delete('last_grading_error')
+    next_meta.delete('grading_failure')
+    update_columns(meta: next_meta, updated_at: Time.current)
+  end
+
   # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading
   def rerun_workflow
-    # 更新状态为pending
+    clear_grading_errors!
     self.status = :pending
     save!
 
-    # 运行工作流
     run_workflow
   end
 
@@ -688,6 +726,21 @@ class EssayGrading < ApplicationRecord
   end
 
   private
+
+  def normalize_grading_error_details(details)
+    return {} unless details.is_a?(Hash)
+
+    details.deep_stringify_keys.transform_values do |value|
+      case value
+      when String, Numeric, TrueClass, FalseClass, NilClass
+        value
+      when Array
+        value.map { |item| item.is_a?(String) || item.is_a?(Numeric) ? item : item.to_s }.first(10)
+      else
+        value.to_s
+      end
+    end
+  end
 
   # listening：回傳 [得分, 滿分, 帶 is_correct 的題目 Hash]
   def listening_score_one_question(q)
