@@ -439,10 +439,19 @@ class EssayGradingService
       open_timeout: 100
     )
   rescue RestClient::ExceptionWithResponse => e
+    message = "Completion API request failed with code #{e.response&.code}"
     Rails.logger.error("[EssayGradingService] Exception when calling completion API: #{e.response}")
+    record_workflow_error(
+      'revised_essay',
+      message,
+      error_class: e.class.name,
+      response_body: e.response&.body.to_s.truncate(500)
+    )
     nil
   rescue StandardError => e
-    Rails.logger.error("[EssayGradingService] Standard error when calling completion API: #{e.message}")
+    message = "Standard error when calling completion API: #{e.message}"
+    Rails.logger.error("[EssayGradingService] #{message}")
+    record_workflow_error('revised_essay', message, error_class: e.class.name)
     nil
   end
 
