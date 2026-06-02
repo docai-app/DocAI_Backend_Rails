@@ -253,6 +253,11 @@ class EssayGrading < ApplicationRecord
     update_columns(meta: next_meta, updated_at: Time.current)
   end
 
+  # Admin 批量改状态：改为 draft，保留 meta 中的 grading_errors 供排查
+  def admin_mark_as_draft!
+    update!(status: :draft)
+  end
+
   # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading
   def rerun_workflow
     clear_grading_errors!

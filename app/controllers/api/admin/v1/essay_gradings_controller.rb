@@ -207,7 +207,44 @@ module Api
           end
         end
 
+        # POST /api/admin/v1/essay_gradings/bulk_rerun_workflow
+        # Body: { "ids": ["uuid-1", "uuid-2"] }，最多 5 条，逐条 rerun_workflow
+        def bulk_rerun_workflow
+          ids = parse_bulk_ids!
+          return if performed?
+
+          result = ::Admin::EssayGradings::BulkRerunWorkflowService.new(ids: ids).call
+          render json: result, status: :ok
+        end
+
+        # PATCH /api/admin/v1/essay_gradings/bulk_update_status
+        # Body: { "ids": ["uuid-1"], "status": "draft" }，首版仅支持改为 draft
+        def bulk_update_status
+          ids = parse_bulk_ids!
+          return if performed?
+
+          target_status = params[:status].to_s.presence
+          if target_status.blank?
+            render json: { success: false, error: 'status is required' }, status: :bad_request
+            return
+          end
+
+          result = ::Admin::EssayGradings::BulkUpdateStatusService.new(ids: ids, status: target_status).call
+          render json: result, status: :ok
+        rescue ArgumentError => e
+          render json: { success: false, error: e.message }, status: :bad_request
+        end
+
         private
+
+        # 校验并规范化批量 ids 参数；失败时 render 并返回 nil
+        def parse_bulk_ids!
+          ::Admin::EssayGradings::BulkIdsValidator.normalize!(params[:ids])
+        rescue ::Admin::EssayGradings::BulkIdsValidator::ValidationError => e
+          status = e.message.include?('exceed') ? :unprocessable_entity : :bad_request
+          render json: { success: false, error: e.message }, status: status
+          nil
+        end
 
         def set_essay_grading
           @essay_grading = EssayGrading.find(params[:id])

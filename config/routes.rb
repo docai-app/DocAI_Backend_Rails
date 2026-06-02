@@ -541,6 +541,8 @@ Rails.application.routes.draw do
           collection do 
             get :speaking_times_data
             get :pending_or_stopped
+            post :bulk_rerun_workflow
+            patch :bulk_update_status
           end
           member do
             post :rerun_workflow
