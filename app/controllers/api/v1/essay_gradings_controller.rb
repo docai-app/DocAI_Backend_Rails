@@ -7,6 +7,8 @@ require 'stringio'
 module Api
   module V1
     class EssayGradingsController < ApiController
+      include SpeakingConversationPresetQuestions
+
       before_action :authenticate_general_user!,
                     except: %i[download_reports download_report download_supplement_practice]
 
@@ -316,9 +318,8 @@ module Api
         set_essay_assignment_by_code
         return if performed?
 
-        # puts "set_essay_assignment_by_code: #{@essay_assignment.inspect}"
-
         grading_params = essay_grading_params
+
         prepared_attachment = prepare_audio_attachment_for_persistence(
           category: @essay_assignment.category,
           uploaded_file: grading_params[:file]
@@ -330,7 +331,9 @@ module Api
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
 
-        if @essay_assignment.rubric.present? && @essay_assignment.rubric['app_key'].present?
+        if preset_speaking_conversation_draft_request?(@essay_assignment, grading_params)
+          apply_preset_speaking_conversation_defaults!(@essay_grading, @essay_assignment)
+        elsif @essay_assignment.rubric.present? && @essay_assignment.rubric['app_key'].present?
           @essay_grading.grading ||= {}
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
           @essay_grading.general_context ||= {}
@@ -706,6 +709,106 @@ module Api
         prepared_attachment&.close!
       end
 
+      # PATCH /api/v1/essay_gradings/:id/speaking_conversation/answers/:question_id
+      def autosave_speaking_conversation_answer
+        return unless load_preset_speaking_conversation_grading
+
+        unless @essay_grading.draft?
+          render json: { success: false, error: 'This essay grading has already been submitted.' },
+                 status: :unprocessable_entity
+          return
+        end
+
+        question_id = params[:question_id].to_s
+        assignment_questions = preset_speaking_conversation_questions(@essay_grading.essay_assignment)
+        unless assignment_questions.any? { |question| preset_question_id(question) == question_id }
+          render json: { success: false, error: 'Question not found for this assignment.' }, status: :not_found
+          return
+        end
+
+        answer_payload = normalize_speaking_conversation_answer(
+          speaking_conversation_answer_params,
+          question_id: question_id
+        )
+        if answer_payload['answer_text'].blank?
+          render json: { success: false, error: 'Answer text is required.' }, status: :unprocessable_entity
+          return
+        end
+
+        if answer_payload['answer_audio_base64'].present?
+          answer_payload['answer_audio_url'] = SpeakingConversationAudioStorageService.upload!(
+            base64_or_data_url: answer_payload.delete('answer_audio_base64'),
+            filename_prefix: "speaking_conversation/#{@essay_grading.id}/#{question_id}"
+          )
+        end
+        answer_payload.delete('answer_audio_base64')
+
+        grading = (@essay_grading.grading || {}).deep_dup
+        grading['speaking_conversation'] ||= { 'mode' => 'preset_questions', 'answers' => [] }
+        answers = Array(grading.dig('speaking_conversation', 'answers'))
+        existing_index = answers.find_index { |item| item.is_a?(Hash) && item['question_id'].to_s == question_id }
+
+        if existing_index
+          answers[existing_index] = answer_payload
+        else
+          answers << answer_payload
+        end
+
+        answers.sort_by! { |item| item['question_order'].to_i }
+        grading['speaking_conversation']['mode'] = 'preset_questions'
+        grading['speaking_conversation']['answers'] = answers
+
+        @essay_grading.update!(grading: grading)
+
+        render json: {
+          success: true,
+          essay_grading: serialize_preset_speaking_conversation_grading(@essay_grading),
+          answer: answer_payload
+        }, status: :ok
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradings#autosave_speaking_conversation_answer] #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
+      # POST /api/v1/essay_gradings/:id/speaking_conversation/submit
+      def submit_preset_speaking_conversation
+        return unless load_preset_speaking_conversation_grading
+
+        unless @essay_grading.draft?
+          render json: { success: false, error: 'This essay grading has already been submitted.' },
+                 status: :unprocessable_entity
+          return
+        end
+
+        assignment_questions = preset_speaking_conversation_questions(@essay_grading.essay_assignment)
+        saved_answers = preset_speaking_conversation_answers(@essay_grading)
+        missing_questions = assignment_questions.reject do |question|
+          saved_answers.any? do |answer|
+            answer['question_id'].to_s == preset_question_id(question) && answer['answer_text'].to_s.strip.present?
+          end
+        end
+
+        if missing_questions.any?
+          render json: { success: false, error: 'Please answer all questions before submitting.' },
+                 status: :unprocessable_entity
+          return
+        end
+
+        essay_text = build_preset_speaking_conversation_essay(assignment_questions, saved_answers)
+
+        @essay_grading.update!(essay: essay_text, status: :pending)
+        @essay_assignment = @essay_grading.essay_assignment
+        update_assignment_status_if_needed
+
+        render json: {
+          success: true,
+          essay_grading: serialize_preset_speaking_conversation_grading(@essay_grading)
+        }, status: :ok
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradings#submit_preset_speaking_conversation] #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       def download_reports
         essay_assignment = EssayAssignment.find(params[:id])
         essay_gradings = essay_assignment.essay_gradings.where(status: 'graded').includes(:general_user)
@@ -799,7 +902,7 @@ module Api
                 :ipa_transcript,
                 :score,
                 :transcript_translation,
-                { real_transcript: [] }, # 假設 real_transcript 是陣列中的純量
+                { real_transcript: [] },
                 { result: %i[
                   audiobase64
                   real_transcript
@@ -814,6 +917,21 @@ module Api
                   end_time
                   is_letter_correct_all_words
                 ] }
+              ]
+            },
+            {
+              speaking_conversation: [
+                :mode,
+                {
+                  answers: %i[
+                    question_id
+                    question_order
+                    question_text
+                    answer_text
+                    answer_audio_url
+                    answered_at
+                  ]
+                }
               ]
             }
           ],

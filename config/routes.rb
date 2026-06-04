@@ -70,6 +70,7 @@ Rails.application.routes.draw do
           end
         end
       end
+
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
           get 'test_email'
@@ -77,6 +78,10 @@ Rails.application.routes.draw do
           patch 'teacher_review_restore'
           get 'download_report'
           get 'download_supplement_practice'
+          patch 'speaking_conversation/answers/:question_id',
+                to: 'essay_gradings#autosave_speaking_conversation_answer'
+          post 'speaking_conversation/submit',
+               to: 'essay_gradings#submit_preset_speaking_conversation'
         end
         # 补充练习记录路由
         member do

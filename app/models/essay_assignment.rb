@@ -86,6 +86,7 @@ class EssayAssignment < ApplicationRecord
   before_save :normalize_level
   after_save :check_and_generate_vocab_examples
   after_save :check_and_post_speaking_pronunciation_sentences
+  after_save :persist_speaking_conversation_question_audios
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
@@ -269,6 +270,46 @@ class EssayAssignment < ApplicationRecord
 
     # 保存更新后的 meta
     update(meta: meta.merge('speaking_pronunciation_sentences' => current_sentences))
+  end
+
+  def persist_speaking_conversation_question_audios
+    return unless category == 'speaking_conversation'
+    return unless saved_change_to_meta?
+
+    speaking_conversation = meta.is_a?(Hash) ? meta['speaking_conversation'] : nil
+    return unless speaking_conversation.is_a?(Hash)
+    return unless speaking_conversation['mode'] == 'preset_questions'
+
+    questions = speaking_conversation['questions']
+    return unless questions.is_a?(Array)
+
+    changed = false
+    normalized_questions = questions.each_with_index.map do |question, index|
+      next question unless question.is_a?(Hash)
+
+      normalized = question.deep_stringify_keys
+      audio_url = normalized['audio_url']
+      next normalized unless audio_url.is_a?(String) && audio_url.start_with?('data:')
+
+      question_id = normalized['id'].presence || "q_#{index + 1}"
+      persisted_url = SpeakingConversationAudioStorageService.persist_data_url!(
+        audio_url,
+        filename_prefix: "speaking_conversation/assignments/#{id}/#{question_id}"
+      )
+
+      if persisted_url.present? && persisted_url != audio_url
+        normalized['audio_url'] = persisted_url
+        changed = true
+      end
+
+      normalized
+    end
+
+    return unless changed
+
+    updated_meta = meta.deep_dup
+    updated_meta['speaking_conversation'] = speaking_conversation.merge('questions' => normalized_questions)
+    update_column(:meta, updated_meta)
   end
 
   # 作業分配相關方法
