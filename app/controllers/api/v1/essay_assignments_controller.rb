@@ -37,6 +37,7 @@ module Api
                                .group('essay_assignments.id')
                                .order('essay_assignments.created_at desc')
                                .page(params[:page])
+                               .per(params[:count] || 10)
 
         render json: {
           success: true,
