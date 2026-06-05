@@ -18,7 +18,8 @@ class AssignmentReminderMailer < ApplicationMailer
         'speaking_conversation' => '/speaking/conversation/upload',
         'speaking_essay' => '/speaking/essay/upload',
         'sentence_builder' => '/sentence_building/upload',
-        'speaking_pronunciation' => '/speaking_pronunciation/upload'
+        'speaking_pronunciation' => '/speaking_pronunciation/upload',
+        'sentence_puzzle' => '/sentence_puzzle/upload'
       }
       route_prefix = category_routes[@essay_assignment.category] || '/essay/upload'
       @assignment_url = "#{frontend_base_url}#{route_prefix}/#{@essay_assignment.code}"

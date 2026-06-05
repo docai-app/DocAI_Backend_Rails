@@ -8,6 +8,7 @@ module Api
   module V1
     class EssayGradingsController < ApiController
       include SpeakingConversationPresetQuestions
+      include SentencePuzzleSubmissions
 
       before_action :authenticate_general_user!,
                     except: %i[download_reports download_report download_supplement_practice]
@@ -243,6 +244,10 @@ module Api
           score = @essay_grading['score']
           full_score = 100
           # binding.pry
+        elsif @essay_grading.category == 'sentence_puzzle'
+          attempt = @essay_grading.meta.is_a?(Hash) ? @essay_grading.meta['sentence_puzzle_attempt'] : nil
+          score = attempt.is_a?(Hash) ? attempt['score'] : @essay_grading.score
+          full_score = attempt.is_a?(Hash) ? attempt['total'] : @essay_grading.grading.dig('sentence_puzzle', 'total')
         else
           score = score_payload[:overall_score] || @essay_grading.grading['score']
           full_score = score_payload[:full_score] || @essay_grading.grading['full_score']
@@ -333,6 +338,8 @@ module Api
 
         if preset_speaking_conversation_draft_request?(@essay_assignment, grading_params)
           apply_preset_speaking_conversation_defaults!(@essay_grading, @essay_assignment)
+        elsif sentence_puzzle_submission_request?(@essay_assignment, grading_params)
+          apply_sentence_puzzle_submission!(@essay_grading, grading_params)
         elsif @essay_assignment.rubric.present? && @essay_assignment.rubric['app_key'].present?
           @essay_grading.grading ||= {}
           @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
@@ -850,7 +857,8 @@ module Api
       end
 
       def essay_grading_params
-        params.require(:essay_grading).permit(
+        source = params[:essay_grading].present? ? params.require(:essay_grading) : params
+        source.permit(
           :essay,
           :topic,
           :file,
@@ -935,7 +943,33 @@ module Api
               ]
             }
           ],
-          meta: %i[newsfeed_id sample_essay audiobase64s files listening_form_id],
+          meta: [
+            :newsfeed_id,
+            :sample_essay,
+            :audiobase64s,
+            :files,
+            :listening_form_id,
+            {
+              sentence_puzzle_attempt: [
+                :status,
+                :score,
+                :total,
+                {
+                  answers: [
+                    :question_id,
+                    :question_order,
+                    :correct_sentence,
+                    :attempts_used,
+                    :is_correct,
+                    :student_sentence,
+                    :revealed_answer,
+                    :answered_at,
+                    { student_block_order: [] }
+                  ]
+                }
+              ]
+            }
+          ],
           sentence_builder: %i[vocab sentence]
         )
       end
@@ -1773,6 +1807,59 @@ module Api
         pdf.move_down 22
       end
 
+      def generate_sentence_puzzle_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
+        attempt = essay_grading.meta.is_a?(Hash) ? essay_grading.meta['sentence_puzzle_attempt'] : {}
+        attempt = attempt.deep_stringify_keys if attempt.is_a?(Hash)
+        score = attempt['score']
+        total = attempt['total']
+        answers = Array(attempt['answers'])
+
+        Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
+          font_path = Rails.root.join('app/assets/fonts')
+          pdf.font_families.update(
+            'Arial' => {
+              normal: font_path.join('ARIAL.ttf'),
+              bold: font_path.join('ARIALBD.ttf')
+            }
+          )
+          pdf.font('Arial')
+          palette = essay_report_palette
+
+          draw_unified_report_header(
+            pdf,
+            palette,
+            json_data,
+            school_logo_url,
+            overall_score_label_override: "#{score}/#{total}",
+            show_rubric_override: false,
+            assignment_type_label_override: 'Sentence Puzzle'
+          )
+
+          pdf.text 'Sentence Puzzle Results', size: 15, style: :bold
+          pdf.stroke_horizontal_rule
+          pdf.move_down 12
+
+          if essay_grading.essay.present?
+            pdf.text essay_grading.essay.to_s, size: 12
+            pdf.move_down 12
+          end
+
+          answers.each_with_index do |answer, index|
+            next unless answer.is_a?(Hash)
+
+            answer = answer.deep_stringify_keys
+            pdf.text "Question #{answer['question_order'] || index + 1}", style: :bold, size: 13
+            pdf.move_down 6
+            pdf.text "Correct sentence: #{answer['correct_sentence']}", size: 11
+            pdf.text "Student sentence: #{answer['student_sentence']}", size: 11
+            pdf.text "Result: #{answer['is_correct'] ? 'Correct' : 'Wrong'}", size: 11
+            pdf.text "Attempts used: #{answer['attempts_used']}", size: 11
+            pdf.text "Revealed answer: #{answer['revealed_answer'] ? 'Yes' : 'No'}", size: 11
+            pdf.move_down 12
+          end
+        end.render
+      end
+
       def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
         Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
@@ -1925,6 +2012,8 @@ module Api
           generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url, submission_info)
         elsif assignment.category.include?('speaking_conversation')
           generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info, report_type)
+        elsif assignment.category == 'sentence_puzzle'
+          generate_sentence_puzzle_pdf(json_data, essay_grading, school_logo_url, submission_info)
         else
           generate_pdf_from_json(json_data)
         end
@@ -1940,7 +2029,7 @@ module Api
           'topic' => assignment.topic,
           'account' => essay_grading.general_user.show_in_report_name,
           'assignment' => assignment.assignment,
-          'rubric' => assignment.rubric['name'],
+          'rubric' => assignment.rubric&.dig('name'),
           'level' => assignment.level.presence || assignment.meta['level'].presence,
           'graph_image_url' => extract_task1_graph_image_url(assignment),
           'report_type' => report_type,
@@ -1975,6 +2064,10 @@ module Api
           json_data['article'] ||= assignment.meta['listening_transcript'].presence ||
                                    assignment.meta.dig('listening', 'transcript').presence ||
                                    sanitize_report_transcript(assignment.meta['listening_ssml_transcript'])
+        elsif assignment.category == 'sentence_puzzle'
+          attempt = essay_grading.meta.is_a?(Hash) ? essay_grading.meta['sentence_puzzle_attempt'] : nil
+          json_data['sentence_puzzle_attempt'] = attempt if attempt.present?
+          json_data['essay'] = essay_grading.essay
         elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
           json_data.merge!(essay_grading.grading)
           json_data['data'] = { 'text' => effective_score_data.to_json }

@@ -15,6 +15,7 @@ class EssayGradingSubmissionPayloadBuilder
     @is_speaking_pronunciation = assignment_category == 'speaking_pronunciation'
     @is_speaking_essay = assignment_category == 'speaking_essay'
     @is_listening = assignment_category == 'listening'
+    @is_sentence_puzzle = assignment_category == 'sentence_puzzle'
   end
 
   # @return [Hash, nil] nil 僅在 essay_assignment_id 缺失時
@@ -31,7 +32,7 @@ class EssayGradingSubmissionPayloadBuilder
     end
 
     grading_json = nil
-    if grading_text.present? && !@is_sentence_builder && !@is_comprehension && !@is_speaking_pronunciation && !@is_listening
+    if grading_text.present? && !@is_sentence_builder && !@is_comprehension && !@is_speaking_pronunciation && !@is_listening && !@is_sentence_puzzle
       grading_json = effective_assignment_grading_json(@eg, grading_text)
     end
 
@@ -97,6 +98,10 @@ class EssayGradingSubmissionPayloadBuilder
     elsif @is_listening
       the_full_score = listening_data['full_score']
       overall_score = listening_data['score']
+    elsif @is_sentence_puzzle
+      sentence_puzzle_data = sentence_puzzle_score_data
+      the_full_score = sentence_puzzle_data[:total]
+      overall_score = sentence_puzzle_data[:score]
     elsif @is_speaking_essay
       the_full_score = 9
       overall_score  = 0
@@ -188,6 +193,30 @@ class EssayGradingSubmissionPayloadBuilder
              essay_grading.grading['scores']
 
     scores.is_a?(Hash) ? scores.deep_stringify_keys : {}
+  end
+
+  def sentence_puzzle_score_data
+    attempt =
+      if @eg.respond_to?(:meta) && @eg.meta.is_a?(Hash)
+        @eg.meta['sentence_puzzle_attempt']
+      end
+
+    if attempt.is_a?(Hash)
+      return {
+        score: attempt['score'],
+        total: attempt['total']
+      }
+    end
+
+    puzzle_data = @eg.grading.is_a?(Hash) ? @eg.grading['sentence_puzzle'] : nil
+    if puzzle_data.is_a?(Hash)
+      return {
+        score: puzzle_data['score'],
+        total: puzzle_data['total']
+      }
+    end
+
+    { score: @eg.score, total: nil }
   end
 
   def normalize_assignment_score(raw_score)

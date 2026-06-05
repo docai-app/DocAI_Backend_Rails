@@ -27,6 +27,8 @@
 #  index_essay_assignments_on_general_user_id  (general_user_id)
 #
 class EssayAssignment < ApplicationRecord
+  include SentencePuzzleSupport
+
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
                  :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level, :sample_essay,
@@ -80,9 +82,10 @@ class EssayAssignment < ApplicationRecord
     'narrative_essay' => 'Essay Type: Narrative Essay'
   }.freeze
 
-  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening sentence_puzzle]
 
   before_create :generate_unique_code
+  before_validation :assign_default_sentence_puzzle_rubric
   before_save :normalize_level
   after_save :check_and_generate_vocab_examples
   after_save :check_and_post_speaking_pronunciation_sentences
@@ -109,6 +112,7 @@ class EssayAssignment < ApplicationRecord
   validates :category, presence: true
   validates :title, presence: true
   validates :rubric, presence: true
+  validate :validate_sentence_puzzle_configuration, if: -> { category == 'sentence_puzzle' }
 
   # IELTS看圖作文的圖片格式驗證
   validates :graph_image, content_type: { in: ['image/jpeg'],

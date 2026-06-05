@@ -40,7 +40,7 @@ class GeneralUser < ApplicationRecord
   self.primary_key = 'id'
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder
-                                 speaking_pronunciation].freeze
+                                 speaking_pronunciation sentence_puzzle].freeze
 
   validate :aienglish_features_must_be_valid
 
