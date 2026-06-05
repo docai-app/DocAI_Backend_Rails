@@ -46,6 +46,8 @@ module Api
       end
 
       def show_only
+        ensure_speaking_pronunciation_model_audios_persisted!
+
         # 構建基本響應數據
         assignment_data = @essay_assignment.as_json
 
@@ -68,6 +70,7 @@ module Api
 
       def read
         set_essay_assignment
+        ensure_speaking_pronunciation_model_audios_persisted!
         essay_assignment_data = @essay_assignment.as_json
         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
         render json: { success: true, essay_assignment: essay_assignment_data }
@@ -75,7 +78,8 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-        
+        ensure_speaking_pronunciation_model_audios_persisted!
+
         # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
         essay_assignment_data = {
           id: @essay_assignment.id,
@@ -151,6 +155,7 @@ module Api
         end
         
         if @essay_assignment.save
+          ensure_speaking_pronunciation_model_audios_persisted!
           # 返回包含Community信息的响应
           assignment_data = @essay_assignment.as_json
           if @essay_assignment.community
@@ -168,7 +173,8 @@ module Api
 
       def update
         if @essay_assignment.update(essay_assignment_params)
-          render json: { success: true, essay_assignment: @essay_assignment }, status: :ok
+          ensure_speaking_pronunciation_model_audios_persisted!
+          render json: { success: true, essay_assignment: @essay_assignment.as_json }, status: :ok
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
@@ -364,6 +370,13 @@ module Api
         else
           render json: { success: false, error: 'Access denied' }, status: :ok
         end
+      end
+
+      def ensure_speaking_pronunciation_model_audios_persisted!
+        return unless @essay_assignment&.speaking_pronunciation?
+
+        @essay_assignment.persist_speaking_pronunciation_model_audios!
+        @essay_assignment.reload
       end
 
       def essay_assignment_params
