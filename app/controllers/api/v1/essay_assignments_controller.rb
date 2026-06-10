@@ -27,7 +27,7 @@ module Api
           essay_assignments.updated_at,
           essay_assignments.code,
           essay_assignments.assignment,
-          essay_assignments.meta,
+          #{EssayAssignment.list_meta_sql_select},
           COUNT(CASE WHEN essay_gradings.status != #{draft_status} THEN 1 END) AS number_of_submission
         SQL
 
@@ -41,13 +41,12 @@ module Api
 
         render json: {
           success: true,
-          essay_assignments: @essay_assignments,
+          essay_assignments: @essay_assignments.map(&:as_list_json),
           meta: pagination_meta(@essay_assignments)
         }, status: :ok
       end
 
-      def show_only
-        ensure_speaking_pronunciation_model_audios_persisted!
+      def show_only 
 
         # 構建基本響應數據
         assignment_data = @essay_assignment.as_json
@@ -71,7 +70,6 @@ module Api
 
       def read
         set_essay_assignment
-        ensure_speaking_pronunciation_model_audios_persisted!
         essay_assignment_data = @essay_assignment.as_json
         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
         render json: { success: true, essay_assignment: essay_assignment_data }
@@ -79,7 +77,6 @@ module Api
 
       def show
         @essay_assignment = EssayAssignment.find(params[:id])
-        ensure_speaking_pronunciation_model_audios_persisted!
 
         # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
         essay_assignment_data = {
@@ -156,7 +153,6 @@ module Api
         end
         
         if @essay_assignment.save
-          ensure_speaking_pronunciation_model_audios_persisted!
           # 返回包含Community信息的响应
           assignment_data = @essay_assignment.as_json
           if @essay_assignment.community
@@ -174,7 +170,6 @@ module Api
 
       def update
         if @essay_assignment.update(essay_assignment_params)
-          ensure_speaking_pronunciation_model_audios_persisted!
           render json: { success: true, essay_assignment: @essay_assignment.as_json }, status: :ok
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
@@ -373,11 +368,11 @@ module Api
         end
       end
 
-      def ensure_speaking_pronunciation_model_audios_persisted!
+      def enqueue_speaking_pronunciation_post_process_if_needed!
         return unless @essay_assignment&.speaking_pronunciation?
+        return unless @essay_assignment.speaking_pronunciation_has_pending_model_audio?
 
-        @essay_assignment.persist_speaking_pronunciation_model_audios!
-        @essay_assignment.reload
+        SpeakingPronunciationPostProcessJob.perform_async(@essay_assignment.id, false)
       end
 
       def essay_assignment_params
