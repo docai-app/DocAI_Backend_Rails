@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
+ActiveRecord::Schema[7.0].define(version: 2026_06_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -458,6 +458,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
     t.index ["category"], name: "index_essay_assignments_on_category"
     t.index ["code"], name: "index_essay_assignments_on_code", unique: true
     t.index ["community_id"], name: "index_essay_assignments_on_community_id"
+    t.index ["general_user_id", "category", "created_at"], name: "index_essay_assignments_on_user_category_created_at", order: { created_at: :desc }
     t.index ["general_user_id"], name: "index_essay_assignments_on_general_user_id"
   end
 

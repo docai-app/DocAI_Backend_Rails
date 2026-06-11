@@ -10,6 +10,40 @@ module Api
       before_action :aienglish_access, only: %i[show_only]
 
       def index
+        owner = index_assignments_owner
+        return if performed?
+
+        @essay_assignments = owner.essay_assignments
+        @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
+
+        @essay_assignments = @essay_assignments
+                               .select(
+                                 'essay_assignments.id',
+                                 'essay_assignments.rubric',
+                                 'essay_assignments.title',
+                                 'essay_assignments.hints',
+                                 'essay_assignments.category',
+                                 'essay_assignments.answer_visible',
+                                 'essay_assignments.topic',
+                                 'essay_assignments.created_at',
+                                 'essay_assignments.updated_at',
+                                 'essay_assignments.code',
+                                 'essay_assignments.assignment',
+                                 'essay_assignments.number_of_submission',
+                                 EssayAssignment.list_meta_sql_select
+                               )
+                               .order('essay_assignments.created_at desc')
+                               .page(params[:page])
+                               .per(params[:count] || 10)
+
+        render json: {
+          success: true,
+          essay_assignments: @essay_assignments.map(&:as_list_json),
+          meta: pagination_meta(@essay_assignments)
+        }, status: :ok
+      end
+
+      def index_old
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
 
@@ -373,6 +407,17 @@ module Api
         return unless @essay_assignment.speaking_pronunciation_has_pending_model_audio?
 
         SpeakingPronunciationPostProcessJob.perform_async(@essay_assignment.id, false)
+      end
+
+      def index_assignments_owner
+        owner_id = params[:general_user_id].presence
+        return current_general_user if owner_id.blank?
+        return current_general_user if owner_id.to_s == current_general_user.id.to_s
+
+        GeneralUser.find_by(id: owner_id) || begin
+          render json: { success: false, error: 'User not found' }, status: :not_found
+          nil
+        end
       end
 
       def essay_assignment_params

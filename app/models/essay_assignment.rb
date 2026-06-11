@@ -76,20 +76,37 @@ class EssayAssignment < ApplicationRecord
   ].freeze
 
   SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY = 'speaking_pronunciation_sentences'
+  SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY = 'speaking_conversation'
 
-  def self.meta_for_list_response(meta)
+  def self.meta_for_list_response(meta, category: nil)
     return meta unless meta.is_a?(Hash)
 
-    meta.except(SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY)
+    filtered = meta.except(SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY)
+    return filtered unless speaking_conversation_category?(category)
+
+    filtered.except(SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY)
   end
 
   def self.list_meta_sql_select
-    "essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' AS meta"
+    speaking_conversation_category = categories['speaking_conversation']
+
+    <<~SQL.squish
+      CASE
+        WHEN essay_assignments.category = #{speaking_conversation_category} THEN
+          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' - '#{SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY}'
+        ELSE
+          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}'
+      END AS meta
+    SQL
+  end
+
+  def self.speaking_conversation_category?(category)
+    category.to_s == 'speaking_conversation' || category == categories['speaking_conversation']
   end
 
   def as_list_json
     json = as_json
-    json['meta'] = self.class.meta_for_list_response(json['meta'])
+    json['meta'] = self.class.meta_for_list_response(json['meta'], category: category)
     json
   end
 
