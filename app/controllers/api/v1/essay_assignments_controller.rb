@@ -3,8 +3,13 @@
 module Api
   module V1
     class EssayAssignmentsController < ApiController
+      include EssayAssignmentAccessAuthorization
+
       before_action :authenticate_general_user!
-      before_action :set_essay_assignment, only: %i[update destroy]
+      before_action :set_essay_assignment_with_access, only: %i[read show update destroy]
+      before_action :authorize_essay_assignment_manage!, only: %i[read update]
+      before_action :authorize_essay_assignment_access!, only: %i[show]
+      before_action :authorize_essay_assignment_owner!, only: %i[destroy]
 
       before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
@@ -12,6 +17,22 @@ module Api
       def index
         owner = index_assignments_owner
         return if performed?
+
+        if merge_shared_assignments_for_index?(owner)
+          result = EssayAssignmentIndexQuery.new(
+            user: current_general_user,
+            category: params[:category],
+            page: params[:page],
+            per: params[:count]
+          ).call
+
+          render json: {
+            success: true,
+            essay_assignments: result.assignments.map { |assignment| assignment_list_json(assignment) },
+            meta: result.meta
+          }, status: :ok
+          return
+        end
 
         @essay_assignments = owner.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
@@ -103,15 +124,12 @@ module Api
       end
 
       def read
-        set_essay_assignment
         essay_assignment_data = @essay_assignment.as_json
         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
         render json: { success: true, essay_assignment: essay_assignment_data }
       end
 
       def show
-        @essay_assignment = EssayAssignment.find(params[:id])
-
         # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
         essay_assignment_data = {
           id: @essay_assignment.id,
@@ -160,8 +178,6 @@ module Api
           essay_assignment: essay_assignment_data,
           essay_gradings: essay_gradings_data
         }, status: :ok
-      rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
       rescue StandardError => e
         Rails.logger.error "Error in EssayAssignmentsController#show: #{e.message}\n#{e.backtrace.first(10).join("\n")}"
         render json: { success: false, error: e.message }, status: :internal_server_error
@@ -378,10 +394,25 @@ module Api
 
       private
 
-      def set_essay_assignment
+      def set_essay_assignment_with_access
+        return if performed?
+
         @essay_assignment = EssayAssignment.find(params[:id])
       rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :ok
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      end
+
+      def merge_shared_assignments_for_index?(owner)
+        current_general_user.aienglish_role == 'teacher' &&
+          owner.id == current_general_user.id
+      end
+
+      def assignment_list_json(assignment)
+        EssayAssignmentListJsonBuilder.build(
+          assignment,
+          user: current_general_user,
+          list_access_type: assignment.read_attribute('list_access_type')
+        )
       end
 
       def set_essay_assignment_by_code

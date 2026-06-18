@@ -46,6 +46,9 @@ Rails.application.routes.draw do
         member do
           get 'read'
           get 'show_only'
+          get 'shares', to: 'essay_assignment_shares#index'
+          put 'shares', to: 'essay_assignment_shares#sync'
+          post 'share', to: 'essay_assignment_shares#share'
           get 'download_reports', to: 'essay_gradings#download_reports'
           post 'generate_sample_essay'
           get 'statistics', to: 'assignment_statistics#show'
@@ -55,6 +58,7 @@ Rails.application.routes.draw do
           post :parse_vocab_csv
           get 'by_community/:community_id', to: 'essay_assignments#by_community'
           get 'distribution_options', to: 'assignment_distributions#distribution_options'
+          get 'share_options', to: 'essay_assignment_shares#share_options'
           get 'my_assignments', to: 'my_assignments#index'
         end
         resources :distributions, controller: 'assignment_distributions', except: [:new, :edit] do

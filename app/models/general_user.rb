@@ -75,6 +75,19 @@ class GeneralUser < ApplicationRecord
   has_many :essay_gradings
   has_many :essay_assignments
 
+  has_many :received_essay_assignment_shares,
+           class_name: 'EssayAssignmentShare',
+           foreign_key: :shared_with_general_user_id,
+           dependent: :destroy
+  has_many :active_received_essay_assignment_shares,
+           -> { active },
+           class_name: 'EssayAssignmentShare',
+           foreign_key: :shared_with_general_user_id,
+           inverse_of: :shared_with_general_user
+  has_many :shared_essay_assignments,
+           through: :active_received_essay_assignment_shares,
+           source: :essay_assignment
+
   # 作業分配關聯
   has_many :assignment_student_assignments, dependent: :destroy
   has_many :assigned_essay_assignments, through: :assignment_student_assignments, source: :essay_assignment
