@@ -50,6 +50,14 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     assert_not_includes ids, listening_assignment.id
   end
 
+  test 'filters assignments by search keyword' do
+    result = EssayAssignmentIndexQuery.new(user: @recipient, search: 'Owned').call
+    ids = result.assignments.map(&:id)
+
+    assert_includes ids, @owned_assignment.id
+    assert_not_includes ids, @shared_assignment.id
+  end
+
   private
 
   def build_index_query_context

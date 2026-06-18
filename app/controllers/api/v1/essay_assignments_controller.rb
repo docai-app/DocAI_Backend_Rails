@@ -22,6 +22,7 @@ module Api
           result = EssayAssignmentIndexQuery.new(
             user: current_general_user,
             category: params[:category],
+            search: params[:search],
             page: params[:page],
             per: params[:count]
           ).call
@@ -36,6 +37,7 @@ module Api
 
         @essay_assignments = owner.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
+        @essay_assignments = @essay_assignments.matching_search(params[:search])
 
         @essay_assignments = @essay_assignments
                                .select(

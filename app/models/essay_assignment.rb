@@ -129,6 +129,22 @@ class EssayAssignment < ApplicationRecord
 
   enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening sentence_puzzle]
 
+  scope :matching_search, lambda { |term|
+    normalized = term.to_s.strip
+    next all if normalized.blank?
+
+    search_term = "%#{sanitize_sql_like(normalized)}%"
+    where(
+      <<~SQL.squish,
+        essay_assignments.assignment ILIKE :search
+        OR essay_assignments.topic ILIKE :search
+        OR essay_assignments.title ILIKE :search
+        OR essay_assignments.code ILIKE :search
+      SQL
+      search: search_term
+    )
+  }
+
   before_create :generate_unique_code
   before_validation :assign_default_sentence_puzzle_rubric
   before_save :normalize_level
