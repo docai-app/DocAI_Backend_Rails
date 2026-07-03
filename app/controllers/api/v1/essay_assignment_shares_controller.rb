@@ -8,7 +8,7 @@ module Api
       before_action :authenticate_general_user!
       before_action :ensure_teacher!
       before_action :set_essay_assignment, only: %i[index sync share]
-      before_action :authorize_essay_assignment_owner!, only: %i[index sync share]
+      # before_action :authorize_essay_assignment_owner!, only: %i[index sync share]
 
       def share_options
         school = EssayAssignmentShareService.school_for_teacher(current_general_user)
