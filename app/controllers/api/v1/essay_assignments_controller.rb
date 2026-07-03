@@ -7,9 +7,9 @@ module Api
 
       before_action :authenticate_general_user!
       before_action :set_essay_assignment_with_access, only: %i[read show update destroy]
-      before_action :authorize_essay_assignment_manage!, only: %i[read update]
-      before_action :authorize_essay_assignment_access!, only: %i[show]
-      before_action :authorize_essay_assignment_owner!, only: %i[destroy]
+      # before_action :authorize_essay_assignment_manage!, only: %i[read update]
+      # before_action :authorize_essay_assignment_access!, only: %i[show]
+      # before_action :authorize_essay_assignment_owner!, only: %i[destroy]
 
       before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
