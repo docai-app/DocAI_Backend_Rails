@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
+ActiveRecord::Schema[7.0].define(version: 2026_06_04_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -438,6 +438,26 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "essay_assignment_shares", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_assignment_id", null: false
+    t.uuid "owner_general_user_id", null: false
+    t.uuid "shared_with_general_user_id", null: false
+    t.uuid "shared_by_general_user_id", null: false
+    t.uuid "school_id", null: false
+    t.uuid "school_academic_year_id"
+    t.integer "status", default: 0, null: false
+    t.datetime "revoked_at"
+    t.datetime "notified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["essay_assignment_id", "shared_with_general_user_id"], name: "idx_ea_shares_unique_recipient", unique: true
+    t.index ["essay_assignment_id", "status"], name: "idx_ea_shares_assignment_status"
+    t.index ["essay_assignment_id"], name: "index_essay_assignment_shares_on_essay_assignment_id"
+    t.index ["school_academic_year_id"], name: "index_essay_assignment_shares_on_school_academic_year_id"
+    t.index ["school_id"], name: "index_essay_assignment_shares_on_school_id"
+    t.index ["shared_with_general_user_id", "status"], name: "idx_ea_shares_recipient_status"
+  end
+
   create_table "essay_assignments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "topic"
     t.jsonb "rubric", default: {}, null: false
@@ -458,6 +478,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
     t.index ["category"], name: "index_essay_assignments_on_category"
     t.index ["code"], name: "index_essay_assignments_on_code", unique: true
     t.index ["community_id"], name: "index_essay_assignments_on_community_id"
+    t.index ["general_user_id", "category", "created_at"], name: "index_essay_assignments_on_user_category_created_at", order: { created_at: :desc }
+    t.index ["general_user_id", "updated_at"], name: "index_essay_assignments_on_user_updated_at", order: { updated_at: :desc }
     t.index ["general_user_id"], name: "index_essay_assignments_on_general_user_id"
   end
 
@@ -1181,6 +1203,12 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_04_120000) do
   add_foreign_key "dag_runs", "users"
   add_foreign_key "dags", "users"
   add_foreign_key "documents", "folders"
+  add_foreign_key "essay_assignment_shares", "essay_assignments"
+  add_foreign_key "essay_assignment_shares", "general_users", column: "owner_general_user_id"
+  add_foreign_key "essay_assignment_shares", "general_users", column: "shared_by_general_user_id"
+  add_foreign_key "essay_assignment_shares", "general_users", column: "shared_with_general_user_id"
+  add_foreign_key "essay_assignment_shares", "school_academic_years"
+  add_foreign_key "essay_assignment_shares", "schools"
   add_foreign_key "essay_assignments", "communities"
   add_foreign_key "essay_gradings", "essay_assignments"
   add_foreign_key "essay_gradings", "general_users"

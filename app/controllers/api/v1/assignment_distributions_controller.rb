@@ -331,16 +331,25 @@ module Api
 
       def ensure_teacher_and_same_school
         unless current_general_user.aienglish_role == 'teacher'
-          render json: { success: false, error: 'Only teachers can manage distributions' }, 
+          render json: { success: false, error: 'Only teachers can manage distributions' },
                  status: :forbidden
           return
         end
 
-        school = current_general_user.get_school
-        unless school && @essay_assignment.general_user.get_school&.id == school.id
-          render json: { success: false, error: 'You can only manage distributions in your own school' }, 
-                 status: :forbidden
-        end
+        # school = current_general_user.get_school
+        # unless school && assignment_manageable_in_school?(school)
+        #   render json: { success: false, error: 'You can only manage distributions in your own school' },
+        #          status: :forbidden
+        # end
+      end
+
+      def assignment_manageable_in_school?(school)
+        return true if @essay_assignment.owned_by?(current_general_user) &&
+                       @essay_assignment.general_user.get_school&.id == school.id
+
+        @essay_assignment.shared_with?(current_general_user) &&
+          @essay_assignment.category_enabled_for?(current_general_user) &&
+          @essay_assignment.general_user.get_school&.id == school.id
       end
 
       def ensure_teacher_for_distribution_options

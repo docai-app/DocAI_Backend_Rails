@@ -27,6 +27,9 @@
 #  index_essay_assignments_on_general_user_id  (general_user_id)
 #
 class EssayAssignment < ApplicationRecord
+  include SentencePuzzleSupport
+  include EssayAssignmentAccess
+
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
                  :speaking_pronunciation_pass_score, :speaking_pronunciation_sentences, :level, :sample_essay,
@@ -64,6 +67,50 @@ class EssayAssignment < ApplicationRecord
     'narrative_essay' => 'Narrative Essay'
   }.freeze
 
+  SPEAKING_PRONUNCIATION_MODEL_AUDIO_FIELD_KEYS = %w[
+    model_audio_url
+    model_audio_status
+    model_tts_provider
+    model_tts_voice
+    model_tts_generated_at
+    model_audio_playback_rate
+  ].freeze
+
+  SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY = 'speaking_pronunciation_sentences'
+  SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY = 'speaking_conversation'
+
+  def self.meta_for_list_response(meta, category: nil)
+    return meta unless meta.is_a?(Hash)
+
+    filtered = meta.except(SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY)
+    return filtered unless speaking_conversation_category?(category)
+
+    filtered.except(SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY)
+  end
+
+  def self.list_meta_sql_select
+    speaking_conversation_category = categories['speaking_conversation']
+
+    <<~SQL.squish
+      CASE
+        WHEN essay_assignments.category = #{speaking_conversation_category} THEN
+          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' - '#{SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY}'
+        ELSE
+          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}'
+      END AS meta
+    SQL
+  end
+
+  def self.speaking_conversation_category?(category)
+    category.to_s == 'speaking_conversation' || category == categories['speaking_conversation']
+  end
+
+  def as_list_json
+    json = as_json
+    json['meta'] = self.class.meta_for_list_response(json['meta'], category: category)
+    json
+  end
+
   ESSAY_TYPE_LABELS_WITH_NUMBER = {
     'opinion_agree_disagree' => 'Essay Type 1: Opinion (Agree/Disagree)',
     'discuss_both_views' => 'Essay Type 2: Discuss Both Views (Balanced Discussion)',
@@ -80,12 +127,30 @@ class EssayAssignment < ApplicationRecord
     'narrative_essay' => 'Essay Type: Narrative Essay'
   }.freeze
 
-  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening sentence_puzzle]
+
+  scope :matching_search, lambda { |term|
+    normalized = term.to_s.strip
+    next all if normalized.blank?
+
+    search_term = "%#{sanitize_sql_like(normalized)}%"
+    where(
+      <<~SQL.squish,
+        essay_assignments.assignment ILIKE :search
+        OR essay_assignments.topic ILIKE :search
+        OR essay_assignments.title ILIKE :search
+        OR essay_assignments.code ILIKE :search
+      SQL
+      search: search_term
+    )
+  }
 
   before_create :generate_unique_code
+  before_validation :assign_default_sentence_puzzle_rubric
   before_save :normalize_level
   after_save :check_and_generate_vocab_examples
-  after_save :check_and_post_speaking_pronunciation_sentences
+  after_save :persist_speaking_conversation_question_audios
+  after_commit :enqueue_speaking_pronunciation_post_process_job, on: %i[create update]
 
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
@@ -108,6 +173,7 @@ class EssayAssignment < ApplicationRecord
   validates :category, presence: true
   validates :title, presence: true
   validates :rubric, presence: true
+  validate :validate_sentence_puzzle_configuration, if: -> { category == 'sentence_puzzle' }
 
   # IELTS看圖作文的圖片格式驗證
   validates :graph_image, content_type: { in: ['image/jpeg'],
@@ -229,46 +295,224 @@ class EssayAssignment < ApplicationRecord
     SentenceBuilderExampleJob.perform_async(id)
   end
 
-  def check_and_post_speaking_pronunciation_sentences
-    # 只針對 speaking_pronunciation 類型處理
-    return unless category == 'speaking_pronunciation'
-    # 先確認 meta 有否異動
-    return unless saved_change_to_meta?
+  def enqueue_speaking_pronunciation_post_process_job
+    return unless speaking_pronunciation?
+    return unless valid_speaking_pronunciation_sentences?
 
-    # 取得 meta 中 speaking_pronunciation_sentences 的前後值
-    meta_previous, meta_current = saved_change_to_meta
-    previous_sentences = meta_previous.is_a?(Hash) ? meta_previous['speaking_pronunciation_sentences'] : nil
-    current_sentences = meta_current.is_a?(Hash) ? meta_current['speaking_pronunciation_sentences'] : nil
+    pending_audio = speaking_pronunciation_has_pending_model_audio?
+    sentences_changed = speaking_pronunciation_sentences_changed_in_last_commit?
+    return unless pending_audio || sentences_changed
 
-    # 檢查 speaking_pronunciation_sentences 是否有改變
-    return unless previous_sentences != current_sentences
+    SpeakingPronunciationPostProcessJob.perform_async(id, sentences_changed)
+  end
 
-    # 確保 speaking_pronunciation_sentences 格式正確
-    return unless current_sentences.is_a?(Array) && current_sentences.all? do |item|
-                    item.is_a?(Hash) && item['sentence'].present?
-                  end
+  def speaking_pronunciation_post_process_needed?
+    speaking_pronunciation_has_pending_model_audio? ||
+      speaking_pronunciation_sentences_changed_in_last_commit?
+  end
 
-    # 遍歷每個 sentence 並調用 API
-    current_sentences.each do |sentence_obj|
-      sentence = sentence_obj['sentence']
-      response = Net::HTTP.post(
-        URI('https://pronunciation.m2mda.com/pinyin'),
-        { language: 'en', sentence: }.to_json,
-        'Content-Type' => 'application/json'
-      )
+  def speaking_pronunciation_sentences_changed_in_last_commit?
+    return false unless previous_changes.key?('meta')
 
-      if response.is_a?(Net::HTTPSuccess)
-        result = JSON.parse(response.body)
-        puts "API Response: #{result}"
-        # 更新 sentence_obj 中的字段
-        sentence_obj.merge!(result)
-      else
-        puts "Failed to fetch pronunciation for sentence: #{sentence}"
-      end
+    meta_previous, meta_current = previous_changes['meta']
+    speaking_pronunciation_sentences_meaningfully_changed?(meta_previous, meta_current)
+  end
+
+  def speaking_pronunciation_sentences_meaningfully_changed?(meta_previous, meta_current)
+    previous = normalized_sentences_for_post_process_compare(
+      meta_previous.is_a?(Hash) ? meta_previous['speaking_pronunciation_sentences'] : nil
+    )
+    current = normalized_sentences_for_post_process_compare(
+      meta_current.is_a?(Hash) ? meta_current['speaking_pronunciation_sentences'] : nil
+    )
+    previous != current
+  end
+
+  def normalized_sentences_for_post_process_compare(sentences)
+    Array(sentences).filter_map do |item|
+      next unless item.is_a?(Hash)
+
+      normalized = item.deep_stringify_keys
+      sentence = normalized['sentence'].to_s.strip
+      next if sentence.blank?
+
+      {
+        'sentence' => sentence,
+        'model_audio_url' => normalized['model_audio_url']
+      }
+    end
+  end
+
+  def valid_speaking_pronunciation_sentences?
+    sentences = speaking_pronunciation_sentences_from_meta
+    sentences.is_a?(Array) && sentences.all? do |item|
+      item.is_a?(Hash) && item.with_indifferent_access[:sentence].present?
+    end
+  end
+
+  def speaking_pronunciation_has_pending_model_audio?
+    Array(speaking_pronunciation_sentences_from_meta).any? do |sentence|
+      speaking_pronunciation_model_audio_data_url?(sentence)
+    end
+  end
+
+  def run_speaking_pronunciation_post_process!(run_pinyin: true)
+    return unless speaking_pronunciation?
+    return unless valid_speaking_pronunciation_sentences?
+
+    persist_speaking_pronunciation_model_audios! if speaking_pronunciation_has_pending_model_audio?
+    enrich_speaking_pronunciation_pinyin! if run_pinyin
+  end
+
+  def enrich_speaking_pronunciation_pinyin!
+    return unless speaking_pronunciation?
+
+    reload if persisted?
+
+    sentences = speaking_pronunciation_sentences_from_meta
+    return unless sentences.is_a?(Array) && sentences.all? do |item|
+      item.is_a?(Hash) && item.with_indifferent_access[:sentence].present?
     end
 
-    # 保存更新后的 meta
-    update(meta: meta.merge('speaking_pronunciation_sentences' => current_sentences))
+    enriched = false
+    normalized_sentences = sentences.map do |sentence_obj|
+      sentence = sentence_obj.with_indifferent_access[:sentence]
+      normalized = sentence_obj.deep_stringify_keys
+      preserved_model_audio = normalized.slice(*SPEAKING_PRONUNCIATION_MODEL_AUDIO_FIELD_KEYS)
+
+      begin
+        response = Net::HTTP.post(
+          URI('https://pronunciation.m2mda.com/pinyin'),
+          { language: 'en', sentence: }.to_json,
+          'Content-Type' => 'application/json'
+        )
+
+        if response.is_a?(Net::HTTPSuccess) && response.body.present?
+          result = JSON.parse(response.body)
+          if result.is_a?(Hash) && result.present?
+            Rails.logger.info("[EssayAssignment#enrich_speaking_pronunciation_pinyin!] Pinyin API response for sentence: #{sentence}")
+            pronunciation_fields = result.except('sentence', *SPEAKING_PRONUNCIATION_MODEL_AUDIO_FIELD_KEYS)
+            normalized.merge!(pronunciation_fields)
+            enriched = true
+          else
+            Rails.logger.warn("[EssayAssignment#enrich_speaking_pronunciation_pinyin!] Empty pinyin response for sentence: #{sentence}")
+          end
+        else
+          Rails.logger.warn("[EssayAssignment#enrich_speaking_pronunciation_pinyin!] Failed to fetch pronunciation for sentence: #{sentence}")
+        end
+      rescue StandardError => e
+        Rails.logger.error("[EssayAssignment#enrich_speaking_pronunciation_pinyin!] Pinyin API error for sentence '#{sentence}': #{e.message}")
+      end
+
+      normalized.merge!(preserved_model_audio)
+      normalized
+    end
+
+    return unless enriched
+
+    updated_meta = (read_attribute(:meta) || {}).deep_dup
+    updated_meta['speaking_pronunciation_sentences'] = normalized_sentences
+    update_column(:meta, updated_meta)
+  end
+
+  def persist_speaking_conversation_question_audios
+    return unless category == 'speaking_conversation'
+    return unless saved_change_to_meta?
+
+    speaking_conversation = meta.is_a?(Hash) ? meta['speaking_conversation'] : nil
+    return unless speaking_conversation.is_a?(Hash)
+    return unless speaking_conversation['mode'] == 'preset_questions'
+
+    questions = speaking_conversation['questions']
+    return unless questions.is_a?(Array)
+
+    changed = false
+    normalized_questions = questions.each_with_index.map do |question, index|
+      next question unless question.is_a?(Hash)
+
+      normalized = question.deep_stringify_keys
+      audio_url = normalized['audio_url']
+      next normalized unless audio_url.is_a?(String) && audio_url.start_with?('data:')
+
+      question_id = normalized['id'].presence || "q_#{index + 1}"
+      persisted_url = SpeakingConversationAudioStorageService.persist_data_url!(
+        audio_url,
+        filename_prefix: "speaking_conversation/assignments/#{id}/#{question_id}"
+      )
+
+      if persisted_url.present? && persisted_url != audio_url
+        normalized['audio_url'] = persisted_url
+        changed = true
+      end
+
+      normalized
+    end
+
+    return unless changed
+
+    updated_meta = meta.deep_dup
+    updated_meta['speaking_conversation'] = speaking_conversation.merge('questions' => normalized_questions)
+    update_column(:meta, updated_meta)
+  end
+
+  def persist_speaking_pronunciation_model_audios!
+    return unless speaking_pronunciation?
+
+    reload if persisted?
+
+    sentences = speaking_pronunciation_sentences_from_meta
+    return unless sentences.is_a?(Array)
+    return unless sentences.any? { |sentence| speaking_pronunciation_model_audio_data_url?(sentence) }
+
+    changed = false
+    normalized_sentences = sentences.each_with_index.map do |sentence, index|
+      next sentence unless sentence.is_a?(Hash)
+
+      normalized = sentence.deep_stringify_keys
+      audio_url = normalized['model_audio_url']
+      unless speaking_pronunciation_model_audio_data_url?(normalized)
+        next normalized
+      end
+
+      sentence_key = normalized['id'].presence || "sentence_#{index + 1}"
+      persisted_url = SpeakingConversationAudioStorageService.persist_data_url!(
+        audio_url,
+        filename_prefix: "speaking_pronunciation/assignments/#{id}/#{sentence_key}"
+      )
+
+      if persisted_url.present? && persisted_url != audio_url
+        normalized['model_audio_url'] = persisted_url
+        changed = true
+      else
+        Rails.logger.warn(
+          "[EssayAssignment#persist_speaking_pronunciation_model_audios!] Failed to persist model audio for assignment #{id}, sentence #{sentence_key}"
+        )
+      end
+
+      normalized
+    end
+
+    return unless changed
+
+    updated_meta = (read_attribute(:meta) || {}).deep_dup
+    updated_meta['speaking_pronunciation_sentences'] = normalized_sentences
+    update_column(:meta, updated_meta)
+  end
+
+  def speaking_pronunciation_sentences_from_meta
+    raw_meta = read_attribute(:meta)
+    if raw_meta.is_a?(Hash)
+      indifferent_meta = raw_meta.with_indifferent_access
+      return indifferent_meta[:speaking_pronunciation_sentences] if indifferent_meta[:speaking_pronunciation_sentences].present?
+    end
+
+    speaking_pronunciation_sentences
+  end
+
+  def speaking_pronunciation_model_audio_data_url?(sentence)
+    return false unless sentence.is_a?(Hash)
+
+    sentence.with_indifferent_access[:model_audio_url].to_s.start_with?('data:')
   end
 
   # 作業分配相關方法

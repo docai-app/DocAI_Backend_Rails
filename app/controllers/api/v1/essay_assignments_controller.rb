@@ -3,13 +3,70 @@
 module Api
   module V1
     class EssayAssignmentsController < ApiController
+      include EssayAssignmentAccessAuthorization
+
       before_action :authenticate_general_user!
-      before_action :set_essay_assignment, only: %i[update destroy]
+      before_action :set_essay_assignment_with_access, only: %i[read show update destroy]
+      before_action :authorize_essay_assignment_manage!, only: %i[read update]
+      before_action :authorize_essay_assignment_access!, only: %i[show]
+      before_action :authorize_essay_assignment_owner!, only: %i[destroy]
 
       before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
 
       def index
+        owner = index_assignments_owner
+        return if performed?
+
+        if merge_shared_assignments_for_index?(owner)
+          result = EssayAssignmentIndexQuery.new(
+            user: current_general_user,
+            category: params[:category],
+            search: params[:search],
+            page: params[:page],
+            per: params[:count]
+          ).call
+
+          render json: {
+            success: true,
+            essay_assignments: result.assignments.map { |assignment| assignment_list_json(assignment) },
+            meta: result.meta
+          }, status: :ok
+          return
+        end
+
+        @essay_assignments = owner.essay_assignments
+        @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
+        @essay_assignments = @essay_assignments.matching_search(params[:search])
+
+        @essay_assignments = @essay_assignments
+                               .select(
+                                 'essay_assignments.id',
+                                 'essay_assignments.rubric',
+                                 'essay_assignments.title',
+                                 'essay_assignments.hints',
+                                 'essay_assignments.category',
+                                 'essay_assignments.answer_visible',
+                                 'essay_assignments.topic',
+                                 'essay_assignments.created_at',
+                                 'essay_assignments.updated_at',
+                                 'essay_assignments.code',
+                                 'essay_assignments.assignment',
+                                 'essay_assignments.number_of_submission',
+                                 EssayAssignment.list_meta_sql_select
+                               )
+                               .order('essay_assignments.created_at desc')
+                               .page(params[:page])
+                               .per(params[:count] || 10)
+
+        render json: {
+          success: true,
+          essay_assignments: @essay_assignments.map(&:as_list_json),
+          meta: pagination_meta(@essay_assignments)
+        }, status: :ok
+      end
+
+      def index_old
         @essay_assignments = current_general_user.essay_assignments
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
 
@@ -27,7 +84,7 @@ module Api
           essay_assignments.updated_at,
           essay_assignments.code,
           essay_assignments.assignment,
-          essay_assignments.meta,
+          #{EssayAssignment.list_meta_sql_select},
           COUNT(CASE WHEN essay_gradings.status != #{draft_status} THEN 1 END) AS number_of_submission
         SQL
 
@@ -41,12 +98,13 @@ module Api
 
         render json: {
           success: true,
-          essay_assignments: @essay_assignments,
+          essay_assignments: @essay_assignments.map(&:as_list_json),
           meta: pagination_meta(@essay_assignments)
         }, status: :ok
       end
 
-      def show_only
+      def show_only 
+
         # 構建基本響應數據
         assignment_data = @essay_assignment.as_json
 
@@ -68,15 +126,12 @@ module Api
       end
 
       def read
-        set_essay_assignment
         essay_assignment_data = @essay_assignment.as_json
         essay_assignment_data[:graph_image_url] = @essay_assignment.graph_image_url if @essay_assignment.graph_image_url.present?
         render json: { success: true, essay_assignment: essay_assignment_data }
       end
 
       def show
-        @essay_assignment = EssayAssignment.find(params[:id])
-        
         # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
         essay_assignment_data = {
           id: @essay_assignment.id,
@@ -125,8 +180,6 @@ module Api
           essay_assignment: essay_assignment_data,
           essay_gradings: essay_gradings_data
         }, status: :ok
-      rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
       rescue StandardError => e
         Rails.logger.error "Error in EssayAssignmentsController#show: #{e.message}\n#{e.backtrace.first(10).join("\n")}"
         render json: { success: false, error: e.message }, status: :internal_server_error
@@ -169,7 +222,7 @@ module Api
 
       def update
         if @essay_assignment.update(essay_assignment_params)
-          render json: { success: true, essay_assignment: @essay_assignment }, status: :ok
+          render json: { success: true, essay_assignment: @essay_assignment.as_json }, status: :ok
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
@@ -343,10 +396,25 @@ module Api
 
       private
 
-      def set_essay_assignment
+      def set_essay_assignment_with_access
+        return if performed?
+
         @essay_assignment = EssayAssignment.find(params[:id])
       rescue ActiveRecord::RecordNotFound
-        render json: { success: false, error: 'EssayAssignment not found' }, status: :ok
+        render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      end
+
+      def merge_shared_assignments_for_index?(owner)
+        current_general_user.aienglish_role == 'teacher' &&
+          owner.id == current_general_user.id
+      end
+
+      def assignment_list_json(assignment)
+        EssayAssignmentListJsonBuilder.build(
+          assignment,
+          user: current_general_user,
+          list_access_type: assignment.read_attribute('list_access_type')
+        )
       end
 
       def set_essay_assignment_by_code
@@ -358,11 +426,30 @@ module Api
       def aienglish_access
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
 
-        # 檢查 meta 欄位中的 aienglish_features_list
-        if current_general_user.aienglish_features_list.include?(@essay_assignment.category)
+        # Sentence Puzzle 新類型先允許所有已登入用戶存取；其餘類型仍走 feature list
+        if @essay_assignment.category == 'sentence_puzzle' ||
+           current_general_user.aienglish_features_list.include?(@essay_assignment.category)
           true
         else
           render json: { success: false, error: 'Access denied' }, status: :ok
+        end
+      end
+
+      def enqueue_speaking_pronunciation_post_process_if_needed!
+        return unless @essay_assignment&.speaking_pronunciation?
+        return unless @essay_assignment.speaking_pronunciation_has_pending_model_audio?
+
+        SpeakingPronunciationPostProcessJob.perform_async(@essay_assignment.id, false)
+      end
+
+      def index_assignments_owner
+        owner_id = params[:general_user_id].presence
+        return current_general_user if owner_id.blank?
+        return current_general_user if owner_id.to_s == current_general_user.id.to_s
+
+        GeneralUser.find_by(id: owner_id) || begin
+          render json: { success: false, error: 'User not found' }, status: :not_found
+          nil
         end
       end
 

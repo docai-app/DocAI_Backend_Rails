@@ -46,6 +46,9 @@ Rails.application.routes.draw do
         member do
           get 'read'
           get 'show_only'
+          get 'shares', to: 'essay_assignment_shares#index'
+          put 'shares', to: 'essay_assignment_shares#sync'
+          post 'share', to: 'essay_assignment_shares#share'
           get 'download_reports', to: 'essay_gradings#download_reports'
           post 'generate_sample_essay'
           get 'statistics', to: 'assignment_statistics#show'
@@ -55,6 +58,7 @@ Rails.application.routes.draw do
           post :parse_vocab_csv
           get 'by_community/:community_id', to: 'essay_assignments#by_community'
           get 'distribution_options', to: 'assignment_distributions#distribution_options'
+          get 'share_options', to: 'essay_assignment_shares#share_options'
           get 'my_assignments', to: 'my_assignments#index'
         end
         resources :distributions, controller: 'assignment_distributions', except: [:new, :edit] do
@@ -70,6 +74,7 @@ Rails.application.routes.draw do
           end
         end
       end
+
       resources :essay_gradings, only: %i[index show update destroy] do
         member do
           get 'test_email'
@@ -77,6 +82,10 @@ Rails.application.routes.draw do
           patch 'teacher_review_restore'
           get 'download_report'
           get 'download_supplement_practice'
+          patch 'speaking_conversation/answers/:question_id',
+                to: 'essay_gradings#autosave_speaking_conversation_answer'
+          post 'speaking_conversation/submit',
+               to: 'essay_gradings#submit_preset_speaking_conversation'
         end
         # 补充练习记录路由
         member do

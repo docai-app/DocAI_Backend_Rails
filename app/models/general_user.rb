@@ -40,7 +40,7 @@ class GeneralUser < ApplicationRecord
   self.primary_key = 'id'
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder
-                                 speaking_pronunciation].freeze
+                                 speaking_pronunciation sentence_puzzle].freeze
 
   validate :aienglish_features_must_be_valid
 
@@ -74,6 +74,19 @@ class GeneralUser < ApplicationRecord
 
   has_many :essay_gradings
   has_many :essay_assignments
+
+  has_many :received_essay_assignment_shares,
+           class_name: 'EssayAssignmentShare',
+           foreign_key: :shared_with_general_user_id,
+           dependent: :destroy
+  has_many :active_received_essay_assignment_shares,
+           -> { active },
+           class_name: 'EssayAssignmentShare',
+           foreign_key: :shared_with_general_user_id,
+           inverse_of: :shared_with_general_user
+  has_many :shared_essay_assignments,
+           through: :active_received_essay_assignment_shares,
+           source: :essay_assignment
 
   # 作業分配關聯
   has_many :assignment_student_assignments, dependent: :destroy

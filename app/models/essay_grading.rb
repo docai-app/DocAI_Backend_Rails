@@ -119,6 +119,10 @@ class EssayGrading < ApplicationRecord
     category == 'speaking_pronunciation'
   end
 
+  def is_sentence_puzzle?
+    category == 'sentence_puzzle'
+  end
+
   def need_to_run_workflow?
     %w[essay speaking_essay speaking_conversation sentence_builder].include?(category)
   end
