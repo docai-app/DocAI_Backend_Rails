@@ -427,7 +427,7 @@ module Api
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
 
         # Sentence Puzzle 新類型先允許所有已登入用戶存取；其餘類型仍走 feature list
-        if @essay_assignment.category == 'sentence_puzzle' ||
+        if @essay_assignment.category == 'sentence_puzzle' || @essay_assignment.category == 'talk_lab_speaking'
            current_general_user.aienglish_features_list.include?(@essay_assignment.category)
           true
         else

@@ -277,6 +277,8 @@ class EssayGradingService
   def grading_request_payload
     inputs = if @essay_grading.essay_assignment.category == 'sentence_builder'
                { sentence_builder: @essay_grading.sentence_builder_for_dify.to_json }
+             elsif talk_lab_speaking?
+               talk_lab_speaking_inputs
              elsif is_ielts_task_1?
                build_ielts_task_1_inputs('grading')
              else
@@ -299,7 +301,9 @@ class EssayGradingService
   end
 
   def general_context_request_payload
-    inputs = if is_ielts_task_1?
+    inputs = if talk_lab_speaking?
+               talk_lab_speaking_inputs
+             elsif is_ielts_task_1?
                build_ielts_task_1_inputs('general_context')
              else
                {
@@ -606,6 +610,26 @@ class EssayGradingService
 
   def speaking_essay?
     @essay_grading.category == 'speaking_essay'
+  end
+
+  def talk_lab_speaking?
+    @essay_grading.category == 'talk_lab_speaking'
+  end
+
+  def talk_lab_speaking_inputs
+    payload = @essay_grading.meta.is_a?(Hash) ? @essay_grading.meta['talk_lab_speaking'] : {}
+    payload = payload.is_a?(Hash) ? payload : {}
+
+    {
+      Essay: @essay_grading.essay,
+      essaytopic: @essay_grading.topic,
+      transcript: payload['transcript'].presence || @essay_grading.essay,
+      conversation: payload.to_json,
+      turns: Array(payload['turns']).to_json,
+      student_audio_urls: Array(payload['student_audio_urls']).to_json,
+      ai_audio_urls: Array(payload['ai_audio_urls']).to_json,
+      duration_seconds: payload['duration_seconds']
+    }.compact
   end
 
   def core_workflows_successful?

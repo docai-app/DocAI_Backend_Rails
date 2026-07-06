@@ -322,6 +322,7 @@ module Api
       def create
         set_essay_assignment_by_code
         return if performed?
+        return unless ensure_assignment_package_item_access(@essay_assignment)
 
         grading_params = essay_grading_params
 
@@ -340,13 +341,8 @@ module Api
           apply_preset_speaking_conversation_defaults!(@essay_grading, @essay_assignment)
         elsif sentence_puzzle_submission_request?(@essay_assignment, grading_params)
           apply_sentence_puzzle_submission!(@essay_grading, grading_params)
-        elsif @essay_assignment.rubric.present? && @essay_assignment.rubric['app_key'].present?
-          @essay_grading.grading ||= {}
-          @essay_grading.grading['app_key'] = @essay_assignment.rubric['app_key']['grading']
-          @essay_grading.general_context ||= {}
-          @essay_grading.general_context['app_key'] = @essay_assignment.rubric['app_key']['general_context']
-          @essay_grading.revised_essay ||= {}
-          @essay_grading.revised_essay['app_key'] = @essay_assignment.revised_essay_workflow_app_key
+        else
+          apply_assignment_workflow_app_keys!(@essay_grading, @essay_assignment)
         end
 
         begin
@@ -364,7 +360,10 @@ module Api
 
           # 檢查是否有對應的作業分配，如果有則更新分配狀態
           # 只有非草稿狀態的提交才更新分配狀態
-          update_assignment_status_if_needed unless @essay_grading.status == 'draft'
+          unless @essay_grading.status == 'draft'
+            update_assignment_status_if_needed
+            update_assignment_package_progress_if_needed(@essay_grading)
+          end
 
           # Track assignment submission（非 draft 才記錄正式提交）
           # unless @essay_grading.status == 'draft'
@@ -623,15 +622,8 @@ module Api
           grading.general_user = student
           grading.topic = essay_assignment.topic
 
-          if essay_assignment.rubric.present? && essay_assignment.rubric['app_key'].present?
-            grading.grading ||= {}
-            grading.grading['app_key'] = essay_assignment.rubric['app_key']['grading']
-            grading.general_context ||= {}
-            grading.general_context['app_key'] = essay_assignment.rubric['app_key']['general_context']
-            grading.revised_essay ||= {}
-            grading.revised_essay['app_key'] = essay_assignment.revised_essay_workflow_app_key
-            grading.revised_essay['essay_type'] = essay_assignment.revised_essay_type_label_with_number
-          end
+          apply_assignment_workflow_app_keys!(grading, essay_assignment)
+          grading.revised_essay['essay_type'] = essay_assignment.revised_essay_type_label_with_number if grading.revised_essay.is_a?(Hash)
 
           if grading.save
             successful_gradings << grading
@@ -699,6 +691,7 @@ module Api
              @essay_grading.status_before_last_save == 'draft'
             @essay_assignment = @essay_grading.essay_assignment
             update_assignment_status_if_needed
+            update_assignment_package_progress_if_needed(@essay_grading)
           end
 
           run_speaking_essay_workflow_after_attachment(
@@ -806,6 +799,7 @@ module Api
         @essay_grading.update!(essay: essay_text, status: :pending)
         @essay_assignment = @essay_grading.essay_assignment
         update_assignment_status_if_needed
+        update_assignment_package_progress_if_needed(@essay_grading)
 
         render json: {
           success: true,
@@ -854,6 +848,24 @@ module Api
         @essay_assignment = EssayAssignment.find_by!(code: params[:essay_assignment_id])
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      end
+
+      def ensure_assignment_package_item_access(essay_assignment)
+        item = essay_assignment.assignment_package_item
+        return true if item.blank?
+
+        package = item.assignment_package
+        unless package.owned_by?(current_general_user)
+          render json: { success: false, error: 'AssignmentPackage not found' }, status: :not_found
+          return false
+        end
+
+        if item.locked?
+          render json: { success: false, error: 'AssignmentPackageItem is locked.' }, status: :forbidden
+          return false
+        end
+
+        true
       end
 
       def essay_grading_params
@@ -938,6 +950,30 @@ module Api
                     answer_text
                     answer_audio_url
                     answered_at
+                  ]
+                }
+              ]
+            },
+            {
+              talk_lab_speaking: [
+                :conversation_id,
+                :transcript,
+                :started_at,
+                :ended_at,
+                :duration_seconds,
+                { student_audio_urls: [] },
+                { ai_audio_urls: [] },
+                { raw_rtc_payload: {} },
+                {
+                  turns: [
+                    :turn_index,
+                    :index,
+                    :role,
+                    :text,
+                    :audio_url,
+                    :started_at,
+                    :ended_at,
+                    :duration_seconds
                   ]
                 }
               ]
@@ -1030,7 +1066,49 @@ module Api
       end
 
       def essay_grading_attributes_for_persistence(category, grading_params)
-        grading_params.except(:file)
+        attrs = grading_params.except(:file).to_h
+        return attrs unless category == 'talk_lab_speaking'
+
+        meta = attrs['meta'].is_a?(Hash) ? attrs['meta'].deep_dup : {}
+        talk_lab_payload = TalkLabSpeaking::ConversationPayloadBuilder.new(meta['talk_lab_speaking']).call
+        meta['talk_lab_speaking'] = talk_lab_payload
+        attrs['meta'] = meta
+        attrs['essay'] = talk_lab_payload['transcript'] if attrs['essay'].blank?
+        attrs
+      end
+
+      def apply_assignment_workflow_app_keys!(essay_grading, assignment)
+        app_key_config = workflow_app_key_config_for(assignment)
+        return if app_key_config.blank?
+
+        essay_grading.grading ||= {}
+        essay_grading.grading['app_key'] = app_key_config['grading'] if app_key_config['grading'].present?
+
+        essay_grading.general_context ||= {}
+        if app_key_config['general_context'].present?
+          essay_grading.general_context['app_key'] = app_key_config['general_context']
+        end
+
+        essay_grading.revised_essay ||= {}
+        essay_grading.revised_essay['app_key'] = assignment.revised_essay_workflow_app_key
+      end
+
+      def workflow_app_key_config_for(assignment)
+        if assignment.category == 'talk_lab_speaking'
+          fixed_config = EssayAssignment.talk_lab_speaking_app_key_config
+          return fixed_config if fixed_config.present?
+        end
+
+        rubric_app_key = assignment.rubric.is_a?(Hash) ? assignment.rubric['app_key'] : nil
+        rubric_app_key.is_a?(Hash) ? rubric_app_key : {}
+      end
+
+      def update_assignment_package_progress_if_needed(essay_grading)
+        AssignmentPackages::ProgressUpdater.call(essay_grading)
+      rescue StandardError => e
+        Rails.logger.error(
+          "[EssayGradingsController] Failed to update assignment package progress for grading #{essay_grading.id}: #{e.class} #{e.message}"
+        )
       end
 
       def prepare_audio_attachment_for_persistence(category:, uploaded_file:)
@@ -1109,7 +1187,7 @@ module Api
         case context
         when 'essay'
           essay_grading_mapping[category]
-        when 'speaking_essay', 'speaking_conversation'
+        when 'speaking_essay', 'speaking_conversation', 'talk_lab_speaking'
           speaking_mapping[category]
         else
           'Unknown category' # 处理未知的 context 或 category
@@ -1580,7 +1658,15 @@ module Api
 
           category = essay_grading.category.to_s
           assignment_type_label =
-          category == 'speaking_conversation' ? 'Speaking Conversation' : category == 'speaking_essay' ? 'Speaking Essay' : 'Essay'
+            if category == 'speaking_conversation'
+              'Speaking Conversation'
+            elsif category == 'talk_lab_speaking'
+              'Talk Lab Speaking'
+            elsif category == 'speaking_essay'
+              'Speaking Essay'
+            else
+              'Essay'
+            end
 
           score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
           if category == 'speaking_essay' 
@@ -2010,7 +2096,7 @@ module Api
           generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info, report_type)
         elsif assignment.category.include?('sentence_builder')
           generate_sentence_builder_pdf(json_data, essay_grading, school_logo_url, submission_info)
-        elsif assignment.category.include?('speaking_conversation')
+        elsif assignment.category.include?('speaking_conversation') || assignment.category == 'talk_lab_speaking'
           generate_essay_pdf(json_data, essay_grading, school_logo_url, submission_info, report_type)
         elsif assignment.category == 'sentence_puzzle'
           generate_sentence_puzzle_pdf(json_data, essay_grading, school_logo_url, submission_info)
@@ -2068,7 +2154,9 @@ module Api
           attempt = essay_grading.meta.is_a?(Hash) ? essay_grading.meta['sentence_puzzle_attempt'] : nil
           json_data['sentence_puzzle_attempt'] = attempt if attempt.present?
           json_data['essay'] = essay_grading.essay
-        elsif assignment.category.include?('essay') || assignment.category == 'speaking_conversation'
+        elsif assignment.category.include?('essay') ||
+              assignment.category == 'speaking_conversation' ||
+              assignment.category == 'talk_lab_speaking'
           json_data.merge!(essay_grading.grading)
           json_data['data'] = { 'text' => effective_score_data.to_json }
           json_data['score'] = effective_score_data

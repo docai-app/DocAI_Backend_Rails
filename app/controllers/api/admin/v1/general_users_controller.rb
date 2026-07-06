@@ -961,7 +961,8 @@ module Api
               'speaking_essay',
               'speaking_conversation',
               'sentence_builder',
-              'speaking_pronunciation'
+              'speaking_pronunciation',
+              'talk_lab_speaking'
             ]
             
             # 初始化功能特性统计
