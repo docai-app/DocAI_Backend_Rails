@@ -601,11 +601,11 @@ class EssayGradingService
       @essay_grading.update(status: 'stopped')
       Rails.logger.error("[EssayGradingService] Workflow failed, status updated to 'stopped' for essay grading ID: #{@essay_grading.id}")
       # 发送通知邮件给管理员
-      # begin
-      #   AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
-      # rescue StandardError => e
-      #   Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
-      # end
+      begin
+        AdminNotificationMailer.assignment_stopped_notification(@essay_grading).deliver_later
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradingService] Failed to send admin notification email: #{e.message}")
+      end
     end
   end
 
