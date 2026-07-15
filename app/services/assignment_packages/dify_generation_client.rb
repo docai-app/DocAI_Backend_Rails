@@ -15,6 +15,10 @@ module AssignmentPackages
     end
 
     def call(inputs:)
+      if TalkLabSpeaking::DifyMock::Policy.enabled?
+        return TalkLabSpeaking::DifyMock::Responses.package_dify_response(inputs: inputs)
+      end
+
       raise ArgumentError, 'Dify app key is missing.' if @app_key.blank?
 
       payload = request_payload(inputs: inputs, response_mode: 'streaming')

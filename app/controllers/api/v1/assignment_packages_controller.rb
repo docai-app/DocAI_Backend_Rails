@@ -11,12 +11,24 @@ module Api
                                        .order(created_at: :desc)
         packages = packages.where(status: params[:status]) if params[:status].present?
 
+        if params[:status] == 'completed'
+          packages = packages.includes(assignment_package_items: %i[essay_assignment essay_grading])
+        end
+
         render json: { success: true, assignment_packages: packages.map(&:as_list_json) }, status: :ok
       end
 
       def show
-        package = current_general_user.assignment_packages.includes(assignment_package_items: :essay_assignment).find(params[:id])
-        render json: { success: true, assignment_package: package.as_detail_json }, status: :ok
+        package = current_general_user.assignment_packages.includes(assignment_package_items: %i[essay_assignment essay_grading]).find(params[:id])
+
+        payload =
+          if package.completed? && params[:view] == 'completed'
+            package.as_completed_detail_json
+          else
+            package.as_detail_json
+          end
+
+        render json: { success: true, assignment_package: payload }, status: :ok
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'AssignmentPackage not found' }, status: :not_found
       end
@@ -61,7 +73,7 @@ module Api
       end
 
       def start_item
-        package = current_general_user.assignment_packages.includes(assignment_package_items: :essay_assignment).find(params[:id])
+        package = current_general_user.assignment_packages.includes(assignment_package_items: %i[essay_assignment essay_grading]).find(params[:id])
         item = package.assignment_package_items.find(params[:item_id])
 
         if item.locked?

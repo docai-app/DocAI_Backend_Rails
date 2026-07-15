@@ -358,6 +358,8 @@ module Api
 
           run_speaking_essay_workflow_after_attachment(@essay_grading, force: true)
 
+          link_assignment_package_grading_if_needed(@essay_grading)
+
           # 檢查是否有對應的作業分配，如果有則更新分配狀態
           # 只有非草稿狀態的提交才更新分配狀態
           unless @essay_grading.status == 'draft'
@@ -686,6 +688,8 @@ module Api
             )
           end
 
+          link_assignment_package_grading_if_needed(@essay_grading)
+
           if @essay_grading.saved_change_to_status? &&
              @essay_grading.status != 'draft' &&
              @essay_grading.status_before_last_save == 'draft'
@@ -1004,6 +1008,30 @@ module Api
                   ]
                 }
               ]
+            },
+            {
+              talk_lab_speaking: [
+                :conversation_id,
+                :transcript,
+                :started_at,
+                :ended_at,
+                :duration_seconds,
+                { student_audio_urls: [] },
+                { ai_audio_urls: [] },
+                { raw_rtc_payload: {} },
+                {
+                  turns: [
+                    :turn_index,
+                    :index,
+                    :role,
+                    :text,
+                    :audio_url,
+                    :started_at,
+                    :ended_at,
+                    :duration_seconds
+                  ]
+                }
+              ]
             }
           ],
           sentence_builder: %i[vocab sentence]
@@ -1070,7 +1098,12 @@ module Api
         return attrs unless category == 'talk_lab_speaking'
 
         meta = attrs['meta'].is_a?(Hash) ? attrs['meta'].deep_dup : {}
-        talk_lab_payload = TalkLabSpeaking::ConversationPayloadBuilder.new(meta['talk_lab_speaking']).call
+        raw_talk_lab_payload = meta['talk_lab_speaking']
+        if raw_talk_lab_payload.blank? && attrs['grading'].is_a?(Hash)
+          raw_talk_lab_payload = attrs['grading']['talk_lab_speaking']
+        end
+
+        talk_lab_payload = TalkLabSpeaking::ConversationPayloadBuilder.new(raw_talk_lab_payload).call
         meta['talk_lab_speaking'] = talk_lab_payload
         attrs['meta'] = meta
         attrs['essay'] = talk_lab_payload['transcript'] if attrs['essay'].blank?
@@ -1104,10 +1137,19 @@ module Api
       end
 
       def update_assignment_package_progress_if_needed(essay_grading)
+        AssignmentPackages::GradingLinker.call(essay_grading)
         AssignmentPackages::ProgressUpdater.call(essay_grading)
       rescue StandardError => e
         Rails.logger.error(
           "[EssayGradingsController] Failed to update assignment package progress for grading #{essay_grading.id}: #{e.class} #{e.message}"
+        )
+      end
+
+      def link_assignment_package_grading_if_needed(essay_grading)
+        AssignmentPackages::GradingLinker.call(essay_grading)
+      rescue StandardError => e
+        Rails.logger.error(
+          "[EssayGradingsController] Failed to link assignment package grading for grading #{essay_grading.id}: #{e.class} #{e.message}"
         )
       end
 

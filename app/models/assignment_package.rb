@@ -38,7 +38,7 @@ class AssignmentPackage < ApplicationRecord
   end
 
   def as_list_json
-    {
+    payload = {
       id: id,
       title: title,
       description: description,
@@ -51,13 +51,26 @@ class AssignmentPackage < ApplicationRecord
       created_at: created_at,
       updated_at: updated_at
     }
+
+    if completed?
+      payload[:score_summary] = AssignmentPackages::PackageScoreSummary.for(self)
+      payload[:completed_at] = payload[:score_summary][:completed_at]
+    end
+
+    payload
+  end
+
+  def as_completed_detail_json
+    as_list_json.merge(
+      items: assignment_package_items.includes(:essay_assignment, :essay_grading).map(&:as_json_for_package)
+    )
   end
 
   def as_detail_json
     as_list_json.merge(
       source_conversation: source_conversation,
       error: error,
-      items: assignment_package_items.includes(:essay_assignment).map(&:as_json_for_package)
+      items: assignment_package_items.includes(:essay_assignment, :essay_grading).map(&:as_json_for_package)
     )
   end
 
