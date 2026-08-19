@@ -31,6 +31,7 @@ Rails.application.routes.draw do
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
       post 'unisound/eval', to: 'unisound#create'
+      post 'essay_ocr', to: 'essay_ocr#create'
 
       # 後備Email確認
       get 'recovery_email_confirmations/show'
