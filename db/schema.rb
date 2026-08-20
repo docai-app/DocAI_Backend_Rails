@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_06_04_140000) do
+ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -941,8 +941,12 @@ ActiveRecord::Schema[7.0].define(version: 2026_06_04_140000) do
     t.jsonb "meta", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "student_login_enabled", default: false, null: false
+    t.string "student_login_slug"
+    t.string "student_email_domain"
     t.index ["code"], name: "index_schools_on_code", unique: true
     t.index ["name"], name: "index_schools_on_name", unique: true
+    t.index ["student_login_slug"], name: "index_schools_on_student_login_slug", unique: true, where: "(student_login_slug IS NOT NULL)"
   end
 
   create_table "smart_extraction_schemas", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

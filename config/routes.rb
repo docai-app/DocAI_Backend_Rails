@@ -30,6 +30,10 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      namespace :public do
+        get 'schools/:slug/login_config', to: 'school_login_configs#show'
+      end
+
       post 'unisound/eval', to: 'unisound#create'
       post 'essay_ocr', to: 'essay_ocr#create'
 

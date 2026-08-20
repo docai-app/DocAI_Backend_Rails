@@ -13,7 +13,9 @@ module Schools
                   :timezone, :region,
                   :school_type, :curriculum_type,
                   :academic_system,
-                  :custom_settings, :logo
+                  :custom_settings, :logo,
+                  :student_login_enabled, :student_login_slug,
+                  :student_email_domain
 
     validates :name, presence: true
     validate :validate_region, if: -> { region.present? }
@@ -63,6 +65,11 @@ module Schools
       @school.contact_email = contact_email if contact_email.present?
       @school.contact_phone = contact_phone if contact_phone.present?
       @school.timezone = timezone if timezone.present?
+      unless student_login_enabled.nil?
+        @school.student_login_enabled = ActiveModel::Type::Boolean.new.cast(student_login_enabled)
+      end
+      @school.student_login_slug = student_login_slug unless student_login_slug.nil?
+      @school.student_email_domain = student_email_domain unless student_email_domain.nil?
 
       # 更新元數據
       meta = @school.meta || {}

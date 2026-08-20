@@ -916,6 +916,8 @@ module Api
             :region, :timezone,
             :school_type, :curriculum_type,
             :academic_system, :logo,
+            :student_login_enabled, :student_login_slug,
+            :student_email_domain,
             custom_settings: {},
             academic_years: %i[name status start_year start_month end_month]
           )
@@ -950,6 +952,10 @@ module Api
             contact_email: school.contact_email,
             contact_phone: school.contact_phone,
             timezone: school.timezone,
+            student_login_enabled: school.student_login_enabled,
+            student_login_slug: school.student_login_slug,
+            student_email_domain: school.student_email_domain,
+            student_login_url: school.student_login_url,
             logo: {
               has_logo: school.logo.attached?,
               original_url: school.logo_url,

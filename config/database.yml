@@ -44,6 +44,15 @@ development:
     template: template0
     database_tasks: false
 
+test:
+  primary:
+    url: <%= ENV.fetch("DATABASE_URL") %>
+    pool: 25
+  vector_db:
+    url: <%= ENV.fetch("VECTOR_DATABASE_URL", ENV.fetch("DATABASE_URL")) %>
+    pool: 25
+    database_tasks: false
+
 production:
   primary:
     adapter:  postgresql

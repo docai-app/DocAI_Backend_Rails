@@ -22,6 +22,9 @@
 #  index_schools_on_name  (name) UNIQUE
 #
 class School < ApplicationRecord
+  STUDENT_LOGIN_SLUG_FORMAT = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
+  STUDENT_EMAIL_DOMAIN_FORMAT = /\A(?=.{1,253}\z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\z/i
+
   # 關聯
   has_many :school_academic_years, dependent: :destroy
   has_many :student_enrollments, through: :school_academic_years
@@ -45,7 +48,26 @@ class School < ApplicationRecord
   # 驗證
   validates :name, presence: true
   validates :code, presence: true, uniqueness: true
+  validates :student_login_slug,
+            uniqueness: { case_sensitive: false },
+            allow_nil: true
+  validates :student_login_slug,
+            presence: true,
+            format: {
+              with: STUDENT_LOGIN_SLUG_FORMAT,
+              message: '只可包含小寫英文字母、數字及中間連字號'
+            },
+            if: :student_login_enabled?
+  validates :student_email_domain,
+            presence: true,
+            format: {
+              with: STUDENT_EMAIL_DOMAIN_FORMAT,
+              message: '格式不正確'
+            },
+            if: :student_login_enabled?
   validate :validate_logo_format
+
+  before_validation :normalize_student_login_settings
 
   # 學校狀態
   enum status: {
@@ -64,6 +86,13 @@ class School < ApplicationRecord
   # 獲取當前學年
   def current_academic_year
     school_academic_years.active.first
+  end
+
+  def student_login_url
+    return if student_login_slug.blank?
+
+    base_url = ENV.fetch('AI_ENGLISH_WEB_URL', 'https://aienglish.docai.net').delete_suffix('/')
+    "#{base_url}/login/#{student_login_slug}"
   end
 
   # 根據日期獲取學年
@@ -206,6 +235,11 @@ class School < ApplicationRecord
   end
 
   private
+
+  def normalize_student_login_settings
+    self.student_login_slug = student_login_slug.to_s.strip.downcase.presence
+    self.student_email_domain = student_email_domain.to_s.strip.downcase.sub(/\A@+/, '').presence
+  end
 
   # 安全地生成 variant URL，失败时返回 fallback
   def safe_variant_url(options, fallback:)

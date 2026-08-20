@@ -13,7 +13,9 @@ module Schools
                   :region, :timezone,
                   :school_type, :curriculum_type,
                   :academic_system,
-                  :academic_years, :custom_settings, :logo
+                  :academic_years, :custom_settings, :logo,
+                  :student_login_enabled, :student_login_slug,
+                  :student_email_domain
 
     validates :name, :code, :region, presence: true
     validates :code, format: { with: /\A[A-Z0-9_]+\z/, message: '只能包含大寫字母、數字和下劃線' }
@@ -68,6 +70,9 @@ module Schools
         contact_email:,
         contact_phone:,
         timezone: timezone || TIMEZONE_BY_REGION[region],
+        student_login_enabled: ActiveModel::Type::Boolean.new.cast(student_login_enabled) || false,
+        student_login_slug:,
+        student_email_domain:,
         meta: {
           region:,
           school_type:,
