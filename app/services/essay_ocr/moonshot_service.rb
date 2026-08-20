@@ -140,7 +140,12 @@ module EssayOcr
         mime_type = match[1]
         raise_validation('This essay image type is not supported.', 'ESSAY_OCR_INVALID_IMAGE') unless ALLOWED_MIME_TYPES.include?(mime_type)
 
-        binary_size = decoded_size(match[2])
+        binary = decode_image(match[2])
+        unless valid_image_signature?(binary, mime_type)
+          raise_validation('One essay image does not match its declared image type.', 'ESSAY_OCR_INVALID_IMAGE')
+        end
+
+        binary_size = binary.bytesize
         if binary_size > MAX_IMAGE_BYTES
           raise_validation('One essay image is too large. Please take a clearer, smaller photo.', 'ESSAY_OCR_IMAGE_TOO_LARGE')
         end
@@ -153,10 +158,23 @@ module EssayOcr
       end
     end
 
-    def decoded_size(encoded)
-      Base64.strict_decode64(encoded).bytesize
+    def decode_image(encoded)
+      Base64.strict_decode64(encoded)
     rescue ArgumentError
       raise_validation('One essay image could not be read. Please choose it again.', 'ESSAY_OCR_INVALID_IMAGE')
+    end
+
+    def valid_image_signature?(binary, mime_type)
+      case mime_type
+      when 'image/jpeg'
+        binary.start_with?("\xFF\xD8\xFF".b)
+      when 'image/png'
+        binary.start_with?("\x89PNG\r\n\x1A\n".b)
+      when 'image/webp'
+        binary.bytesize >= 12 && binary.start_with?('RIFF') && binary.byteslice(8, 4) == 'WEBP'
+      else
+        false
+      end
     end
 
     def payload(images)

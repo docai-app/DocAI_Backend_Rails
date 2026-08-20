@@ -7,6 +7,7 @@ module Api
 
       rescue_from StandardError, with: :render_essay_ocr_exception
       before_action :authenticate_general_user!
+      before_action :authorize_essay_ocr!
       before_action :validate_request_size!
       before_action :enforce_rate_limit!
 
@@ -25,6 +26,17 @@ module Api
       end
 
       private
+
+      def authorize_essay_ocr!
+        return if current_general_user.aienglish_features_list.map(&:to_s).include?('essay')
+
+        render json: {
+          success: false,
+          error: 'You do not have access to Essay OCR.',
+          error_code: 'ESSAY_OCR_FORBIDDEN',
+          request_id: request.request_id
+        }, status: :forbidden, headers: response_headers
+      end
 
       def validate_request_size!
         return unless request.content_length.to_i > MAX_REQUEST_BYTES

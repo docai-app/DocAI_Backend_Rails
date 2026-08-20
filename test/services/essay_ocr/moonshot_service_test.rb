@@ -23,7 +23,7 @@ class EssayOcrMoonshotServiceTest < ActiveSupport::TestCase
       captured = options
       Struct.new(:body).new({ choices: [{ message: { content: "  Original essay text.\n" } }] }.to_json)
     end
-    image = Base64.strict_encode64('small-image')
+    image = Base64.strict_encode64("\xFF\xD8\xFFsmall-image".b)
     service = EssayOcr::MoonshotService.new(request_id: 'ocr-request-1', requester: requester)
 
     result = service.call(images: [{ dataUrl: "data:image/jpeg;base64,#{image}" }])
@@ -34,6 +34,7 @@ class EssayOcrMoonshotServiceTest < ActiveSupport::TestCase
     payload = JSON.parse(captured[:payload])
     assert_equal 'kimi-k2.6', payload['model']
     assert_equal({ 'type' => 'disabled' }, payload['thinking'])
+    assert_not payload.key?('temperature'), 'K2.6 instant mode should use the provider-managed temperature (0.6)'
     assert_equal "data:image/jpeg;base64,#{image}", payload.dig('messages', 1, 'content', 1, 'image_url', 'url')
   end
 
@@ -52,9 +53,20 @@ class EssayOcrMoonshotServiceTest < ActiveSupport::TestCase
     assert_not called
   end
 
+  test 'rejects image data that does not match the declared MIME type' do
+    service = EssayOcr::MoonshotService.new(requester: ->(**_options) { flunk 'Moonshot must not be called' })
+    fake_png = Base64.strict_encode64("\xFF\xD8\xFFnot-a-png".b)
+
+    error = assert_raises(EssayOcr::MoonshotService::Error) do
+      service.call(images: [{ dataUrl: "data:image/png;base64,#{fake_png}" }])
+    end
+
+    assert_equal 'ESSAY_OCR_INVALID_IMAGE', error.error_code
+  end
+
   test 'fails closed when the Moonshot key is missing' do
     ENV.delete('MOONSHOT_API_KEY')
-    image = Base64.strict_encode64('small-image')
+    image = Base64.strict_encode64("\x89PNG\r\n\x1A\nsmall-image".b)
     service = EssayOcr::MoonshotService.new(requester: ->(**_options) { flunk 'Moonshot must not be called' })
 
     error = assert_raises(EssayOcr::MoonshotService::Error) do
