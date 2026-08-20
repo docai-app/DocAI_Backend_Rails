@@ -5,7 +5,7 @@ module Api
     class WechatMiniprogramController < ApiController
       include Devise::Controllers::Helpers
 
-      before_action :authenticate_general_user!, only: %i[bind binding]
+      before_action :authenticate_general_user!, only: %i[bind binding unbind]
 
       # POST /api/v1/general_users/wechat_miniprogram/bind
       def bind
@@ -87,6 +87,64 @@ module Api
         else
           render json: { success: true, bound: false, binding: nil }, status: :ok
         end
+      end
+
+      # DELETE /api/v1/general_users/wechat_miniprogram/binding
+      #
+      # A fresh wx.login code proves that the authenticated learner still
+      # controls the WeChat identity linked to this account. Unbinding keeps
+      # the current JWT valid and removes no other GeneralUser metadata.
+      def unbind
+        code = params.require(:code)
+        session_data = WechatMiniprogram::AuthService.jscode2session(code)
+        openid = session_data['openid'].to_s
+        if openid.blank?
+          return render json: {
+            success: false,
+            error: 'Missing openid from WeChat.',
+            error_code: 'WECHAT_CODE_INVALID'
+          }, status: :unauthorized
+        end
+
+        outcome = current_general_user.unbind_wechat_miniprogram!(
+          app_id: WechatMiniprogram::AuthService.app_id,
+          openid:
+        )
+
+        if outcome[:ok]
+          render json: { success: true, bound: false, binding: nil }, status: :ok
+        else
+          render json: {
+            success: false,
+            error: outcome[:message],
+            error_code: outcome[:error_code]
+          }, status: :forbidden
+        end
+      rescue ActionController::ParameterMissing
+        render json: {
+          success: false,
+          error: 'code is required.',
+          error_code: 'WECHAT_CODE_REQUIRED'
+        }, status: :bad_request
+      rescue WechatMiniprogram::AuthService::ConfigurationError => e
+        render json: {
+          success: false,
+          error: e.message,
+          error_code: 'WECHAT_CONFIG_ERROR'
+        }, status: :service_unavailable
+      rescue WechatMiniprogram::AuthService::WechatError => e
+        render json: {
+          success: false,
+          error: e.message,
+          error_code: 'WECHAT_CODE_INVALID'
+        }, status: :unauthorized
+      rescue RestClient::Exception => e
+        Rails.logger.error("[WechatMiniprogram#unbind] #{e.class}: #{e.message}")
+        render json: {
+          success: false,
+          error: 'WeChat service unavailable.',
+          error_code: 'WECHAT_UPSTREAM_ERROR'
+        }, status: :bad_gateway
       end
 
       private

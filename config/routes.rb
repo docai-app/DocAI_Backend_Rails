@@ -442,6 +442,7 @@ Rails.application.routes.draw do
           post 'wechat_miniprogram/bind', to: 'wechat_miniprogram#bind'
           post 'wechat_miniprogram/login', to: 'wechat_miniprogram#login'
           get 'wechat_miniprogram/binding', to: 'wechat_miniprogram#binding'
+          delete 'wechat_miniprogram/binding', to: 'wechat_miniprogram#unbind'
         end
       end
 

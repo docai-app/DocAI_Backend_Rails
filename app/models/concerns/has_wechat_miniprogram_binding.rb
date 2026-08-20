@@ -102,7 +102,49 @@ module HasWechatMiniprogramBinding
     save!
   end
 
+  # Remove only the Mini Program binding after proving that the supplied
+  # AppID/openid pair matches the identity currently linked to this account.
+  # Repeating the operation for an already-unbound account is idempotent.
+  def unbind_wechat_miniprogram!(app_id:, openid:)
+    result = nil
+
+    GeneralUser.transaction do
+      lock!
+      current = wechat_miniprogram_slice
+
+      if current['openid'].blank?
+        result = { ok: true }
+        next
+      end
+
+      unless secure_wechat_value_match?(current['wechat_app_id'], app_id) &&
+             secure_wechat_value_match?(current['openid'], openid)
+        result = {
+          ok: false,
+          error_code: 'WECHAT_IDENTITY_MISMATCH',
+          message: 'This WeChat identity does not match the account binding.'
+        }
+        raise ActiveRecord::Rollback
+      end
+
+      current_meta = meta.is_a?(Hash) ? meta.stringify_keys : {}
+      self.meta = current_meta.except(WECHAT_META_KEY)
+      save!
+      result = { ok: true }
+    end
+
+    result
+  end
+
   private
+
+  def secure_wechat_value_match?(stored_value, supplied_value)
+    stored = stored_value.to_s
+    supplied = supplied_value.to_s
+    return false if stored.blank? || supplied.blank? || stored.bytesize != supplied.bytesize
+
+    ActiveSupport::SecurityUtils.secure_compare(stored, supplied)
+  end
 
   def wechat_miniprogram_slice
     h = meta[WECHAT_META_KEY] || meta[WECHAT_META_KEY.to_sym]
