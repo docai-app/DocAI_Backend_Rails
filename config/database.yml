@@ -46,10 +46,10 @@ development:
 
 test:
   primary:
-    url: <%= ENV.fetch("DATABASE_URL") %>
+    url: <%= ENV.fetch("DEV_DB_HOST") %>
     pool: 25
   vector_db:
-    url: <%= ENV.fetch("VECTOR_DATABASE_URL", ENV.fetch("DATABASE_URL")) %>
+    url: <%= ENV.fetch("VECTOR_DATABASE_URL", ENV.fetch("DEV_DB_HOST")) %>
     pool: 25
     database_tasks: false
 

@@ -156,6 +156,50 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
     t.index ["status"], name: "index_assignment_distributions_on_status"
   end
 
+  create_table "assignment_package_items", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "assignment_package_id", null: false
+    t.uuid "essay_assignment_id", null: false
+    t.integer "position", null: false
+    t.integer "status", default: 0, null: false
+    t.uuid "essay_grading_id"
+    t.string "title"
+    t.string "category"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "unlocked_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assignment_package_id", "essay_assignment_id"], name: "idx_package_items_package_assignment", unique: true
+    t.index ["assignment_package_id", "position"], name: "idx_package_items_package_position", unique: true
+    t.index ["assignment_package_id", "status"], name: "idx_package_items_package_status"
+    t.index ["assignment_package_id"], name: "index_assignment_package_items_on_assignment_package_id"
+    t.index ["essay_assignment_id"], name: "index_assignment_package_items_on_essay_assignment_id"
+    t.index ["essay_grading_id"], name: "index_assignment_package_items_on_essay_grading_id"
+  end
+
+  create_table "assignment_packages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "general_user_id", null: false
+    t.uuid "learner_profile_id"
+    t.uuid "learning_path_template_id"
+    t.string "title", default: "Learning Package", null: false
+    t.text "description"
+    t.integer "status", default: 0, null: false
+    t.jsonb "summary", default: {}, null: false
+    t.jsonb "progress", default: {}, null: false
+    t.jsonb "source_conversation", default: {}, null: false
+    t.jsonb "dify_request", default: {}, null: false
+    t.jsonb "dify_response", default: {}, null: false
+    t.jsonb "error", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["general_user_id", "status", "created_at"], name: "idx_assignment_packages_user_status_created"
+    t.index ["general_user_id"], name: "index_assignment_packages_on_general_user_id"
+    t.index ["learner_profile_id"], name: "index_assignment_packages_on_learner_profile_id"
+    t.index ["learning_path_template_id", "created_at"], name: "idx_assignment_packages_template_created"
+    t.index ["learning_path_template_id"], name: "index_assignment_packages_on_learning_path_template_id"
+    t.index ["status"], name: "index_assignment_packages_on_status"
+  end
+
   create_table "assignment_reminders", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "essay_assignment_id", null: false
     t.uuid "general_user_id", null: false
@@ -665,6 +709,27 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
     t.uuid "map_to_id"
     t.index ["map_from_id"], name: "index_kg_linkers_on_map_from_id"
     t.index ["map_to_id"], name: "index_kg_linkers_on_map_to_id"
+  end
+
+  create_table "learning_path_templates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description"
+    t.integer "status", default: 0, null: false
+    t.string "level"
+    t.string "locale"
+    t.string "category", default: "talk_lab_package", null: false
+    t.jsonb "prompt_config", default: {}, null: false
+    t.jsonb "dify_config", default: {}, null: false
+    t.jsonb "usage_policy", default: {}, null: false
+    t.integer "position", default: 0, null: false
+    t.uuid "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "emoji"
+    t.index ["category"], name: "index_learning_path_templates_on_category"
+    t.index ["created_by_id"], name: "index_learning_path_templates_on_created_by_id"
+    t.index ["position"], name: "index_learning_path_templates_on_position"
+    t.index ["status"], name: "index_learning_path_templates_on_status"
   end
 
   create_table "link_sets", force: :cascade do |t|
@@ -1195,6 +1260,10 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
   add_foreign_key "assignment_distributions", "general_users", column: "target_student_id"
   add_foreign_key "assignment_distributions", "school_academic_years"
   add_foreign_key "assignment_distributions", "schools"
+  add_foreign_key "assignment_package_items", "assignment_packages"
+  add_foreign_key "assignment_package_items", "essay_assignments"
+  add_foreign_key "assignment_packages", "general_users"
+  add_foreign_key "assignment_packages", "learning_path_templates"
   add_foreign_key "assignment_reminders", "essay_assignments"
   add_foreign_key "assignment_reminders", "general_users"
   add_foreign_key "assignment_reminders", "general_users", column: "reminder_sender_id"
