@@ -328,43 +328,38 @@ module Api
           # 獲取學生資訊
           # 優化：使用 includes 預加載關聯，避免 N+1 查詢
           # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
-          enrollment = @user.student_enrollments
-                            .includes(school_academic_year: { school: { logo_attachment: :blob } })
-                            .order(created_at: :desc)
-                            .first
+          enrollments = @user.student_enrollments
+                             .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                             .order(created_at: :desc)
 
-          if enrollment
-            school_academic_year = enrollment.school_academic_year
-            school = school_academic_year&.school
+          if enrollments.any?
+            school_logo_cache = {}
+            aienglish_data[:enrollments] = enrollments.filter_map do |enrollment|
+              school_academic_year = enrollment.school_academic_year
+              school = school_academic_year&.school
+              next unless school_academic_year && school
 
-            school_data = if school
-                            {
-                              id: school.id,
-                              name: school.name,
-                              code: school.code
-                            }.merge(school.all_logo_urls)
-                          else
-                            nil
-                          end
+              school_data = school_logo_cache[school.id] ||= {
+                id: school.id,
+                name: school.name,
+                code: school.code
+              }.merge(school.all_logo_urls)
 
-            academic_year_data = if school_academic_year
-                                   {
-                                     id: school_academic_year.id,
-                                     name: school_academic_year.name,
-                                     status: school_academic_year.status
-                                   }
-                                 else
-                                   nil
-                                 end
+              academic_year_data = {
+                id: school_academic_year.id,
+                name: school_academic_year.name,
+                status: school_academic_year.status
+              }
 
-            aienglish_data[:enrollments] = [{
-              id: enrollment.id,
-              school: school_data,
-              academic_year: academic_year_data,
-              class_name: enrollment.class_name,
-              class_number: enrollment.class_number,
-              created_at: enrollment.created_at
-            }]
+              {
+                id: enrollment.id,
+                school: school_data,
+                academic_year: academic_year_data,
+                class_name: enrollment.class_name,
+                class_number: enrollment.class_number,
+                created_at: enrollment.created_at
+              }
+            end
           else
             aienglish_data[:enrollments] = []
           end

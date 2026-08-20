@@ -133,6 +133,12 @@ module Api
                                                  essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
 
+        academic_year_result = academic_year_result_for_index
+        @essay_gradings = apply_academic_year_filter_to_gradings(
+          scope: @essay_gradings,
+          result: academic_year_result
+        )
+
         # 应用过滤条件
         # 1. Assignment Name 过滤（模糊搜索，不区分大小写）
         if params[:assignment_name].present?
@@ -185,6 +191,9 @@ module Api
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
 
+        response_meta = pagination_meta(@essay_gradings)
+        response_meta[:academic_year] = academic_year_json(academic_year_result&.academic_year)
+
         render json: {
           success: true,
           essay_gradings: @essay_gradings.map do |eg|
@@ -200,8 +209,14 @@ module Api
               newsfeed_id: eg['newsfeed_id'] # 添加 newsfeed_id
             }
           end,
-          meta: pagination_meta(@essay_gradings)
+          meta: response_meta
         }, status: :ok
+      rescue StudentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
+      rescue EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :forbidden
+      rescue EssayAssignmentAcademicYearFilter::ActiveAcademicYearMissingError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       def test_email
@@ -836,6 +851,45 @@ module Api
       end
 
       private
+
+      def academic_year_result_for_index
+        case current_general_user.aienglish_role
+        when 'student'
+          StudentAcademicYearFilter.resolve(
+            user: current_general_user,
+            academic_year_id: params[:school_academic_year_id]
+          )
+        when 'teacher'
+          return unless current_general_user.teacher_assignments.exists?
+
+          EssayAssignmentAcademicYearFilter.resolve!(
+            user: current_general_user,
+            academic_year_id: params[:school_academic_year_id]
+          )
+        end
+      end
+
+      def apply_academic_year_filter_to_gradings(scope:, result:)
+        return scope unless result
+
+        if current_general_user.aienglish_role == 'student'
+          return StudentAcademicYearFilter.filter_gradings(scope:, result:)
+        end
+
+        return scope unless result.created_at_range
+
+        scope.where(essay_gradings: { created_at: result.created_at_range })
+      end
+
+      def academic_year_json(academic_year)
+        return if academic_year.nil?
+
+        {
+          id: academic_year.id,
+          name: academic_year.name,
+          status: academic_year.status
+        }
+      end
 
       # 設置特定的 EssayGrading
       def set_essay_grading

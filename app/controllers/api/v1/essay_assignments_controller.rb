@@ -42,9 +42,11 @@ module Api
         end
 
         @essay_assignments = owner.essay_assignments
-        @essay_assignments = @essay_assignments.where(
-          essay_assignments: { created_at: academic_year_filter.created_at_range }
-        )
+        if academic_year_filter.created_at_range
+          @essay_assignments = @essay_assignments.where(
+            essay_assignments: { created_at: academic_year_filter.created_at_range }
+          )
+        end
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
         @essay_assignments = @essay_assignments.matching_search(params[:search])
 

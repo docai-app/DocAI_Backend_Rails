@@ -447,6 +447,8 @@ Rails.application.routes.draw do
           post 'wechat_miniprogram/login', to: 'wechat_miniprogram#login'
           get 'wechat_miniprogram/binding', to: 'wechat_miniprogram#binding'
           delete 'wechat_miniprogram/binding', to: 'wechat_miniprogram#unbind'
+          post 'web_sso/tickets', to: 'web_sso#create'
+          post 'web_sso/exchange', to: 'web_sso#exchange'
         end
       end
 
