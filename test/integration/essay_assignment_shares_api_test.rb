@@ -4,11 +4,13 @@ require 'test_helper'
 
 class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
   setup do
+    host! 'docai-dev.m2mda.com'
     @context = build_share_api_context
     @owner = @context[:owner]
     @recipient = @context[:recipient]
     @other_teacher = @context[:other_teacher]
     @assignment = @context[:assignment]
+    @school = @context[:school]
     @owner_token = sign_in_token(@owner)
     @recipient_token = sign_in_token(@recipient)
   end
@@ -72,6 +74,7 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     body = JSON.parse(response.body)
+    assert_kind_of Array, body['essay_assignments'], body.inspect
     ids = body['essay_assignments'].map { |item| item['id'] }
     assert_includes ids, owned.id
     assert_includes ids, @assignment.id
@@ -82,6 +85,113 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
     assert_equal 'Shared by Owner Teacher', shared_item['shared_by_label']
     assert_equal true, shared_item['can_assign_to_students']
     assert_equal @owner.id.to_s, shared_item.dig('owner', 'id').to_s
+  end
+
+  test 'teacher index filters owned and shared assignments by academic year dates' do
+    current_owned = create_assignment!(
+      user: @recipient,
+      title: 'Current Year Assignment'
+    )
+    historical_year = SchoolAcademicYear.create!(
+      school: @school,
+      name: "#{Date.current.year - 1}-#{Date.current.year}",
+      start_date: Date.current.prev_year.beginning_of_year,
+      end_date: Date.current.prev_year.end_of_year,
+      status: :archived,
+      meta: {}
+    )
+    [@owner, @recipient].each do |teacher|
+      TeacherAssignment.create!(
+        general_user: teacher,
+        school_academic_year: historical_year,
+        department: 'English',
+        position: 'Teacher',
+        status: :active,
+        meta: {}
+      )
+    end
+
+    historical_owned = create_assignment!(
+      user: @recipient,
+      title: 'Historical Owned Assignment'
+    )
+    historical_shared = create_assignment!(
+      user: @owner,
+      title: 'Historical Shared Assignment'
+    )
+    historical_at = Time.zone.local(Date.current.year - 1, 6, 15, 12)
+    [historical_owned, historical_shared].each do |assignment|
+      assignment.update_columns(created_at: historical_at, updated_at: historical_at)
+    end
+
+    EssayAssignmentShareService.sync_shares!(
+      assignment: historical_shared,
+      actor: @owner,
+      teacher_ids: [@recipient.id]
+    )
+
+    get '/api/v1/essay_assignments',
+        headers: auth_headers(@recipient_token),
+        as: :json
+
+    assert_response :success
+    current_body = JSON.parse(response.body)
+    assert_kind_of Array, current_body['essay_assignments'], current_body.inspect
+    current_ids = current_body['essay_assignments'].map { |item| item['id'] }
+    assert_includes current_ids, current_owned.id
+    assert_not_includes current_ids, historical_owned.id
+    assert_not_includes current_ids, historical_shared.id
+
+    get '/api/v1/essay_assignments',
+        params: { school_academic_year_id: historical_year.id },
+        headers: auth_headers(@recipient_token),
+        as: :json
+
+    assert_response :success
+    historical_body = JSON.parse(response.body)
+    historical_ids = historical_body['essay_assignments'].map { |item| item['id'] }
+    assert_includes historical_ids, historical_owned.id
+    assert_includes historical_ids, historical_shared.id
+    assert_not_includes historical_ids, current_owned.id
+    assert_equal 2, historical_body.dig('meta', 'total_count')
+
+    get '/api/v1/essay_assignments',
+        params: {
+          general_user_id: @owner.id,
+          school_academic_year_id: historical_year.id
+        },
+        headers: auth_headers(@recipient_token),
+        as: :json
+
+    assert_response :success
+    owner_historical_ids = JSON.parse(response.body)['essay_assignments'].map { |item| item['id'] }
+    assert_equal [historical_shared.id], owner_historical_ids
+  end
+
+  test 'teacher index rejects an academic year outside the teacher account' do
+    other_school = School.create!(
+      name: "Unavailable Year School #{SecureRandom.hex(4)}",
+      code: "unavailable-year-#{SecureRandom.hex(4)}",
+      meta: {}
+    )
+    unavailable_year = SchoolAcademicYear.create!(
+      school: other_school,
+      name: 'Unavailable Year',
+      start_date: Date.current.beginning_of_year,
+      end_date: Date.current.end_of_year,
+      status: :active,
+      meta: {}
+    )
+
+    get '/api/v1/essay_assignments',
+        params: { school_academic_year_id: unavailable_year.id },
+        headers: auth_headers(@recipient_token),
+        as: :json
+
+    assert_response :forbidden
+    body = JSON.parse(response.body)
+    assert_equal false, body['success']
+    assert_equal 'The selected academic year is not available for this account.', body['error']
   end
 
   test 'shared recipient can read and update assignment' do
@@ -148,9 +258,9 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
       meta: {}
     )
 
-    owner = create_teacher!(school: school, year: year, nickname: 'Owner Teacher', features: %w[essay])
-    recipient = create_teacher!(school: school, year: year, nickname: 'Recipient Teacher', features: %w[essay])
-    other_teacher = create_teacher!(school: school, year: year, nickname: 'Other Teacher', features: %w[essay])
+    owner = create_teacher!(year: year, nickname: 'Owner Teacher', features: %w[essay])
+    recipient = create_teacher!(year: year, nickname: 'Recipient Teacher', features: %w[essay])
+    other_teacher = create_teacher!(year: year, nickname: 'Other Teacher', features: %w[essay])
 
     assignment = EssayAssignment.create!(
       general_user: owner,
@@ -172,7 +282,7 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
     }
   end
 
-  def create_teacher!(school:, year:, nickname:, features:)
+  def create_teacher!(year:, nickname:, features:)
     teacher = GeneralUser.create!(
       email: "teacher-#{SecureRandom.hex(4)}@example.test",
       password: 'Password123!',
@@ -192,6 +302,18 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
     teacher
   end
 
+  def create_assignment!(user:, title:)
+    EssayAssignment.create!(
+      general_user: user,
+      topic: title,
+      assignment: title,
+      title:,
+      category: 'essay',
+      rubric: default_rubric,
+      meta: {}
+    )
+  end
+
   def default_rubric
     {
       'name' => 'Test Rubric',
@@ -200,10 +322,8 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
   end
 
   def sign_in_token(user)
-    post '/general_users/sign_in',
-         params: { general_user: { email: user.email, password: 'Password123!' } },
-         as: :json
-    response.headers['Authorization'].to_s
+    token, = Warden::JWTAuth::UserEncoder.new.call(user, :general_user, nil)
+    "Bearer #{token}"
   end
 
   def auth_headers(token)

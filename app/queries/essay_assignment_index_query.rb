@@ -20,10 +20,11 @@ class EssayAssignmentIndexQuery
     #{EssayAssignment.list_meta_sql_select}
   SQL
 
-  def initialize(user:, category: nil, search: nil, page: 1, per: 10)
+  def initialize(user:, category: nil, search: nil, created_at_range: nil, page: 1, per: 10)
     @user = user
     @category = category.presence
     @search = search.to_s.strip.presence
+    @created_at_range = created_at_range
     @page = [page.to_i, 1].max
     @per = per.to_i.positive? ? per.to_i : 10
   end
@@ -54,6 +55,7 @@ class EssayAssignmentIndexQuery
 
   def owned_scope
     scope = EssayAssignment.where(general_user_id: @user.id)
+    scope = apply_academic_year_filter(scope)
     scope = scope.where(category: @category) if @category.present?
     scope = apply_search_filter(scope)
     scope.select(Arel.sql("#{LIST_SELECT}, 'owner' AS list_access_type"))
@@ -64,6 +66,7 @@ class EssayAssignmentIndexQuery
             .joins(:active_essay_assignment_shares)
             .where(essay_assignment_shares: { shared_with_general_user_id: @user.id })
 
+    scope = apply_academic_year_filter(scope)
     scope = apply_shared_category_filter(scope)
     scope = apply_search_filter(scope)
     scope.select(Arel.sql("#{LIST_SELECT}, 'shared' AS list_access_type"))
@@ -73,6 +76,12 @@ class EssayAssignmentIndexQuery
     return scope if @search.blank?
 
     scope.matching_search(@search)
+  end
+
+  def apply_academic_year_filter(scope)
+    return scope unless @created_at_range
+
+    scope.where(essay_assignments: { created_at: @created_at_range })
   end
 
   def apply_shared_category_filter(scope)
@@ -90,11 +99,12 @@ class EssayAssignmentIndexQuery
   end
 
   def total_count
-    owned_count + shared_count
+    @total_count ||= owned_count + shared_count
   end
 
   def owned_count
     scope = EssayAssignment.where(general_user_id: @user.id)
+    scope = apply_academic_year_filter(scope)
     scope = scope.where(category: @category) if @category.present?
     apply_search_filter(scope).count
   end
@@ -103,6 +113,7 @@ class EssayAssignmentIndexQuery
     scope = EssayAssignment
             .joins(:active_essay_assignment_shares)
             .where(essay_assignment_shares: { shared_with_general_user_id: @user.id })
+    scope = apply_academic_year_filter(scope)
     apply_search_filter(apply_shared_category_filter(scope)).count
   end
 
