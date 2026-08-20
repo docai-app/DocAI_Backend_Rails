@@ -48,6 +48,16 @@ class EssayAssignmentAcademicYearFilterTest < ActiveSupport::TestCase
     assert_not result.created_at_range.cover?(hong_kong_time(2026, 8, 1, 0, 0, 0))
   end
 
+  test 'allows the explicit all academic years option without a date range' do
+    result = EssayAssignmentAcademicYearFilter.resolve!(
+      user: @teacher,
+      academic_year_id: EssayAssignmentAcademicYearFilter::ALL_ACADEMIC_YEARS_ID
+    )
+
+    assert_nil result.academic_year
+    assert_nil result.created_at_range
+  end
+
   test 'uses the application time zone when the school time zone is blank' do
     @school.update_columns(timezone: nil)
 

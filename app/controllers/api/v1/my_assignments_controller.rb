@@ -8,9 +8,19 @@ module Api
 
       # GET /api/v1/essay_assignments/my_assignments
       def index
+        academic_year_result = StudentAcademicYearFilter.resolve(
+          user: current_general_user,
+          academic_year_id: params[:school_academic_year_id]
+        )
+
         assignments = current_general_user.my_assignments(status: params[:status])
                                           .includes(:essay_assignment)
                                           .order('assignment_student_assignments.created_at DESC')
+        assignments = StudentAcademicYearFilter.filter_assignments(
+          scope: assignments,
+          result: academic_year_result,
+          user: current_general_user
+        )
 
         # 分頁
         assignments = Kaminari.paginate_array(assignments.to_a).page(params[:page] || 1)
@@ -21,7 +31,11 @@ module Api
         end
 
         # 統計信息
-        all_assignments = current_general_user.my_assignments
+        all_assignments = StudentAcademicYearFilter.filter_assignments(
+          scope: current_general_user.my_assignments,
+          result: academic_year_result,
+          user: current_general_user
+        )
         statistics = {
           assigned_count: all_assignments.assigned.count,
           completed_count: all_assignments.completed.count,
@@ -39,9 +53,12 @@ module Api
               total_pages: assignments.total_pages,
               total_count: assignments.total_count
             },
-            statistics: statistics
+            statistics: statistics,
+            academic_year: academic_year_json(academic_year_result.academic_year)
           }
         }, status: :ok
+      rescue StudentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       private
@@ -72,6 +89,16 @@ module Api
           completed_at: assignment.completed_at&.iso8601,
           created_at: assignment.created_at.iso8601,
           updated_at: assignment.updated_at.iso8601
+        }
+      end
+
+      def academic_year_json(academic_year)
+        return if academic_year.nil?
+
+        {
+          id: academic_year.id,
+          name: academic_year.name,
+          status: academic_year.status
         }
       end
     end

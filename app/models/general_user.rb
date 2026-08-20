@@ -500,8 +500,14 @@ class GeneralUser < ApplicationRecord
     query = assignment_student_assignments
               .includes(:essay_assignment)
               .order('assignment_student_assignments.created_at DESC')
-    
-    query = query.where(status: status) if status.present?
+
+    if status.present?
+      requested_statuses = Array(status).flat_map { |value| value.to_s.split(',') }
+                                        .map(&:strip)
+                                        .select { |value| AssignmentStudentAssignment.statuses.key?(value) }
+      query = requested_statuses.any? ? query.where(status: requested_statuses) : query.none
+    end
+
     query
   end
 

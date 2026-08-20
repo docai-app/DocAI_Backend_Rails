@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
-# Resolves a teacher-visible academic year into the school's local-time range.
+# Resolves a teacher-visible academic year into the school's local-time range,
+# or returns no range when the caller explicitly requests all years.
 class EssayAssignmentAcademicYearFilter
+  ALL_ACADEMIC_YEARS_ID = 'all'
   Result = Struct.new(:academic_year, :created_at_range, keyword_init: true)
 
   class AcademicYearUnavailableError < StandardError; end
@@ -17,6 +19,8 @@ class EssayAssignmentAcademicYearFilter
   end
 
   def resolve!
+    return Result.new(academic_year: nil, created_at_range: nil) if all_academic_years_requested?
+
     academic_year = requested_academic_year || active_academic_year
 
     Result.new(
@@ -26,6 +30,10 @@ class EssayAssignmentAcademicYearFilter
   end
 
   private
+
+  def all_academic_years_requested?
+    @academic_year_id == ALL_ACADEMIC_YEARS_ID
+  end
 
   def available_academic_years
     @available_academic_years ||= @user.teacher_assignments
