@@ -3,6 +3,8 @@
 require 'test_helper'
 
 class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
+  self.fixture_table_names = []
+
   setup do
     @context = build_index_query_context
     @owner = @context[:owner]
