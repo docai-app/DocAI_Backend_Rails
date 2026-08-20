@@ -4,6 +4,10 @@ set -eu
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 export RAILS_ENV=${RAILS_ENV:-test}
+export DEVISE_JWT_SECRET_KEY=${DEVISE_JWT_SECRET_KEY:-test-only-essay-ocr-jwt-secret}
+export AZURE_STORAGE_NAME=${AZURE_STORAGE_NAME:-teststorageaccount}
+export AZURE_STORAGE_ACCESS_KEY=${AZURE_STORAGE_ACCESS_KEY:-dGVzdC1vbmx5LW5vdC1hLXJlYWwta2V5}
+export AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-test-storage}
 
 cd "$PROJECT_DIR"
 
