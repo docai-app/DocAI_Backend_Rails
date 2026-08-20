@@ -35,7 +35,23 @@
 require 'test_helper'
 
 class EssayGradingTest < ActiveSupport::TestCase
-  # test "the truth" do
-  #   assert true
-  # end
+  self.fixture_table_names = []
+
+  test 'submission snapshot uses the academic year enrollment class number' do
+    school = Struct.new(:id).new(SecureRandom.uuid)
+    academic_year = Struct.new(:id, :school_id).new(SecureRandom.uuid, school.id)
+    enrollment = Struct.new(:id, :class_name, :class_number, :school_academic_year)
+                       .new('enrollment-1', 'F2A', '18', academic_year)
+    user = Struct.new(:id, :banbie, :class_no, :current_enrollment)
+                 .new('student-1', 'F3A', '99', enrollment)
+    grading = EssayGrading.new
+    grading.define_singleton_method(:general_user) { user }
+
+    grading.send(:save_submission_info)
+
+    assert_equal 'F2A', grading.submission_class_name
+    assert_equal '18', grading.submission_class_number
+    assert_equal school.id, grading.submission_school_id
+    assert_equal academic_year.id, grading.submission_academic_year_id
+  end
 end

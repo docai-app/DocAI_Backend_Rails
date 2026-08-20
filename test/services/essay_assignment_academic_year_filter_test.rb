@@ -3,6 +3,8 @@
 require 'test_helper'
 
 class EssayAssignmentAcademicYearFilterTest < ActiveSupport::TestCase
+  self.fixture_table_names = []
+
   setup do
     @school = School.create!(
       name: "Academic Year Filter School #{SecureRandom.hex(4)}",

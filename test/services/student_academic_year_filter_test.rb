@@ -64,6 +64,17 @@ class StudentAcademicYearFilterTest < Minitest::Test
     assert_empty result.available_academic_years
   end
 
+  def test_allows_all_academic_years_for_legacy_students_without_enrollment
+    result = StudentAcademicYearFilter.resolve(
+      user: user_with_years,
+      academic_year_id: StudentAcademicYearFilter::ALL_ACADEMIC_YEARS_ID
+    )
+
+    assert_nil result.academic_year
+    assert_nil result.created_at_range
+    assert_empty result.available_academic_years
+  end
+
   def test_grading_filter_uses_snapshot_and_created_at_fallback
     year = academic_year(id: 'year-1')
     result = StudentAcademicYearFilter.resolve(user: user_with_years(year))

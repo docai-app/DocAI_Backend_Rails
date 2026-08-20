@@ -78,14 +78,14 @@ class StudentAcademicYearFilter
   def resolve
     years = available_academic_years
 
+    if @academic_year_id == ALL_ACADEMIC_YEARS_ID
+      return Result.new(academic_year: nil, created_at_range: nil, available_academic_years: years)
+    end
+
     if years.empty?
       raise AcademicYearUnavailableError, 'The selected academic year is not available.' if @academic_year_id
 
       return Result.new(academic_year: nil, created_at_range: nil, available_academic_years: [])
-    end
-
-    if @academic_year_id == ALL_ACADEMIC_YEARS_ID
-      return Result.new(academic_year: nil, created_at_range: nil, available_academic_years: years)
     end
 
     academic_year = requested_academic_year(years) || default_academic_year(years)
