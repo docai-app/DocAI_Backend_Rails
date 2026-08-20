@@ -18,11 +18,17 @@ module Api
         owner = index_assignments_owner
         return if performed?
 
+        academic_year_filter = EssayAssignmentAcademicYearFilter.resolve!(
+          user: owner,
+          academic_year_id: params[:school_academic_year_id]
+        )
+
         if merge_shared_assignments_for_index?(owner)
           result = EssayAssignmentIndexQuery.new(
             user: current_general_user,
             category: params[:category],
             search: params[:search],
+            created_at_range: academic_year_filter.created_at_range,
             page: params[:page],
             per: params[:count]
           ).call
@@ -36,6 +42,9 @@ module Api
         end
 
         @essay_assignments = owner.essay_assignments
+        @essay_assignments = @essay_assignments.where(
+          essay_assignments: { created_at: academic_year_filter.created_at_range }
+        )
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
         @essay_assignments = @essay_assignments.matching_search(params[:search])
 
@@ -64,6 +73,10 @@ module Api
           essay_assignments: @essay_assignments.map(&:as_list_json),
           meta: pagination_meta(@essay_assignments)
         }, status: :ok
+      rescue EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :forbidden
+      rescue EssayAssignmentAcademicYearFilter::ActiveAcademicYearMissingError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       def index_old

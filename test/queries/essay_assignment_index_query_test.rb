@@ -27,27 +27,30 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
   end
 
   test 'filters shared assignments by category permission' do
-    listening_assignment = EssayAssignment.create!(
+    comprehension_assignment = EssayAssignment.create!(
       general_user: @owner,
-      topic: 'Listening Topic',
-      assignment: 'Listening Assignment',
-      title: 'Listening Title',
-      category: 'listening',
+      topic: 'Comprehension Topic',
+      assignment: 'Comprehension Assignment',
+      title: 'Comprehension Title',
+      category: 'comprehension',
       rubric: default_rubric,
       meta: {}
     )
 
-    EssayAssignmentShareService.sync_shares!(
-      assignment: listening_assignment,
-      actor: @owner,
-      teacher_ids: [@recipient.id]
+    EssayAssignmentShare.create!(
+      essay_assignment: comprehension_assignment,
+      shared_with_general_user: @recipient,
+      shared_by_general_user: @owner,
+      school: @context[:school],
+      school_academic_year: @context[:year],
+      status: :active
     )
 
     result = EssayAssignmentIndexQuery.new(user: @recipient, category: 'essay').call
     ids = result.assignments.map(&:id)
 
     assert_includes ids, @owned_assignment.id
-    assert_not_includes ids, listening_assignment.id
+    assert_not_includes ids, comprehension_assignment.id
   end
 
   test 'filters assignments by search keyword' do
@@ -55,6 +58,48 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     ids = result.assignments.map(&:id)
 
     assert_includes ids, @owned_assignment.id
+    assert_not_includes ids, @shared_assignment.id
+  end
+
+  test 'filters owned and shared assignments before pagination by academic year range' do
+    EssayAssignmentShareService.sync_shares!(
+      assignment: @shared_assignment,
+      actor: @owner,
+      teacher_ids: [@recipient.id]
+    )
+
+    historical_at = 18.months.ago.change(hour: 12)
+    historical_owned = create_assignment!(
+      user: @recipient,
+      title: 'Historical Owned Title'
+    )
+    historical_shared = create_assignment!(
+      user: @owner,
+      title: 'Historical Shared Title'
+    )
+    [historical_owned, historical_shared].each do |assignment|
+      assignment.update_columns(created_at: historical_at, updated_at: historical_at)
+    end
+
+    EssayAssignmentShareService.sync_shares!(
+      assignment: historical_shared,
+      actor: @owner,
+      teacher_ids: [@recipient.id]
+    )
+
+    result = EssayAssignmentIndexQuery.new(
+      user: @recipient,
+      created_at_range: historical_at.beginning_of_day..historical_at.end_of_day,
+      page: 1,
+      per: 1
+    ).call
+    ids = result.assignments.map(&:id)
+
+    assert_equal 2, result.meta[:total_count]
+    assert_equal 2, result.meta[:total_pages]
+    assert_equal 1, ids.size
+    assert_includes [historical_owned.id, historical_shared.id], ids.first
+    assert_not_includes ids, @owned_assignment.id
     assert_not_includes ids, @shared_assignment.id
   end
 
@@ -75,8 +120,8 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
       meta: {}
     )
 
-    owner = create_teacher!(school: school, year: year, nickname: 'Owner', features: %w[essay listening])
-    recipient = create_teacher!(school: school, year: year, nickname: 'Recipient', features: %w[essay])
+    owner = create_teacher!(year: year, nickname: 'Owner', features: %w[essay comprehension])
+    recipient = create_teacher!(year: year, nickname: 'Recipient', features: %w[essay])
 
     owned_assignment = EssayAssignment.create!(
       general_user: recipient,
@@ -99,6 +144,8 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     )
 
     {
+      school: school,
+      year: year,
       owner: owner,
       recipient: recipient,
       owned_assignment: owned_assignment,
@@ -106,7 +153,7 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     }
   end
 
-  def create_teacher!(school:, year:, nickname:, features:)
+  def create_teacher!(year:, nickname:, features:)
     teacher = GeneralUser.create!(
       email: "teacher-#{SecureRandom.hex(4)}@example.test",
       password: 'Password123!',
@@ -124,6 +171,18 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
       meta: {}
     )
     teacher
+  end
+
+  def create_assignment!(user:, title:)
+    EssayAssignment.create!(
+      general_user: user,
+      topic: title,
+      assignment: title,
+      title:,
+      category: 'essay',
+      rubric: default_rubric,
+      meta: {}
+    )
   end
 
   def default_rubric

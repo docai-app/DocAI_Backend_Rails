@@ -30,7 +30,12 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      namespace :public do
+        get 'schools/:slug/login_config', to: 'school_login_configs#show'
+      end
+
       post 'unisound/eval', to: 'unisound#create'
+      post 'essay_ocr', to: 'essay_ocr#create'
 
       # 後備Email確認
       get 'recovery_email_confirmations/show'
@@ -441,6 +446,7 @@ Rails.application.routes.draw do
           post 'wechat_miniprogram/bind', to: 'wechat_miniprogram#bind'
           post 'wechat_miniprogram/login', to: 'wechat_miniprogram#login'
           get 'wechat_miniprogram/binding', to: 'wechat_miniprogram#binding'
+          delete 'wechat_miniprogram/binding', to: 'wechat_miniprogram#unbind'
         end
       end
 
