@@ -441,8 +441,12 @@ module Api
       def aienglish_access
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
 
-        # Sentence Puzzle 新類型先允許所有已登入用戶存取；其餘類型仍走 feature list
+        # An explicit student assignment grants access even if the account feature list changed later.
+        assigned_student = current_general_user.aienglish_role == 'student' &&
+                           @essay_assignment.assigned_to_student?(current_general_user)
+
         if @essay_assignment.category == 'sentence_puzzle' ||
+           assigned_student ||
            current_general_user.aienglish_features_list.include?(@essay_assignment.category)
           true
         else
