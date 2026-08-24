@@ -129,6 +129,7 @@ module Api
                                                  essay_gradings.status,
                                                  essay_gradings.using_time,
                                                  essay_assignments.category as essay_assignment_category,
+                                                 essay_assignments.code AS assignment_code,
                                                  essay_assignments.assignment AS assignment_name,
                                                  essay_gradings.meta ->> \'newsfeed_id\' AS newsfeed_id'
                                               )
@@ -204,6 +205,7 @@ module Api
               updated_at: eg.updated_at,
               status: eg.status,
               assignment_name: eg.assignment_name,
+              assignment_code: eg['assignment_code'],
               category: categories[eg['essay_assignment_category']], # 使用 categories 映射获取字符串表示
               using_time: eg.using_time,
               newsfeed_id: eg['newsfeed_id'] # 添加 newsfeed_id
@@ -345,7 +347,9 @@ module Api
           uploaded_file: grading_params[:file]
         )
 
-        @essay_grading = @essay_assignment.essay_gradings.new(
+        @essay_grading = reusable_sentence_puzzle_draft(grading_params) || @essay_assignment.essay_gradings.new
+        was_new_record = @essay_grading.new_record?
+        @essay_grading.assign_attributes(
           essay_grading_attributes_for_persistence(@essay_assignment.category, grading_params)
         )
         @essay_grading.general_user = current_general_user
@@ -367,6 +371,7 @@ module Api
         begin
           EssayGrading.transaction do
             @essay_grading.save!
+            exclude_new_sentence_puzzle_draft_from_submission_count!(was_new_record:)
             persist_uploaded_attachment!(
               essay_grading: @essay_grading,
               category: @essay_assignment.category,
@@ -388,7 +393,8 @@ module Api
           #   ahoy.track 'Assignment Submitted',
           #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
           # end
-          render json: { success: true, essay_grading: @essay_grading }, status: :created
+          response_status = was_new_record ? :created : :ok
+          render json: { success: true, essay_grading: @essay_grading }, status: response_status
         rescue ActiveRecord::RecordInvalid
           render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
         rescue StandardError => e
@@ -396,6 +402,28 @@ module Api
         end
       ensure
         prepared_attachment&.close!
+      end
+
+      # GET /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/current_draft
+      def current_draft
+        set_essay_assignment_by_code
+        return if performed?
+
+        unless sentence_puzzle_assignment?(@essay_assignment)
+          render json: { success: false, error: 'Draft recovery is not available for this assignment type.' },
+                 status: :unprocessable_entity
+          return
+        end
+
+        draft = @essay_assignment.essay_gradings
+                                 .where(general_user: current_general_user, status: :draft)
+                                 .order(updated_at: :desc)
+                                 .first
+
+        render json: {
+          success: true,
+          essay_grading: draft && sentence_puzzle_draft_json(draft)
+        }, status: :ok
       end
 
       def teacher_review
@@ -697,9 +725,14 @@ module Api
 
         begin
           EssayGrading.transaction do
-            @essay_grading.update!(
+            @essay_grading.assign_attributes(
               essay_grading_attributes_for_persistence(@essay_grading.category, grading_params)
             )
+            if sentence_puzzle_submission_request?(@essay_grading.essay_assignment, grading_params)
+              apply_sentence_puzzle_submission!(@essay_grading, grading_params)
+            end
+            @essay_grading.save!
+            sync_sentence_puzzle_submission_count_after_status_change!
 
             persist_uploaded_attachment!(
               essay_grading: @essay_grading,
@@ -1019,6 +1052,15 @@ module Api
                     :revealed_answer,
                     :answered_at,
                     { student_block_order: [] }
+                  ],
+                  progress: [
+                    :current_question_id,
+                    :current_question_order,
+                    :feedback,
+                    :saved_at,
+                    :started_at,
+                    { selected_block_order: [] },
+                    { attempts_by_question: {} }
                   ]
                 }
               ]
@@ -1085,6 +1127,44 @@ module Api
 
       def essay_grading_attributes_for_persistence(category, grading_params)
         grading_params.except(:file)
+      end
+
+      def reusable_sentence_puzzle_draft(grading_params)
+        return unless sentence_puzzle_submission_request?(@essay_assignment, grading_params)
+
+        @essay_assignment.essay_gradings
+                         .where(general_user: current_general_user, status: :draft)
+                         .order(updated_at: :desc)
+                         .first
+      end
+
+      def sentence_puzzle_draft_json(draft)
+        {
+          id: draft.id,
+          status: draft.status,
+          essay: draft.essay,
+          score: draft.score,
+          meta: draft.meta,
+          created_at: draft.created_at,
+          updated_at: draft.updated_at
+        }
+      end
+
+      def exclude_new_sentence_puzzle_draft_from_submission_count!(was_new_record:)
+        return unless was_new_record && @essay_grading.is_sentence_puzzle? && @essay_grading.draft?
+
+        EssayAssignment.decrement_counter(:number_of_submission, @essay_grading.essay_assignment_id)
+      end
+
+      def sync_sentence_puzzle_submission_count_after_status_change!
+        return unless @essay_grading.is_sentence_puzzle? && @essay_grading.saved_change_to_status?
+
+        previous_status, current_status = @essay_grading.saved_change_to_status
+        if previous_status == 'draft' && current_status != 'draft'
+          EssayAssignment.increment_counter(:number_of_submission, @essay_grading.essay_assignment_id)
+        elsif previous_status != 'draft' && current_status == 'draft'
+          EssayAssignment.decrement_counter(:number_of_submission, @essay_grading.essay_assignment_id)
+        end
       end
 
       def prepare_audio_attachment_for_persistence(category:, uploaded_file:)
@@ -1201,7 +1281,8 @@ module Api
         overall_score_label_override: nil,
         show_rubric_override: nil,
         required_score_label_override: nil,
-        assignment_type_label_override: nil
+        assignment_type_label_override: nil,
+        show_report_type_override: true
       )
         # Unify the report top section across all report types (essay/comprehension/listening/etc).
         sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
@@ -1251,7 +1332,8 @@ module Api
           report_label: report_label,
           show_rubric: show_rubric,
           required_score_label: required_score_label_override,
-          assignment_type_label: assignment_type_label_override
+          assignment_type_label: assignment_type_label_override,
+          show_report_type: show_report_type_override
         )
         draw_essay_report_title_box(pdf, palette, json_data['topic'])
       end
@@ -1781,7 +1863,8 @@ module Api
         report_label:,
         show_rubric: true,
         required_score_label: nil,
-        assignment_type_label: nil
+        assignment_type_label: nil,
+        show_report_type: true
       )
         account_row = if show_rubric
           [
@@ -1808,14 +1891,18 @@ module Api
           ]
         end
 
-        table_data << [
-          { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true },
-          if required_score_label.present?
-            { content: "<b>Required Score</b><br/>#{required_score_label}", inline_format: true }
-          else
-            { content: "<b>Report Type</b><br/>#{report_label}", inline_format: true }
-          end
+        score_row = [
+          { content: "<b>Overall Score</b><br/>#{overall_score_label}", inline_format: true }
         ]
+        if required_score_label.present?
+          score_row << { content: "<b>Required Score</b><br/>#{required_score_label}", inline_format: true }
+        elsif show_report_type
+          score_row << { content: "<b>Report Type</b><br/>#{report_label}", inline_format: true }
+        else
+          score_row.first[:colspan] = 2
+          score_row.first[:align] = :left
+        end
+        table_data << score_row
 
         pdf.table(
           table_data,
@@ -1861,57 +1948,106 @@ module Api
         pdf.move_down 22
       end
 
-      def generate_sentence_puzzle_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
+      def generate_sentence_puzzle_pdf(json_data, essay_grading, school_logo_url = nil, submission_info = nil)
         attempt = essay_grading.meta.is_a?(Hash) ? essay_grading.meta['sentence_puzzle_attempt'] : {}
         attempt = attempt.deep_stringify_keys if attempt.is_a?(Hash)
         score = attempt['score']
         total = attempt['total']
         answers = Array(attempt['answers'])
+        accuracy = total.to_i.positive? ? ((score.to_f / total.to_f) * 100).round : 0
+        report_data = json_data.merge('account' => submission_info.presence || json_data['account'])
 
         Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
           font_path = Rails.root.join('app/assets/fonts')
           pdf.font_families.update(
+            'NotoSans' => {
+              normal: font_path.join('NotoSansTC-Regular.ttf'),
+              bold: font_path.join('NotoSansTC-Bold.ttf')
+            },
+            'DejaVuSans' => {
+              normal: font_path.join('DejaVuSans.ttf'),
+              bold: font_path.join('DejaVuSans.ttf')
+            },
             'Arial' => {
               normal: font_path.join('ARIAL.ttf'),
               bold: font_path.join('ARIALBD.ttf')
             }
           )
           pdf.font('Arial')
+          pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           palette = essay_report_palette
 
           draw_unified_report_header(
             pdf,
             palette,
-            json_data,
+            report_data,
             school_logo_url,
             overall_score_label_override: "#{score}/#{total}",
             show_rubric_override: false,
-            assignment_type_label_override: 'Sentence Puzzle'
+            assignment_type_label_override: 'Sentence Puzzle',
+            show_report_type_override: false
           )
 
-          pdf.text 'Sentence Puzzle Results', size: 15, style: :bold
+          pdf.text 'Assessment Overview', size: 15, style: :bold
           pdf.stroke_horizontal_rule
           pdf.move_down 12
 
-          if essay_grading.essay.present?
-            pdf.text essay_grading.essay.to_s, size: 12
-            pdf.move_down 12
-          end
+          pdf.formatted_text [
+            { text: 'Accuracy: ', styles: [:bold], size: 12 },
+            { text: "#{accuracy}%", size: 12 },
+            { text: '    Questions: ', styles: [:bold], size: 12 },
+            { text: (total || answers.length).to_s, size: 12 }
+          ]
+          pdf.formatted_text [
+            { text: 'Submitted: ', styles: [:bold], size: 12 },
+            { text: essay_grading.updated_at.in_time_zone.strftime('%d/%m/%Y %H:%M'), size: 12 }
+          ]
+          pdf.move_down 18
+          pdf.text 'Sentence Puzzle Results', size: 18, style: :bold
+          pdf.move_down 10
 
           answers.each_with_index do |answer, index|
             next unless answer.is_a?(Hash)
 
             answer = answer.deep_stringify_keys
-            pdf.text "Question #{answer['question_order'] || index + 1}", style: :bold, size: 13
-            pdf.move_down 6
-            pdf.text "Correct sentence: #{answer['correct_sentence']}", size: 11
-            pdf.text "Student sentence: #{answer['student_sentence']}", size: 11
-            pdf.text "Result: #{answer['is_correct'] ? 'Correct' : 'Wrong'}", size: 11
-            pdf.text "Attempts used: #{answer['attempts_used']}", size: 11
-            pdf.text "Revealed answer: #{answer['revealed_answer'] ? 'Yes' : 'No'}", size: 11
-            pdf.move_down 12
+            result_label = answer['is_correct'] ? 'Correct' : 'Wrong'
+            result_color = answer['is_correct'] ? '008000' : 'FF0000'
+
+            student_sentence = answer['student_sentence'].presence || 'No answer'
+            correct_sentence = answer['correct_sentence'].presence || 'N/A'
+            question_title = "Question #{answer['question_order'] || index + 1}"
+            card_content = [
+              "<b>Your sentence</b><br/>#{ERB::Util.html_escape(student_sentence)}",
+              "<color rgb='008000'><b>Correct sentence</b><br/>#{ERB::Util.html_escape(correct_sentence)}</color>",
+              "<b>Result:</b> <color rgb='#{result_color}'><b>#{result_label}</b></color>" \
+              "    <b>Attempts:</b> #{answer['attempts_used']}"
+            ].join('<br/>')
+
+            question_table = pdf.make_table(
+              [[{ content: card_content, inline_format: true }]],
+              width: pdf.bounds.width,
+              cell_style: {
+                background_color: palette[:soft],
+                border_color: palette[:border],
+                border_width: 0.8,
+                padding: [10, 14, 10, 14],
+                inline_format: true,
+                size: 11,
+                text_color: palette[:text],
+                leading: 3
+              }
+            )
+            required_height = pdf.height_of(question_title, size: 14, style: :bold) +
+                              7 + question_table.height + 14
+            pdf.start_new_page if pdf.cursor < required_height
+
+            pdf.fill_color palette[:text]
+            pdf.text question_title, style: :bold, size: 14
+            pdf.move_down 7
+            question_table.draw
+            pdf.move_down 14
           end
-        end.render
+        end
       end
 
       def generate_speaking_pronunciation_pdf(json_data, essay_grading, school_logo_url = nil, _submission_info = nil)
@@ -3113,7 +3249,7 @@ module Api
         if assignment
           assignment.update_columns(
             status: AssignmentStudentAssignment.statuses[:completed],
-            completed_at: @essay_grading.created_at
+            completed_at: @essay_grading.updated_at
           )
           Rails.logger.info "Updated assignment status for user #{current_general_user.id}, assignment #{@essay_assignment.id}"
         else
