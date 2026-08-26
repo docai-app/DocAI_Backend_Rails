@@ -22,6 +22,7 @@ Rails.application.routes.draw do
     resource :session, only: %i[create destroy], controller: 'sessions'
     post 'revoke_binding', to: 'revoke_bindings#create'
     get 'userinfo', to: 'userinfo#show'
+    post 'web_login', to: 'web_logins#create'
   end
 
   devise_for :users,
