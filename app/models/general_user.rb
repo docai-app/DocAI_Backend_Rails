@@ -75,6 +75,16 @@ class GeneralUser < ApplicationRecord
   has_many :essay_gradings
   has_many :essay_assignments
 
+  has_many :oauth_access_grants,
+           class_name: 'Doorkeeper::AccessGrant',
+           foreign_key: :resource_owner_id,
+           dependent: :delete_all
+
+  has_many :oauth_access_tokens,
+           class_name: 'Doorkeeper::AccessToken',
+           foreign_key: :resource_owner_id,
+           dependent: :delete_all
+
   has_many :received_essay_assignment_shares,
            class_name: 'EssayAssignmentShare',
            foreign_key: :shared_with_general_user_id,

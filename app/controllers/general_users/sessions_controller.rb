@@ -52,9 +52,11 @@ module GeneralUsers
     end
 
     def login_success
+      Oauth::SessionEstablisher.establish!(session, resource)
       render json: {
         success: true,
-        message: 'Logged in successfully.'
+        message: 'Logged in successfully.',
+        oauth_session: true
       }, status: :ok
     end
 

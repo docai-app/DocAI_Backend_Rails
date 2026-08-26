@@ -1,0 +1,92 @@
+<% content_for :title, t('doorkeeper.authorizations.new.title') %>
+
+<section class="oauth-card" role="dialog" aria-labelledby="oauth-consent-title">
+  <header class="oauth-card__header">
+    <div class="oauth-brand-row" aria-hidden="true">
+      <div class="oauth-brand oauth-brand--idp">
+        <span class="oauth-brand__mark">AE</span>
+        <span class="oauth-brand__name">AIEnglish</span>
+      </div>
+      <div class="oauth-brand-row__arrow">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12h12m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="oauth-brand oauth-brand--client">
+        <% if oauth_client_logo_url.present? %>
+          <%= image_tag oauth_client_logo_url, alt: oauth_client_name, class: 'oauth-brand__logo' %>
+        <% else %>
+          <span class="oauth-brand__mark oauth-brand__mark--client"><%= oauth_client_name.to_s.first&.upcase || '?' %></span>
+        <% end %>
+        <span class="oauth-brand__name"><%= oauth_client_name %></span>
+      </div>
+    </div>
+  </header>
+
+  <h1 id="oauth-consent-title" class="oauth-card__title">
+    <%= t('doorkeeper.authorizations.new.prompt', client_name: oauth_client_name) %>
+  </h1>
+
+  <div class="oauth-account" aria-label="<%= t('doorkeeper.authorizations.new.signed_in_as') %>">
+    <div class="oauth-account__avatar" aria-hidden="true"><%= oauth_user_initial %></div>
+    <div class="oauth-account__meta">
+      <div class="oauth-account__label"><%= t('doorkeeper.authorizations.new.signed_in_as') %></div>
+      <div class="oauth-account__email"><%= oauth_user_email || oauth_user_display_name %></div>
+    </div>
+  </div>
+
+  <% if @pre_auth.scopes.any? %>
+    <div class="oauth-scopes">
+      <p class="oauth-scopes__heading"><%= t('doorkeeper.authorizations.new.able_to') %></p>
+      <ul class="oauth-scopes__list">
+        <% @pre_auth.scopes.each do |scope| %>
+          <li class="oauth-scopes__item">
+            <span class="oauth-scopes__icon oauth-scopes__icon--<%= oauth_scope_icon(scope) %>" aria-hidden="true"></span>
+            <span class="oauth-scopes__text"><%= oauth_scope_description(scope) %></span>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <% if oauth_client_privacy_url.present? || oauth_client_tos_url.present? %>
+    <p class="oauth-legal">
+      <%= t('doorkeeper.authorizations.new.legal_intro') %>
+      <% if oauth_client_privacy_url.present? %>
+        <%= link_to t('doorkeeper.authorizations.new.privacy'), oauth_client_privacy_url, target: '_blank', rel: 'noopener noreferrer', class: 'oauth-link' %>
+      <% end %>
+      <% if oauth_client_tos_url.present? %>
+        <% if oauth_client_privacy_url.present? %> · <% end %>
+        <%= link_to t('doorkeeper.authorizations.new.terms'), oauth_client_tos_url, target: '_blank', rel: 'noopener noreferrer', class: 'oauth-link' %>
+      <% end %>
+    </p>
+  <% else %>
+    <p class="oauth-legal"><%= t('doorkeeper.authorizations.new.legal_intro') %></p>
+  <% end %>
+
+  <div class="oauth-actions">
+    <%= form_tag oauth_authorization_path, method: :delete, class: 'oauth-actions__form' do %>
+      <%= hidden_field_tag :client_id, @pre_auth.client.uid, id: nil %>
+      <%= hidden_field_tag :redirect_uri, @pre_auth.redirect_uri, id: nil %>
+      <%= hidden_field_tag :state, @pre_auth.state, id: nil %>
+      <%= hidden_field_tag :response_type, @pre_auth.response_type, id: nil %>
+      <%= hidden_field_tag :response_mode, @pre_auth.response_mode, id: nil %>
+      <%= hidden_field_tag :scope, @pre_auth.scope, id: nil %>
+      <%= hidden_field_tag :code_challenge, @pre_auth.code_challenge, id: nil %>
+      <%= hidden_field_tag :code_challenge_method, @pre_auth.code_challenge_method, id: nil %>
+      <%= button_tag t('doorkeeper.authorizations.buttons.deny'), type: 'submit', class: 'oauth-btn oauth-btn--ghost' %>
+    <% end %>
+
+    <%= form_tag oauth_authorization_path, method: :post, class: 'oauth-actions__form' do %>
+      <%= hidden_field_tag :client_id, @pre_auth.client.uid, id: nil %>
+      <%= hidden_field_tag :redirect_uri, @pre_auth.redirect_uri, id: nil %>
+      <%= hidden_field_tag :state, @pre_auth.state, id: nil %>
+      <%= hidden_field_tag :response_type, @pre_auth.response_type, id: nil %>
+      <%= hidden_field_tag :response_mode, @pre_auth.response_mode, id: nil %>
+      <%= hidden_field_tag :scope, @pre_auth.scope, id: nil %>
+      <%= hidden_field_tag :code_challenge, @pre_auth.code_challenge, id: nil %>
+      <%= hidden_field_tag :code_challenge_method, @pre_auth.code_challenge_method, id: nil %>
+      <%= button_tag t('doorkeeper.authorizations.buttons.authorize'), type: 'submit', class: 'oauth-btn oauth-btn--primary' %>
+    <% end %>
+  </div>
+</section>

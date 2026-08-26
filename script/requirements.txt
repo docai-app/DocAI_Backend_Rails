@@ -1,2 +1,2 @@
 # Speaking essay Azure pronunciation (script/azure_pronunciation_continuous.py)
-azure-cognitiveservices-speech>=1.38.0,<2.0
+# azure-cognitiveservices-speech>=1.38.0,<2.0

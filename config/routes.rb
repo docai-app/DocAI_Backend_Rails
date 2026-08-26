@@ -11,6 +11,19 @@ Rails.application.routes.draw do
   require 'sidekiq-scheduler/web'
   mount Sidekiq::Web => '/sidekiq'
 
+  use_doorkeeper do
+    controllers authorizations: 'oauth/authorizations',
+                tokens: 'oauth/tokens'
+    # Skip Doorkeeper's built-in applications CRUD UI
+    skip_controllers :applications, :authorized_applications, :token_info
+  end
+
+  namespace :oauth do
+    resource :session, only: %i[create destroy], controller: 'sessions'
+    post 'revoke_binding', to: 'revoke_bindings#create'
+    get 'userinfo', to: 'userinfo#show'
+  end
+
   devise_for :users,
              controllers: {
                sessions: 'users/sessions',
@@ -541,6 +554,15 @@ Rails.application.routes.draw do
         end
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
+
+        # OAuth Client 管理（URL: /oauth/clients，控制器: OauthClientsController）
+        resources :oauth_clients, path: 'oauth/clients' do
+          member do
+            post :rotate_secret
+            post :enable
+            post :disable
+          end
+        end
 
         # Essay Assignments Management for Admin,index
         resources :essay_assignments, only: %i[index show update] do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
+ActiveRecord::Schema[7.0].define(version: 2026_08_26_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -848,6 +848,71 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
     t.index ["recipient_type", "recipient_id"], name: "index_noticed_notifications_on_recipient"
   end
 
+  create_table "oauth_access_grants", force: :cascade do |t|
+    t.uuid "resource_owner_id", null: false
+    t.bigint "application_id", null: false
+    t.string "token", null: false
+    t.integer "expires_in", null: false
+    t.text "redirect_uri", null: false
+    t.string "scopes", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "revoked_at"
+    t.string "code_challenge"
+    t.string "code_challenge_method"
+    t.index ["application_id"], name: "index_oauth_access_grants_on_application_id"
+    t.index ["resource_owner_id"], name: "index_oauth_access_grants_on_resource_owner_id"
+    t.index ["token"], name: "index_oauth_access_grants_on_token", unique: true
+  end
+
+  create_table "oauth_access_tokens", force: :cascade do |t|
+    t.uuid "resource_owner_id"
+    t.bigint "application_id", null: false
+    t.string "token", null: false
+    t.string "refresh_token"
+    t.integer "expires_in"
+    t.string "scopes"
+    t.datetime "created_at", null: false
+    t.datetime "revoked_at"
+    t.string "previous_refresh_token", default: "", null: false
+    t.index ["application_id"], name: "index_oauth_access_tokens_on_application_id"
+    t.index ["refresh_token"], name: "index_oauth_access_tokens_on_refresh_token", unique: true
+    t.index ["resource_owner_id"], name: "index_oauth_access_tokens_on_resource_owner_id"
+    t.index ["token"], name: "index_oauth_access_tokens_on_token", unique: true
+  end
+
+  create_table "oauth_applications", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "uid", null: false
+    t.string "secret"
+    t.text "redirect_uri", null: false
+    t.string "scopes", default: "", null: false
+    t.boolean "confidential", default: true, null: false
+    t.boolean "enabled", default: false, null: false
+    t.boolean "trusted", default: false, null: false
+    t.string "logo_url"
+    t.string "homepage_url"
+    t.string "privacy_policy_url"
+    t.string "tos_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_oauth_applications_on_enabled"
+    t.index ["uid"], name: "index_oauth_applications_on_uid", unique: true
+  end
+
+  create_table "oauth_audit_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "event", null: false
+    t.bigint "oauth_application_id"
+    t.uuid "general_user_id"
+    t.string "ip"
+    t.string "user_agent"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_oauth_audit_logs_on_created_at"
+    t.index ["event"], name: "index_oauth_audit_logs_on_event"
+    t.index ["general_user_id"], name: "index_oauth_audit_logs_on_general_user_id"
+    t.index ["oauth_application_id"], name: "index_oauth_audit_logs_on_oauth_application_id"
+  end
+
   create_table "pdf_page_details", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "document_id", null: false
     t.integer "page_number"
@@ -1299,6 +1364,12 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_20_000000) do
   add_foreign_key "messages", "chatbots"
   add_foreign_key "mini_apps", "folders"
   add_foreign_key "mini_apps", "users"
+  add_foreign_key "oauth_access_grants", "general_users", column: "resource_owner_id"
+  add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
+  add_foreign_key "oauth_access_tokens", "general_users", column: "resource_owner_id"
+  add_foreign_key "oauth_access_tokens", "oauth_applications", column: "application_id"
+  add_foreign_key "oauth_audit_logs", "general_users"
+  add_foreign_key "oauth_audit_logs", "oauth_applications"
   add_foreign_key "pdf_page_details", "documents"
   add_foreign_key "project_workflow_steps", "project_workflows"
   add_foreign_key "project_workflow_steps", "users"

@@ -83,6 +83,10 @@ Rails.application.configure do
 
   config.autoloader = :classic
 
+  # Doorkeeper OAuth consent pages use Sprockets assets from the gem.
+  config.assets.compile = true
+  config.assets.check_precompiled_asset = false
+
   config.active_job.queue_adapter = :sidekiq
 
   config.time_zone = 'Asia/Taipei'
