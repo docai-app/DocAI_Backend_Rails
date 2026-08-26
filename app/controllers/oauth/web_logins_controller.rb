@@ -27,9 +27,10 @@ module Oauth
 
       Oauth::SessionEstablisher.establish!(session, user)
       OauthAuditLog.record!(
-        event: 'web_login_session_established',
+        event: 'session_established',
         general_user: user,
-        request: request
+        request: request,
+        meta: { via: 'web_login' }
       )
 
       redirect_to return_to, allow_other_host: true
