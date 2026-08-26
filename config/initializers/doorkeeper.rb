@@ -14,8 +14,11 @@ Doorkeeper.configure do
     else
       return_to = request.original_url
       session[:oauth_return_to] = return_to if Oauth::ReturnToValidator.valid?(return_to)
-      redirect_to Oauth::ReturnToValidator.frontend_login_url(return_to: return_to),
-                  allow_other_host: true
+      redirect_to Oauth::ReturnToValidator.frontend_login_url(
+        return_to: return_to,
+        redirect_uri: params[:redirect_uri],
+        client_id: params[:client_id]
+      ), allow_other_host: true
     end
   end
 

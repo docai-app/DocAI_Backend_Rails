@@ -2,6 +2,11 @@
 
 module Oauth
   module ReturnToValidator
+    KNOWN_CALLBACK_PATHS = [
+      '/api/auth/aienglish/callback',
+      '/oauth/callback'
+    ].freeze
+
     module_function
 
     # Only allow returning to this app's /oauth/authorize (prevent open redirect).
@@ -26,9 +31,63 @@ module Oauth
       false
     end
 
-    def frontend_login_url(return_to:)
-      base = ENV.fetch('AIENGLISH_WEB_ORIGIN', 'http://localhost:3000').to_s.chomp('/')
+    # Prefer login origin derived from the OAuth client's registered redirect_uri
+    # (e.g. https://essay-admin.docai.net/api/... -> https://essay-admin.docai.net/login).
+    # Falls back to AIENGLISH_WEB_ORIGIN for legacy / essay-checker web login.
+    def frontend_login_url(return_to:, redirect_uri: nil, client_id: nil)
+      base =
+        login_origin_from_registered_redirect(redirect_uri: redirect_uri, client_id: client_id) ||
+        configured_web_origin
+
       "#{base}/login?return_to=#{CGI.escape(return_to.to_s)}"
+    end
+
+    def login_origin_from_registered_redirect(redirect_uri:, client_id:)
+      return nil if redirect_uri.blank?
+
+      normalized = redirect_uri.to_s.strip
+      return nil unless registered_redirect_uri?(normalized, client_id)
+
+      uri = Addressable::URI.parse(normalized)
+      return nil unless known_callback_path?(uri.path)
+      return nil if uri.scheme.blank? || uri.host.blank?
+
+      origin_from_uri(uri)
+    rescue Addressable::URI::InvalidURIError
+      nil
+    end
+
+    def registered_redirect_uri?(redirect_uri, client_id)
+      return false if client_id.blank?
+
+      client = OauthApplication.find_by(uid: client_id.to_s)
+      return false unless client
+
+      registered = client.redirect_uri.to_s.split(/\s+/).map(&:strip).reject(&:blank?)
+      registered.include?(redirect_uri)
+    end
+
+    def known_callback_path?(path)
+      path = path.to_s
+      KNOWN_CALLBACK_PATHS.any? { |suffix| path == suffix || path.end_with?(suffix) }
+    end
+
+    def origin_from_uri(uri)
+      port =
+        if uri.port && !default_port?(uri.scheme, uri.port)
+          ":#{uri.port}"
+        else
+          ''
+        end
+      "#{uri.scheme}://#{uri.host}#{port}"
+    end
+
+    def default_port?(scheme, port)
+      (scheme == 'https' && port == 443) || (scheme == 'http' && port == 80)
+    end
+
+    def configured_web_origin
+      ENV.fetch('AIENGLISH_WEB_ORIGIN', 'http://localhost:3000').to_s.chomp('/')
     end
   end
 end
