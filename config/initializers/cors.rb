@@ -26,7 +26,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'http://39.97.237.74:5173','http://139.9.105.65:5173',
             'https://munlingo.com','http://43.228.217.157:3000','http://localhost:3001',
             'https://ai-english-schooladmin-dashboard-fr.vercel.app', 'https://school-admin.docai.net', 'https://docai-teacher.docai.net', 'https://docai-teacher-dev.docai.net', 'https://dev-docai-frontend-pro-one.vercel.app', 'https://essay-checker.docai.net', 'https://aienglish.docai.net','https://communitys-ai.vercel.app','https://aienglish-admin.docai.net','https://essay-admin.docai.net','http://localhost:5173','http://129.226.205.17:5173','https://super-duper-orbit-4jxg99v7w43q9p-5173.app.github.dev',
-            'https://konnec.ai','https://konnec-ai.hospidocai.com','https://to-do-share-ai.vercel.app'
+            'https://konnec.ai','https://konnec-ai.hospidocai.com','https://todo-share-ai.vercel.app'
 
     # origins Cors.all.pluck(:url)
     # origins *Cors.pluck(:url)
