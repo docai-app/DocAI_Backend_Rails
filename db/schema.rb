@@ -882,6 +882,22 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
     t.index ["token"], name: "index_oauth_access_tokens_on_token", unique: true
   end
 
+  create_table "oauth_application_webhooks", force: :cascade do |t|
+    t.bigint "oauth_application_id", null: false
+    t.boolean "enabled", default: false, null: false
+    t.string "url"
+    t.string "signing_secret"
+    t.jsonb "subscribed_events", default: [], null: false
+    t.integer "timeout_seconds", default: 10, null: false
+    t.integer "max_retries", default: 5, null: false
+    t.jsonb "custom_headers", default: {}, null: false
+    t.datetime "last_success_at"
+    t.datetime "last_failure_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["oauth_application_id"], name: "index_oauth_application_webhooks_on_oauth_application_id", unique: true
+  end
+
   create_table "oauth_applications", force: :cascade do |t|
     t.string "name", null: false
     t.string "uid", null: false
@@ -913,6 +929,45 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
     t.index ["event"], name: "index_oauth_audit_logs_on_event"
     t.index ["general_user_id"], name: "index_oauth_audit_logs_on_general_user_id"
     t.index ["oauth_application_id"], name: "index_oauth_audit_logs_on_oauth_application_id"
+  end
+
+  create_table "oauth_partner_account_links", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.bigint "oauth_application_id", null: false
+    t.uuid "general_user_id", null: false
+    t.string "external_user_id"
+    t.string "external_site"
+    t.string "status", default: "active", null: false
+    t.datetime "linked_at", null: false
+    t.datetime "last_active_at"
+    t.datetime "revoked_at"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["general_user_id"], name: "index_oauth_partner_account_links_on_general_user_id"
+    t.index ["last_active_at"], name: "index_oauth_partner_account_links_on_last_active_at"
+    t.index ["linked_at"], name: "index_oauth_partner_account_links_on_linked_at"
+    t.index ["oauth_application_id", "external_user_id"], name: "index_oauth_links_active_app_external_user", unique: true, where: "(((status)::text = 'active'::text) AND (external_user_id IS NOT NULL))"
+    t.index ["oauth_application_id", "general_user_id"], name: "index_oauth_links_active_app_user", unique: true, where: "((status)::text = 'active'::text)"
+    t.index ["oauth_application_id"], name: "index_oauth_partner_account_links_on_oauth_application_id"
+    t.index ["status"], name: "index_oauth_partner_account_links_on_status"
+  end
+
+  create_table "oauth_webhook_deliveries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.bigint "oauth_application_id", null: false
+    t.string "event_type", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.integer "attempt_count", default: 0, null: false
+    t.integer "last_http_status"
+    t.text "last_error"
+    t.datetime "next_retry_at"
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_oauth_webhook_deliveries_on_event_type"
+    t.index ["oauth_application_id", "created_at"], name: "index_oauth_webhook_deliveries_on_app_and_created"
+    t.index ["oauth_application_id"], name: "index_oauth_webhook_deliveries_on_oauth_application_id"
+    t.index ["status", "next_retry_at"], name: "index_oauth_webhook_deliveries_on_status_retry"
   end
 
   create_table "pdf_page_details", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1371,8 +1426,12 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
   add_foreign_key "oauth_access_tokens", "general_users", column: "resource_owner_id"
   add_foreign_key "oauth_access_tokens", "oauth_applications", column: "application_id"
+  add_foreign_key "oauth_application_webhooks", "oauth_applications"
   add_foreign_key "oauth_audit_logs", "general_users"
   add_foreign_key "oauth_audit_logs", "oauth_applications"
+  add_foreign_key "oauth_partner_account_links", "general_users"
+  add_foreign_key "oauth_partner_account_links", "oauth_applications"
+  add_foreign_key "oauth_webhook_deliveries", "oauth_applications"
   add_foreign_key "pdf_page_details", "documents"
   add_foreign_key "project_workflow_steps", "project_workflows"
   add_foreign_key "project_workflow_steps", "users"

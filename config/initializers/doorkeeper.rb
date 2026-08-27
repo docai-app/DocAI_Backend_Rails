@@ -8,17 +8,35 @@ Doorkeeper.configure do
   application_class 'OauthApplication'
 
   resource_owner_authenticator do
-    user = Oauth::SessionEstablisher.current(session)
-    if user
-      user
-    else
-      return_to = request.original_url
+    prompts = request.params[:prompt].to_s.split(/\s+/).reject(&:blank?)
+    force_login = prompts.include?('login')
+
+    # OIDC prompt=login: clear AS session and send user to partner login.
+    # Must return nil after redirect_to — a truthy return is treated as the owner.
+    if force_login
+      Oauth::SessionEstablisher.clear!(session)
+      return_to = Oauth::ReturnToValidator.strip_prompt_values(request.original_url, %w[login])
       session[:oauth_return_to] = return_to if Oauth::ReturnToValidator.valid?(return_to)
       redirect_to Oauth::ReturnToValidator.frontend_login_url(
         return_to: return_to,
         redirect_uri: params[:redirect_uri],
         client_id: params[:client_id]
       ), allow_other_host: true
+      nil
+    else
+      user = Oauth::SessionEstablisher.current(session)
+      if user
+        user
+      else
+        return_to = request.original_url
+        session[:oauth_return_to] = return_to if Oauth::ReturnToValidator.valid?(return_to)
+        redirect_to Oauth::ReturnToValidator.frontend_login_url(
+          return_to: return_to,
+          redirect_uri: params[:redirect_uri],
+          client_id: params[:client_id]
+        ), allow_other_host: true
+        nil
+      end
     end
   end
 

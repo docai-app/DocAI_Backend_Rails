@@ -7,6 +7,7 @@ module Oauth
     before_action :ensure_client_enabled, only: %i[new create]
     before_action :ensure_pkce_s256, only: %i[new create]
     around_action :with_oauth_locale
+    after_action :record_authorize_success, only: :create
 
     private
 
@@ -43,8 +44,32 @@ module Oauth
       )
     end
 
+    def record_authorize_success
+      return unless response.successful? || response.redirect?
+
+      app = find_application_record(pre_auth&.client)
+      # 勿覆盖 Doorkeeper#current_resource_owner；审计直接读 AS session
+      user = Oauth::SessionEstablisher.current(session)
+      return if app.blank? || user.blank?
+
+      OauthAuditLog.record!(
+        event: 'authorize_success',
+        application: app,
+        general_user: user,
+        request: request,
+        meta: {
+          client_id: app.uid,
+          redirect_uri: pre_auth.try(:redirect_uri),
+          scopes: pre_auth.try(:scopes).to_s
+        }
+      )
+    rescue StandardError => e
+      Rails.logger.warn("[Oauth::AuthorizationsController] authorize audit failed: #{e.message}")
+    end
+
     def find_application_record(app)
       return app if app.is_a?(OauthApplication)
+      return nil if app.blank?
 
       OauthApplication.find_by(id: app.id) || OauthApplication.find_by(uid: app.uid)
     end

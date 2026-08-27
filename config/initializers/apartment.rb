@@ -22,7 +22,8 @@ Apartment.configure do |config|
   config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile GeneralUsersRole Role Energy
                               EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet
                               ActiveStorage::Blob ActiveStorage::Attachment
-                              OauthApplication OauthAuditLog Doorkeeper::AccessToken Doorkeeper::AccessGrant]
+                              OauthApplication OauthAuditLog Doorkeeper::AccessToken Doorkeeper::AccessGrant
+                              OauthPartnerAccountLink OauthApplicationWebhook OauthWebhookDelivery]
   # In order to migrate all of your Tenants you need to provide a list of Tenant names to Apartment.
   # You can make this dynamic by providing a Proc object to be called on migrations.
   # This object should yield either:

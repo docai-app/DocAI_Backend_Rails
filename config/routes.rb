@@ -23,6 +23,7 @@ Rails.application.routes.draw do
     post 'revoke_binding', to: 'revoke_bindings#create'
     get 'userinfo', to: 'userinfo#show'
     post 'web_login', to: 'web_logins#create'
+    get 'reauthenticate', to: 'reauthentications#show'
   end
 
   devise_for :users,
@@ -46,6 +47,10 @@ Rails.application.routes.draw do
     namespace :v1 do
       namespace :public do
         get 'schools/:slug/login_config', to: 'school_login_configs#show'
+      end
+
+      namespace :oauth do
+        post 'partner_bindings', to: 'partner_bindings#create'
       end
 
       post 'unisound/eval', to: 'unisound#create'
@@ -562,6 +567,12 @@ Rails.application.routes.draw do
             post :rotate_secret
             post :enable
             post :disable
+            get :account_links
+            get :webhook
+            put :webhook, action: :update_webhook
+            post 'webhook/test', action: :test_webhook
+            post 'webhook/rotate_secret', action: :rotate_webhook_secret
+            get 'webhook/deliveries', action: :webhook_deliveries
           end
         end
 
