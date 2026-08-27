@@ -5,7 +5,7 @@ module Api
     class AssignmentStatisticsController < ApiController
       before_action :authenticate_general_user!
       before_action :set_essay_assignment
-    #   before_action :ensure_teacher_and_same_school
+      before_action :ensure_teacher_and_same_school
 
       # GET /api/v1/essay_assignments/:essay_assignment_id/statistics
       def show
@@ -25,14 +25,14 @@ module Api
           email: params[:email]
         )
 
-        students = Kaminari.paginate_array(students_query.to_a)
-                          .page(params[:page] || 1)
-                          .per(params[:per_page] || 25)
+        students = students_query.page(params[:page] || 1).per(params[:per_page] || 25)
 
         students_data = students.map do |student_assignment|
           student = student_assignment.general_user
           # 從關聯中獲取當前學年的 enrollment
-          enrollment = student.current_enrollment
+          enrollment = student.student_enrollments.find do |student_enrollment|
+            student_enrollment.school_academic_year_id == assignment_academic_year_id
+          end
           
           {
             student_id: student.id,
@@ -79,11 +79,29 @@ module Api
           return
         end
 
-        school = current_general_user.get_school
-        unless school && @essay_assignment.general_user.get_school&.id == school.id
-          render json: { success: false, error: 'You can only view statistics for assignments in your own school' }, 
-                 status: :forbidden
-        end
+        school = @essay_assignment.school_academic_year&.school || current_general_user.get_school
+        return if school && assignment_manageable_in_school?(school)
+
+        render json: { success: false, error: 'You can only view statistics for assignments in your own school' },
+               status: :forbidden
+      end
+
+      def assignment_manageable_in_school?(school)
+        can_manage = @essay_assignment.owned_by?(current_general_user) ||
+                     (@essay_assignment.shared_with?(current_general_user) &&
+                      @essay_assignment.category_enabled_for?(current_general_user))
+
+        can_manage && EssayAssignmentShareService.same_school_teacher?(
+          school:,
+          teacher: current_general_user
+        )
+      end
+
+      def assignment_academic_year_id
+        @assignment_academic_year_id ||= @essay_assignment.school_academic_year_id ||
+                                         @essay_assignment.general_user
+                                                          .current_teaching_assignment
+                                                          &.school_academic_year_id
       end
     end
   end

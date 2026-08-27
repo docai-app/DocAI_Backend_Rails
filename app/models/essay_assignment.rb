@@ -173,6 +173,50 @@ class EssayAssignment < ApplicationRecord
   validates :topic, presence: true
   validates :assignment, presence: true
   validates :category, presence: true
+
+  def score_release_supported?
+    essay? || comprehension?
+  end
+
+  def scores_released?
+    return answer_visible? if comprehension?
+    if essay?
+      return ActiveModel::Type::Boolean.new.cast(release_metadata['score_visible']) == true
+    end
+
+    false
+  end
+
+  def score_released_at
+    release_metadata['score_released_at']
+  end
+
+  def release_scores!(released_by:)
+    with_lock do
+      return self if scores_released?
+
+      next_meta = release_metadata.deep_dup
+      next_meta['score_released_at'] = Time.current.iso8601
+      next_meta['score_released_by_id'] = released_by.id
+
+      if comprehension?
+        update!(answer_visible: true, meta: next_meta)
+      elsif essay?
+        next_meta['score_visible'] = true
+        update!(meta: next_meta)
+      else
+        errors.add(:category, 'does not support score release')
+        raise ActiveRecord::RecordInvalid, self
+      end
+    end
+
+    self
+  end
+
+  private def release_metadata
+    meta.is_a?(Hash) ? meta : {}
+  end
+
   validates :title, presence: true
   validates :rubric, presence: true
   validate :validate_sentence_puzzle_configuration, if: -> { category == 'sentence_puzzle' }

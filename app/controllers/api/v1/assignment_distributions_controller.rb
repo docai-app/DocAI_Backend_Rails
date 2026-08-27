@@ -14,9 +14,11 @@ module Api
         school = current_general_user.get_school
         return render_unauthorized unless school
 
-        academic_year = params[:school_academic_year_id].present? ? 
-          SchoolAcademicYear.find_by(id: params[:school_academic_year_id]) :
-          school.current_academic_year
+        academic_year = if params[:school_academic_year_id].present?
+                          school.school_academic_years.find_by(id: params[:school_academic_year_id])
+                        else
+                          school.current_academic_year
+                        end
 
         return render_not_found('Academic year not found') unless academic_year
 
@@ -26,7 +28,6 @@ module Api
         classes = StudentEnrollment
           .joins(:school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
-          .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
           .where(status: :active)
           .where.not(class_name: [nil, ''])
           .group(:class_name)
@@ -46,7 +47,6 @@ module Api
           .joins(:general_user, :school_academic_year)
           .where(school_academic_years: { id: academic_year.id })
           .where(status: :active)
-          .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
           .order('student_enrollments.general_user_id, student_enrollments.created_at DESC')
         
         # 使用 Hash 按 general_user_id 去重，確保每個學生只返回一次
@@ -83,8 +83,7 @@ module Api
 
       # POST /api/v1/essay_assignments/:essay_assignment_id/distributions
       def create
-        school = current_general_user.get_school
-        academic_year = school&.current_academic_year
+        school, academic_year = assignment_school_and_year
 
         return render_not_found('School or academic year not found') unless school && academic_year
 
@@ -179,8 +178,7 @@ module Api
 
       # POST /api/v1/essay_assignments/:essay_assignment_id/distributions/add_students
       def add_students
-        school = current_general_user.get_school
-        academic_year = school&.current_academic_year
+        school, academic_year = assignment_school_and_year
 
         return render_not_found('School or academic year not found') unless school && academic_year
 
@@ -336,20 +334,38 @@ module Api
           return
         end
 
-        # school = current_general_user.get_school
-        # unless school && assignment_manageable_in_school?(school)
-        #   render json: { success: false, error: 'You can only manage distributions in your own school' },
-        #          status: :forbidden
-        # end
+        school = @essay_assignment.school_academic_year&.school || current_general_user.get_school
+        return if school && assignment_manageable_in_school?(school)
+
+        render json: { success: false, error: 'You can only manage distributions in your own school' },
+               status: :forbidden
       end
 
       def assignment_manageable_in_school?(school)
         return true if @essay_assignment.owned_by?(current_general_user) &&
-                       @essay_assignment.general_user.get_school&.id == school.id
+                       EssayAssignmentShareService.same_school_teacher?(
+                         school:,
+                         teacher: current_general_user
+                       )
 
         @essay_assignment.shared_with?(current_general_user) &&
           @essay_assignment.category_enabled_for?(current_general_user) &&
-          @essay_assignment.general_user.get_school&.id == school.id
+          EssayAssignmentShareService.same_school_teacher?(
+            school:,
+            teacher: current_general_user
+          )
+      end
+
+      def assignment_school_and_year
+        academic_year = @essay_assignment.school_academic_year
+        school = academic_year&.school
+
+        if academic_year.blank?
+          school = current_general_user.get_school
+          academic_year = school&.current_academic_year
+        end
+
+        [school, academic_year]
       end
 
       def ensure_teacher_for_distribution_options
@@ -365,8 +381,7 @@ module Api
           :distribution_type,
           :target_class_name,
           :target_student_id,
-          :deadline,
-          :school_academic_year_id
+          :deadline
         )
       end
 

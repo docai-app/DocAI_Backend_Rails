@@ -3,6 +3,8 @@
 require 'test_helper'
 
 class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
+  self.fixture_table_names = []
+
   setup do
     host! 'docai-dev.m2mda.com'
     @context = build_share_api_context

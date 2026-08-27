@@ -51,6 +51,12 @@ module EssayAssignmentAccess
     accessible_by?(user) && category_enabled_for?(user)
   end
 
+  def can_release_scores?(user)
+    return true if owned_by?(user)
+
+    shared_with?(user) && category_enabled_for?(user)
+  end
+
   def category_enabled_for?(user)
     return false if user.blank?
     

@@ -23,8 +23,7 @@ module Api
         )
 
         # 分頁
-        assignments = Kaminari.paginate_array(assignments.to_a).page(params[:page] || 1)
-                                                               .per(params[:per_page] || 25)
+        assignments = assignments.page(params[:page] || 1).per(params[:per_page] || 25)
 
         assignments_data = assignments.map do |assignment|
           assignment_json(assignment)

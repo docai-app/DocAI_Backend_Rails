@@ -78,6 +78,7 @@ Rails.application.routes.draw do
           post 'generate_sample_essay'
           get 'statistics', to: 'assignment_statistics#show'
           post 'send_reminders', to: 'assignment_reminders#create'
+          patch 'release_scores'
         end
         collection do
           post :parse_vocab_csv

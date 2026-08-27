@@ -3,6 +3,8 @@
 require 'test_helper'
 
 class EssayAssignmentShareServiceTest < ActiveSupport::TestCase
+  self.fixture_table_names = []
+
   setup do
     @context = build_share_test_context
     @owner = @context[:owner]
@@ -50,8 +52,8 @@ class EssayAssignmentShareServiceTest < ActiveSupport::TestCase
     teacher_without_essay = create_teacher!(
       school: @school,
       year: @context[:year],
-      nickname: 'Listening Teacher',
-      features: %w[listening]
+      nickname: 'Comprehension Teacher',
+      features: %w[comprehension]
     )
 
     error = assert_raises(EssayAssignmentShareService::ShareError) do

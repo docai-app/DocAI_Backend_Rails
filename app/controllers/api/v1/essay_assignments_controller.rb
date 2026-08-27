@@ -6,10 +6,11 @@ module Api
       include EssayAssignmentAccessAuthorization
 
       before_action :authenticate_general_user!
-      before_action :set_essay_assignment_with_access, only: %i[read show update destroy]
-      # before_action :authorize_essay_assignment_manage!, only: %i[read update]
-      # before_action :authorize_essay_assignment_access!, only: %i[show]
-      # before_action :authorize_essay_assignment_owner!, only: %i[destroy]
+      before_action :set_essay_assignment_with_access, only: %i[read show update destroy release_scores]
+      before_action :authorize_essay_assignment_score_release!, only: %i[release_scores]
+      before_action :authorize_essay_assignment_manage!, only: %i[read update]
+      before_action :authorize_essay_assignment_access!, only: %i[show]
+      before_action :authorize_essay_assignment_owner!, only: %i[destroy]
 
       before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
@@ -166,8 +167,12 @@ module Api
           answer_visible: @essay_assignment.answer_visible,
           remark: @essay_assignment.remark,
           code: @essay_assignment.code,
+          school_academic_year_id: @essay_assignment.school_academic_year_id,
           rubric: @essay_assignment.rubric,
           meta: @essay_assignment.meta,
+          score_release: score_release_json(@essay_assignment),
+          can_release_scores: @essay_assignment.score_release_supported? &&
+                              @essay_assignment.can_release_scores?(current_general_user),
           number_of_submission: @essay_assignment.number_of_submission,
           created_at: @essay_assignment.created_at,
           updated_at: @essay_assignment.updated_at
@@ -253,6 +258,29 @@ module Api
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      # Makes scores visible to students for assignment types that support a
+      # teacher-controlled release. The operation is intentionally idempotent.
+      def release_scores
+        unless @essay_assignment.score_release_supported?
+          return render json: {
+            success: false,
+            error: 'Score release is only available for Essay and Comprehension assignments.'
+          }, status: :unprocessable_entity
+        end
+
+        @essay_assignment.release_scores!(released_by: current_general_user)
+
+        render json: {
+          success: true,
+          message: 'Scores released to students.',
+          essay_assignment: @essay_assignment.as_json,
+          score_release: score_release_json(@essay_assignment)
+        }, status: :ok
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { success: false, errors: e.record.errors.full_messages },
+               status: :unprocessable_entity
       end
 
       def destroy
@@ -460,6 +488,14 @@ module Api
         end
 
         result.academic_year
+      end
+
+      def score_release_json(assignment)
+        {
+          supported: assignment.score_release_supported?,
+          released: assignment.scores_released?,
+          released_at: assignment.score_released_at
+        }
       end
 
       def set_essay_assignment_by_code

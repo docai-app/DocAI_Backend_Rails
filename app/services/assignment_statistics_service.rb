@@ -60,9 +60,12 @@ class AssignmentStatisticsService
                              )
                              .joins(:general_user)
                              .joins('INNER JOIN student_enrollments ON student_enrollments.general_user_id = general_users.id')
-                             .joins('INNER JOIN school_academic_years ON school_academic_years.id = student_enrollments.school_academic_year_id')
-                             .where(student_enrollments: { status: :active })
-                             .where('school_academic_years.status = ?', SchoolAcademicYear.statuses[:active])
+                             .where(
+                               student_enrollments: {
+                                 status: :active,
+                                 school_academic_year_id: academic_year_id_for_assignment
+                               }
+                             )
 
     if class_name.present?
       query = query.where(student_enrollments: { class_name: class_name })
@@ -98,7 +101,7 @@ class AssignmentStatisticsService
     # 按班級分組統計
     # 需要從關聯中獲取班級信息
     class_groups = all_assignments.group_by do |assignment|
-      enrollment = assignment.general_user.current_enrollment
+      enrollment = enrollment_for(assignment.general_user)
       enrollment&.class_name || 'Unknown'
     end
 
@@ -116,5 +119,18 @@ class AssignmentStatisticsService
         overdue: overdue
       }
     end.sort_by { |item| item[:class_name] }
+  end
+
+  def academic_year_id_for_assignment
+    @academic_year_id_for_assignment ||= @essay_assignment.school_academic_year_id ||
+                                         @essay_assignment.general_user
+                                                          .current_teaching_assignment
+                                                          &.school_academic_year_id
+  end
+
+  def enrollment_for(student)
+    student.student_enrollments.find do |enrollment|
+      enrollment.school_academic_year_id == academic_year_id_for_assignment
+    end
   end
 end

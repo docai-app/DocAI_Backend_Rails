@@ -187,7 +187,7 @@ module Api
         @essay_gradings = @essay_gradings.order('created_at desc, updated_at desc')
 
         # 分页
-        @essay_gradings = Kaminari.paginate_array(@essay_gradings).page(params[:page]).per(params[:count] || 10)
+        @essay_gradings = @essay_gradings.page(params[:page]).per(params[:count] || 10)
 
         # 获取 category 的字符串表示
         categories = EssayAssignment.categories.invert
