@@ -17,13 +17,23 @@ class EssayAssignmentIndexQuery
     essay_assignments.assignment,
     essay_assignments.number_of_submission,
     essay_assignments.general_user_id,
+    essay_assignments.school_academic_year_id,
     #{EssayAssignment.list_meta_sql_select}
   SQL
 
-  def initialize(user:, category: nil, search: nil, created_at_range: nil, page: 1, per: 10)
+  def initialize(
+    user:,
+    category: nil,
+    search: nil,
+    academic_year: nil,
+    created_at_range: nil,
+    page: 1,
+    per: 10
+  )
     @user = user
     @category = category.presence
     @search = search.to_s.strip.presence
+    @academic_year = academic_year
     @created_at_range = created_at_range
     @page = [page.to_i, 1].max
     @per = per.to_i.positive? ? per.to_i : 10
@@ -79,9 +89,16 @@ class EssayAssignmentIndexQuery
   end
 
   def apply_academic_year_filter(scope)
-    return scope unless @created_at_range
+    return scope unless @academic_year
 
-    scope.where(essay_assignments: { created_at: @created_at_range })
+    assigned_to_year = scope.where(school_academic_year_id: @academic_year.id)
+    return assigned_to_year unless @created_at_range
+
+    legacy_in_year = scope.where(
+      school_academic_year_id: nil,
+      created_at: @created_at_range
+    )
+    assigned_to_year.or(legacy_in_year)
   end
 
   def apply_shared_category_filter(scope)

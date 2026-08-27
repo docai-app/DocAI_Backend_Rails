@@ -99,7 +99,9 @@ class StudentAcademicYearFilterTest < Minitest::Test
     sql, values = scope.where_arguments
     assert_includes sql, 'EXISTS'
     assert_includes sql, 'NOT EXISTS'
-    assert_includes sql, 'assignment_student_assignments.created_at BETWEEN'
+    assert_includes sql, 'assignment_distributions.id = assignment_student_assignments.assignment_distribution_id'
+    assert_includes sql, 'assignment_distributions.school_academic_year_id = :academic_year_id'
+    refute_includes sql, 'assignment_student_assignments.created_at BETWEEN'
     assert_equal 'student-1', values[:general_user_id]
     assert_equal 'year-1', values[:academic_year_id]
   end

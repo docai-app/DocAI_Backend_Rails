@@ -1,120 +1,151 @@
-# Assignment 學年篩選 Backend 交接文件
+# Assignment 學年關聯與列表篩選 Backend 實作文件
 
-## 1. 功能目的
+## 1. 目的與最終行為
 
-老師的 Assignment Dashboard 現在可以切換不同學年，例如：
+本功能解決 Assignment Dashboard 出現以下錯誤的根本原因：
 
-- `2025-2026`
-- `2026-2027（Current）`
-- `All years`
+- `All School Years` 可以看到 assignment，但 `Current` 看不到。
+- Assignment 建立日期落在另一個學年日期範圍時，被錯誤歸類。
+- Dashboard 為了前端過濾而一次載入全部歷史資料，影響載入速度。
 
-切換學年後，系統只載入該學年建立的 assignments，不再一次載入所有歷史資料。這樣可以減少舊資料對列表速度的影響，也讓老師更容易管理每個學年的作業。
-
-## 2. 本次 Backend 修改範圍
-
-Assignment 列表 API 現在支援以下 query parameter：
-
-```http
-GET /api/v1/essay_assignments?school_academic_year_id=ACADEMIC_YEAR_UUID
-```
-
-Backend 收到 `school_academic_year_id` 後會：
-
-1. 確認該學年屬於目前老師可使用的學年。
-2. 讀取學年的 `start_date` 和 `end_date`。
-3. 使用 assignment 的 `created_at` 判斷所屬學年。
-4. 在 pagination 前完成日期篩選。
-5. 同時篩選老師自己建立及其他老師分享的 assignments。
-6. 讓列表資料和 `meta.total_count` 使用相同的篩選條件。
-
-本次沒有在 `essay_assignments` table 新增 `academic_year_id`，因此不需要 database migration。
-
-查看全部學年時使用明確保留值：
-
-```http
-GET /api/v1/essay_assignments?school_academic_year_id=all
-```
-
-Backend 收到 `all` 後不套用日期範圍，但 owned/shared 權限、搜尋、category 及 pagination 全部維持不變。
-
-## 3. 預設行為
-
-如果前端沒有傳入 `school_academic_year_id`：
-
-```http
-GET /api/v1/essay_assignments
-```
-
-Backend 會從老師的 `teacher_assignments` 中找出 status 為 `active` 的 academic year，並自動使用該學年的日期範圍。
-
-如果老師被分配到多個 active academic years，系統會選擇 `start_date` 最新的一個。
-
-## 4. Assignment 所屬學年的判定規則
-
-Assignment 按照 `created_at` 判斷所屬學年：
+最終設計不再以 `essay_assignments.created_at` 決定新 assignment 的學年。每個新 assignment 建立時必須保存明確的：
 
 ```text
-academic_year.start_date <= assignment.created_at <= academic_year.end_date
+essay_assignments.school_academic_year_id
+    -> school_academic_years.id
 ```
 
-例如：
+列表預設只查詢目前 active 學年；只有使用者選擇其他學年或 `All School Years` 時，才查詢相應資料。
+
+## 2. 修改範圍
+
+主要 Backend 檔案：
 
 ```text
-學年：2025-2026
-開始日期：2025-08-01
-結束日期：2026-07-31
+app/controllers/api/v1/essay_assignments_controller.rb
+app/models/essay_assignment.rb
+app/models/school_academic_year.rb
+app/queries/essay_assignment_index_query.rb
+app/services/essay_assignment_academic_year_filter.rb
+app/services/student_academic_year_filter.rb
+db/migrate/20260827150000_add_school_academic_year_to_essay_assignments.rb
+test/controllers/api/v1/essay_assignments_controller_test.rb
+test/queries/essay_assignment_index_query_test.rb
+test/services/essay_assignment_academic_year_filter_test.rb
+test/services/student_academic_year_filter_test.rb
+test/services/student_academic_year_filter_integration_test.rb
 ```
 
-在以上日期範圍內建立的 assignment 都會顯示在 `2025-2026`。
+Frontend 配合傳入學年 ID，但資料權限、預設學年及最終查詢條件全部由 Backend 決定，不能信任前端自行過濾。
 
-注意事項：
+## 3. Database Schema
 
-- 修改 assignment 不會改變它所屬的學年，因為使用的是 `created_at`，不是 `updated_at`。
-- Shared assignment 按照 assignment 原本的建立日期分類，不是按照分享日期分類。
-- 學年日期包含開始日及結束日的完整一天。
+Migration 新增 nullable UUID 欄位：
 
-## 5. Timezone 處理
+```ruby
+add_column :essay_assignments, :school_academic_year_id, :uuid
+```
 
-日期邊界會優先使用學校的 `timezone`。
+並加入：
 
-例如學校 timezone 是：
+- `index_essay_assignments_on_school_academic_year_id`
+- `essay_assignments.school_academic_year_id -> school_academic_years.id` foreign key
+
+索引使用 PostgreSQL concurrent index；migration 使用：
+
+```ruby
+disable_ddl_transaction!
+```
+
+欄位暫時允許 null 是為了兼容無法唯一判斷學年的歷史資料。所有經正式 create endpoint 建立的新 assignment 都會寫入學年 ID。
+
+Model 關聯：
+
+```ruby
+class EssayAssignment < ApplicationRecord
+  belongs_to :school_academic_year, optional: true
+end
+
+class SchoolAcademicYear < ApplicationRecord
+  has_many :essay_assignments, dependent: :restrict_with_error
+end
+```
+
+`optional: true` 只為兼容 legacy null rows，不代表新 assignment 可以沒有學年。
+
+## 4. Legacy Data Backfill
+
+Migration 加欄位及 foreign key 後會執行舊資料回填。
+
+### 4.1 回填資料來源
+
+每筆舊 assignment 使用以下資料判斷：
+
+- `essay_assignments.general_user_id`
+- 該老師的 `teacher_assignments`
+- `school_academic_years.start_date`
+- `school_academic_years.end_date`
+- `school_academic_years.status`
+- `schools.timezone`
+- `essay_assignments.created_at`
+
+### 4.2 判定步驟
+
+1. 取得 assignment owner 可使用的 academic years。
+2. 把 assignment 的 `created_at` 轉換到每個 academic year 所屬學校時區。
+3. 比較轉換後的本地日期是否落在 `start_date..end_date`。
+4. 只有一個符合結果時直接回填。
+5. 多個符合結果但只有一個為 active 時，使用該 active year。
+6. 仍然無法唯一判斷時保持 null，不任意塞入目前學年。
+
+Migration 完成時會輸出：
 
 ```text
-Asia/Hong_Kong
+Backfilled X essay assignments; Y require legacy date fallback
 ```
 
-則日期範圍會按照香港時間計算：
+### 4.3 為何仍保留 legacy fallback
 
-```text
-start_date 00:00:00 至 end_date 23:59:59.999999
-```
+歷史老師可能同時屬於多間學校，或舊資料不足以唯一判斷。強行填入錯誤學年會造成不可見或權限錯誤，因此 unresolved rows 保持 null。
 
-如果舊學校資料沒有設定 timezone，系統會安全 fallback 到 Rails application timezone；如果 application timezone 也不可用，則使用 UTC。
+列表只對 `school_academic_year_id IS NULL` 的舊資料使用日期 fallback；已填入 ID 的資料永遠以 ID 為準，不會被 `created_at` 覆蓋。
 
-## 6. Owned 和 Shared Assignment
+## 5. 建立 Assignment API
 
-以下兩種 assignment 都會套用相同的學年篩選：
-
-- 老師自己建立的 assignment
-- 其他老師分享給目前老師的 assignment
-
-篩選會在 pagination 前執行，因此：
-
-- `essay_assignments` 只包含所選學年的資料。
-- `meta.total_count` 只計算所選學年的資料。
-- `meta.total_pages` 只按照所選學年的資料計算。
-- 搜尋及 assignment category 篩選仍然可以正常配合使用。
-
-## 7. 權限及錯誤回應
-
-### 7.1 選擇未獲分配的學年
-
-老師只能選擇自己在 `teacher_assignments` 中獲分配的 academic year。
-
-如果傳入其他學校或未獲分配的 academic year ID，Backend 回傳：
+Endpoint：
 
 ```http
-HTTP/1.1 403 Forbidden
+POST /api/v1/essay_assignments.json
+```
+
+Frontend payload：
+
+```text
+essay_assignment[school_academic_year_id]=ACADEMIC_YEAR_UUID
+```
+
+### 5.1 指定學年
+
+Backend 使用 `EssayAssignmentAcademicYearFilter` 從目前老師的 `teacher_assignments` 中查找指定學年。只有老師可使用的 academic year 才能保存。
+
+成功建立後：
+
+```ruby
+essay_assignment.school_academic_year_id == requested_academic_year_id
+```
+
+Backend 不使用 client 提供的 `created_at`，也不以伺服器時間推算新 assignment 所屬學年。
+
+### 5.2 舊 client 沒有傳入學年
+
+為兼容尚未更新的 client，Backend 會使用老師的 active academic year。若有多個 active years，使用 `start_date` 最新的一個。
+
+### 5.3 錯誤回應
+
+指定老師無權使用的 academic year：
+
+```http
+403 Forbidden
 ```
 
 ```json
@@ -124,171 +155,297 @@ HTTP/1.1 403 Forbidden
 }
 ```
 
-### 7.2 沒有 active academic year
-
-如果 request 沒有提供 `school_academic_year_id`，而老師沒有任何 active academic year，Backend 回傳：
+沒有傳入學年且老師沒有 active academic year：
 
 ```http
-HTTP/1.1 422 Unprocessable Entity
+422 Unprocessable Entity
 ```
 
-```json
-{
-  "success": false,
-  "error": "No current academic year is available for this account."
-}
-```
-
-## 8. 前端對接方式
-
-前端切換學年時，需要重新請求 Assignment 列表：
+建立時傳入保留值 `all`：
 
 ```http
-GET /api/v1/essay_assignments?school_academic_year_id=58207d18-1632-41d8-b523-d3a673cb4b04
+403 Forbidden
 ```
 
-以下現有參數仍可同時使用：
+`all` 只適用於列表，不是可保存的 academic year ID。
+
+### 5.4 Archived year 的目前政策
+
+正常 Frontend 只允許在 active year 顯示 Create New，手動進入 archived year 的 create route 亦會返回 Dashboard。
+
+Backend 目前允許老師透過 API 指定其有權使用的 archived year。這是既有授權策略，亦方便資料修復及 regression test。若產品政策要求 API 層完全禁止在 archived year 建立，需要另外增加 `academic_year.active?` 驗證；不能只依賴 Frontend。
+
+## 6. Assignment 列表 API
+
+Endpoint：
 
 ```http
-GET /api/v1/essay_assignments?school_academic_year_id=ACADEMIC_YEAR_UUID&category=essay&page=1&count=10&search=keyword
+GET /api/v1/essay_assignments.json
 ```
 
-前端送給 Backend 的參數名稱必須是：
-
-```text
-school_academic_year_id
-```
-
-前端頁面 URL 中使用的 `academic_year` 只是前端路由狀態，不是 Backend API parameter。
-
-## 9. 舊學年建立 Assignment 的限制
-
-目前「只有 current academic year 可以建立新 assignment」主要由前端控制：
-
-- Current academic year 顯示 Create New Assignment。
-- Archived 或 upcoming academic year 不顯示建立入口。
-
-本次 Backend 修改只負責 Assignment 列表的學年篩選，沒有新增 `academic_year_id` 到 assignment create payload，也沒有在 create endpoint 驗證前端當時選擇的學年。
-
-如果未來需要 Backend 強制禁止在舊學年建立 assignment，建議另外設計 create API 規則，不能只依靠本次的 `created_at` 篩選。
-
-## 10. 主要程式檔案
-
-### Controller
-
-```text
-app/controllers/api/v1/essay_assignments_controller.rb
-```
-
-負責：
-
-- 接收 `school_academic_year_id`
-- 建立學年篩選條件
-- 將日期範圍傳入 Assignment query
-- 處理未授權學年及沒有 active 學年的錯誤
-
-### Academic Year Filter Service
-
-```text
-app/services/essay_assignment_academic_year_filter.rb
-```
-
-負責：
-
-- 找出老師可使用的 academic years
-- 選擇指定學年或預設 active 學年
-- 驗證老師的學年存取權限
-- 按學校 timezone 建立 `created_at` 日期範圍
-
-### Student Academic Year Filter Service
-
-```text
-app/services/student_academic_year_filter.rb
-```
-
-負責：
-
-- 從學生歷年 enrollment 驗證可查看學年
-- 已提交 grading 優先使用 `submission_academic_year_id`
-- 舊 grading 沒有 snapshot 時按 `created_at` fallback
-- 未提交 assignment 按分配時間分類
-- 支援 Grading 的 `all` 保留值
-
-### 學生與老師 Grading
+### 6.1 查詢指定學年
 
 ```http
-GET /api/v1/essay_gradings.json?school_academic_year_id=ACADEMIC_YEAR_UUID
-GET /api/v1/essay_gradings.json?school_academic_year_id=all
+GET /api/v1/essay_assignments.json?school_academic_year_id=ACADEMIC_YEAR_UUID
 ```
 
-- 學生按 enrollment 驗證學年。
-- 老師按 teaching assignment 驗證學年。
-- 學生 Grading 單一學年使用 submission snapshot／日期 fallback。
-- 老師 Grading 單一學年使用 grading `created_at`。
-- `all` 只取消日期條件，不會繞過目前登入帳號的 grading scope。
-- Join 頁面的 My Assignments 不提供切換，只請求學生 active 學年的待完成作業。
-
-### Assignment Index Query
+主要 SQL 邏輯：
 
 ```text
-app/queries/essay_assignment_index_query.rb
+school_academic_year_id = selected_year_id
+OR (
+  school_academic_year_id IS NULL
+  AND created_at BETWEEN selected_year_start AND selected_year_end
+)
 ```
 
-負責：
+第一段是正常路徑，使用已建立的 academic year index。第二段只兼容 migration 無法唯一回填的舊資料。
 
-- Owned assignment 日期篩選
-- Shared assignment 日期篩選
-- Owned 和 shared count 日期篩選
-- 在 pagination 前套用篩選
+### 6.2 預設目前學年
 
-## 11. 測試範圍
+沒有傳 `school_academic_year_id` 時，Backend 解析老師的 active academic year，並套用與指定 UUID 相同的 database filter。它不會預設載入所有年份。
 
-已驗證以下情境：
+### 6.3 查看全部學年
 
-- 沒有傳學年時，預設使用 active academic year。
-- 可以讀取老師獲分配的 archived academic year。
-- 拒絕老師未獲分配的 academic year。
-- 沒有 active academic year 時返回明確錯誤。
-- 使用學校 timezone 計算開始日及結束日。
-- 學校 timezone 空白時正常 fallback。
-- Owned assignments 正確按學年篩選。
-- Shared assignments 正確按學年篩選。
-- 在 pagination 前完成篩選。
-- `total_count` 和 `total_pages` 正確。
-- 指定 `general_user_id` 的列表路徑同樣套用學年篩選。
+```http
+GET /api/v1/essay_assignments.json?school_academic_year_id=all
+```
 
-新增的 service tests 已涵蓋老師及學生 `all` 行為。完整 Rails test 在本機因缺少 `DEV_DB_HOST` 無法連接測試資料庫；部署前需由工程師在具備測試資料庫設定的環境補跑。
+`all` 會取消學年條件，但仍保留：
 
-## 12. 部署前檢查
+- owner/shared access control
+- category filter
+- search
+- sorting
+- pagination
 
-請 Backend 工程師確認：
+### 6.4 查詢順序
 
-- [ ] 每所學校的 academic year `start_date` 正確。
-- [ ] 每所學校的 academic year `end_date` 正確。
-- [ ] 當前學年的 status 是 `active`。
-- [ ] 舊學年的 status 是 `archived`。
-- [ ] 老師有正確的 `teacher_assignments` 記錄。
-- [ ] 學校 timezone 已正確設定；未設定也應確認 fallback 符合預期。
-- [ ] 前端 request 傳入 `school_academic_year_id`。
-- [ ] 切換不同學年後，API 回傳的 assignment IDs 不相同。
-- [ ] Owned 和 shared assignments 都能在正確學年顯示。
-- [ ] `meta.total_count` 與畫面實際資料數量一致。
-- [ ] Assignment、學生 Grading、老師 Grading 的 `school_academic_year_id=all` 均正常。
-- [ ] Join 頁只載入 active 學年待完成作業。
+正確順序如下：
 
-## 13. 建議驗收步驟
+1. 建立 owned 及 shared scopes。
+2. 套用 academic year database filter。
+3. 套用 shared assignment category permission。
+4. 套用 category 及 search。
+5. 合併 owned/shared scopes。
+6. 排序。
+7. pagination。
 
-1. 在 School Management 建立兩個不重疊的 academic years。
-2. 將目前學年設為 `active`，舊學年設為 `archived`。
-3. 確認測試老師在兩個學年都有 `teacher_assignments`。
-4. 準備分別建立於兩個日期範圍內的 assignments。
-5. 請求當前學年的 Assignment API，確認只回傳當前學年資料。
-6. 傳入舊學年的 `school_academic_year_id`，確認只回傳舊學年資料。
-7. 確認 shared assignments 也按照建立日期出現在正確學年。
-8. 使用不屬於該老師的 academic year ID，確認返回 `403`。
-9. 檢查 pagination、搜尋及 category filter。
+`meta.total_count`、`total_pages` 及實際資料使用相同學年條件，避免數量與列表不一致。
 
-## 14. GitHub 資訊
+## 7. Shared Assignments
+
+Shared assignment 使用 assignment 本身保存的 `school_academic_year_id`，不是分享日期，也不是接收老師目前所在學年。
+
+例如 assignment 保存為 `2025-2026`，即使在 `2026-2027` 才分享給另一位老師，它仍只會出現在 `2025-2026` 或 `All School Years`。
+
+Owner 及 shared scopes 都在 union/pagination 前完成學年篩選。
+
+## 8. 學生端待完成作業
+
+Endpoint：
+
+```http
+GET /api/v1/essay_assignments/my_assignments
+```
+
+網頁版與微信小程序共用此 endpoint。兩邊沒有主動選擇學年時，Backend 使用學生 enrollment 的 active academic year。
+
+### 8.1 尚未提交
+
+尚未提交的 assignment 使用 distribution 的明確學年：
+
+```text
+assignment_student_assignments.assignment_distribution_id
+    -> assignment_distributions.school_academic_year_id
+```
+
+不再使用 `assignment_student_assignments.created_at` 判斷，所以即使派發記錄建立日期與學年日期不一致，仍會出現在正確學年。
+
+### 8.2 已提交
+
+已提交資料使用：
+
+```text
+essay_gradings.submission_academic_year_id
+```
+
+legacy grading 沒有 submission snapshot 時，才使用 grading `created_at` 日期 fallback。
+
+因此學生 assignment 的分類規則為：
+
+- Pending／Overdue：distribution academic year。
+- Submitted／Completed：submission academic year snapshot。
+- Legacy submitted row：submission time fallback。
+
+## 9. Frontend 對接
+
+Dashboard URL 使用：
+
+```text
+academic_year=UUID
+```
+
+呼叫 Backend 時轉為：
+
+```text
+school_academic_year_id=UUID
+```
+
+Frontend 已遵守以下效能規則：
+
+- Profile 及 academic years 尚未準備完成時不發 assignment request。
+- 預設只請求 active year。
+- 切換學年才請求另一個 year。
+- `All School Years` 才傳 `all`。
+- 切換 category、year 或 search 時重置 pagination。
+- 不在 focus/reconnect 時無條件重取全部列表。
+
+建立頁會把選定 active year 的 UUID 放入 create payload。從 `All School Years` 建立時使用 active year，不會傳 `all`。
+
+Duplicate assignment 不複製舊 assignment 的 `school_academic_year_id`，讓 Backend 將副本保存至目前 active year。
+
+## 10. 權限與安全
+
+- Academic year UUID 必須來自目前老師的 `teacher_assignments`。
+- Student academic year 必須來自目前學生的 `student_enrollments`。
+- `all` 不會繞過 owned/shared 或 student scope。
+- Frontend 顯示或隱藏按鈕不是安全邊界，Backend 仍會驗證 ID。
+- Foreign key 防止保存不存在的 academic year。
+
+## 11. 效能
+
+新增索引：
+
+```text
+index_essay_assignments_on_school_academic_year_id
+```
+
+Assignment 列表在 SQL 層完成學年、category、search 及 pagination，不會載入全部年份後由 Ruby 或 Frontend 過濾。
+
+Legacy fallback 僅作用於 `school_academic_year_id IS NULL` rows。部署後新資料都有明確 ID，fallback 掃描範圍不會隨新 assignment 增長。
+
+學生 Pending Assignment 使用已存在的：
+
+```text
+assignment_distributions.school_academic_year_id
+assignment_student_assignments.assignment_distribution_id
+```
+
+## 12. 測試覆蓋
+
+Backend automated tests 覆蓋：
+
+- 指定 academic year 建立並保存 UUID。
+- 舊 client 沒有傳 UUID 時使用 active year。
+- 拒絕未授權 academic year。
+- 拒絕把 `all` 當作建立目標。
+- 即使 assignment 今天建立但指定為舊學年，Current 不顯示、舊學年顯示、All 顯示。
+- Owned 及 shared assignments 都按明確 ID 篩選。
+- Explicit ID 不會被 `created_at` 覆蓋。
+- Legacy null assignment 使用日期 fallback。
+- Category、search、count 及 pagination 在學年篩選後運作。
+- 學生 Pending Assignment 按 distribution year，而不是派發記錄建立時間。
+- 學生 submitted grading 按 submission snapshot。
+- School timezone 邊界及無 timezone fallback。
+
+建議驗證命令：
+
+```bash
+bundle exec rails test \
+  test/services/essay_assignment_academic_year_filter_test.rb \
+  test/services/student_academic_year_filter_test.rb \
+  test/services/student_academic_year_filter_integration_test.rb \
+  test/queries/essay_assignment_index_query_test.rb \
+  test/controllers/api/v1/essay_assignments_controller_test.rb
+
+bundle exec rubocop --only Lint \
+  app/controllers/api/v1/essay_assignments_controller.rb \
+  app/models/essay_assignment.rb \
+  app/models/school_academic_year.rb \
+  app/queries/essay_assignment_index_query.rb \
+  app/services/student_academic_year_filter.rb \
+  db/migrate/20260827150000_add_school_academic_year_to_essay_assignments.rb
+```
+
+## 13. 部署順序
+
+建議順序：
+
+1. 備份 production database。
+2. 部署 Backend code。
+3. 執行 migration：
+
+   ```bash
+   bundle exec rails db:migrate
+   ```
+
+4. 記錄 migration 輸出的 backfilled/unresolved 數量。
+5. 部署 Frontend code。
+6. 清除或更新應用程式 cache。
+7. 執行下方 smoke tests。
+
+Migration 必須先於新版 Frontend 完成。Backend 已兼容沒有傳學年 ID 的舊 Frontend，因此可以先部署 Backend。
+
+## 14. 部署後資料檢查
+
+統計已回填及 unresolved rows：
+
+```sql
+SELECT
+  COUNT(*) FILTER (WHERE school_academic_year_id IS NOT NULL) AS assigned_year,
+  COUNT(*) FILTER (WHERE school_academic_year_id IS NULL) AS unresolved_legacy
+FROM essay_assignments;
+```
+
+按學年統計：
+
+```sql
+SELECT school_academic_year_id, COUNT(*)
+FROM essay_assignments
+GROUP BY school_academic_year_id
+ORDER BY COUNT(*) DESC;
+```
+
+檢查 dangling reference 理論上應為 0，foreign key 亦會阻止新資料產生：
+
+```sql
+SELECT COUNT(*)
+FROM essay_assignments ea
+LEFT JOIN school_academic_years say ON say.id = ea.school_academic_year_id
+WHERE ea.school_academic_year_id IS NOT NULL
+  AND say.id IS NULL;
+```
+
+## 15. Smoke Test Checklist
+
+- [ ] 老師登入後預設選中 active school year。
+- [ ] Current 只請求一個 school academic year ID。
+- [ ] Current 顯示剛建立的 assignment。
+- [ ] 舊學年只在選擇後載入。
+- [ ] `All School Years` 顯示所有可存取資料。
+- [ ] 同一 assignment 不會同時錯誤出現在兩個學年。
+- [ ] Shared assignment 顯示於 assignment 原本學年。
+- [ ] Category、search、list/cards 及 pagination 正常。
+- [ ] 無權限 academic year UUID 返回 403。
+- [ ] 老師沒有 active year 且 request 無 UUID 時返回 422。
+- [ ] 學生網頁 Pending Assignment 只顯示 active enrollment year。
+- [ ] 微信小程序 Pending Assignment 與網頁結果一致。
+- [ ] 學生歷史 grading 切換學年結果正確。
+
+## 16. Rollback
+
+若只需回退 application code，可先回退 Frontend，再回退 Backend。新增欄位仍可保留，不影響舊版程式。
+
+若必須回退 migration：
+
+```bash
+bundle exec rails db:rollback STEP=1
+```
+
+Migration down 會移除 foreign key、index 及 `school_academic_year_id` 欄位。這會永久刪除已保存的 assignment 學年關聯，因此 production 執行前必須備份，通常不建議在資料已開始寫入後回退 schema。
+
+## 17. GitHub
 
 Repository：
 
@@ -301,5 +458,3 @@ Branch：
 ```text
 bobby-codex-backend
 ```
-
-Commit 以 `bobby-codex-backend` 本次學年功能 push 的最新 commit 為準。

@@ -28,6 +28,7 @@ module Api
             user: current_general_user,
             category: params[:category],
             search: params[:search],
+            academic_year: academic_year_filter.academic_year,
             created_at_range: academic_year_filter.created_at_range,
             page: params[:page],
             per: params[:count]
@@ -42,10 +43,15 @@ module Api
         end
 
         @essay_assignments = owner.essay_assignments
-        if academic_year_filter.created_at_range
-          @essay_assignments = @essay_assignments.where(
-            essay_assignments: { created_at: academic_year_filter.created_at_range }
+        if academic_year_filter.academic_year
+          assigned_to_year = @essay_assignments.where(
+            school_academic_year_id: academic_year_filter.academic_year.id
           )
+          legacy_in_year = @essay_assignments.where(
+            school_academic_year_id: nil,
+            created_at: academic_year_filter.created_at_range
+          )
+          @essay_assignments = assigned_to_year.or(legacy_in_year)
         end
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
         @essay_assignments = @essay_assignments.matching_search(params[:search])
@@ -64,6 +70,7 @@ module Api
                                  'essay_assignments.code',
                                  'essay_assignments.assignment',
                                  'essay_assignments.number_of_submission',
+                                 'essay_assignments.school_academic_year_id',
                                  EssayAssignment.list_meta_sql_select
                                )
                                .order('essay_assignments.created_at desc')
@@ -203,6 +210,7 @@ module Api
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
         @essay_assignment.general_user_id = current_general_user.id
+        @essay_assignment.school_academic_year = assignment_academic_year_for_create!
         
         # 如果指定了Community，需要验证用户权限
         if @essay_assignment.community_id.present?
@@ -233,6 +241,10 @@ module Api
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :forbidden
+      rescue EssayAssignmentAcademicYearFilter::ActiveAcademicYearMissingError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       def update
@@ -430,6 +442,24 @@ module Api
           user: current_general_user,
           list_access_type: assignment.read_attribute('list_access_type')
         )
+      end
+
+      def assignment_academic_year_for_create!
+        requested_academic_year_id = params
+                                     .dig(:essay_assignment, :school_academic_year_id)
+                                     .to_s
+                                     .presence
+        result = EssayAssignmentAcademicYearFilter.resolve!(
+          user: current_general_user,
+          academic_year_id: requested_academic_year_id
+        )
+
+        if result.academic_year.nil?
+          raise EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError,
+                'Select a specific academic year when creating an assignment.'
+        end
+
+        result.academic_year
       end
 
       def set_essay_assignment_by_code

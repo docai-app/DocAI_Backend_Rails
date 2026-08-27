@@ -59,7 +59,12 @@ class StudentAcademicYearFilter
               AND submitted_gradings.general_user_id = :general_user_id
               AND submitted_gradings.status <> :draft_status
           )
-          AND assignment_student_assignments.created_at BETWEEN :start_at AND :end_at
+          AND EXISTS (
+            SELECT 1
+            FROM assignment_distributions
+            WHERE assignment_distributions.id = assignment_student_assignments.assignment_distribution_id
+              AND assignment_distributions.school_academic_year_id = :academic_year_id
+          )
         )
       SQL
       general_user_id: user.id,

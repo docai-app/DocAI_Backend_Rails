@@ -67,9 +67,17 @@ class StudentAcademicYearFilterIntegrationTest < ActiveSupport::TestCase
                  filtered_grading_ids(all_result).sort
   end
 
-  test 'filters unsubmitted work by assignment time and submitted work by submission year' do
-    current_unsubmitted = create_student_assignment!('Current unsubmitted', time_in(@current_year))
-    past_unsubmitted = create_student_assignment!('Past unsubmitted', time_in(@past_year))
+  test 'filters unsubmitted work by distribution year and submitted work by submission year' do
+    current_unsubmitted = create_student_assignment!(
+      'Current unsubmitted',
+      time_in(@past_year),
+      academic_year: @current_year
+    )
+    past_unsubmitted = create_student_assignment!(
+      'Past unsubmitted',
+      time_in(@current_year),
+      academic_year: @past_year
+    )
 
     submitted_assignment = create_assignment!('Submitted in past')
     submitted_grading = create_grading!('Submitted in past', assignment: submitted_assignment)
@@ -168,11 +176,11 @@ class StudentAcademicYearFilterIntegrationTest < ActiveSupport::TestCase
     grading
   end
 
-  def create_student_assignment!(title, assigned_at, assignment: nil)
+  def create_student_assignment!(title, assigned_at, assignment: nil, academic_year: @current_year)
     assignment ||= create_assignment!(title)
     distribution = AssignmentDistribution.new(
       essay_assignment: assignment,
-      school_academic_year: @current_year,
+      school_academic_year: academic_year,
       school: @school,
       distribution_type: :individual,
       target_student: nil,

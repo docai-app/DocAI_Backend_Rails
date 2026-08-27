@@ -31,6 +31,7 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
   test 'filters shared assignments by category permission' do
     comprehension_assignment = EssayAssignment.create!(
       general_user: @owner,
+      school_academic_year: @context[:year],
       topic: 'Comprehension Topic',
       assignment: 'Comprehension Assignment',
       title: 'Comprehension Title',
@@ -63,7 +64,7 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     assert_not_includes ids, @shared_assignment.id
   end
 
-  test 'filters owned and shared assignments before pagination by academic year range' do
+  test 'filters owned and shared assignments before pagination by explicit academic year' do
     EssayAssignmentShareService.sync_shares!(
       assignment: @shared_assignment,
       actor: @owner,
@@ -71,12 +72,22 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     )
 
     historical_at = 18.months.ago.change(hour: 12)
+    historical_year = SchoolAcademicYear.create!(
+      school: @context[:school],
+      name: 'Historical Year',
+      start_date: historical_at.to_date.beginning_of_year,
+      end_date: historical_at.to_date.end_of_year,
+      status: :archived,
+      meta: {}
+    )
     historical_owned = create_assignment!(
       user: @recipient,
+      year: historical_year,
       title: 'Historical Owned Title'
     )
     historical_shared = create_assignment!(
       user: @owner,
+      year: historical_year,
       title: 'Historical Shared Title'
     )
     [historical_owned, historical_shared].each do |assignment|
@@ -91,6 +102,7 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
 
     result = EssayAssignmentIndexQuery.new(
       user: @recipient,
+      academic_year: historical_year,
       created_at_range: historical_at.beginning_of_day..historical_at.end_of_day,
       page: 1,
       per: 1
@@ -103,6 +115,46 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     assert_includes [historical_owned.id, historical_shared.id], ids.first
     assert_not_includes ids, @owned_assignment.id
     assert_not_includes ids, @shared_assignment.id
+  end
+
+  test 'uses the date range only for a legacy assignment without an academic year' do
+    @owned_assignment.update_columns(school_academic_year_id: nil)
+    current_year_range = Date.current.beginning_of_year.beginning_of_day..
+                         Date.current.end_of_year.end_of_day
+
+    result = EssayAssignmentIndexQuery.new(
+      user: @recipient,
+      academic_year: @context[:year],
+      created_at_range: current_year_range
+    ).call
+
+    assert_includes result.assignments.map(&:id), @owned_assignment.id
+  end
+
+  test 'does not override an explicit academic year using the created date' do
+    other_year = SchoolAcademicYear.create!(
+      school: School.create!(
+        name: "Other Index Query School #{SecureRandom.hex(4)}",
+        code: "other-index-query-#{SecureRandom.hex(4)}",
+        meta: {}
+      ),
+      name: 'Other Year',
+      start_date: Date.current.beginning_of_year,
+      end_date: Date.current.end_of_year,
+      status: :active,
+      meta: {}
+    )
+    @owned_assignment.update_columns(school_academic_year_id: other_year.id)
+    current_year_range = Date.current.beginning_of_year.beginning_of_day..
+                         Date.current.end_of_year.end_of_day
+
+    result = EssayAssignmentIndexQuery.new(
+      user: @recipient,
+      academic_year: @context[:year],
+      created_at_range: current_year_range
+    ).call
+
+    assert_not_includes result.assignments.map(&:id), @owned_assignment.id
   end
 
   private
@@ -127,6 +179,7 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
 
     owned_assignment = EssayAssignment.create!(
       general_user: recipient,
+      school_academic_year: year,
       topic: 'Owned Topic',
       assignment: 'Owned Assignment',
       title: 'Owned Title',
@@ -137,6 +190,7 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
 
     shared_assignment = EssayAssignment.create!(
       general_user: owner,
+      school_academic_year: year,
       topic: 'Shared Topic',
       assignment: 'Shared Assignment',
       title: 'Shared Title',
@@ -175,9 +229,10 @@ class EssayAssignmentIndexQueryTest < ActiveSupport::TestCase
     teacher
   end
 
-  def create_assignment!(user:, title:)
+  def create_assignment!(user:, title:, year: @context[:year])
     EssayAssignment.create!(
       general_user: user,
+      school_academic_year: year,
       topic: title,
       assignment: title,
       title:,

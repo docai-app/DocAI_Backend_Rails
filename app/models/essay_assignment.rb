@@ -10,6 +10,7 @@
 #  code                 :string           not null
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
+#  school_academic_year_id :uuid
 #  assignment           :string
 #  number_of_submission :integer          default(0), not null
 #  general_user_id      :uuid
@@ -155,6 +156,7 @@ class EssayAssignment < ApplicationRecord
   has_many :essay_gradings, dependent: :destroy
   belongs_to :general_user
   belongs_to :community, optional: true
+  belongs_to :school_academic_year, optional: true
 
   # 作業分配關聯
   has_many :assignment_distributions, dependent: :destroy
