@@ -2,7 +2,7 @@
 
 module Oauth
   # Demo/testing: revoke all grants & tokens for the current user + client,
-  # and clear the AS session so the consent screen appears again.
+  # mark partner account link revoked, and clear the AS session.
   class RevokeBindingsController < ApplicationController
     include Doorkeeper::Rails::Helpers
 
@@ -12,16 +12,33 @@ module Oauth
     def create
       user_id = doorkeeper_token.resource_owner_id
       app_id = doorkeeper_token.application_id
+      application = OauthApplication.find_by(id: app_id)
+      user = GeneralUser.find_by(id: user_id)
+
+      links = OauthPartnerAccountLink.active.where(
+        oauth_application_id: app_id,
+        general_user_id: user_id
+      ).to_a
 
       revoke_all_for!(user_id, app_id)
+      OauthPartnerAccountLink.revoke_for!(
+        application_id: app_id,
+        general_user_id: user_id,
+        reason: 'user_revoke_binding'
+      )
       Oauth::SessionEstablisher.clear!(session)
 
       OauthAuditLog.record!(
         event: 'revoke_binding',
-        general_user: GeneralUser.find_by(id: user_id),
-        application: OauthApplication.find_by(id: app_id),
+        general_user: user,
+        application: application,
         request: request
       )
+
+      links.each do |link|
+        link.reload
+        Oauth::WebhookDispatcher.enqueue_binding_revoked(link, reason: 'user_revoke_binding')
+      end
 
       render json: {
         success: true,

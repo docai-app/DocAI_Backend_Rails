@@ -48,6 +48,10 @@ Rails.application.routes.draw do
         get 'schools/:slug/login_config', to: 'school_login_configs#show'
       end
 
+      namespace :oauth do
+        post 'partner_bindings', to: 'partner_bindings#create'
+      end
+
       post 'unisound/eval', to: 'unisound#create'
       post 'essay_ocr', to: 'essay_ocr#create'
 
@@ -562,6 +566,12 @@ Rails.application.routes.draw do
             post :rotate_secret
             post :enable
             post :disable
+            get :account_links
+            get :webhook
+            put :webhook, action: :update_webhook
+            post 'webhook/test', action: :test_webhook
+            post 'webhook/rotate_secret', action: :rotate_webhook_secret
+            get 'webhook/deliveries', action: :webhook_deliveries
           end
         end
 

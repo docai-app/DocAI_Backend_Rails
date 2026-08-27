@@ -17,6 +17,7 @@ class OauthAuditLog < ApplicationRecord
     session_established
     consent_skip_trusted
     revoke_binding
+    partner_binding_upserted
   ].freeze
 
   validates :event, presence: true, inclusion: { in: EVENTS }

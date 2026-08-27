@@ -39,6 +39,9 @@
 | JWKS | `/oauth/jwks` |
 | Token Revocation（RFC 7009） | `POST /oauth/revoke`（标准吊销单 token） |
 
+> **账号绑定与作业推送（已可用）：** 登录完成后的绑定上报、Webhook 作业推送见  
+> `docs/AIEnglish_第三方绑定与作业推送对接文档_KonnecAI_2026_08_27_zh.md`。
+
 > **对接建议：** Phase 1 用「code → token → UserInfo 取 `sub` → 己方建会话」即可上生产。若贵方库强依赖 OIDC Discovery / `id_token`，请与我们确认 Phase 2 窗口。
 
 ### 1.3 明确不支持
