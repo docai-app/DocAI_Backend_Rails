@@ -51,11 +51,15 @@ module Oauth
         'essay-admin.docai.net',
         'aienglish-admin.docai.net',
         'konnec-ai.hospidocai.com',
-        'app.konnec.ai'
+        'app.konnec.ai',
+        'konnec.ai',
+        'www.konnec.ai',
+        'todo-share-ai.vercel.app'
       ]
       return true if allowed.include?(uri.host)
       return true if uri.host.end_with?('.vercel.app')
       return true if uri.host.end_with?('.hospidocai.com')
+      return true if uri.host.end_with?('.konnec.ai')
 
       false
     rescue Addressable::URI::InvalidURIError
