@@ -31,6 +31,24 @@ module Oauth
       false
     end
 
+    # Remove selected OIDC prompt values from an authorize URL so that after
+    # forced re-login, the post-login return_to does not loop on prompt=login.
+    def strip_prompt_values(url, values_to_remove)
+      uri = Addressable::URI.parse(url.to_s)
+      query = Rack::Utils.parse_query(uri.query.to_s)
+      prompts = query['prompt'].to_s.split(/\s+/).reject(&:blank?)
+      kept = prompts - Array(values_to_remove).map(&:to_s)
+      if kept.empty?
+        query.delete('prompt')
+      else
+        query['prompt'] = kept.join(' ')
+      end
+      uri.query = query.to_query.presence
+      uri.to_s
+    rescue Addressable::URI::InvalidURIError
+      url.to_s
+    end
+
     # Prefer login origin derived from the OAuth client's registered redirect_uri
     # (e.g. https://essay-admin.docai.net/api/... -> https://essay-admin.docai.net/login).
     # Falls back to AIENGLISH_WEB_ORIGIN for legacy / essay-checker web login.
