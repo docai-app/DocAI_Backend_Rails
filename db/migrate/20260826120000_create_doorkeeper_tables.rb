@@ -1,15 +1,18 @@
 # frozen_string_literal: true
 
+# OAuth tables live in public schema only (Apartment excluded_models).
 class CreateDoorkeeperTables < ActiveRecord::Migration[7.0]
-  def change
+  def up
+    return unless on_public_schema?
+    return if table_exists?(:oauth_applications)
+
     create_table :oauth_applications do |t|
       t.string :name, null: false
       t.string :uid, null: false
-      t.string :secret # nullable for public clients
+      t.string :secret
       t.text :redirect_uri, null: false
       t.string :scopes, null: false, default: ''
       t.boolean :confidential, null: false, default: true
-      # Phase 1 product fields
       t.boolean :enabled, null: false, default: false
       t.boolean :trusted, null: false, default: false
       t.string :logo_url
@@ -73,5 +76,24 @@ class CreateDoorkeeperTables < ActiveRecord::Migration[7.0]
     add_index :oauth_audit_logs, :created_at
     add_foreign_key :oauth_audit_logs, :oauth_applications, column: :oauth_application_id
     add_foreign_key :oauth_audit_logs, :general_users, column: :general_user_id
+  end
+
+  def down
+    return unless on_public_schema?
+
+    drop_table :oauth_audit_logs, if_exists: true
+    drop_table :oauth_access_tokens, if_exists: true
+    drop_table :oauth_access_grants, if_exists: true
+    drop_table :oauth_applications, if_exists: true
+  end
+
+  private
+
+  # Apartment sets Tenant.current to "public" on the public schema (not blank).
+  def on_public_schema?
+    return true unless defined?(Apartment)
+
+    current = Apartment::Tenant.current
+    current.blank? || current == 'public'
   end
 end
