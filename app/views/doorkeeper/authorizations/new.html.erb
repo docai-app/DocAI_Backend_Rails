@@ -28,11 +28,19 @@
   </h1>
 
   <div class="oauth-account" aria-label="<%= t('doorkeeper.authorizations.new.signed_in_as') %>">
-    <div class="oauth-account__avatar" aria-hidden="true"><%= oauth_user_initial %></div>
-    <div class="oauth-account__meta">
-      <div class="oauth-account__label"><%= t('doorkeeper.authorizations.new.signed_in_as') %></div>
-      <div class="oauth-account__email"><%= oauth_user_email || oauth_user_display_name %></div>
+    <div class="oauth-account__main">
+      <div class="oauth-account__avatar" aria-hidden="true"><%= oauth_user_initial %></div>
+      <div class="oauth-account__meta">
+        <div class="oauth-account__label"><%= t('doorkeeper.authorizations.new.signed_in_as') %></div>
+        <div class="oauth-account__name"><%= oauth_user_primary_label %></div>
+        <% if oauth_user_secondary_label.present? %>
+          <div class="oauth-account__email"><%= oauth_user_secondary_label %></div>
+        <% end %>
+      </div>
     </div>
+    <%= link_to t('doorkeeper.authorizations.new.switch_account'),
+                oauth_switch_account_url,
+                class: 'oauth-account__switch' %>
   </div>
 
   <% if @pre_auth.scopes.any? %>

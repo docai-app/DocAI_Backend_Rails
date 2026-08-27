@@ -37,22 +37,44 @@ module Oauth
     end
 
     def oauth_user
-      resource_owner if respond_to?(:resource_owner)
+      return @oauth_user if defined?(@oauth_user)
+
+      # Consent 页靠 AS session；勿再调 Doorkeeper resource_owner（可能重跑 authenticator）
+      @oauth_user = Oauth::SessionEstablisher.current(session)
     end
 
     def oauth_user_display_name
       user = oauth_user
       return I18n.t('doorkeeper.authorizations.new.default_user') unless user
 
-      user.try(:nickname).presence || user.try(:email) || IDP_NAME
+      user.try(:nickname).presence || user.try(:email).presence || IDP_NAME
     end
 
     def oauth_user_email
-      oauth_user&.try(:email)
+      oauth_user&.try(:email).presence
+    end
+
+    # Primary line: nickname, falling back to email.
+    def oauth_user_primary_label
+      oauth_user_display_name
+    end
+
+    # Secondary line: email when nickname is shown and differs.
+    def oauth_user_secondary_label
+      email = oauth_user_email
+      return nil if email.blank?
+      return nil if email == oauth_user_primary_label
+
+      email
     end
 
     def oauth_user_initial
       oauth_user_display_name.to_s.strip.first&.upcase || 'A'
+    end
+
+    def oauth_switch_account_url
+      return_to = request.original_url
+      "#{request.base_url}/oauth/reauthenticate?return_to=#{ERB::Util.url_encode(return_to)}"
     end
 
     def oauth_scope_description(scope)

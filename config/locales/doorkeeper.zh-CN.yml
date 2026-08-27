@@ -17,10 +17,11 @@ zh-CN:
         able_to: '此应用将能够：'
         default_user: 'AIEnglish 用户'
         signed_in_as: '当前登录账号'
+        switch_account: '切换其他账号'
+        not_you: '这不是您的账号？'
         legal_intro: '继续即表示您允许此应用按上述范围访问您的账号信息。'
         privacy: '隐私政策'
         terms: '服务条款'
-        not_you: '这不是您的账号？'
     scopes:
       openid: '确认您的身份（OpenID）'
       profile: '查看您的基本资料（昵称等）'

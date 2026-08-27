@@ -48,7 +48,8 @@ module Oauth
       return unless response.successful? || response.redirect?
 
       app = find_application_record(pre_auth&.client)
-      user = current_resource_owner
+      # 勿覆盖 Doorkeeper#current_resource_owner；审计直接读 AS session
+      user = Oauth::SessionEstablisher.current(session)
       return if app.blank? || user.blank?
 
       OauthAuditLog.record!(
@@ -71,12 +72,6 @@ module Oauth
       return nil if app.blank?
 
       OauthApplication.find_by(id: app.id) || OauthApplication.find_by(uid: app.uid)
-    end
-
-    def current_resource_owner
-      return resource_owner if respond_to?(:resource_owner, true) && resource_owner.present?
-
-      Oauth::SessionEstablisher.current(session)
     end
 
     def render_oauth_error(error:, description:)
