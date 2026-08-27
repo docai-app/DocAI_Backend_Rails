@@ -49,10 +49,13 @@ module Oauth
         'localhost',
         '127.0.0.1',
         'essay-admin.docai.net',
-        'aienglish-admin.docai.net'
+        'aienglish-admin.docai.net',
+        'konnec-ai.hospidocai.com',
+        'app.konnec.ai'
       ]
       return true if allowed.include?(uri.host)
       return true if uri.host.end_with?('.vercel.app')
+      return true if uri.host.end_with?('.hospidocai.com')
 
       false
     rescue Addressable::URI::InvalidURIError
