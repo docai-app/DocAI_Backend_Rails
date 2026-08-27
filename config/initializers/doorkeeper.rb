@@ -8,11 +8,11 @@ Doorkeeper.configure do
   application_class 'OauthApplication'
 
   resource_owner_authenticator do
-    prompts = params[:prompt].to_s.split(/\s+/).reject(&:blank?)
+    prompts = request.params[:prompt].to_s.split(/\s+/).reject(&:blank?)
     force_login = prompts.include?('login')
 
-    # OIDC prompt=login: clear AS session and send user to partner login,
-    # stripping prompt=login from return_to to avoid an infinite loop after web_login.
+    # OIDC prompt=login: clear AS session and send user to partner login.
+    # Must return nil after redirect_to — a truthy return is treated as the owner.
     if force_login
       Oauth::SessionEstablisher.clear!(session)
       return_to = Oauth::ReturnToValidator.strip_prompt_values(request.original_url, %w[login])
@@ -22,6 +22,7 @@ Doorkeeper.configure do
         redirect_uri: params[:redirect_uri],
         client_id: params[:client_id]
       ), allow_other_host: true
+      nil
     else
       user = Oauth::SessionEstablisher.current(session)
       if user
@@ -34,6 +35,7 @@ Doorkeeper.configure do
           redirect_uri: params[:redirect_uri],
           client_id: params[:client_id]
         ), allow_other_host: true
+        nil
       end
     end
   end

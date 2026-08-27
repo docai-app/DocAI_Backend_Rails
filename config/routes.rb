@@ -23,6 +23,7 @@ Rails.application.routes.draw do
     post 'revoke_binding', to: 'revoke_bindings#create'
     get 'userinfo', to: 'userinfo#show'
     post 'web_login', to: 'web_logins#create'
+    get 'reauthenticate', to: 'reauthentications#show'
   end
 
   devise_for :users,
