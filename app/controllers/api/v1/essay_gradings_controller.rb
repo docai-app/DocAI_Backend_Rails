@@ -20,25 +20,31 @@ module Api
         pdf = generate_pdf(json_data, @essay_grading, report_type)
         send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}.pdf", type: 'application/pdf',
                               disposition: 'inline'
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'This report could not be found.' }, status: :not_found
+      rescue JSON::ParserError, ArgumentError => e
+        Rails.logger.warn("[EssayGradings PDF] #{e.class}: #{e.message}")
+        render json: { success: false, error: 'This report is not available. Please contact your teacher.' }, status: :unprocessable_entity
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradings PDF] #{e.class}: #{e.message}")
+        render json: { success: false, error: 'The report could not be downloaded. Please try again.' }, status: :internal_server_error
       end
 
       def download_supplement_practice
         set_essay_grading
 
-        json_data = prepare_report_data(@essay_grading)
-
-        # 获取补充练习的文本内容
         supplement_text = @essay_grading.grading.dig('supplement_practice', 'text')
-        raise 'Supplement practice text not found' unless supplement_text
+        return render json: { success: false, error: 'This exercise is not available yet.' }, status: :not_found if supplement_text.blank?
 
-        # 预处理 Markdown 文本，确保列表项正确显示
-        supplement_text = supplement_text.gsub(/(\d+\.)/, "\n\\1")
-
-        # 使用 Redcarpet 将 Markdown 转换为 HTML
-        markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML,
-                                           { tables: true, autolink: true, fenced_code_blocks: true, strikethrough: true, underline: true,
-                                             highlight: true, quote: true, footnotes: true })
-        html_content = markdown.render(supplement_text)
+        begin
+          questions = SupplementPracticeParserService.new(@essay_grading).parse
+        rescue OldDataFormatError
+          questions = nil
+        end
+        json_data = {
+          'topic' => @essay_grading.topic,
+          'account' => prepare_submission_info(@essay_grading)
+        }
 
         # 生成 PDF
         pdf = Prawn::Document.new(page_size: 'A4', margin: [40, 40, 88, 40]) do |pdf|
@@ -56,17 +62,16 @@ module Api
               bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
-              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF'),
+              italic: font_path.join('ARIAL.TTF'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.TTF') # Fallback to bold for bold_italic
             }
           )
 
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-          draw_standard_report_footer(pdf)
 
           # school_logo_url = @essay_grading.
           user = @essay_grading.general_user
@@ -106,15 +111,27 @@ module Api
           pdf.stroke_color '444444'
           pdf.stroke_horizontal_rule
 
-          # 在 HTML 中添加样式以设置文字大小
-          html_content = "<div style='font-size: 20px;'>#{html_content}</div>"
-          # 使用 prawn-html 渲染 HTML 到 PDF
-          PrawnHtml.append_html(pdf, html_content)
+          SupplementPracticePdfContent.render(
+            pdf, questions: questions, legacy_text: supplement_text,
+            include_answers: params[:role] == 'teacher'
+          )
         end
+
+        # Number completed pages without a dynamic repeater: Prawn can otherwise
+        # reuse a color space from another page and emit invalid PDF operators.
+        pdf.number_pages 'Page <page>', at: [pdf.bounds.right - 58, -38], width: 58, size: 8, align: :right
 
         # 发送 PDF 文件
         send_data pdf.render, filename: "#{@essay_grading.general_user.nickname}_supplement_practice.pdf",
                               type: 'application/pdf', disposition: 'inline'
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'This report could not be found.' }, status: :not_found
+      rescue JSON::ParserError, ArgumentError => e
+        Rails.logger.warn("[EssayGradings PDF] #{e.class}: #{e.message}")
+        render json: { success: false, error: 'This report is not available. Please contact your teacher.' }, status: :unprocessable_entity
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradings PDF] #{e.class}: #{e.message}")
+        render json: { success: false, error: 'The report could not be downloaded. Please try again.' }, status: :internal_server_error
       end
 
       def index
@@ -881,6 +898,11 @@ module Api
 
         send_data zip_data.string, type: 'application/zip',
                                    filename: "essay_assignment_#{essay_assignment.id}_reports.zip"
+      rescue ActiveRecord::RecordNotFound
+        render json: { success: false, error: 'This assignment could not be found.' }, status: :not_found
+      rescue StandardError => e
+        Rails.logger.error("[EssayGradings PDF archive] #{e.class}: #{e.message}")
+        render json: { success: false, error: 'The reports could not be downloaded. Please try again.' }, status: :internal_server_error
       end
 
       private
@@ -1285,7 +1307,7 @@ module Api
         show_report_type_override: true
       )
         # Unify the report top section across all report types (essay/comprehension/listening/etc).
-        sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
+        sentences = AiJsonParser.object(json_data.dig('data', 'text')) rescue {}
         score_payload = extract_essay_report_score_payload(json_data['score'], sentences)
 
         report_label = json_data['report_type'] == 'simplified' ? 'Simplified Report' : 'Full Report'
@@ -1354,10 +1376,10 @@ module Api
               bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
-              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF'),
+              italic: font_path.join('ARIAL.TTF'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.TTF') # Fallback to bold for bold_italic
             }
           )
 
@@ -1489,10 +1511,10 @@ module Api
               bold_italic: font_path.join('DejaVuSans.ttf')
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'),
-              bold_italic: font_path.join('ARIALBD.ttf')
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF'),
+              italic: font_path.join('ARIAL.TTF'),
+              bold_italic: font_path.join('ARIALBD.TTF')
             }
           )
 
@@ -1581,10 +1603,10 @@ module Api
               bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
-              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF'),
+              italic: font_path.join('ARIAL.TTF'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.TTF') # Fallback to bold for bold_italic
             }
           )
 
@@ -1615,7 +1637,7 @@ module Api
           pdf.move_down 12
 
           # 解析批改結果
-          response = JSON.parse(essay_grading.grading['data']['text'])
+          response = AiJsonParser.object(essay_grading.grading.dig('data', 'text'))
           # 遍歷每個句子結果
           response['results'].each_with_index do |result, index|
             # 檢查是否有錯誤
@@ -1702,15 +1724,15 @@ module Api
               normal: font_path.join('DejaVuSans.ttf')
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF')
             }
           )
 
           pdf.font('Arial')
           pdf.fallback_fonts(%w[NotoSans DejaVuSans])
           pdf.fill_color '000000'
-          sentences = JSON.parse(json_data.dig('data', 'text').to_s) rescue {}
+          sentences = AiJsonParser.object(json_data.dig('data', 'text')) rescue {}
           grammar_sentences = effective_grammar_sentences(essay_grading, sentences)
       
 
@@ -1969,8 +1991,8 @@ module Api
               bold: font_path.join('DejaVuSans.ttf')
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf')
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF')
             }
           )
           pdf.font('Arial')
@@ -2066,10 +2088,10 @@ module Api
               bold_italic: font_path.join('DejaVuSans.ttf') # Fallback to normal for bold_italic
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'), # Fallback to normal for italic
-              bold_italic: font_path.join('ARIALBD.ttf') # Fallback to bold for bold_italic
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF'),
+              italic: font_path.join('ARIAL.TTF'), # Fallback to normal for italic
+              bold_italic: font_path.join('ARIALBD.TTF') # Fallback to bold for bold_italic
             }
           )
 
@@ -3052,14 +3074,14 @@ module Api
         teacher_review_score = essay_grading.teacher_review_hash.dig('score', 'data')
         return teacher_review_score if teacher_review_score.is_a?(Hash) && teacher_review_score.present?
 
-        JSON.parse(essay_grading.grading.dig('data', 'text').to_s)
+        AiJsonParser.object(essay_grading.grading.dig('data', 'text'))
       rescue StandardError
         {}
       end
 
       def effective_grammar_sentences(essay_grading, fallback_sentences = {})
         teacher_review_sentences = essay_grading.teacher_review_hash.dig('grammar', 'sentences')
-        if teacher_review_sentences.is_a?(Array) && teacher_review_sentences.present?
+        if teacher_review_sentences.is_a?(Array)
           return teacher_review_sentences.each_with_index.each_with_object({}) do |(sentence, index), result|
             next unless sentence.is_a?(Hash)
 
@@ -3094,12 +3116,13 @@ module Api
         teacher_review_general_context = essay_grading.teacher_review_hash['general_context']
         return teacher_review_general_context if teacher_review_general_context.is_a?(Hash) && teacher_review_general_context.present?
 
-        raw_general_context_text = essay_grading.general_context.dig('data', 'text').to_s
+        raw_general_context_text = essay_grading.general_context.dig('data', 'text')
         return nil if raw_general_context_text.blank?
 
-        fixed_json = fix_json_newlines(raw_general_context_text)
-        JSON.parse(fixed_json)
+        AiJsonParser.object(raw_general_context_text)
       rescue JSON::ParserError
+        return nil if AiJsonParser.structured?(raw_general_context_text)
+
         fallback = extract_general_context_fallback(raw_general_context_text)
         if fallback.present?
           {
@@ -3112,7 +3135,7 @@ module Api
           { 'Feedback' => raw_general_context_text.presence }.compact
         end
       rescue StandardError
-        { 'Feedback' => raw_general_context_text.presence }.compact
+        nil
       end
 
       def effective_revised_essay_text(essay_grading)

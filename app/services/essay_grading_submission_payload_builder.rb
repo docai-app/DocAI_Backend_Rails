@@ -32,14 +32,14 @@ class EssayGradingSubmissionPayloadBuilder
     end
 
     grading_json = nil
-    if grading_text.present? && !@is_sentence_builder && !@is_comprehension && !@is_speaking_pronunciation && !@is_listening && !@is_sentence_puzzle
+    if !@is_sentence_builder && !@is_comprehension && !@is_speaking_pronunciation && !@is_listening && !@is_sentence_puzzle
       grading_json = effective_assignment_grading_json(@eg, grading_text)
     end
 
     scores = {}
     overall_score = nil
     the_full_score = nil
-    number_of_suggestion = grading_data_hash['number_of_suggestion']
+    number_of_suggestion = effective_number_of_suggestion(grading_text, grading_data_hash['number_of_suggestion'])
     comprehension_data = grading_data_hash['comprehension'] || {}
     listening_data = grading_data_hash['listening'] || {}
     listening_play_count = listening_data['play_count']
@@ -59,7 +59,8 @@ class EssayGradingSubmissionPayloadBuilder
             overall_score = sb_item['score']
           elsif grading_text.present?
             begin
-              response = JSON.parse(grading_text)
+              response = AiJsonParser.object(grading_text)
+              raise JSON::ParserError, 'Missing sentence results' unless response['results'].is_a?(Array)
               total_score = response['results']&.size || 0
               score = 0
               response['results']&.each do |result|
@@ -73,7 +74,8 @@ class EssayGradingSubmissionPayloadBuilder
           end
         elsif grading_text.present?
           begin
-            response = JSON.parse(grading_text)
+            response = AiJsonParser.object(grading_text)
+            raise JSON::ParserError, 'Missing sentence results' unless response['results'].is_a?(Array)
             total_score = response['results']&.size || 0
             score = 0
             response['results']&.each do |result|
@@ -103,8 +105,8 @@ class EssayGradingSubmissionPayloadBuilder
       the_full_score = sentence_puzzle_data[:total]
       overall_score = sentence_puzzle_data[:score]
     elsif @is_speaking_essay
-      the_full_score = 9
-      overall_score  = 0
+      overall_score = normalize_assignment_score(grading_json&.dig('Overall Score') || grading_json&.dig('overall_score'))
+      the_full_score = normalize_assignment_score(grading_json&.dig('Full Score') || grading_json&.dig('full_score')) || 9
       speaking_report_scores = speaking_report_scores(@eg)
       if speaking_report_scores.present?
         overall_score = speaking_report_scores['overall_band_score'] ||
@@ -131,8 +133,8 @@ class EssayGradingSubmissionPayloadBuilder
           end
         end
 
-        overall_score = normalize_assignment_score(grading_json['Overall Score'])
-        the_full_score = normalize_assignment_score(grading_json['Full Score'])
+        overall_score = normalize_assignment_score(grading_json['Overall Score'] || grading_json['overall_score'])
+        the_full_score = normalize_assignment_score(grading_json['Full Score'] || grading_json['full_score'])
       end
     end
 
@@ -156,7 +158,7 @@ class EssayGradingSubmissionPayloadBuilder
       questions_count: comprehension_data['questions_count'] || listening_data['questions_count'],
       play_count: listening_play_count || 0,
       full_score: the_full_score,
-      score: overall_score || @eg.score,
+      score: overall_score,
       scores: scores,
       overall_score: overall_score,
       the_full_score: the_full_score,
@@ -166,6 +168,39 @@ class EssayGradingSubmissionPayloadBuilder
   end
 
   private
+
+  # Historical counters may be zero because the old parser rejected a wrapper.
+  # Recompute from the stored feedback at read time; do not rerun AI or write data.
+  def effective_number_of_suggestion(grading_text, stored_count)
+    return stored_count unless %w[essay speaking_conversation speaking_essay sentence_builder].include?(@assignment_category)
+
+    sentences = @eg.teacher_review_hash.dig('grammar', 'sentences') if @eg.respond_to?(:teacher_review_hash)
+    if sentences.is_a?(Array)
+      return sentences.sum do |sentence|
+        errors = sentence.is_a?(Hash) ? sentence['errors'] : nil
+        errors.is_a?(Hash) || errors.is_a?(Array) ? errors.size : 0
+      end
+    end
+    return stored_count if grading_text.blank?
+
+    parsed = source_grading_json(grading_text)
+    if @is_sentence_builder
+      return nil unless parsed['results'].is_a?(Array)
+
+      parsed['results'].sum do |result|
+        errors = result.is_a?(Hash) ? result['errors'] : nil
+        errors.is_a?(Array) ? errors.count { |error| error.is_a?(Hash) && error['error1'] != 'Correct' } : 0
+      end
+    else
+      @eg.count_errors(parsed)
+    end
+  rescue JSON::ParserError
+    nil
+  end
+
+  def source_grading_json(grading_text)
+    @source_grading_json ||= AiJsonParser.object(grading_text)
+  end
 
   def effective_assignment_grading_json(essay_grading, fallback_grading_text = nil)
     teacher_review_score = if essay_grading.respond_to?(:teacher_review_hash)
@@ -181,7 +216,7 @@ class EssayGradingSubmissionPayloadBuilder
       grading_text = grading_hash.dig('data', 'text')
     end
 
-    JSON.parse(grading_text)
+    source_grading_json(grading_text)
   rescue StandardError => e
     Rails.logger.warn "Error parsing effective grading JSON for EssayGrading #{essay_grading.try(:id)}: #{e.message}"
     {}
@@ -220,9 +255,11 @@ class EssayGradingSubmissionPayloadBuilder
   end
 
   def normalize_assignment_score(raw_score)
-    return nil if raw_score == 'null' || raw_score.nil?
-    return raw_score.to_f if raw_score.to_s.include?('.')
+    return nil unless raw_score.is_a?(Numeric) || raw_score.is_a?(String)
 
-    raw_score.to_i
+    value = Float(raw_score, exception: false)
+    return nil unless value&.finite?
+
+    value == value.to_i ? value.to_i : value
   end
 end

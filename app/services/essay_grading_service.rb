@@ -533,7 +533,7 @@ class EssayGradingService
     return 0 unless result.is_a?(Hash) && result['text'].present?
 
     begin
-      json = JSON.parse(result['text'])
+      json = AiJsonParser.object(result['text'])
       if @essay_grading.category == 'sentence_builder'
         count_sentence_builder_errors(json)
       else
