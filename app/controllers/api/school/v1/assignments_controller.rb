@@ -136,7 +136,7 @@ module Api
 
         def submissions
           assignment_category = @essay_assignment.category
-          subs = @essay_assignment.essay_gradings.includes(:general_user)
+          subs = @essay_assignment.essay_gradings.includes(:general_user, :essay_assignment)
 
           subs = subs.where(status: params[:status]) if params[:status].present?
 
@@ -196,6 +196,7 @@ module Api
             }
 
             if core
+              row[:metrics_version] = core[:metrics_version]
               row[:newsfeed_id] = core[:newsfeed_id]
               row[:number_of_suggestion] = core[:number_of_suggestion]
               row[:questions_count] = core[:questions_count]

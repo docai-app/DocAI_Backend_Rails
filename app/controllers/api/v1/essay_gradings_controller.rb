@@ -250,43 +250,7 @@ module Api
       # 顯示特定的 EssayGrading
       def show
         set_essay_grading_wiht_role
-        # 预加载 essay_assignment 关联
-        # @essay_grading = @essay_grading.includes(:essay_assignment).find(params[:id])
-
-        # 获取 category 的字符串表示
-        EssayAssignment.categories.invert
-
-        # binding.pry
-        grading_json = effective_score_sentences(@essay_grading)
-        score_payload = extract_essay_report_score_payload(grading_json)
-        scores = extract_scores_from_sentences(grading_json)
-        speaking_report_scores = speaking_report_scores(@essay_grading)
-
-        if @essay_grading.category == 'speaking_essay' && speaking_report_scores.present?
-          score = speaking_report_scores['overall_band_score'] ||
-                  @essay_grading.grading['overall_score'] ||
-                  @essay_grading['score']
-          full_score = @essay_grading.grading['full_score'] || 9
-          scores = speaking_report_scores
-        elsif @essay_grading.category == 'comprehension'
-          score = @essay_grading.grading.dig('comprehension', 'score')
-          full_score = @essay_grading.grading.dig('comprehension', 'full_score')
-        elsif @essay_grading.category == 'listening'
-          score = @essay_grading.grading.dig('listening', 'score')
-          full_score = @essay_grading.grading.dig('listening', 'full_score')
-        elsif @essay_grading.category == 'speaking_pronunciation'
-          score = @essay_grading['score']
-          full_score = 100
-          # binding.pry
-        elsif @essay_grading.category == 'sentence_puzzle'
-          attempt = @essay_grading.meta.is_a?(Hash) ? @essay_grading.meta['sentence_puzzle_attempt'] : nil
-          score = attempt.is_a?(Hash) ? attempt['score'] : @essay_grading.score
-          full_score = attempt.is_a?(Hash) ? attempt['total'] : @essay_grading.grading.dig('sentence_puzzle', 'total')
-        else
-          score = score_payload[:overall_score] || @essay_grading.grading['score']
-          full_score = score_payload[:full_score] || @essay_grading.grading['full_score']
-        end
-
+        metrics = EssayGradingMetrics.call(@essay_grading)
         render json: {
           success: true,
           essay_grading: {
@@ -295,12 +259,13 @@ module Api
             created_at: @essay_grading.created_at,
             updated_at: @essay_grading.updated_at,
             status: @essay_grading.status,
-            number_of_suggestion: @essay_grading.grading['number_of_suggestion'],
+            metrics_version: metrics[:metrics_version],
+            number_of_suggestion: metrics[:number_of_suggestion],
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count') || @essay_grading.grading.dig('listening', 'questions_count'),
-            full_score:,
-            score:,
-            overall_score: score,
-            scores:,
+            full_score: metrics[:full_score],
+            score: metrics[:score],
+            overall_score: metrics[:overall_score],
+            scores: metrics[:scores],
             grading: @essay_grading.grading,
             general_context: @essay_grading.general_context,
             revised_essay: @essay_grading.revised_essay,
