@@ -2,6 +2,10 @@
 
 更新日期：2026-08-27
 
+2026-08-28 補充：學生 UUID `/read` 路由曾被 teacher management guard 誤擋，
+此前測試未覆蓋此路由。原因、修復及新增的雙 request regression 見
+[學生 Assignment Read 403 修復](2026-08-28-student-assignment-read-forbidden-fix-zh.md)。
+
 ## 1. 結論
 
 本地 backend、web frontend 及微信小程序的學年規則已完成完整 regression audit。

@@ -253,7 +253,204 @@ class AssignedEssayAssignmentAccessTest < ActionDispatch::IntegrationTest
     assert_empty other_assignment.assignment_distributions
   end
 
+  EssayAssignment.categories.each_key do |category|
+    test "assigned student can open #{category} without a category feature or submission" do
+      assign_to_student!
+      @assignment.update_column(:category, EssayAssignment.categories.fetch(category))
+      @student.update!(meta: @student.meta.merge('aienglish_features_list' => []))
+
+      get '/api/v1/essay_assignments/my_assignments',
+          params: { status: 'assigned,overdue' },
+          headers: auth_headers(@student_token), as: :json
+      assert_response :ok, response.body
+      assignment_ids = response.parsed_body.fetch('assignments').map { |item| item.dig('essay_assignment', 'id') }
+      assert_includes assignment_ids, @assignment.id
+
+      get "/api/v1/essay_assignments/#{@assignment.code}/show_only.json",
+          headers: auth_headers(@student_token), as: :json
+      assert_response :ok, response.body
+      assert_equal true, response.parsed_body['success']
+
+      get_assignment_read(@student_token)
+      assert_response :ok, response.body
+      assert_equal true, response.parsed_body['success']
+      assert_equal @assignment.id, response.parsed_body.dig('essay_assignment', 'id')
+      assert_not response.parsed_body.key?('essay_gradings')
+    end
+
+    test "student can read #{category} assignment for their own draft and grading without a distribution" do
+      grading = create_student_grading!
+      # Use stored records without invoking unrelated scoring/audio jobs in an access test.
+      @assignment.update_column(:category, EssayAssignment.categories.fetch(category))
+      assert_empty @assignment.assignment_student_assignments
+
+      %w[draft pending stopped graded].each do |status|
+        grading.update_column(:status, EssayGrading.statuses.fetch(status))
+
+        # Follow the same two-request sequence as the web result/draft pages.
+        get "/api/v1/essay_gradings/#{grading.id}.json",
+            headers: auth_headers(@student_token), as: :json
+        assert_response :ok, "#{category} / #{status} grading: #{response.body}"
+        assert_equal @assignment.id,
+                     response.parsed_body.dig('essay_grading', 'essay_assignment', 'id')
+
+        get_assignment_read(@student_token)
+
+        assert_response :ok, "#{category} / #{status}: #{response.body}"
+        assert_equal true, response.parsed_body['success']
+        assert_equal @assignment.id, response.parsed_body.dig('essay_assignment', 'id')
+        assert_not response.parsed_body.key?('essay_gradings')
+      end
+    end
+  end
+
+  test 'student cannot read an unrelated assignment even with the category feature' do
+    @student.update!(meta: @student.meta.merge('aienglish_features_list' => ['sentence_builder']))
+
+    get_assignment_read(@student_token)
+
+    assert_response :forbidden
+  end
+
+  test 'another students submission does not grant assignment read access' do
+    other_student = create_user!('student', %w[sentence_builder])
+    create_student_grading!(student: other_student)
+
+    get_assignment_read(@student_token)
+
+    assert_response :forbidden
+  end
+
+  test 'historical submission remains readable without current enrollment or category access' do
+    grading = create_student_grading!
+    grading.update_columns(status: EssayGrading.statuses.fetch('graded'), submission_academic_year_id: @past_academic_year.id)
+    @assignment.update_column(:school_academic_year_id, @past_academic_year.id)
+    @student.student_enrollments.destroy_all
+    @student.update!(meta: @student.meta.merge('aienglish_features_list' => []))
+
+    get_assignment_read(@student_token)
+
+    assert_response :ok, response.body
+    assert_equal @past_academic_year.id, response.parsed_body.dig('essay_assignment', 'school_academic_year_id')
+  end
+
+  test 'own submission for a different assignment does not grant read access' do
+    create_student_grading!
+    unrelated_assignment = EssayAssignment.create!(
+      general_user: @teacher, topic: 'Other topic', assignment: 'Other assignment',
+      title: 'Other assignment', category: 'essay', rubric: default_rubric, meta: {}
+    )
+
+    get "/api/v1/essay_assignments/#{unrelated_assignment.id}/read.json",
+        headers: auth_headers(@student_token), as: :json
+
+    assert_response :forbidden
+  end
+
+  test 'removed student assignment does not retain access without a submission' do
+    assign_to_student!
+    @assignment.assignment_student_assignments.destroy_all
+
+    get_assignment_read(@student_token)
+
+    assert_response :forbidden
+  end
+
+  test 'unknown assignment read returns not found without a runtime error' do
+    get "/api/v1/essay_assignments/#{SecureRandom.uuid}/read.json",
+        headers: auth_headers(@student_token), as: :json
+
+    assert_response :not_found
+  end
+
+  test 'unshared teacher cannot read assignment details' do
+    unrelated_teacher = create_user!('teacher', %w[sentence_builder])
+
+    get_assignment_read(sign_in_token(unrelated_teacher))
+
+    assert_response :forbidden
+  end
+
+  %w[essay comprehension].each do |category|
+    test "student read access cannot release #{category} scores" do
+      assign_to_student!
+      @assignment.update_columns(category: EssayAssignment.categories.fetch(category), answer_visible: false, meta: { 'score_visible' => false })
+
+      get_assignment_read(@student_token)
+      assert_response :ok, response.body
+
+      patch "/api/v1/essay_assignments/#{@assignment.id}/release_scores.json",
+            headers: auth_headers(@student_token), as: :json
+
+      assert_response :forbidden
+      assert_not @assignment.reload.scores_released?
+    end
+  end
+
+  test 'student read access does not grant teacher detail or write access' do
+    assign_to_student!
+    create_student_grading!
+
+    get "/api/v1/essay_assignments/#{@assignment.id}.json",
+        headers: auth_headers(@student_token), as: :json
+    assert_response :forbidden
+
+    put "/api/v1/essay_assignments/#{@assignment.id}.json",
+        params: { essay_assignment: { title: 'Unauthorized change' } },
+        headers: auth_headers(@student_token), as: :json
+    assert_response :forbidden
+    assert_equal 'Sentence Builder Assignment', @assignment.reload.title
+
+    patch "/api/v1/essay_assignments/#{@assignment.id}/release_scores.json",
+          headers: auth_headers(@student_token), as: :json
+    assert_response :forbidden
+
+    delete "/api/v1/essay_assignments/#{@assignment.id}.json",
+           headers: auth_headers(@student_token), as: :json
+    assert_response :forbidden
+    assert EssayAssignment.exists?(@assignment.id)
+
+    get "/api/v1/essay_assignments/#{@assignment.id}/statistics",
+        headers: auth_headers(@student_token), as: :json
+    assert_response :forbidden
+
+    get "/api/v1/essay_assignments/#{@assignment.id}/distributions",
+        headers: auth_headers(@student_token), as: :json
+    assert_response :forbidden
+  end
+
+  test 'assignment read still requires authentication' do
+    get "/api/v1/essay_assignments/#{@assignment.id}/read.json", as: :json
+
+    assert_response :unauthorized
+  end
+
+  test 'owner can still read assignment details' do
+    get_assignment_read(sign_in_token(@teacher))
+
+    assert_response :ok, response.body
+  end
+
   private
+
+  def get_assignment_read(token)
+    get "/api/v1/essay_assignments/#{@assignment.id}/read.json",
+        headers: auth_headers(token), as: :json
+  end
+
+  def create_student_grading!(student: @student)
+    EssayGrading.create!(
+      essay_assignment: @assignment,
+      general_user: student,
+      topic: @assignment.topic,
+      essay: 'Student response',
+      status: :draft,
+      grading: {},
+      general_context: {},
+      revised_essay: {},
+      meta: {}
+    )
+  end
 
   def create_user!(role, features)
     user = GeneralUser.create!(

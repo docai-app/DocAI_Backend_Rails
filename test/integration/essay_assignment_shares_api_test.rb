@@ -231,6 +231,26 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
     assert EssayAssignment.exists?(@assignment.id)
   end
 
+  test 'revoked share cannot read assignment details' do
+    EssayAssignmentShareService.sync_shares!(assignment: @assignment, actor: @owner, teacher_ids: [@recipient.id])
+    @assignment.essay_assignment_shares.find_by!(shared_with_general_user: @recipient).revoke!
+
+    get "/api/v1/essay_assignments/#{@assignment.id}/read",
+        headers: auth_headers(@recipient_token), as: :json
+
+    assert_response :forbidden
+  end
+
+  test 'shared recipient without category permission cannot use the student read exception' do
+    EssayAssignmentShareService.sync_shares!(assignment: @assignment, actor: @owner, teacher_ids: [@recipient.id])
+    @recipient.update!(meta: @recipient.meta.merge('aienglish_features_list' => []))
+
+    get "/api/v1/essay_assignments/#{@assignment.id}/read",
+        headers: auth_headers(@recipient_token), as: :json
+
+    assert_response :forbidden
+  end
+
   test 'share_options returns same school teachers' do
     get '/api/v1/essay_assignments/share_options',
         headers: auth_headers(@owner_token),
