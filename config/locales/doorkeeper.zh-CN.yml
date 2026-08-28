@@ -1,4 +1,30 @@
 zh-CN:
+  activerecord:
+    attributes:
+      oauth_application:
+        redirect_uri: 回调地址
+      doorkeeper/application:
+        redirect_uri: 回调地址
+    errors:
+      models:
+        oauth_application:
+          attributes:
+            redirect_uri:
+              fragment_present: 不能包含 fragment（# 片段）。
+              invalid_uri: 必须是合法的 URI。
+              unspecified_scheme: 必须指定 scheme（如 https://）。
+              relative_uri: 必须是绝对 URI。
+              secured_uri: 必须使用 HTTPS（仅 localhost / 127.0.0.1 允许 http）。
+              forbidden_uri: 被服务器禁止。
+        doorkeeper/application:
+          attributes:
+            redirect_uri:
+              fragment_present: 不能包含 fragment（# 片段）。
+              invalid_uri: 必须是合法的 URI。
+              unspecified_scheme: 必须指定 scheme（如 https://）。
+              relative_uri: 必须是绝对 URI。
+              secured_uri: 必须使用 HTTPS（仅 localhost / 127.0.0.1 允许 http）。
+              forbidden_uri: 被服务器禁止。
   doorkeeper:
     layouts:
       application:

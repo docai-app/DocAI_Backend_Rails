@@ -1,4 +1,30 @@
 en:
+  activerecord:
+    attributes:
+      oauth_application:
+        redirect_uri: Redirect URI
+      doorkeeper/application:
+        redirect_uri: Redirect URI
+    errors:
+      models:
+        oauth_application:
+          attributes:
+            redirect_uri:
+              fragment_present: cannot contain a fragment.
+              invalid_uri: must be a valid URI.
+              unspecified_scheme: must specify a scheme.
+              relative_uri: must be an absolute URI.
+              secured_uri: must be an HTTPS/SSL URI (http is only allowed for localhost / 127.0.0.1).
+              forbidden_uri: is forbidden by the server.
+        doorkeeper/application:
+          attributes:
+            redirect_uri:
+              fragment_present: cannot contain a fragment.
+              invalid_uri: must be a valid URI.
+              unspecified_scheme: must specify a scheme.
+              relative_uri: must be an absolute URI.
+              secured_uri: must be an HTTPS/SSL URI (http is only allowed for localhost / 127.0.0.1).
+              forbidden_uri: is forbidden by the server.
   doorkeeper:
     errors:
       messages:

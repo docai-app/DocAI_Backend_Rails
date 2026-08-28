@@ -65,4 +65,14 @@ Doorkeeper.configure do
   skip_authorization do |_resource_owner, client|
     client.respond_to?(:trusted?) && client.trusted? && client.enabled?
   end
+
+  # Redirect URI SSL:
+  # - Allow http://localhost[:port] and http://127.0.0.1[:port] for local Partner / Admin 联调
+  # - Require https for all other hosts (including staging/production Partner domains)
+  # Returning false = do NOT force SSL for that URI.
+  force_ssl_in_redirect_uri do |uri|
+    next false if uri.scheme == 'http' && %w[localhost 127.0.0.1].include?(uri.host)
+
+    true
+  end
 end
