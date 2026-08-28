@@ -53,6 +53,54 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test 'only the owner can read sharing recipients even when another teacher knows the assignment id' do
+    EssayAssignmentShareService.sync_shares!(assignment: @assignment, actor: @owner, teacher_ids: [@recipient.id])
+    [@recipient_token, sign_in_token(@other_teacher)].each do |token|
+      get "/api/v1/essay_assignments/#{@assignment.id}/shares", headers: auth_headers(token), as: :json
+      assert_response :forbidden
+      assert_not JSON.parse(response.body).key?('shared_teachers')
+    end
+  end
+
+  test 'malformed recipient lists and unknown emails never remove an existing share' do
+    EssayAssignmentShareService.sync_shares!(assignment: @assignment, actor: @owner, teacher_ids: [@recipient.id])
+    invalid_payloads = [
+      {}, { teacher_ids: nil }, { teacher_ids: '' }, { teacher_ids: [nil] },
+      { teacher_ids: [' '] }, { teacher_ids: { bad: @recipient.id } },
+      { teacher_emails: 'unknown@example.test' }, { teacher_emails: [' '] },
+      { teacher_emails: ['unknown@example.test'] },
+      { teacher_emails: [@other_teacher.email, 'unknown@example.test'] }
+    ]
+    invalid_payloads.each do |payload|
+      put "/api/v1/essay_assignments/#{@assignment.id}/shares",
+          params: payload, headers: auth_headers(@owner_token), as: :json
+      assert_response :unprocessable_entity, "Unexpected success for #{payload.inspect}"
+      assert_equal [@recipient.id], @assignment.essay_assignment_shares.active.pluck(:shared_with_general_user_id)
+    end
+  end
+
+  test 'explicit empty recipient list removes shares and repeated identical saves are safe' do
+    2.times do
+      put "/api/v1/essay_assignments/#{@assignment.id}/shares",
+          params: { teacher_ids: [@recipient.id] }, headers: auth_headers(@owner_token), as: :json
+      assert_response :success
+      assert_equal 1, @assignment.essay_assignment_shares.active.count
+    end
+    put "/api/v1/essay_assignments/#{@assignment.id}/shares",
+        params: { teacher_ids: [] }, headers: auth_headers(@owner_token), as: :json
+    assert_response :success
+    assert_empty JSON.parse(response.body)['shared_teachers']
+    assert_empty @assignment.essay_assignment_shares.active
+  end
+
+  test 'legacy email sharing supports case normalization and duplicate emails' do
+    post "/api/v1/essay_assignments/#{@assignment.id}/share",
+         params: { teacher_emails: [" #{@recipient.email.upcase} ", @recipient.email] },
+         headers: auth_headers(@owner_token), as: :json
+    assert_response :success
+    assert_equal [@recipient.id], JSON.parse(response.body)['shared_teachers'].map { |item| item['id'] }
+  end
+
   test 'teacher index merges owned and shared assignments' do
     owned = EssayAssignment.create!(
       general_user: @recipient,
@@ -261,6 +309,52 @@ class EssayAssignmentSharesApiTest < ActionDispatch::IntegrationTest
     teacher_ids = body.dig('options', 'teachers').map { |teacher| teacher['id'] }
     assert_includes teacher_ids, @recipient.id
     assert_not_includes teacher_ids, @owner.id
+  end
+
+  test 'eight eligible current teachers produce seven unique candidates excluding the viewer' do
+    added = 5.times.map do |index|
+      create_teacher!(year: @context[:year], nickname: "Current Teacher #{index}", features: %w[essay])
+    end
+    locked = create_teacher!(year: @context[:year], nickname: 'Locked Teacher', features: %w[essay])
+    locked.update!(locked_at: Time.current)
+
+    get '/api/v1/essay_assignments/share_options', headers: auth_headers(@owner_token), as: :json
+    assert_response :success
+    body = JSON.parse(response.body)
+    expected = [@recipient.id, @other_teacher.id, *added.map(&:id)].sort
+    assert_equal 7, body['teachers'].length
+    assert_equal expected, body['teachers'].map { |teacher| teacher['id'] }.sort
+    assert_equal body['teachers'], body.dig('options', 'teachers')
+  end
+
+  test 'share_options excludes locked and archived year teachers in both response formats' do
+    @recipient.update!(locked_at: Time.current)
+    @recipient.teacher_assignments.first.update!(department: 'Locked Department')
+    old_year = SchoolAcademicYear.create!(
+      school: @school, name: '2023', start_date: Date.new(2023, 1, 1),
+      end_date: Date.new(2023, 12, 31), status: :archived, meta: {}
+    )
+    legacy = create_teacher!(year: old_year, nickname: 'Legacy Teacher', features: %w[essay])
+    legacy.update!(school_id: @school.id)
+
+    get '/api/v1/essay_assignments/share_options', headers: auth_headers(@owner_token), as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal [@other_teacher.id], body['teachers'].map { |teacher| teacher['id'] }
+    assert_equal body['teachers'], body.dig('options', 'teachers')
+    assert_equal ['English'], body.dig('options', 'departments')
+  end
+
+  test 'sync cannot bypass candidate filtering using a locked teacher id or email' do
+    @recipient.update!(locked_at: Time.current)
+    [{ teacher_ids: [@recipient.id] }, { teacher_emails: [@recipient.email] }].each do |params|
+      put "/api/v1/essay_assignments/#{@assignment.id}/shares",
+          params: params, headers: auth_headers(@owner_token), as: :json
+      assert_response :unprocessable_entity
+      assert JSON.parse(response.body)['details'].any? { |item| item['error'] == 'teacher_locked' }
+      assert_empty @assignment.essay_assignment_shares
+    end
   end
 
   private

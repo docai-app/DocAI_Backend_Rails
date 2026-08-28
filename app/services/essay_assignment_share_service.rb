@@ -44,10 +44,10 @@ class EssayAssignmentShareService
     school = actor_school!
 
     normalized_ids = normalize_teacher_ids(teacher_ids)
-    validation_errors = validate_recipient_ids(normalized_ids, school)
+    active_shares = @assignment.essay_assignment_shares.active.index_by(&:shared_with_general_user_id)
+    validation_errors = validate_recipient_ids(normalized_ids, school, retained_ids: active_shares.keys)
     raise ShareError.new('Invalid share recipients', details: validation_errors) if validation_errors.any?
 
-    active_shares = @assignment.essay_assignment_shares.active.index_by(&:shared_with_general_user_id)
     desired_ids = normalized_ids.to_set
 
     EssayAssignmentShare.transaction do
@@ -77,38 +77,50 @@ class EssayAssignmentShareService
   def school_teacher_candidates(school:)
     raise ShareError, 'School is required' if school.blank?
 
-    teachers = self.class.school_teachers_relation(
-      school: school,
-      exclude_user_id: @actor&.id
-    ).to_a
-
-    teacher_rows = teachers.map do |teacher|
-      profile = teacher_profile_for_school(teacher, school)
-
+    assignments = self.class.current_school_teacher_assignments(school: school)
+    assignments = assignments.where.not(general_user_id: @actor.id) if @actor&.id
+    # Fetch only the five displayed fields, without loading full accounts or
+    # querying each teacher's profile separately.
+    rows = assignments
+           .order(Arel.sql('LOWER(COALESCE(general_users.nickname, general_users.email)) ASC'))
+           .pluck('general_users.id', 'general_users.email', 'general_users.nickname',
+                  'teacher_assignments.department', 'teacher_assignments.position')
+    teacher_rows = rows.map do |id, email, nickname, department, position|
       {
-        id: teacher.id,
-        email: teacher.email,
-        nickname: teacher.nickname,
-        department: profile[:department],
-        position: profile[:position]
+        id: id,
+        email: email,
+        nickname: nickname,
+        department: department,
+        position: position
       }
     end
 
     {
       teachers: teacher_rows,
-      departments: self.class.departments_for_school(school)
+      departments: teacher_rows.map { |row| row[:department] }.reject(&:blank?).uniq.sort
     }
   end
 
   def self.school_teachers_relation(school:, exclude_user_id: nil)
-    teacher_ids = school_teacher_ids(school: school)
-    teacher_ids -= [exclude_user_id] if exclude_user_id.present?
-
-    GeneralUser
-      .where(id: teacher_ids)
-      .order(Arel.sql('LOWER(COALESCE(general_users.nickname, general_users.email)) ASC'))
+    teacher_ids = current_school_teacher_assignments(school: school).select(:general_user_id)
+    teachers = GeneralUser.where(id: teacher_ids).where(locked_at: nil)
+    teachers = teachers.where.not(id: exclude_user_id) if exclude_user_id.present?
+    teachers.order(Arel.sql('LOWER(COALESCE(general_users.nickname, general_users.email)) ASC'))
   end
 
+  def self.current_school_teacher_assignments(school:)
+    year = school.current_academic_year
+    return TeacherAssignment.none unless year
+
+    TeacherAssignment
+      .joins(:general_user)
+      .where(school_academic_year_id: year.id, status: TeacherAssignment.statuses[:active])
+      .where(general_users: { locked_at: nil })
+      .where("general_users.meta->>'aienglish_role' = ?", TEACHER_ROLE)
+  end
+
+  # Historical membership is still used by existing assignment access checks.
+  # New sharing uses the narrower current_school_teacher_assignments scope.
   def self.school_teacher_ids(school:)
     via_assignment = TeacherAssignment
                      .joins(:school_academic_year, :general_user)
@@ -127,14 +139,7 @@ class EssayAssignmentShareService
   end
 
   def self.departments_for_school(school)
-    school_id = school.id
-    active_teacher_status = TeacherAssignment.statuses[:active]
-
-    TeacherAssignment
-      .joins(:school_academic_year, :general_user)
-      .where(school_academic_years: { school_id: school_id })
-      .where(status: active_teacher_status)
-      .where("general_users.meta->>'aienglish_role' = ?", TEACHER_ROLE)
+    current_school_teacher_assignments(school: school)
       .where.not(department: [nil, ''])
       .distinct
       .order(:department)
@@ -176,9 +181,10 @@ class EssayAssignmentShareService
     Array(teacher_ids).map(&:to_s).map(&:strip).reject(&:blank?).uniq
   end
 
-  def validate_recipient_ids(teacher_ids, school)
+  def validate_recipient_ids(teacher_ids, school, retained_ids: [])
     errors = []
     assignment_category = @assignment.category
+    eligible_ids = self.class.school_teachers_relation(school: school).pluck(:id).to_set
 
     teacher_ids.each do |teacher_id|
       teacher = GeneralUser.find_by(id: teacher_id)
@@ -192,8 +198,22 @@ class EssayAssignmentShareService
         next
       end
 
+      # Do not silently revoke historical shares while an owner edits other recipients.
+      # A revoked share is not retained and must pass current eligibility again.
+      next if retained_ids.include?(teacher.id)
+
+      if teacher.locked_at.present?
+        errors << { teacher_id: teacher_id, error: 'teacher_locked' }
+        next
+      end
+
       unless self.class.same_school_teacher?(school: school, teacher: teacher)
         errors << { teacher_id: teacher_id, error: 'not_same_school_teacher' }
+        next
+      end
+
+      unless eligible_ids.include?(teacher.id)
+        errors << { teacher_id: teacher_id, error: 'not_current_school_teacher' }
         next
       end
 
@@ -242,20 +262,6 @@ class EssayAssignmentShareService
       prev_page: collection.prev_page,
       total_pages: collection.total_pages,
       total_count: collection.total_count
-    }
-  end
-
-  def teacher_profile_for_school(teacher, school)
-    assignment = teacher.teacher_assignments
-                      .joins(:school_academic_year)
-                      .where(school_academic_years: { school_id: school.id })
-                      .where(status: TeacherAssignment.statuses[:active])
-                      .order(updated_at: :desc)
-                      .first
-
-    {
-      department: assignment&.department,
-      position: assignment&.position
     }
   end
 end
