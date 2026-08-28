@@ -106,61 +106,41 @@ class School < ApplicationRecord
   # 批量获取所有 logo URLs，避免多次查询 Active Storage
   # 优化：在开发/测试环境直接返回 base_url，避免生成 variant 的开销
   def all_logo_urls
-    return {
-      logo_url: nil,
-      logo_thumbnail_url: nil,
-      logo_small_url: nil,
-      logo_large_url: nil,
-      logo_square_url: nil
-    } unless logo.attached?
+    urls = ui_logo_urls
+    {
+      logo_url: urls[:logo_small_url],
+      logo_thumbnail_url: urls[:logo_small_url],
+      logo_small_url: urls[:logo_small_url],
+      logo_large_url: urls[:logo_small_url],
+      logo_square_url: urls[:logo_square_url]
+    }
+  end
 
-    # 安全获取 logo URL，处理可能的异常
+  # essay-checker 前端实际使用的 logo 字段（header / sidebar / settings）
+  # 仅返回 logo_small_url + logo_square_url，避免重复生成多套 SAS URL
+  def ui_logo_urls
+    empty = { logo_small_url: nil, logo_square_url: nil }
+    return empty unless logo.attached?
+
     base_url = begin
       logo.url
-    rescue ArgumentError => e
-      # 如果 url 方法需要参数，尝试使用默认方式
+    rescue ArgumentError, StandardError => e
       Rails.logger.error("Error getting logo URL: #{e.message}")
       nil
-    rescue StandardError => e
-      Rails.logger.error("Unexpected error getting logo URL: #{e.message}")
-      nil
     end
+    return empty unless base_url
 
-    return {
-      logo_url: nil,
-      logo_thumbnail_url: nil,
-      logo_small_url: nil,
-      logo_large_url: nil,
-      logo_square_url: nil
-    } unless base_url
+    # 当前生产环境 variant 已停用，各尺寸均等同 base_url；只算一次即可
+    { logo_small_url: base_url, logo_square_url: base_url }
+  end
 
-    # 在开发/测试环境，所有尺寸都返回 base_url，避免生成 variant 的开销
-    if Rails.env.development? || Rails.env.test?
-      {
-        logo_url: base_url,
-        logo_thumbnail_url: base_url,
-        logo_small_url: base_url,
-        logo_large_url: base_url,
-        logo_square_url: base_url
-      }
-    else
-      # 生产环境：只生成必要的 variant，使用 rescue 确保即使失败也返回 base_url
-      # 优化：使用 memoization 缓存结果，避免重复生成
-      @all_logo_urls_cache ||= begin
-        {
-            logo_url: base_url,
-            logo_thumbnail_url: base_url,
-            logo_small_url: base_url,
-            logo_large_url: base_url,
-            logo_square_url: base_url
-        #   logo_url: base_url,
-        #   logo_thumbnail_url: safe_variant_url(resize_to_limit: [200, 200], fallback: base_url),
-        #   logo_small_url: safe_variant_url(resize_to_limit: [100, 100], fallback: base_url),
-        #   logo_large_url: safe_variant_url(resize_to_limit: [500, 500], fallback: base_url),
-        #   logo_square_url: safe_variant_url(resize_to_fill: [300, 300], fallback: base_url)
-        }
-      end
-    end
+  # AIEnglish profile / memberships JSON 用精简 school 结构
+  def as_aienglish_ui_json
+    {
+      id: id,
+      name: name,
+      code: code
+    }.merge(ui_logo_urls)
   end
 
   # 返回 logo 的完整 URL

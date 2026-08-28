@@ -4,7 +4,10 @@ module Api
   module V1
     class GeneralUsersController < ApiController
       before_action :authenticate_general_user!,
-                    only: %i[show show_current_user show_purchase_history update delete show_aienglish_profile]
+                    only: %i[
+                      show show_current_user show_purchase_history update delete
+                      show_aienglish_profile show_aienglish_memberships
+                    ]
 
       def show
         @user = current_general_user
@@ -233,173 +236,177 @@ module Api
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
-        # AIEnglish 專用用戶資料方法
+        # AIEnglish 轻量资料：基本信息 + 当前学校（header/logo），不含 teaching_assignments
       def show_aienglish_profile
         @user = current_general_user
 
-        # 檢查是否為 AIEnglish 用戶
         unless @user.aienglish_user?
           return render json: { success: false, error: 'User is not an AIEnglish user' }, status: :bad_request
         end
 
-        # 優化：手動構建用戶資料，只選擇需要的字段，避免 as_json 的開銷
-        # 安全處理 meta 字段，確保不為 nil 且是 Hash 類型
-        user_meta = @user.meta
-        user_meta = {} if user_meta.nil?
-        user_meta = user_meta.to_h if user_meta.respond_to?(:to_h) && !user_meta.is_a?(Hash)
-        filtered_meta = user_meta.is_a?(Hash) ? user_meta.except('konnecai_tokens') : {}
-
-        aienglish_data = {
-          id: @user.id,
-          email: @user.email,
-          nickname: @user.nickname,
-          phone: @user.phone,
-          date_of_birth: @user.date_of_birth,
-          sex: @user.sex,
-          timezone: @user.timezone,
-          whats_app_number: @user.whats_app_number,
-          banbie: @user.banbie,
-          class_no: @user.class_no,
-          created_at: @user.created_at,
-          updated_at: @user.updated_at, 
-          meta: filtered_meta,
-          recovery_email: @user.recovery_email,
-          is_recovery_email_confirmed: @user.recovery_email_confirmed?,
-          recovery_email_confirmed_at: @user.recovery_email_confirmed_at
-        }
-
-        # 根據角色獲取不同的資訊
-        if @user.aienglish_role == 'teacher'
-          # 獲取教師資訊
-          # 優化：使用 includes 預加載關聯，避免 N+1 查詢
-          # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
-          assignments = @user.teacher_assignments
-                             .includes(school_academic_year: { school: { logo_attachment: :blob } })
-                             .order(created_at: :desc)
-
-          # 優化：批量處理，減少重複的 logo URL 生成
-          school_logo_cache = {}
-          aienglish_data[:teaching_assignments] = assignments.map do |assignment|
-            school_academic_year = assignment.school_academic_year
-            school = school_academic_year&.school
-
-            # 緩存 logo URLs，避免重複生成
-            school_data = if school
-                            cache_key = school.id
-                            unless school_logo_cache[cache_key]
-                              school_logo_cache[cache_key] = {
-                                id: school.id,
-                                name: school.name,
-                                code: school.code
-                              }.merge(school.all_logo_urls)
-                            end
-                            school_logo_cache[cache_key]
-                          else
-                            nil
-                          end
-
-            academic_year_data = if school_academic_year
-                                   {
-                                     id: school_academic_year.id,
-                                     name: school_academic_year.name,
-                                     status: school_academic_year.status
-                                   }
-                                 else
-                                   nil
-                                 end
-
-            {
-              id: assignment.id,
-              school: school_data,
-              academic_year: academic_year_data,
-              department: assignment.department,
-              position: assignment.position,
-              created_at: assignment.created_at
-            }
-          end
-
-          # 優化：直接使用 count，避免先 pluck 再 count
-        #   students_count = KgLinker.where(map_from_id: @user.id, relation: 'has_student')
-                                #    .select(:map_to_id)
-                                #    .distinct
-                                #    .count
-        #   aienglish_data[:students_count] = students_count if students_count > 0
-        else
-          # 獲取學生資訊
-          # 優化：使用 includes 預加載關聯，避免 N+1 查詢
-          # 注意：不使用 select，避免在多租戶環境下觸發 schema 查詢（pg_attribute）
-          enrollments = @user.student_enrollments
-                             .includes(school_academic_year: { school: { logo_attachment: :blob } })
-                             .order(created_at: :desc)
-
-          if enrollments.any?
-            school_logo_cache = {}
-            aienglish_data[:enrollments] = enrollments.filter_map do |enrollment|
-              school_academic_year = enrollment.school_academic_year
-              school = school_academic_year&.school
-              next unless school_academic_year && school
-
-              school_data = school_logo_cache[school.id] ||= {
-                id: school.id,
-                name: school.name,
-                code: school.code
-              }.merge(school.all_logo_urls)
-
-              academic_year_data = {
-                id: school_academic_year.id,
-                name: school_academic_year.name,
-                status: school_academic_year.status
-              }
-
-              {
-                id: enrollment.id,
-                school: school_data,
-                academic_year: academic_year_data,
-                class_name: enrollment.class_name,
-                class_number: enrollment.class_number,
-                created_at: enrollment.created_at
-              }
-            end
-          else
-            aienglish_data[:enrollments] = []
-          end
-
-          # 優化：只在需要時查詢教師，使用 pluck 直接獲取值，避免 ActiveRecord 對象和 schema 查詢
-          teacher_ids = KgLinker.where(map_to_id: @user.id, relation: 'has_student')
-                                .distinct
-                                .pluck(:map_from_id)
-          if teacher_ids.present?
-            # 使用 pluck 直接獲取值，避免 ActiveRecord 對象創建和 schema 查詢
-            aienglish_data[:teachers] = GeneralUser.where(id: teacher_ids)
-                                                    .order(created_at: :desc)
-                                                    .pluck(:id, :email, :nickname, :phone, :created_at, :updated_at)
-                                                    .map do |id, email, nickname, phone, created_at, updated_at|
-              {
-                id: id,
-                email: email,
-                nickname: nickname,
-                phone: phone,
-                created_at: created_at,
-                updated_at: updated_at
-              }
-            end
-          else
-            aienglish_data[:teachers] = []
-          end
-        end
+        aienglish_data = aienglish_basic_user_hash(@user)
+        aienglish_data[:school] = aienglish_current_school_json(@user)
 
         render json: { success: true, user: aienglish_data }, status: :ok
       rescue ArgumentError => e
-        # 捕获参数错误，可能是 fallback 参数缺失
         Rails.logger.error("[GeneralUsersController#show_aienglish_profile] ArgumentError: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
         render json: { success: false, error: "Invalid arguments: #{e.message}" }, status: :internal_server_error
       rescue StandardError => e
-        # 记录完整的错误信息以便调试
         Rails.logger.error("[GeneralUsersController#show_aienglish_profile] Error: #{e.class.name}: #{e.message}\n#{e.backtrace.first(10).join("\n")}")
         render json: { success: false, error: e.message }, status: :internal_server_error
       end
 
+      # AIEnglish 组织关系：teaching_assignments / enrollments（学年筛选、settings 等）
+      def show_aienglish_memberships
+        @user = current_general_user
+
+        unless @user.aienglish_user?
+          return render json: { success: false, error: 'User is not an AIEnglish user' }, status: :bad_request
+        end
+
+        payload = { role: @user.aienglish_role }
+
+        if @user.aienglish_role == 'teacher'
+          payload[:teaching_assignments] = aienglish_teaching_assignments_json(@user)
+        else
+          payload[:enrollments] = aienglish_enrollments_json(@user)
+          payload[:teachers] = aienglish_student_teachers_json(@user)
+        end
+
+        render json: { success: true, memberships: payload }, status: :ok
+      rescue StandardError => e
+        Rails.logger.error("[GeneralUsersController#show_aienglish_memberships] Error: #{e.class.name}: #{e.message}\n#{e.backtrace.first(10).join("\n")}")
+        render json: { success: false, error: e.message }, status: :internal_server_error
+      end
+
       private
+
+      def aienglish_basic_user_hash(user)
+        user_meta = user.meta
+        user_meta = {} if user_meta.nil?
+        user_meta = user_meta.to_h if user_meta.respond_to?(:to_h) && !user_meta.is_a?(Hash)
+        filtered_meta = user_meta.is_a?(Hash) ? user_meta.except('konnecai_tokens') : {}
+
+        {
+          id: user.id,
+          email: user.email,
+          nickname: user.nickname,
+          phone: user.phone,
+          date_of_birth: user.date_of_birth,
+          sex: user.sex,
+          timezone: user.timezone,
+          whats_app_number: user.whats_app_number,
+          banbie: user.banbie,
+          class_no: user.class_no,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+          meta: filtered_meta,
+          recovery_email: user.recovery_email,
+          is_recovery_email_confirmed: user.recovery_email_confirmed?,
+          recovery_email_confirmed_at: user.recovery_email_confirmed_at
+        }
+      end
+
+      def aienglish_current_school_json(user)
+        scope =
+          if user.aienglish_role == 'teacher'
+            user.teacher_assignments
+          else
+            user.student_enrollments
+          end
+
+        membership = scope
+                     .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                     .joins(:school_academic_year)
+                     .where(school_academic_years: { status: SchoolAcademicYear.statuses[:active] })
+                     .order(created_at: :desc)
+                     .first
+
+        membership ||= scope
+                       .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                       .order(created_at: :desc)
+                       .first
+
+        membership&.school_academic_year&.school&.as_aienglish_ui_json
+      end
+
+      def aienglish_teaching_assignments_json(user)
+        assignments = user.teacher_assignments
+                          .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                          .order(created_at: :desc)
+
+        school_cache = {}
+        assignments.map do |assignment|
+          school_academic_year = assignment.school_academic_year
+          school = school_academic_year&.school
+          school_data =
+            if school
+              school_cache[school.id] ||= school.as_aienglish_ui_json
+            end
+
+          {
+            id: assignment.id,
+            school: school_data,
+            academic_year: school_academic_year && {
+              id: school_academic_year.id,
+              name: school_academic_year.name,
+              status: school_academic_year.status
+            },
+            department: assignment.department,
+            position: assignment.position,
+            created_at: assignment.created_at
+          }
+        end
+      end
+
+      def aienglish_enrollments_json(user)
+        enrollments = user.student_enrollments
+                          .includes(school_academic_year: { school: { logo_attachment: :blob } })
+                          .order(created_at: :desc)
+
+        school_cache = {}
+        enrollments.filter_map do |enrollment|
+          school_academic_year = enrollment.school_academic_year
+          school = school_academic_year&.school
+          next unless school_academic_year && school
+
+          school_data = school_cache[school.id] ||= school.as_aienglish_ui_json
+
+          {
+            id: enrollment.id,
+            school: school_data,
+            academic_year: {
+              id: school_academic_year.id,
+              name: school_academic_year.name,
+              status: school_academic_year.status
+            },
+            class_name: enrollment.class_name,
+            class_number: enrollment.class_number,
+            created_at: enrollment.created_at
+          }
+        end
+      end
+
+      def aienglish_student_teachers_json(user)
+        teacher_ids = KgLinker.where(map_to_id: user.id, relation: 'has_student')
+                              .distinct
+                              .pluck(:map_from_id)
+        return [] if teacher_ids.blank?
+
+        GeneralUser.where(id: teacher_ids)
+                   .order(created_at: :desc)
+                   .pluck(:id, :email, :nickname, :phone, :created_at, :updated_at)
+                   .map do |id, email, nickname, phone, created_at, updated_at|
+          {
+            id: id,
+            email: email,
+            nickname: nickname,
+            phone: phone,
+            created_at: created_at,
+            updated_at: updated_at
+          }
+        end
+      end
 
       def user_params
         params.permit(:email, :password, :nickname, :phone, :date_of_birth, :sex)

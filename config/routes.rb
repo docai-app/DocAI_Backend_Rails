@@ -459,6 +459,7 @@ Rails.application.routes.draw do
           put 'me/profile', to: 'general_users#update_profile'
           put 'me/password', to: 'general_users#update_password'
           get 'me/aienglish', to: 'general_users#show_aienglish_profile'
+          get 'me/aienglish/memberships', to: 'general_users#show_aienglish_memberships'
           # 管理當前用戶的後備Email
           put 'me/recovery_email', to: 'user_recovery_emails#update'
           delete 'me/recovery_email', to: 'user_recovery_emails#destroy'
