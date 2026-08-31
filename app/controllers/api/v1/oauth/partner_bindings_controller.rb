@@ -62,7 +62,7 @@ module Api
             }
           )
 
-          Oauth::WebhookDispatcher.enqueue_event(
+          ::Oauth::WebhookDispatcher.enqueue_event(
             application: application,
             event_type: 'oauth.binding.created',
             data: {
