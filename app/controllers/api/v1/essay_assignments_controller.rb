@@ -172,6 +172,13 @@ module Api
           rubric: @essay_assignment.rubric,
           meta: @essay_assignment.meta,
           score_release: score_release_json(@essay_assignment),
+          access_type: @essay_assignment.access_type_for(current_general_user),
+          owner: assignment_owner_json(@essay_assignment),
+          can_edit: assignment_manageable_by_current_user?,
+          can_delete: @essay_assignment.can_delete?(current_general_user),
+          can_share: @essay_assignment.can_share?(current_general_user),
+          can_assign_to_students: @essay_assignment.can_assign_to_students?(current_general_user),
+          can_duplicate: @essay_assignment.can_duplicate?(current_general_user),
           can_release_scores: @essay_assignment.score_release_supported? &&
                               @essay_assignment.can_release_scores?(current_general_user),
           number_of_submission: @essay_assignment.number_of_submission,
@@ -378,7 +385,8 @@ module Api
         @essay_assignment = EssayAssignment.find(params[:id])
 
         # 檢查權限 - 只有作業創建者可以生成Sample Essay
-        unless @essay_assignment.general_user_id == current_general_user.id
+        unless @essay_assignment.general_user_id == current_general_user.id ||
+               current_general_user.aienglish_global_admin?
           render json: { success: false, error: 'Access denied' }, status: :forbidden
           return
         end
@@ -497,6 +505,13 @@ module Api
           released: assignment.scores_released?,
           released_at: assignment.score_released_at
         }
+      end
+
+      def assignment_owner_json(assignment)
+        owner = assignment.general_user
+        return if owner.blank?
+
+        { id: owner.id, email: owner.email, nickname: owner.nickname }
       end
 
       def set_essay_assignment_by_code

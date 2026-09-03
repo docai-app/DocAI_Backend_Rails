@@ -514,6 +514,7 @@ Rails.application.routes.draw do
             put ':id/password', to: 'general_users#update_password'
             put ':id/lock', to: 'general_users#lock_user'
             put ':id/unlock', to: 'general_users#unlock_user'
+            delete ':id/wechat_miniprogram/binding', to: 'general_users#unbind_wechat_miniprogram'
             post 'batch', to: 'general_users#batch_create'
             post 'student/email/batch', to: 'general_users#batch_students_relation_by_emails'
             post 'student/email', to: 'general_users#add_students_relation_by_emails'

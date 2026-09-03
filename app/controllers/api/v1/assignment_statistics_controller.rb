@@ -73,6 +73,8 @@ module Api
       end
 
       def ensure_teacher_and_same_school
+        return if current_general_user.aienglish_global_admin?
+
         unless current_general_user.aienglish_role == 'teacher'
           render json: { success: false, error: 'Only teachers can view statistics' }, 
                  status: :forbidden

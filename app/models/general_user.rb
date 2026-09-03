@@ -41,6 +41,7 @@ class GeneralUser < ApplicationRecord
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder
                                  speaking_pronunciation sentence_puzzle].freeze
+  AI_ENGLISH_GLOBAL_ADMIN_EMAILS = %w[teacher@docai.net].freeze
 
   validate :aienglish_features_must_be_valid
 
@@ -271,6 +272,14 @@ class GeneralUser < ApplicationRecord
   def aienglish_user?
     meta['aienglish_role'].present? && meta['aienglish_features_list'].present?
   end
+
+  # Explicit emergency/operations account for administering AI English data
+  # across schools and academic years. Keep this list intentionally narrow.
+  def aienglish_global_admin?
+    AI_ENGLISH_GLOBAL_ADMIN_EMAILS.include?(email.to_s.strip.downcase)
+  end
+
+  alias aienglish_global_read_admin? aienglish_global_admin?
 
   def school_admin?
     meta['aienglish_role'] == SchoolPortal::AIENGLISH_ROLE_SCHOOL_ADMIN

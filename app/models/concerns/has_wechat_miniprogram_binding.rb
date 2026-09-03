@@ -136,6 +136,27 @@ module HasWechatMiniprogramBinding
     result
   end
 
+  # Remove the Mini Program identity without requiring a fresh wx.login code.
+  # This method is intended for an already-authorized administrative workflow.
+  # It deliberately preserves every other GeneralUser metadata key and is
+  # idempotent so retrying an admin request cannot damage the account.
+  def clear_wechat_miniprogram_binding!
+    removed = false
+
+    GeneralUser.transaction do
+      lock!
+      current_meta = meta.is_a?(Hash) ? meta.stringify_keys : {}
+      removed = current_meta.key?(WECHAT_META_KEY)
+
+      if removed
+        self.meta = current_meta.except(WECHAT_META_KEY)
+        save!
+      end
+    end
+
+    { ok: true, removed: }
+  end
+
   private
 
   def secure_wechat_value_match?(stored_value, supplied_value)

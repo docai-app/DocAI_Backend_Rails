@@ -7,6 +7,7 @@ module EssayAssignmentAccessAuthorization
 
   def authorize_essay_assignment_owner!
     return if performed?
+    return if current_general_user&.aienglish_global_admin?
     return if @essay_assignment&.owned_by?(current_general_user)
 
     render json: { success: false, error: 'Forbidden' }, status: :forbidden
@@ -14,6 +15,7 @@ module EssayAssignmentAccessAuthorization
 
   def authorize_essay_assignment_access!
     return if performed?
+    return if current_general_user&.aienglish_global_admin?
     return if @essay_assignment&.accessible_by?(current_general_user)
 
     render json: { success: false, error: 'Forbidden' }, status: :forbidden
@@ -21,6 +23,7 @@ module EssayAssignmentAccessAuthorization
 
   def authorize_essay_assignment_manage!
     return if performed?
+    return if current_general_user&.aienglish_global_admin?
     return if assignment_manageable_by_current_user?
 
     render json: { success: false, error: 'Forbidden' }, status: :forbidden
@@ -28,6 +31,7 @@ module EssayAssignmentAccessAuthorization
 
   def authorize_essay_assignment_read!
     return if performed?
+    return if current_general_user&.aienglish_global_admin?
     return if assignment_manageable_by_current_user?
 
     assignment = @essay_assignment
@@ -44,6 +48,7 @@ module EssayAssignmentAccessAuthorization
 
   def authorize_essay_assignment_score_release!
     return if performed?
+    return if current_general_user&.aienglish_global_admin?
     return if @essay_assignment&.can_release_scores?(current_general_user)
 
     render json: { success: false, error: 'Forbidden' }, status: :forbidden
@@ -53,6 +58,7 @@ module EssayAssignmentAccessAuthorization
     assignment = @essay_assignment
     user = current_general_user
     return false if assignment.blank? || user.blank?
+    return true if user.aienglish_global_admin?
 
     return true if assignment.owned_by?(user)
     return false unless assignment.shared_with?(user)

@@ -18,6 +18,9 @@ class EssayAssignmentListJsonBuilder
     json.merge!(
       'access_type' => access_type,
       'shared_with_me' => access_type == 'shared',
+      'can_edit' => assignment_manageable?,
+      'can_delete' => @assignment.can_delete?(@user),
+      'can_share' => @assignment.can_share?(@user),
       'can_assign_to_students' => @assignment.can_assign_to_students?(@user),
       'can_duplicate' => @assignment.can_duplicate?(@user),
       'owner' => owner_payload
@@ -36,6 +39,12 @@ class EssayAssignmentListJsonBuilder
   end
 
   private
+
+  def assignment_manageable?
+    @user&.aienglish_global_admin? ||
+      @assignment.owned_by?(@user) ||
+      (@assignment.shared_with?(@user) && @assignment.category_enabled_for?(@user))
+  end
 
   def owner_payload
     owner = @assignment.general_user

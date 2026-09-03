@@ -58,24 +58,61 @@ module Api
             @users = @users.where(id: (direct_class_users_ids + enrolled_name_users_ids).uniq)
           end
 
-          # 排序和格式化
-          @users = @users.order(created_at: :desc).as_json(methods: [:locked_at])
-          @users = Kaminari.paginate_array(@users).page(params[:page])
+          case params[:wechat_bound].to_s
+          when 'true', '1'
+            @users = @users.where("COALESCE(meta->'wechat_miniprogram'->>'openid', '') <> ''")
+          when 'false', '0'
+            @users = @users.where("COALESCE(meta->'wechat_miniprogram'->>'openid', '') = ''")
+          end
 
-          render json: { success: true, users: @users, meta: pagination_meta(@users) }, status: :ok
+          # 排序和格式化
+          @users = @users.order(created_at: :desc).page(params[:page])
+
+          render json: {
+            success: true,
+            users: @users.map { |user| admin_general_user_json(user) },
+            meta: pagination_meta(@users)
+          }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
         end
 
         def show
           @user = GeneralUser.find(params[:id])
-          user_json = @user.as_json(
-            methods: [:locked_at]
-          )
+          user_json = admin_general_user_json(@user)
 
           render json: { success: true, user: user_json }, status: :ok
         rescue StandardError => e
           render json: { success: false, error: e.message }, status: :internal_server_error
+        end
+
+        # DELETE /api/admin/v1/general_users/:id/wechat_miniprogram/binding
+        # Removes only the selected user's Mini Program identity. The account,
+        # school relationships, assignments, submissions and other metadata are
+        # intentionally preserved.
+        def unbind_wechat_miniprogram
+          user = GeneralUser.find(params[:id])
+          outcome = user.clear_wechat_miniprogram_binding!
+
+          Rails.logger.info(
+            '[Admin WeChat Unbind] ' \
+            "request_id=#{request.request_id} general_user_id=#{user.id} removed=#{outcome[:removed]}"
+          )
+
+          render json: {
+            success: true,
+            bound: false,
+            binding: nil,
+            removed: outcome[:removed]
+          }, status: :ok
+        rescue ActiveRecord::RecordNotFound
+          render json: { success: false, error: 'User not found' }, status: :not_found
+        rescue StandardError => e
+          Rails.logger.error(
+            "[Admin WeChat Unbind] request_id=#{request.request_id} error=#{e.class}: #{e.message}"
+          )
+          render json: { success: false, error: 'Unable to unlink WeChat at this time.' },
+                 status: :internal_server_error
         end
 
         def show_students
@@ -1089,6 +1126,22 @@ module Api
         end
 
         private
+
+        def admin_general_user_json(user)
+          json = user.as_json(methods: [:locked_at])
+          binding = user.wechat_miniprogram_binding_for_response
+
+          # The admin list only needs operational status and timestamps. Do not
+          # expose raw OpenID/UnionID through this broad list endpoint.
+          json['meta'] = json.fetch('meta', {}).except('wechat_miniprogram')
+          json['wechat_miniprogram'] = {
+            bound: binding.present?,
+            bound_at: binding&.dig(:bound_at),
+            last_login_at: binding&.dig(:last_login_at),
+            nickname: binding&.dig(:nickname)
+          }.compact
+          json
+        end
 
         def general_users_params
           params.permit(:email, :password, :nickname, :phone, :banbie, :class_no)

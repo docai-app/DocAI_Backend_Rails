@@ -25,10 +25,11 @@ module EssayAssignmentAccess
   end
 
   def accessible_by?(user)
-    owned_by?(user) || shared_with?(user)
+    user&.aienglish_global_admin? || owned_by?(user) || shared_with?(user)
   end
 
   def access_type_for(user)
+    return 'admin' if user&.aienglish_global_admin?
     return 'owner' if owned_by?(user)
     return 'shared' if shared_with?(user)
 
@@ -36,11 +37,11 @@ module EssayAssignmentAccess
   end
 
   def can_share?(user)
-    owned_by?(user)
+    user&.aienglish_global_admin? || owned_by?(user)
   end
 
   def can_delete?(user)
-    owned_by?(user)
+    user&.aienglish_global_admin? || owned_by?(user)
   end
 
   def can_assign_to_students?(user)
@@ -52,6 +53,7 @@ module EssayAssignmentAccess
   end
 
   def can_release_scores?(user)
+    return true if user&.aienglish_global_admin?
     return true if owned_by?(user)
 
     shared_with?(user) && category_enabled_for?(user)
@@ -59,6 +61,7 @@ module EssayAssignmentAccess
 
   def category_enabled_for?(user)
     return false if user.blank?
+    return true if user.aienglish_global_admin?
     
     user.aienglish_features_list.include?(category) || category == 'sentence_puzzle'
   end

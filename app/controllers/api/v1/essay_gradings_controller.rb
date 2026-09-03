@@ -249,7 +249,9 @@ module Api
 
       # 顯示特定的 EssayGrading
       def show
-        set_essay_grading_wiht_role
+        set_essay_grading_for_read
+        return if performed?
+
         metrics = EssayGradingMetrics.call(@essay_grading)
         render json: {
           success: true,
@@ -514,8 +516,9 @@ module Api
         essay_assignment = EssayAssignment.find(params[:essay_assignment_id])
         
         # 检查权限：只有教师或管理员可以批量上传
-        unless current_general_user.aienglish_user? && 
-               (current_general_user.aienglish_role == 'teacher' || current_general_user.aienglish_role == 'admin')
+        unless current_general_user.aienglish_global_admin? ||
+               (current_general_user.aienglish_user? &&
+                (current_general_user.aienglish_role == 'teacher' || current_general_user.aienglish_role == 'admin'))
           render json: { success: false, error: 'Only teachers and admins can batch upload PDFs' }, status: :forbidden
           return
         end
@@ -694,7 +697,9 @@ module Api
 
       # 編輯 / 更新單一 EssayGrading（包括切換 draft / 提交）
       def update
-        set_essay_grading_wiht_role
+        set_essay_grading_for_update
+        return if performed?
+
         grading_params = essay_grading_params
         prepared_attachment = prepare_audio_attachment_for_persistence(
           category: @essay_grading.category,
@@ -916,12 +921,45 @@ module Api
         @essay_grading = EssayGrading.find(params[:id])
       end
 
-      def set_essay_grading_wiht_role
-        if current_general_user.aienglish_role == 'teacher'
-          @essay_grading = EssayGrading.find(params[:id])
-        else
-          @essay_grading = current_general_user.essay_gradings.find(params[:id])
+      def set_essay_grading_for_read
+        grading = EssayGrading.includes(:essay_assignment).find(params[:id])
+
+        if current_general_user.aienglish_global_admin? ||
+           grading.general_user_id == current_general_user.id ||
+           teacher_can_read_grading?(grading)
+          @essay_grading = grading
+          return
         end
+
+        render json: { success: false, error: 'Forbidden' }, status: :forbidden
+      end
+
+      def set_essay_grading_for_update
+        grading = EssayGrading.includes(:essay_assignment).find(params[:id])
+
+        if current_general_user.aienglish_global_admin? ||
+           grading.general_user_id == current_general_user.id ||
+           teacher_can_manage_grading?(grading)
+          @essay_grading = grading
+          return
+        end
+
+        render json: { success: false, error: 'Forbidden' }, status: :forbidden
+      end
+
+      def teacher_can_read_grading?(grading)
+        current_general_user.aienglish_role == 'teacher' &&
+          grading.essay_assignment&.accessible_by?(current_general_user)
+      end
+
+      def teacher_can_manage_grading?(grading)
+        assignment = grading.essay_assignment
+        return false unless current_general_user.aienglish_role == 'teacher' && assignment.present?
+        return true if current_general_user.aienglish_global_admin?
+
+        assignment.owned_by?(current_general_user) ||
+          (assignment.shared_with?(current_general_user) &&
+           assignment.category_enabled_for?(current_general_user))
       end
 
       def set_essay_assignment_by_code
@@ -2835,6 +2873,7 @@ module Api
       end
 
       def teacher_can_edit_review?(essay_grading)
+        return true if current_general_user.aienglish_global_admin?
         return false unless current_general_user&.aienglish_role == 'teacher'
 
         assignment_owner_id = essay_grading.essay_assignment&.general_user_id

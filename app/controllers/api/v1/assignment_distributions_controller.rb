@@ -11,14 +11,12 @@ module Api
 
       # GET /api/v1/essay_assignments/distribution_options
       def distribution_options
-        school = current_general_user.get_school
+        school, academic_year = distribution_options_school_and_year
+        if current_general_user.aienglish_global_admin? && params[:essay_assignment_id].present? &&
+           (!school || !academic_year)
+          return render_not_found('Assignment school context not found')
+        end
         return render_unauthorized unless school
-
-        academic_year = if params[:school_academic_year_id].present?
-                          school.school_academic_years.find_by(id: params[:school_academic_year_id])
-                        else
-                          school.current_academic_year
-                        end
 
         return render_not_found('Academic year not found') unless academic_year
 
@@ -328,6 +326,8 @@ module Api
       end
 
       def ensure_teacher_and_same_school
+        return if current_general_user.aienglish_global_admin?
+
         unless current_general_user.aienglish_role == 'teacher'
           render json: { success: false, error: 'Only teachers can manage distributions' },
                  status: :forbidden
@@ -342,6 +342,8 @@ module Api
       end
 
       def assignment_manageable_in_school?(school)
+        return true if current_general_user.aienglish_global_admin?
+
         return true if @essay_assignment.owned_by?(current_general_user) &&
                        EssayAssignmentShareService.same_school_teacher?(
                          school:,
@@ -358,9 +360,14 @@ module Api
 
       def assignment_school_and_year
         academic_year = @essay_assignment.school_academic_year
+        academic_year ||= @essay_assignment.assignment_distributions
+                                            .where.not(school_academic_year_id: nil)
+                                            .order(created_at: :desc)
+                                            .first
+                                            &.school_academic_year
         school = academic_year&.school
 
-        if academic_year.blank?
+        if academic_year.blank? && !current_general_user.aienglish_global_admin?
           school = current_general_user.get_school
           academic_year = school&.current_academic_year
         end
@@ -368,7 +375,39 @@ module Api
         [school, academic_year]
       end
 
+      def distribution_options_school_and_year
+        if current_general_user.aienglish_global_admin?
+          assignment = EssayAssignment.find_by(id: params[:essay_assignment_id])
+          if assignment.present?
+            academic_year = assignment.school_academic_year
+            academic_year ||= assignment.assignment_distributions
+                                       .where.not(school_academic_year_id: nil)
+                                       .order(created_at: :desc)
+                                       .first
+                                       &.school_academic_year
+            return [academic_year&.school, academic_year]
+          end
+
+          academic_year = if params[:school_academic_year_id].present?
+                            SchoolAcademicYear.includes(:school).find_by(id: params[:school_academic_year_id])
+                          end
+          return [academic_year&.school, academic_year]
+        end
+
+        school = current_general_user.get_school
+        return [nil, nil] unless school
+
+        academic_year = if params[:school_academic_year_id].present?
+                          school.school_academic_years.find_by(id: params[:school_academic_year_id])
+                        else
+                          school.current_academic_year
+                        end
+        [school, academic_year]
+      end
+
       def ensure_teacher_for_distribution_options
+        return if current_general_user.aienglish_global_admin?
+
         unless current_general_user.aienglish_role == 'teacher'
           render json: { success: false, error: 'Only teachers can view distribution options' }, 
                  status: :forbidden

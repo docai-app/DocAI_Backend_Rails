@@ -11,7 +11,7 @@ module Api
       before_action :authorize_essay_assignment_owner!, only: %i[index sync share]
 
       def share_options
-        school = EssayAssignmentShareService.school_for_teacher(current_general_user)
+        school = share_options_school
         return render_school_required unless school
 
         payload = EssayAssignmentShareService.school_teacher_candidates(
@@ -64,6 +64,7 @@ module Api
 
       def ensure_teacher!
         return if performed?
+        return if current_general_user.aienglish_global_admin?
         return if current_general_user.aienglish_role == 'teacher'
 
         render json: { success: false, error: 'Only teachers can manage assignment shares' }, status: :forbidden
@@ -79,6 +80,24 @@ module Api
 
       def render_school_required
         render json: { success: false, error: 'School context is required' }, status: :unprocessable_entity
+      end
+
+      def share_options_school
+        if current_general_user.aienglish_global_admin? && params[:essay_assignment_id].present?
+          assignment = EssayAssignment.includes(school_academic_year: :school)
+                                      .find_by(id: params[:essay_assignment_id])
+          return nil unless assignment
+
+          school = assignment.school_academic_year&.school
+          school ||= assignment.assignment_distributions
+                              .where.not(school_id: nil)
+                              .order(created_at: :desc)
+                              .first
+                              &.school
+          return school
+        end
+
+        EssayAssignmentShareService.school_for_teacher(current_general_user)
       end
 
       def share_teacher_ids_param

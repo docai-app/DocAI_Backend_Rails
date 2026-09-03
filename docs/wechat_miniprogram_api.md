@@ -227,6 +227,50 @@ Authorization: Bearer <jwt>
 2. 小程序重新调用 `wx.login()`，立即把新的 code 与当前 JWT 发到 DELETE 接口。
 3. 成功后更新本地绑定状态；当前登录继续有效，下次需用邮箱密码登录并可重新绑定。
 
+### 5.4 总 Admin 查看与解除绑定
+
+总 Admin 用户列表 `GET /api/admin/v1/general_users` 的每个用户会返回安全摘要：
+
+```json
+{
+  "wechat_miniprogram": {
+    "bound": true,
+    "bound_at": "2026-08-31T10:00:00+08:00",
+    "last_login_at": "2026-08-31T12:30:00+08:00",
+    "nickname": "Student WeChat"
+  }
+}
+```
+
+- 可传 `wechat_bound=true` 只查询已绑定用户，或 `wechat_bound=false` 查询未绑定用户。
+- 列表与详情不会返回微信 OpenID／UnionID，避免在广泛使用的 Admin 接口泄露身份标识。
+- 此查询直接在 PostgreSQL JSONB 字段过滤，再执行分页，不会先加载全部用户到应用层。
+
+总 Admin 解除指定用户绑定：
+
+```http
+DELETE /api/admin/v1/general_users/:id/wechat_miniprogram/binding
+Authorization: Bearer <ADMIN_TOKEN>
+```
+
+成功响应：
+
+```json
+{
+  "success": true,
+  "bound": false,
+  "binding": null,
+  "removed": true
+}
+```
+
+- 只删除目标用户的 `meta.wechat_miniprogram`，保留其他 `meta`、账户、学校关系、作业、提交及成绩。
+- 重复调用是安全的；已经没有绑定时仍返回 `200`，`removed=false`。
+- 不需要也不接受学生的 `wx.login` code，因为该接口由 Admin token 授权。
+- 操作会写入结构化服务器日志，包括 request ID、目标 GeneralUser ID 及是否实际删除。
+- 解除绑定阻止后续微信快速登录，但不会立即撤销已经签发的 JWT；现有会话继续至 token 到期。
+- 用户不存在返回 `404`；未提供正确 Admin token 返回 `401`。
+
 ---
 
 ## 6. 错误响应格式

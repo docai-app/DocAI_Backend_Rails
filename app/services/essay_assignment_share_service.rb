@@ -165,12 +165,25 @@ class EssayAssignmentShareService
   private
 
   def authorize_owner!
+    return if @actor&.aienglish_global_admin?
     return if @assignment.owned_by?(@actor)
 
     raise ShareError, 'Only the assignment owner can manage shares'
   end
 
   def actor_school!
+    if @actor&.aienglish_global_admin?
+      school = @assignment&.school_academic_year&.school
+      school ||= @assignment&.assignment_distributions
+                           &.where.not(school_id: nil)
+                           &.order(created_at: :desc)
+                           &.first
+                           &.school
+      return school if school.present?
+
+      raise ShareError, 'Assignment school context is required'
+    end
+
     school = self.class.school_for_teacher(@actor)
     raise ShareError, 'School context is required' if school.blank?
 
@@ -246,6 +259,15 @@ class EssayAssignmentShareService
   end
 
   def optional_academic_year_id(school)
+    if @actor&.aienglish_global_admin?
+      return @assignment.school_academic_year_id if @assignment&.school_academic_year_id.present?
+
+      return @assignment&.assignment_distributions
+                        &.where.not(school_academic_year_id: nil)
+                        &.order(created_at: :desc)
+                        &.pick(:school_academic_year_id)
+    end
+
     @actor.current_teaching_assignment&.school_academic_year_id || school.current_academic_year&.id
   end
 
