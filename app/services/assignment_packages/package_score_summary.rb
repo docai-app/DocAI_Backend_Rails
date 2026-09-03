@@ -49,7 +49,10 @@ module AssignmentPackages
     end
 
     def scored_item_snapshots
-      @assignment_package.assignment_package_items.includes(:essay_assignment, :essay_grading).filter_map do |item|
+      # Only preload essay_grading: display_grading usually returns the linked grading,
+      # and category prefers item.category. Preloading :essay_assignment triggers Bullet
+      # "unused eager loading" on completed packages.
+      @assignment_package.assignment_package_items.includes(:essay_grading).filter_map do |item|
         grading = item.display_grading
         next unless grading
 
