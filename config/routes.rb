@@ -11,6 +11,21 @@ Rails.application.routes.draw do
   require 'sidekiq-scheduler/web'
   mount Sidekiq::Web => '/sidekiq'
 
+  use_doorkeeper do
+    controllers authorizations: 'oauth/authorizations',
+                tokens: 'oauth/tokens'
+    # Skip Doorkeeper's built-in applications CRUD UI
+    skip_controllers :applications, :authorized_applications, :token_info
+  end
+
+  namespace :oauth do
+    resource :session, only: %i[create destroy], controller: 'sessions'
+    post 'revoke_binding', to: 'revoke_bindings#create'
+    get 'userinfo', to: 'userinfo#show'
+    post 'web_login', to: 'web_logins#create'
+    get 'reauthenticate', to: 'reauthentications#show'
+  end
+
   devise_for :users,
              controllers: {
                sessions: 'users/sessions',
@@ -30,7 +45,16 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: { format: :json } do
     namespace :v1 do
+      namespace :public do
+        get 'schools/:slug/login_config', to: 'school_login_configs#show'
+      end
+
+      namespace :oauth do
+        post 'partner_bindings', to: 'partner_bindings#create'
+      end
+
       post 'unisound/eval', to: 'unisound#create'
+      post 'essay_ocr', to: 'essay_ocr#create'
 
       # 後備Email確認
       get 'recovery_email_confirmations/show'
@@ -41,6 +65,7 @@ Rails.application.routes.draw do
           collection do
             post :batch_upload_pdfs
             post :batch_create
+            get :current_draft
           end
         end
         member do
@@ -53,6 +78,7 @@ Rails.application.routes.draw do
           post 'generate_sample_essay'
           get 'statistics', to: 'assignment_statistics#show'
           post 'send_reminders', to: 'assignment_reminders#create'
+          patch 'release_scores'
         end
         collection do
           post :parse_vocab_csv
@@ -440,6 +466,7 @@ Rails.application.routes.draw do
           put 'me/profile', to: 'general_users#update_profile'
           put 'me/password', to: 'general_users#update_password'
           get 'me/aienglish', to: 'general_users#show_aienglish_profile'
+          get 'me/aienglish/memberships', to: 'general_users#show_aienglish_memberships'
           # 管理當前用戶的後備Email
           put 'me/recovery_email', to: 'user_recovery_emails#update'
           delete 'me/recovery_email', to: 'user_recovery_emails#destroy'
@@ -448,6 +475,9 @@ Rails.application.routes.draw do
           post 'wechat_miniprogram/bind', to: 'wechat_miniprogram#bind'
           post 'wechat_miniprogram/login', to: 'wechat_miniprogram#login'
           get 'wechat_miniprogram/binding', to: 'wechat_miniprogram#binding'
+          delete 'wechat_miniprogram/binding', to: 'wechat_miniprogram#unbind'
+          post 'web_sso/tickets', to: 'web_sso#create'
+          post 'web_sso/exchange', to: 'web_sso#exchange'
         end
       end
 
@@ -539,6 +569,21 @@ Rails.application.routes.draw do
         end
         # 學年管理
         resources :school_academic_years, only: %i[show create update destroy]
+
+        # OAuth Client 管理（URL: /oauth/clients，控制器: OauthClientsController）
+        resources :oauth_clients, path: 'oauth/clients' do
+          member do
+            post :rotate_secret
+            post :enable
+            post :disable
+            get :account_links
+            get :webhook
+            put :webhook, action: :update_webhook
+            post 'webhook/test', action: :test_webhook
+            post 'webhook/rotate_secret', action: :rotate_webhook_secret
+            get 'webhook/deliveries', action: :webhook_deliveries
+          end
+        end
 
         # Essay Assignments Management for Admin,index
         resources :essay_assignments, only: %i[index show update] do

@@ -1,6 +1,6 @@
 # General User — 微信小程序登录与绑定 API 补充说明
 
-**文档版本**：2026-05-11  
+**文档版本**：2026-08-20
 **后端项目**：`AI English Backend`  
 **基础路径**：`/api/v1`（JSON，与现有 General User API 一致）
 
@@ -12,6 +12,7 @@
 
 1. **绑定**：用户已在小程序 WebView 内用邮箱密码登录并取得 JWT 后，将 `wx.login()` 得到的 `code` 提交给后端，换取并保存 **openid** 等到 `general_users.meta.wechat_miniprogram`。
 2. **小程序登录**：仅携带 `code` 调用登录接口，后端用 openid 找到已绑定用户并签发 **与普通登录相同的 Devise JWT**。
+3. **取消绑定**：已登录用户提交新的 `wx.login()` code；后端确认 AppID 与 openid 均和当前账号绑定一致后，才删除绑定。
 
 **注意**：微信 `code` 为一次性短时凭证；持久保存的是 **openid**（及可选 unionid 等），不是 code。
 
@@ -28,7 +29,7 @@
 
 ## 3. 认证与 JWT
 
-- **绑定**、**查询绑定状态**：请求头需携带  
+- **绑定**、**查询绑定状态**、**取消绑定**：请求头需携带
   `Authorization: Bearer <access_token>`  
   与现有需登录接口相同。
 - **小程序登录**：无需事先登录；成功后服务端通过 **Devise-JWT** 在 **响应头** 返回令牌（与 `school_portal_api_test`、邮箱登录一致）：
@@ -171,6 +172,42 @@ Authorization: Bearer <jwt>
 
 ---
 
+### 4.4 取消微信绑定（需登录及新的微信 code）
+
+**请求**
+
+```http
+DELETE /api/v1/general_users/wechat_miniprogram/binding
+Content-Type: application/json
+Authorization: Bearer <jwt>
+```
+
+```json
+{ "code": "wx.login 返回的新 code" }
+```
+
+**成功 `200`**
+
+```json
+{
+  "success": true,
+  "bound": false,
+  "binding": null
+}
+```
+
+后端会通过微信 `jscode2session` 验证新 code。只有 AppID 与 openid 均和当前账号原绑定完全一致时才会删除 `meta.wechat_miniprogram`。其它用户资料和当前 JWT 均会保留。
+
+| HTTP | `error_code` | 说明 |
+|------|------|------|
+| 400 | `WECHAT_CODE_REQUIRED` | 缺少新的 code |
+| 401 | `WECHAT_CODE_INVALID` | code 无效、过期或微信没有返回 openid |
+| 403 | `WECHAT_IDENTITY_MISMATCH` | 当前微信与账号已绑定微信不一致 |
+| 503 | `WECHAT_CONFIG_ERROR` | 未配置 AppID / Secret |
+| 502 | `WECHAT_UPSTREAM_ERROR` | 请求微信接口失败 |
+
+---
+
 ## 5. 小程序端推荐流程
 
 ### 5.1 首次：邮箱登录 → 绑定
@@ -183,6 +220,12 @@ Authorization: Bearer <jwt>
 
 1. `wx.login()` → `POST /api/v1/general_users/wechat_miniprogram/login`，Body `{ "code": "..." }`。  
 2. 从响应头读取 `Authorization`，写入 WebView 存储或注入后续请求。
+
+### 5.3 取消绑定
+
+1. 用户在 Profile 主动确认取消绑定。
+2. 小程序重新调用 `wx.login()`，立即把新的 code 与当前 JWT 发到 DELETE 接口。
+3. 成功后更新本地绑定状态；当前登录继续有效，下次需用邮箱密码登录并可重新绑定。
 
 ---
 
@@ -203,7 +246,7 @@ Authorization: Bearer <jwt>
 ## 7. 业务约束（与实现一致）
 
 - **不支持换绑**：若账号已有 openid，再用另一微信号绑定会返回 `WECHAT_ALREADY_BOUND`。  
-- **不提供解绑接口**（本期）。  
+- **允许安全取消绑定**：必须同时持有当前 JWT 及与原绑定一致的新微信 code；取消后可重新绑定。
 - **不提供手机号一键登录**（本期）。  
 - 不在 `meta` 中长期保存 `session_key`、`code`。
 

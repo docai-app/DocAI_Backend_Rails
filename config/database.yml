@@ -44,6 +44,15 @@ development:
     template: template0
     database_tasks: false
 
+test:
+  primary:
+    url: <%= ENV.fetch("DEV_DB_HOST") %>
+    pool: 25
+  vector_db:
+    url: <%= ENV.fetch("VECTOR_DATABASE_URL", ENV.fetch("DEV_DB_HOST")) %>
+    pool: 25
+    database_tasks: false
+
 production:
   primary:
     adapter:  postgresql
@@ -65,4 +74,17 @@ production:
     password: <%= ENV["DEV_VECTOR_DB_PASSWORD"] %>
     sslmode: require
     template: template0
+    database_tasks: false
+
+test:
+  primary:
+    url: <%= ENV.fetch("DATABASE_URL", "postgresql://localhost/docai_backend_test") %>
+    adapter: postgresql
+    encoding: unicode
+    pool: 5
+  vector_db:
+    url: <%= ENV.fetch("TEST_VECTOR_DATABASE_URL") { ENV.fetch("DATABASE_URL", "postgresql://localhost/docai_backend_test") } %>
+    adapter: postgresql
+    encoding: unicode
+    pool: 5
     database_tasks: false

@@ -897,7 +897,7 @@ class EssayGrading < ApplicationRecord
       if school_academic_year
         # 如果有完整的入學記錄，保存所有信息
         self.submission_class_name = enrollment.class_name
-        self.submission_class_number = general_user.class_no
+        self.submission_class_number = enrollment.class_number
         self.submission_school_id = school_academic_year.school_id
         self.submission_academic_year_id = school_academic_year.id
         Rails.logger.info "Saved submission info: class_name=#{submission_class_name}, class_no=#{submission_class_number}"

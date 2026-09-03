@@ -9,7 +9,7 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins 'https://app.konnec.ai', 'https://schema-frontend.docai.net', 'http://localhost:3000', 'http://localhost:8080', 'http://localhost:8889', 'http://localhost:8888', 'https://docai.m2mda.com', 'https://docai-dev.m2mda.com', 'https://docai-demo.examhero.com', 'http://docai-demo.examhero.com', 'https://aiadmin.examhero.com', 'http://aiadmin.examhero.com',
+    origins 'https://app.konnec.ai', 'https://konnec-ai.hospidocai.com', 'http://konnec-ai.hospidocai.com', 'https://schema-frontend.docai.net', 'http://localhost:3000', 'http://localhost:4000', 'http://localhost:8080', 'http://localhost:8889', 'http://localhost:8888', 'https://docai.m2mda.com', 'https://docai-dev.m2mda.com', 'https://docai-demo.examhero.com', 'http://docai-demo.examhero.com', 'https://aiadmin.examhero.com', 'http://aiadmin.examhero.com',
             'https://doc-ai-dev-frontend.vercel.app', 'http://doc-ai-dev-frontend.vercel.app', 'https://doc-ai-frontend.vercel.app', 'http://doc-ai-frontend.vercel.app', 'https://test-docai-frontend.vercel.app', 'http://test-docai-frontend.vercel.app', 'https://docai-demo.vercel.app', 'http://docai-demo.vercel.app', 'https://aiadmin.docai.net', 'http://aiadmin.docai.net', 'https://dev-docai-admin-dashboard-frontend.vercel.app', 'https://prod-docai-admin-dashboard-frontend.vercel.app',
             'https://test-dev.docai.net', 'http://test-dev.docai.net', 'https://test.docai.net', 'http://test.docai.net',
             'https://chatbot-demo.docai.net', 'http://chatbot-demo.docai.net', 'https://chatbot.docai.net', 'http://chatbot.docai.net', 'https://prod-docai-chatbot.vercel.app', 'http://prod-docai-chatbot.vercel.app', 'https://dev-docai-chatbot.vercel.app', 'http://dev-docai-chatbot.vercel.app', 'https://docai-chatbot-next.vercel.app', 'http://docai-chatbot-next.vercel.app', 'https://chatbot-dev.docai.net', 'http://chatbot-dev.docai.net', 'https://dev-docai-chatbot-plus.vercel.app', 'http://dev-docai-chatbot-plus.vercel.app/',
@@ -25,7 +25,8 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             'https://dify.docai.net', 'https://admin.docai.net', 'https://xinhua-admin.docai.net',
             'http://39.97.237.74:5173','http://139.9.105.65:5173',
             'https://munlingo.com','http://43.228.217.157:3000','http://localhost:3001',
-            'https://ai-english-schooladmin-dashboard-fr.vercel.app', 'https://school-admin.docai.net', 'https://docai-teacher.docai.net', 'https://docai-teacher-dev.docai.net', 'https://dev-docai-frontend-pro-one.vercel.app', 'https://essay-checker.docai.net', 'https://aienglish.docai.net','https://communitys-ai.vercel.app','https://aienglish-admin.docai.net','https://essay-admin.docai.net','http://localhost:5173','http://129.226.205.17:5173','https://super-duper-orbit-4jxg99v7w43q9p-5173.app.github.dev',"https://munlingo.docai.net"
+            'https://ai-english-schooladmin-dashboard-fr.vercel.app', 'https://school-admin.docai.net', 'https://docai-teacher.docai.net', 'https://docai-teacher-dev.docai.net', 'https://dev-docai-frontend-pro-one.vercel.app', 'https://essay-checker.docai.net', 'https://aienglish.docai.net','https://communitys-ai.vercel.app','https://aienglish-admin.docai.net','https://essay-admin.docai.net','http://localhost:5173','http://129.226.205.17:5173','https://super-duper-orbit-4jxg99v7w43q9p-5173.app.github.dev',
+            'https://konnec.ai','https://konnec-ai.hospidocai.com','https://todo-share-ai.vercel.app'
 
     # origins Cors.all.pluck(:url)
     # origins *Cors.pluck(:url)
@@ -33,6 +34,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     resource '*',
              headers: :any,
              expose: ['Authorization'],
-             methods: %i[get post put patch delete options head]
+             methods: %i[get post put patch delete options head],
+             credentials: true
   end
 end

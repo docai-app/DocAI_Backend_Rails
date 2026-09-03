@@ -1,0 +1,63 @@
+zh-CN:
+  activerecord:
+    attributes:
+      oauth_application:
+        redirect_uri: 回调地址
+      doorkeeper/application:
+        redirect_uri: 回调地址
+    errors:
+      models:
+        oauth_application:
+          attributes:
+            redirect_uri:
+              fragment_present: 不能包含 fragment（# 片段）。
+              invalid_uri: 必须是合法的 URI。
+              unspecified_scheme: 必须指定 scheme（如 https://）。
+              relative_uri: 必须是绝对 URI。
+              secured_uri: 必须使用 HTTPS（仅 localhost / 127.0.0.1 允许 http）。
+              forbidden_uri: 被服务器禁止。
+        doorkeeper/application:
+          attributes:
+            redirect_uri:
+              fragment_present: 不能包含 fragment（# 片段）。
+              invalid_uri: 必须是合法的 URI。
+              unspecified_scheme: 必须指定 scheme（如 https://）。
+              relative_uri: 必须是绝对 URI。
+              secured_uri: 必须使用 HTTPS（仅 localhost / 127.0.0.1 允许 http）。
+              forbidden_uri: 被服务器禁止。
+  doorkeeper:
+    layouts:
+      application:
+        title: 'AIEnglish 授权'
+        footer: 'AIEnglish 安全登录 · OAuth 2.0'
+    authorizations:
+      buttons:
+        authorize: '允许'
+        deny: '取消'
+      error:
+        title: '无法完成授权'
+        hint: '请关闭此页面并返回应用重试，或联系管理员。'
+      new:
+        title: '授权请求'
+        prompt: '%{client_name} 想要访问您的 AIEnglish 账号'
+        able_to: '此应用将能够：'
+        default_user: 'AIEnglish 用户'
+        signed_in_as: '当前登录账号'
+        switch_account: '切换其他账号'
+        not_you: '这不是您的账号？'
+        legal_intro: '继续即表示您允许此应用按上述范围访问您的账号信息。'
+        privacy: '隐私政策'
+        terms: '服务条款'
+    scopes:
+      openid: '确认您的身份（OpenID）'
+      profile: '查看您的基本资料（昵称等）'
+      email: '查看您的邮箱地址'
+      offline_access: '在您离线时保持登录（刷新令牌）'
+    errors:
+      messages:
+        invalid_request: '请求缺少必要参数或格式不正确。'
+        invalid_redirect_uri: '回调地址无效或与 Client 配置不一致。'
+        unauthorized_client: '该应用尚未启用或无权发起此请求。'
+        access_denied: '您已拒绝授权。'
+        invalid_scope: '请求的权限范围无效。'
+        invalid_code_challenge_method: '必须使用 PKCE 方法 S256。'

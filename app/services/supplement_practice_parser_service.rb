@@ -27,7 +27,7 @@ class SupplementPracticeParserService
 
     begin
       # 解析 JSON 字符串
-      parsed_data = JSON.parse(text_content)
+      parsed_data = AiJsonParser.object(text_content)
       
       # 验证数据结构
       validate_structure(parsed_data)
@@ -38,8 +38,10 @@ class SupplementPracticeParserService
       normalized_data
     rescue JSON::ParserError => e
       Rails.logger.error("[SupplementPracticeParserService] JSON parse error: #{e.message}")
-      # 抛出自定义异常，标识这是旧数据格式
-      raise OldDataFormatError.new('this is old data', 'old_data')
+      # Only genuine legacy prose gets the old_data contract, not broken feedback.
+      raise if AiJsonParser.structured?(text_content)
+
+      raise OldDataFormatError.new('This exercise is available as a document.', 'old_data')
     rescue StandardError => e
       Rails.logger.error("[SupplementPracticeParserService] Parse error: #{e.message}")
       raise e
@@ -65,7 +67,7 @@ class SupplementPracticeParserService
     end
 
     # 验证 sections 数组
-    unless data['sections'].is_a?(Array)
+    unless data['sections'].is_a?(Array) && data['sections'].any?
       raise ArgumentError, 'Data must contain a "sections" array'
     end
 
@@ -84,7 +86,7 @@ class SupplementPracticeParserService
       raise ArgumentError, "Section #{section_index} has invalid type: #{section['type']}"
     end
 
-    unless section['questions'].is_a?(Array)
+    unless section['topic'].is_a?(String) && section['questions'].is_a?(Array) && section['questions'].any?
       raise ArgumentError, "Section #{section_index} must have a 'questions' array"
     end
 
@@ -101,14 +103,14 @@ class SupplementPracticeParserService
 
     case type
     when 'multiple_choice'
-      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'question' field" unless question['question'].present?
-      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'options' array" unless question['options'].is_a?(Array)
+      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'question' field" unless question['question'].is_a?(String) && question['question'].present?
+      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'options' array" unless question['options'].is_a?(Array) && question['options'].any? && question['options'].all? { |option| option.is_a?(String) }
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'answer'" unless question['answer'].present?
     when 'true_or_false'
-      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'statement' field" unless question['statement'].present?
-      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'answer'" unless question.key?('answer')
+      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'statement' field" unless question['statement'].is_a?(String) && question['statement'].present?
+      raise ArgumentError, "Question #{section_index}-#{question_index} invalid 'answer'" unless [true, false, 'true', 'false', 'True', 'False', 'TRUE', 'FALSE', 1, 0, '1', '0'].include?(question['answer'])
     when 'fill_in_the_blanks'
-      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'question' field" unless question['question'].present?
+      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'question' field" unless question['question'].is_a?(String) && question['question'].present?
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'answer'" unless question['answer'].present?
     end
   end

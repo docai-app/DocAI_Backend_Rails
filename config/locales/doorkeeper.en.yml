@@ -1,0 +1,45 @@
+en:
+  activerecord:
+    attributes:
+      oauth_application:
+        redirect_uri: Redirect URI
+      doorkeeper/application:
+        redirect_uri: Redirect URI
+    errors:
+      models:
+        oauth_application:
+          attributes:
+            redirect_uri:
+              fragment_present: cannot contain a fragment.
+              invalid_uri: must be a valid URI.
+              unspecified_scheme: must specify a scheme.
+              relative_uri: must be an absolute URI.
+              secured_uri: must be an HTTPS/SSL URI (http is only allowed for localhost / 127.0.0.1).
+              forbidden_uri: is forbidden by the server.
+        doorkeeper/application:
+          attributes:
+            redirect_uri:
+              fragment_present: cannot contain a fragment.
+              invalid_uri: must be a valid URI.
+              unspecified_scheme: must specify a scheme.
+              relative_uri: must be an absolute URI.
+              secured_uri: must be an HTTPS/SSL URI (http is only allowed for localhost / 127.0.0.1).
+              forbidden_uri: is forbidden by the server.
+  doorkeeper:
+    errors:
+      messages:
+        invalid_request: "The request is missing a required parameter or is otherwise malformed."
+        invalid_redirect_uri: "The redirect uri is malformed or doesn't match client settings."
+        unauthorized_client: "The client is not authorized to perform this request."
+        access_denied: "The resource owner or authorization server denied the request."
+        invalid_scope: "The requested scope is invalid, unknown, or malformed."
+        invalid_code_challenge_method: "The code challenge method must be S256."
+    scopes:
+      openid: "Verify your identity"
+      profile: "Access your basic profile"
+      email: "Access your email address"
+      offline_access: "Keep access when you are offline"
+    applications:
+      buttons:
+        authorize: "Authorize"
+        deny: "Deny"

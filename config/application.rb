@@ -51,6 +51,7 @@ module DocaiApi
 
     config.hosts << 'docai-dev.m2mda.com'
     config.hosts << 'docai.m2mda.com'
+    config.hosts << /\A(?:localhost|127\.0\.0\.1)(?::\d+)?\z/ if Rails.env.development? || Rails.env.test?
 
     config.action_cable.mount_path = '/cable'
 

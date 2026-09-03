@@ -3,7 +3,7 @@ RailsPerformance.setup do |config|
   config.duration = 24.hours
 
   config.debug    = false # currently not used
-  config.enabled  = true
+  config.enabled  = !Rails.env.test?
 
   # configure Recent tab (time window and limit of requests)
   # config.recent_requests_time_window = 60.minutes
@@ -24,7 +24,7 @@ RailsPerformance.setup do |config|
   config.http_basic_authentication_password  = 'password12'
 
   # if you need an additional rules to check user permissions
-  config.verify_access_proc = proc { |controller| true }
+  config.verify_access_proc = proc { |_controller| true }
   # for example when you have `current_user`
   # config.verify_access_proc = proc { |controller| controller.current_user && controller.current_user.admin? }
 

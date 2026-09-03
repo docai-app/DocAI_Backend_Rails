@@ -26,8 +26,9 @@ class AssignmentDistribution < ApplicationRecord
 
   after_create :create_student_assignments
   after_update :update_student_assignments, if: :saved_change_to_deadline?
-  # 後台任務將在任務6中實現
-  # after_create :enqueue_distribution_notification
+  # OAuth Partner 出站 Webhook：见下方 enqueue_partner_webhook_* 注释
+  after_create :enqueue_partner_webhook_distributed
+  after_update :enqueue_partner_webhook_updated, if: :saved_change_to_deadline?
 
   # 獲取分配目標的所有學生
   def target_students
@@ -132,6 +133,50 @@ class AssignmentDistribution < ApplicationRecord
     assignment_student_assignments
       .where(status: [:assigned, :overdue])
       .update_all(deadline: deadline, updated_at: Time.current)
+  end
+
+  # ---------------------------------------------------------------------------
+  # OAuth Partner Webhook（第三方站点作业推送）
+  #
+  # 背景：
+  #   老师在 AIEnglish 向学生分配作业后，若该学生已绑定某个 OAuth Client
+  #   （oauth_partner_account_links.status = active），且该 Client 在管理后台
+  #   启用了 Webhook（oauth_application_webhooks.enabled = true），则向 Partner
+  #   配置的 HTTPS URL 推送 signed JSON 事件。
+  #
+  # 触发时机（本模型回调）：
+  #   - after_create  → enqueue_partner_webhook_distributed
+  #       事件类型：assignment.distributed
+  #       须在 create_student_assignments 之后执行（同为 after_create，
+  #       按定义顺序保证学生作业行已写入，Dispatcher 才能按学生查绑定）。
+  #   - after_update（仅 deadline 变更）→ enqueue_partner_webhook_updated
+  #       事件类型：assignment.updated
+  #
+  # 实际投递：
+  #   Oauth::WebhookDispatcher 创建 oauth_webhook_deliveries 记录后，
+  #   由 Sidekiq Job OauthPartnerWebhookDispatchJob 异步 POST（HMAC-SHA256 签名）。
+  #
+  # 失败策略：
+  #   此处 rescue 仅吞掉「入队/组装」异常，避免 Webhook 故障回滚作业分发事务。
+  #   HTTP 投递失败由 Job 侧重试 / dead_letter，见投递日志 Admin UI。
+  #
+  # 文档：
+  #   docs/AIEnglish_第三方绑定与作业推送对接文档_KonnecAI_2026_08_27_zh.md
+  #   docs/oauth_partner_账号绑定统计与作业推送实施方案_2026_08_27_zh.md
+  # ---------------------------------------------------------------------------
+
+  # 新建分发成功后：向已绑定且启用推送的 Partner 发送 assignment.distributed
+  def enqueue_partner_webhook_distributed
+    Oauth::WebhookDispatcher.enqueue_assignment_distributed(self)
+  rescue StandardError => e
+    Rails.logger.warn("[AssignmentDistribution] partner webhook enqueue failed: #{e.message}")
+  end
+
+  # 分发 deadline 变更后：向相关 Partner 发送 assignment.updated
+  def enqueue_partner_webhook_updated
+    Oauth::WebhookDispatcher.enqueue_assignment_updated(self)
+  rescue StandardError => e
+    Rails.logger.warn("[AssignmentDistribution] partner webhook update enqueue failed: #{e.message}")
   end
 
   # 後台任務將在任務6中實現

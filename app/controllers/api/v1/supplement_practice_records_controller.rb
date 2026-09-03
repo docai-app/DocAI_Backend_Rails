@@ -20,7 +20,7 @@ module Api
         questions_data = parser.parse_for_student
 
         unless questions_data
-          return render json: { success: false, error: 'Failed to parse supplement practice data' }, status: :unprocessable_entity
+          return render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
         end
 
         # 检查是否有已保存的记录
@@ -45,10 +45,13 @@ module Api
       rescue OldDataFormatError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected: #{e.message}")
         render json: { success: false, code: e.code, message: e.message }, status: :ok
+      rescue JSON::ParserError, ArgumentError => e
+        Rails.logger.warn("[SupplementPracticeRecordsController] Invalid exercise: #{e.class}")
+        render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in show_questions: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # POST /api/v1/essay_gradings/:essay_grading_id/supplement_practice/draft
@@ -58,7 +61,7 @@ module Api
         questions_data = parser.parse
 
         unless questions_data
-          return render json: { success: false, error: 'Failed to parse supplement practice data' }, status: :unprocessable_entity
+          return render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
         end
 
         # 查找或创建草稿记录
@@ -89,10 +92,13 @@ module Api
       rescue OldDataFormatError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected in create_draft: #{e.message}")
         render json: { success: false, code: e.code, message: e.message }, status: :ok
+      rescue JSON::ParserError, ArgumentError => e
+        Rails.logger.warn("[SupplementPracticeRecordsController] Invalid exercise: #{e.class}")
+        render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in create_draft: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # POST /api/v1/essay_gradings/:essay_grading_id/supplement_practice/submit
@@ -113,7 +119,7 @@ module Api
         questions_data = parser.parse
 
         unless questions_data
-          return render json: { success: false, error: 'Failed to parse supplement practice data' }, status: :unprocessable_entity
+          return render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
         end
 
         # 查找草稿记录或创建新记录
@@ -156,10 +162,13 @@ module Api
       rescue OldDataFormatError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected in submit: #{e.message}")
         render json: { success: false, code: e.code, message: e.message }, status: :ok
+      rescue JSON::ParserError, ArgumentError => e
+        Rails.logger.warn("[SupplementPracticeRecordsController] Invalid exercise: #{e.class}")
+        render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in submit: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # GET /api/v1/supplement_practice_records/my_records
@@ -203,7 +212,7 @@ module Api
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in my_records: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # GET /api/v1/supplement_practice_records/:id
@@ -220,7 +229,7 @@ module Api
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in show_record: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # GET /api/v1/supplement_practice_records/:id/download_report
@@ -236,7 +245,7 @@ module Api
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in download_report: #{e.message}")
         Rails.logger.error(e.backtrace.first(10).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # GET /api/v1/essay_assignments/:essay_assignment_id/supplement_practice_records
@@ -325,7 +334,7 @@ module Api
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in by_assignment_id: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # GET /api/v1/essay_gradings/:essay_grading_id/supplement_practice_records
@@ -388,7 +397,7 @@ module Api
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in index: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       # GET /api/v1/essay_gradings/:essay_grading_id/supplement_practice_records/by_assignment
@@ -454,7 +463,7 @@ module Api
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in by_assignment: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
       end
 
       private
@@ -573,6 +582,10 @@ module Api
       def find_user_answer_for_question(answer_section, question, section_type)
         return nil unless answer_section && answer_section['questions']
 
+        if question['id'].present? && answer_section['questions'].any? { |answer| answer['id'].present? }
+          return answer_section['questions'].find { |answer| answer['id'] == question['id'] }
+        end
+
         case section_type
         when 'fill_in_the_blanks'
           answer_section['questions'].find { |q| q['id'] == question['id'] }
@@ -588,6 +601,7 @@ module Api
 
         correct_answer = question['answer']
         user_answer = extract_user_answer_value(user_answer_data, section_type)
+        return false if user_answer.nil? || (user_answer.is_a?(String) && user_answer.strip.empty?)
 
         case section_type
         when 'fill_in_the_blanks'
@@ -595,14 +609,14 @@ module Api
         when 'multiple_choice'
           user_answer == correct_answer
         when 'true_or_false'
-          normalize_boolean(user_answer) == normalize_boolean(correct_answer)
+          !normalize_boolean(user_answer).nil? && normalize_boolean(user_answer) == normalize_boolean(correct_answer)
         else
           false
         end
       end
 
       def extract_user_answer_value(user_answer_data, section_type)
-        user_answer_data['user_answer']
+        user_answer_data&.dig('user_answer')
       end
 
       def normalize_string(str)
@@ -617,7 +631,7 @@ module Api
         when false, 'false', 'False', 'FALSE', 0, '0'
           false
         else
-          false
+          nil
         end
       end
 
@@ -662,10 +676,10 @@ module Api
               bold_italic: font_path.join('DejaVuSans.ttf')
             },
             'Arial' => {
-              normal: font_path.join('ARIAL.ttf'),
-              bold: font_path.join('ARIALBD.ttf'),
-              italic: font_path.join('ARIAL.ttf'),
-              bold_italic: font_path.join('ARIALBD.ttf')
+              normal: font_path.join('ARIAL.TTF'),
+              bold: font_path.join('ARIALBD.TTF'),
+              italic: font_path.join('ARIAL.TTF'),
+              bold_italic: font_path.join('ARIALBD.TTF')
             }
           )
 
@@ -803,14 +817,15 @@ module Api
                 pdf.move_down 5
 
                 # 學生答案
-                user_answer = user_answer_data ? (user_answer_data['user_answer'] ? 'True' : 'False') : 'Not answered'
+                boolean_answer = normalize_boolean(user_answer_data&.dig('user_answer'))
+                user_answer = boolean_answer.nil? ? 'Not answered' : (boolean_answer ? 'True' : 'False')
                 pdf.fill_color is_correct ? '008000' : 'FF0000'
                 pdf.text "My Answer: #{user_answer}", size: 11, style: :bold
                 pdf.fill_color '000000'
                 pdf.move_down 3
 
                 # 正確答案
-                correct_answer_text = question['answer'] ? 'True' : 'False'
+                correct_answer_text = normalize_boolean(question['answer']) ? 'True' : 'False'
                 pdf.fill_color '008000'
                 pdf.text "Correct Answer: #{correct_answer_text}", size: 11, style: :bold
                 pdf.fill_color '000000'

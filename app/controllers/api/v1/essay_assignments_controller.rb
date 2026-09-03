@@ -6,10 +6,12 @@ module Api
       include EssayAssignmentAccessAuthorization
 
       before_action :authenticate_general_user!
-      before_action :set_essay_assignment_with_access, only: %i[read show update destroy]
-      # before_action :authorize_essay_assignment_manage!, only: %i[read update]
-      # before_action :authorize_essay_assignment_access!, only: %i[show]
-      # before_action :authorize_essay_assignment_owner!, only: %i[destroy]
+      before_action :set_essay_assignment_with_access, only: %i[read show update destroy release_scores]
+      before_action :authorize_essay_assignment_score_release!, only: %i[release_scores]
+      before_action :authorize_essay_assignment_read!, only: %i[read]
+      before_action :authorize_essay_assignment_manage!, only: %i[update]
+      before_action :authorize_essay_assignment_access!, only: %i[show]
+      before_action :authorize_essay_assignment_owner!, only: %i[destroy]
 
       before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
@@ -18,11 +20,18 @@ module Api
         owner = index_assignments_owner
         return if performed?
 
+        academic_year_filter = EssayAssignmentAcademicYearFilter.resolve!(
+          user: owner,
+          academic_year_id: params[:school_academic_year_id]
+        )
+
         if merge_shared_assignments_for_index?(owner)
           result = EssayAssignmentIndexQuery.new(
             user: current_general_user,
             category: params[:category],
             search: params[:search],
+            academic_year: academic_year_filter.academic_year,
+            created_at_range: academic_year_filter.created_at_range,
             page: params[:page],
             per: params[:count]
           ).call
@@ -36,6 +45,16 @@ module Api
         end
 
         @essay_assignments = owner.essay_assignments
+        if academic_year_filter.academic_year
+          assigned_to_year = @essay_assignments.where(
+            school_academic_year_id: academic_year_filter.academic_year.id
+          )
+          legacy_in_year = @essay_assignments.where(
+            school_academic_year_id: nil,
+            created_at: academic_year_filter.created_at_range
+          )
+          @essay_assignments = assigned_to_year.or(legacy_in_year)
+        end
         @essay_assignments = @essay_assignments.where(category: params[:category]) if params[:category].present?
         @essay_assignments = @essay_assignments.matching_search(params[:search])
 
@@ -53,6 +72,7 @@ module Api
                                  'essay_assignments.code',
                                  'essay_assignments.assignment',
                                  'essay_assignments.number_of_submission',
+                                 'essay_assignments.school_academic_year_id',
                                  EssayAssignment.list_meta_sql_select
                                )
                                .order('essay_assignments.created_at desc')
@@ -64,6 +84,10 @@ module Api
           essay_assignments: @essay_assignments.map(&:as_list_json),
           meta: pagination_meta(@essay_assignments)
         }, status: :ok
+      rescue EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :forbidden
+      rescue EssayAssignmentAcademicYearFilter::ActiveAcademicYearMissingError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       def index_old
@@ -144,8 +168,12 @@ module Api
           answer_visible: @essay_assignment.answer_visible,
           remark: @essay_assignment.remark,
           code: @essay_assignment.code,
+          school_academic_year_id: @essay_assignment.school_academic_year_id,
           rubric: @essay_assignment.rubric,
           meta: @essay_assignment.meta,
+          score_release: score_release_json(@essay_assignment),
+          can_release_scores: @essay_assignment.score_release_supported? &&
+                              @essay_assignment.can_release_scores?(current_general_user),
           number_of_submission: @essay_assignment.number_of_submission,
           created_at: @essay_assignment.created_at,
           updated_at: @essay_assignment.updated_at
@@ -188,6 +216,7 @@ module Api
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
         @essay_assignment.general_user_id = current_general_user.id
+        @essay_assignment.school_academic_year = assignment_academic_year_for_create!
         
         # 如果指定了Community，需要验证用户权限
         if @essay_assignment.community_id.present?
@@ -218,6 +247,10 @@ module Api
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :forbidden
+      rescue EssayAssignmentAcademicYearFilter::ActiveAcademicYearMissingError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       def update
@@ -226,6 +259,29 @@ module Api
         else
           render json: { success: false, errors: @essay_assignment.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      # Makes scores visible to students for assignment types that support a
+      # teacher-controlled release. The operation is intentionally idempotent.
+      def release_scores
+        unless @essay_assignment.score_release_supported?
+          return render json: {
+            success: false,
+            error: 'Score release is only available for Essay and Comprehension assignments.'
+          }, status: :unprocessable_entity
+        end
+
+        @essay_assignment.release_scores!(released_by: current_general_user)
+
+        render json: {
+          success: true,
+          message: 'Scores released to students.',
+          essay_assignment: @essay_assignment.as_json,
+          score_release: score_release_json(@essay_assignment)
+        }, status: :ok
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { success: false, errors: e.record.errors.full_messages },
+               status: :unprocessable_entity
       end
 
       def destroy
@@ -417,6 +473,32 @@ module Api
         )
       end
 
+      def assignment_academic_year_for_create!
+        requested_academic_year_id = params
+                                     .dig(:essay_assignment, :school_academic_year_id)
+                                     .to_s
+                                     .presence
+        result = EssayAssignmentAcademicYearFilter.resolve!(
+          user: current_general_user,
+          academic_year_id: requested_academic_year_id
+        )
+
+        if result.academic_year.nil?
+          raise EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError,
+                'Select a specific academic year when creating an assignment.'
+        end
+
+        result.academic_year
+      end
+
+      def score_release_json(assignment)
+        {
+          supported: assignment.score_release_supported?,
+          released: assignment.scores_released?,
+          released_at: assignment.score_released_at
+        }
+      end
+
       def set_essay_assignment_by_code
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
       rescue ActiveRecord::RecordNotFound
@@ -426,8 +508,12 @@ module Api
       def aienglish_access
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
 
-        # Sentence Puzzle 新類型先允許所有已登入用戶存取；其餘類型仍走 feature list
-        if @essay_assignment.category == 'sentence_puzzle' || @essay_assignment.category == 'talk_lab_speaking'
+        # An explicit student assignment grants access even if the account feature list changed later.
+        assigned_student = current_general_user.aienglish_role == 'student' &&
+                           @essay_assignment.assigned_to_student?(current_general_user)
+
+        if @essay_assignment.category == 'sentence_puzzle' || @essay_assignment.category == 'talk_lab_speaking' ||
+           assigned_student ||
            current_general_user.aienglish_features_list.include?(@essay_assignment.category)
           true
         else

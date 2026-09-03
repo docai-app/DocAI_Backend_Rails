@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_07_03_100000) do
+ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -519,12 +519,14 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_03_100000) do
     t.string "remark"
     t.uuid "community_id"
     t.string "essay_type"
+    t.uuid "school_academic_year_id"
     t.index ["category"], name: "index_essay_assignments_on_category"
     t.index ["code"], name: "index_essay_assignments_on_code", unique: true
     t.index ["community_id"], name: "index_essay_assignments_on_community_id"
     t.index ["general_user_id", "category", "created_at"], name: "index_essay_assignments_on_user_category_created_at", order: { created_at: :desc }
     t.index ["general_user_id", "updated_at"], name: "index_essay_assignments_on_user_updated_at", order: { updated_at: :desc }
     t.index ["general_user_id"], name: "index_essay_assignments_on_general_user_id"
+    t.index ["school_academic_year_id"], name: "index_essay_assignments_on_school_academic_year_id"
   end
 
   create_table "essay_gradings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -848,6 +850,126 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_03_100000) do
     t.index ["recipient_type", "recipient_id"], name: "index_noticed_notifications_on_recipient"
   end
 
+  create_table "oauth_access_grants", force: :cascade do |t|
+    t.uuid "resource_owner_id", null: false
+    t.bigint "application_id", null: false
+    t.string "token", null: false
+    t.integer "expires_in", null: false
+    t.text "redirect_uri", null: false
+    t.string "scopes", default: "", null: false
+    t.datetime "created_at", null: false
+    t.datetime "revoked_at"
+    t.string "code_challenge"
+    t.string "code_challenge_method"
+    t.index ["application_id"], name: "index_oauth_access_grants_on_application_id"
+    t.index ["resource_owner_id"], name: "index_oauth_access_grants_on_resource_owner_id"
+    t.index ["token"], name: "index_oauth_access_grants_on_token", unique: true
+  end
+
+  create_table "oauth_access_tokens", force: :cascade do |t|
+    t.uuid "resource_owner_id"
+    t.bigint "application_id", null: false
+    t.string "token", null: false
+    t.string "refresh_token"
+    t.integer "expires_in"
+    t.string "scopes"
+    t.datetime "created_at", null: false
+    t.datetime "revoked_at"
+    t.string "previous_refresh_token", default: "", null: false
+    t.index ["application_id"], name: "index_oauth_access_tokens_on_application_id"
+    t.index ["refresh_token"], name: "index_oauth_access_tokens_on_refresh_token", unique: true
+    t.index ["resource_owner_id"], name: "index_oauth_access_tokens_on_resource_owner_id"
+    t.index ["token"], name: "index_oauth_access_tokens_on_token", unique: true
+  end
+
+  create_table "oauth_application_webhooks", force: :cascade do |t|
+    t.bigint "oauth_application_id", null: false
+    t.boolean "enabled", default: false, null: false
+    t.string "url"
+    t.string "signing_secret"
+    t.jsonb "subscribed_events", default: [], null: false
+    t.integer "timeout_seconds", default: 10, null: false
+    t.integer "max_retries", default: 5, null: false
+    t.jsonb "custom_headers", default: {}, null: false
+    t.datetime "last_success_at"
+    t.datetime "last_failure_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["oauth_application_id"], name: "index_oauth_application_webhooks_on_oauth_application_id", unique: true
+  end
+
+  create_table "oauth_applications", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "uid", null: false
+    t.string "secret"
+    t.text "redirect_uri", null: false
+    t.string "scopes", default: "", null: false
+    t.boolean "confidential", default: true, null: false
+    t.boolean "enabled", default: false, null: false
+    t.boolean "trusted", default: false, null: false
+    t.string "logo_url"
+    t.string "homepage_url"
+    t.string "privacy_policy_url"
+    t.string "tos_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_oauth_applications_on_enabled"
+    t.index ["uid"], name: "index_oauth_applications_on_uid", unique: true
+  end
+
+  create_table "oauth_audit_logs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "event", null: false
+    t.bigint "oauth_application_id"
+    t.uuid "general_user_id"
+    t.string "ip"
+    t.string "user_agent"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_oauth_audit_logs_on_created_at"
+    t.index ["event"], name: "index_oauth_audit_logs_on_event"
+    t.index ["general_user_id"], name: "index_oauth_audit_logs_on_general_user_id"
+    t.index ["oauth_application_id"], name: "index_oauth_audit_logs_on_oauth_application_id"
+  end
+
+  create_table "oauth_partner_account_links", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.bigint "oauth_application_id", null: false
+    t.uuid "general_user_id", null: false
+    t.string "external_user_id"
+    t.string "external_site"
+    t.string "status", default: "active", null: false
+    t.datetime "linked_at", null: false
+    t.datetime "last_active_at"
+    t.datetime "revoked_at"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["general_user_id"], name: "index_oauth_partner_account_links_on_general_user_id"
+    t.index ["last_active_at"], name: "index_oauth_partner_account_links_on_last_active_at"
+    t.index ["linked_at"], name: "index_oauth_partner_account_links_on_linked_at"
+    t.index ["oauth_application_id", "external_user_id"], name: "index_oauth_links_active_app_external_user", unique: true, where: "(((status)::text = 'active'::text) AND (external_user_id IS NOT NULL))"
+    t.index ["oauth_application_id", "general_user_id"], name: "index_oauth_links_active_app_user", unique: true, where: "((status)::text = 'active'::text)"
+    t.index ["oauth_application_id"], name: "index_oauth_partner_account_links_on_oauth_application_id"
+    t.index ["status"], name: "index_oauth_partner_account_links_on_status"
+  end
+
+  create_table "oauth_webhook_deliveries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.bigint "oauth_application_id", null: false
+    t.string "event_type", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.integer "attempt_count", default: 0, null: false
+    t.integer "last_http_status"
+    t.text "last_error"
+    t.datetime "next_retry_at"
+    t.datetime "delivered_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_oauth_webhook_deliveries_on_event_type"
+    t.index ["oauth_application_id", "created_at"], name: "index_oauth_webhook_deliveries_on_app_and_created"
+    t.index ["oauth_application_id"], name: "index_oauth_webhook_deliveries_on_oauth_application_id"
+    t.index ["status", "next_retry_at"], name: "index_oauth_webhook_deliveries_on_status_retry"
+  end
+
   create_table "pdf_page_details", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "document_id", null: false
     t.integer "page_number"
@@ -1006,8 +1128,12 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_03_100000) do
     t.jsonb "meta", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "student_login_enabled", default: false, null: false
+    t.string "student_login_slug"
+    t.string "student_email_domain"
     t.index ["code"], name: "index_schools_on_code", unique: true
     t.index ["name"], name: "index_schools_on_name", unique: true
+    t.index ["student_login_slug"], name: "index_schools_on_student_login_slug", unique: true, where: "(student_login_slug IS NOT NULL)"
   end
 
   create_table "smart_extraction_schemas", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1279,6 +1405,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_03_100000) do
   add_foreign_key "essay_assignment_shares", "school_academic_years"
   add_foreign_key "essay_assignment_shares", "schools"
   add_foreign_key "essay_assignments", "communities"
+  add_foreign_key "essay_assignments", "school_academic_years"
   add_foreign_key "essay_gradings", "essay_assignments"
   add_foreign_key "essay_gradings", "general_users"
   add_foreign_key "folders", "users"
@@ -1295,6 +1422,16 @@ ActiveRecord::Schema[7.0].define(version: 2026_07_03_100000) do
   add_foreign_key "messages", "chatbots"
   add_foreign_key "mini_apps", "folders"
   add_foreign_key "mini_apps", "users"
+  add_foreign_key "oauth_access_grants", "general_users", column: "resource_owner_id"
+  add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
+  add_foreign_key "oauth_access_tokens", "general_users", column: "resource_owner_id"
+  add_foreign_key "oauth_access_tokens", "oauth_applications", column: "application_id"
+  add_foreign_key "oauth_application_webhooks", "oauth_applications"
+  add_foreign_key "oauth_audit_logs", "general_users"
+  add_foreign_key "oauth_audit_logs", "oauth_applications"
+  add_foreign_key "oauth_partner_account_links", "general_users"
+  add_foreign_key "oauth_partner_account_links", "oauth_applications"
+  add_foreign_key "oauth_webhook_deliveries", "oauth_applications"
   add_foreign_key "pdf_page_details", "documents"
   add_foreign_key "project_workflow_steps", "project_workflows"
   add_foreign_key "project_workflow_steps", "users"

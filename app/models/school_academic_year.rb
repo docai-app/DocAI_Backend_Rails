@@ -27,6 +27,7 @@ class SchoolAcademicYear < ApplicationRecord
   has_many :student_enrollments, dependent: :restrict_with_error
   has_many :teacher_assignments, dependent: :restrict_with_error
   has_many :teachers, through: :teacher_assignments, source: :general_user
+  has_many :essay_assignments, dependent: :restrict_with_error
 
   validates :name, presence: true
   validates :start_date, presence: true

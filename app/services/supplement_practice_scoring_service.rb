@@ -9,7 +9,9 @@ class SupplementPracticeScoringService
 
   # 计算分数
   def calculate
-    return empty_result unless @questions_data.present? && @answers.present?
+    return empty_result unless @questions_data.present?
+
+    @answers ||= {}
 
     score = 0.0
     full_score = 0.0
@@ -24,7 +26,6 @@ class SupplementPracticeScoringService
       
       # 找到对应的答案 section
       answer_section = find_answer_section(section_topic, section_type)
-      next unless answer_section
 
       section['questions']&.each_with_index do |question, question_index|
         questions_count += 1
@@ -86,6 +87,10 @@ class SupplementPracticeScoringService
   def find_user_answer(answer_section, question, section_type, question_index)
     return nil unless answer_section && answer_section['questions']
 
+    if question['id'].present? && answer_section['questions'].any? { |answer| answer['id'].present? }
+      return answer_section['questions'].find { |answer| answer['id'] == question['id'] }
+    end
+
     case section_type
     when 'fill_in_the_blanks'
       # 通过 id 匹配
@@ -104,6 +109,7 @@ class SupplementPracticeScoringService
 
     correct_answer = question['answer']
     user_answer = extract_user_answer_value(user_answer_data, section_type)
+    return false if user_answer.nil? || (user_answer.is_a?(String) && user_answer.strip.empty?)
 
     case section_type
     when 'fill_in_the_blanks'
@@ -114,13 +120,15 @@ class SupplementPracticeScoringService
       user_answer == correct_answer
     when 'true_or_false'
       # 布尔值比较
-      normalize_boolean(user_answer) == normalize_boolean(correct_answer)
+      !normalize_boolean(user_answer).nil? && normalize_boolean(user_answer) == normalize_boolean(correct_answer)
     else
       false
     end
   end
 
   def extract_user_answer_value(user_answer_data, section_type)
+    return nil unless user_answer_data
+
     case section_type
     when 'fill_in_the_blanks'
       user_answer_data['user_answer']
@@ -149,7 +157,7 @@ class SupplementPracticeScoringService
     when false, 'false', 'False', 'FALSE', 0, '0'
       false
     else
-      false
+      nil
     end
   end
 end

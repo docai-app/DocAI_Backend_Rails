@@ -8,22 +8,33 @@ module Api
 
       # GET /api/v1/essay_assignments/my_assignments
       def index
-        teacher_assignments = current_general_user.my_assignments(status: params[:status])
-                                                  .includes(:essay_assignment)
-                                                  .order('assignment_student_assignments.created_at DESC')
+        academic_year_result = StudentAcademicYearFilter.resolve(
+          user: current_general_user,
+          academic_year_id: params[:school_academic_year_id]
+        )
 
-        feed_items = teacher_assignments.map { |assignment| teacher_assignment_json(assignment) }
-        feed_items.concat(active_assignment_packages_json)
-        feed_items.sort_by! { |item| item[:sort_time] || Time.zone.at(0) }
-        feed_items.reverse!
+        assignments = current_general_user.my_assignments(status: params[:status])
+                                          .includes(:essay_assignment)
+                                          .order('assignment_student_assignments.created_at DESC')
+        assignments = StudentAcademicYearFilter.filter_assignments(
+          scope: assignments,
+          result: academic_year_result,
+          user: current_general_user
+        )
+
+        # 分頁
+        assignments = assignments.page(params[:page] || 1).per(params[:per_page] || 25)
 
         assignments = Kaminari.paginate_array(feed_items).page(params[:page] || 1)
                                                         .per(params[:per_page] || 25)
         assignments_data = assignments.map { |item| item.except(:sort_time) }
 
         # 統計信息
-        all_assignments = current_general_user.my_assignments
-        active_packages_count = current_general_user.assignment_packages.where(status: %i[generating active failed]).count
+        all_assignments = StudentAcademicYearFilter.filter_assignments(
+          scope: current_general_user.my_assignments,
+          result: academic_year_result,
+          user: current_general_user
+        )
         statistics = {
           assigned_count: all_assignments.assigned.count,
           completed_count: all_assignments.completed.count,
@@ -42,9 +53,12 @@ module Api
               total_pages: assignments.total_pages,
               total_count: assignments.total_count
             },
-            statistics: statistics
+            statistics: statistics,
+            academic_year: academic_year_json(academic_year_result.academic_year)
           }
         }, status: :ok
+      rescue StudentAcademicYearFilter::AcademicYearUnavailableError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 
       private
@@ -80,17 +94,14 @@ module Api
         }
       end
 
-      def active_assignment_packages_json
-        current_general_user.assignment_packages
-                            .where(status: %i[generating active failed])
-                            .includes(assignment_package_items: :essay_assignment)
-                            .order(created_at: :desc)
-                            .map do |assignment_package|
-          assignment_package.as_list_json.merge(
-            type: 'assignment_package',
-            sort_time: assignment_package.created_at
-          )
-        end
+    def academic_year_json(academic_year)
+        return if academic_year.nil?
+
+        {
+          id: academic_year.id,
+          name: academic_year.name,
+          status: academic_year.status
+        }
       end
     end
   end

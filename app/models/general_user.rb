@@ -81,6 +81,16 @@ class GeneralUser < ApplicationRecord
            dependent: :nullify,
            inverse_of: :created_by
 
+  has_many :oauth_access_grants,
+           class_name: 'Doorkeeper::AccessGrant',
+           foreign_key: :resource_owner_id,
+           dependent: :delete_all
+
+  has_many :oauth_access_tokens,
+           class_name: 'Doorkeeper::AccessToken',
+           foreign_key: :resource_owner_id,
+           dependent: :delete_all
+
   has_many :received_essay_assignment_shares,
            class_name: 'EssayAssignmentShare',
            foreign_key: :shared_with_general_user_id,
@@ -506,8 +516,14 @@ class GeneralUser < ApplicationRecord
     query = assignment_student_assignments
               .includes(:essay_assignment)
               .order('assignment_student_assignments.created_at DESC')
-    
-    query = query.where(status: status) if status.present?
+
+    if status.present?
+      requested_statuses = Array(status).flat_map { |value| value.to_s.split(',') }
+                                        .map(&:strip)
+                                        .select { |value| AssignmentStudentAssignment.statuses.key?(value) }
+      query = requested_statuses.any? ? query.where(status: requested_statuses) : query.none
+    end
+
     query
   end
 

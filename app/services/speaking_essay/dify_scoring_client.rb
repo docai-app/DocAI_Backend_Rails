@@ -237,9 +237,7 @@ module SpeakingEssay
       return candidate if candidate.is_a?(Hash)
       return nil if candidate.blank?
 
-      text = candidate.to_s.strip
-      text = text.sub(/\A```(?:json)?\s*/i, '').sub(/\s*```\z/, '').strip
-      JSON.parse(text)
+      AiJsonParser.object(candidate)
     end
 
     def workflow_payload(inputs:, user:, response_mode:)
