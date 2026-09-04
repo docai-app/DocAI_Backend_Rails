@@ -40,13 +40,13 @@ class GeneralUser < ApplicationRecord
   self.primary_key = 'id'
 
   VALID_AI_ENGLISH_FEATURES = %w[essay comprehension speaking_essay speaking_conversation sentence_builder
-                                 speaking_pronunciation sentence_puzzle].freeze
+                                 speaking_pronunciation sentence_puzzle talk_lab_speaking].freeze
   AI_ENGLISH_GLOBAL_ADMIN_EMAILS = %w[teacher@docai.net].freeze
 
   validate :aienglish_features_must_be_valid
 
   store_accessor :konnecai_tokens, :essay, :comprehension, :speaking_essay, :speaking_conversation, :sentence_builder,
-                 :speaking_pronunciation
+                 :speaking_pronunciation, :talk_lab_speaking
 
   # has_and_belongs_to_many :roles, join_table: :users_roles
 
@@ -75,6 +75,12 @@ class GeneralUser < ApplicationRecord
 
   has_many :essay_gradings
   has_many :essay_assignments
+  has_many :assignment_packages, dependent: :destroy
+  has_many :created_learning_path_templates,
+           class_name: 'LearningPathTemplate',
+           foreign_key: :created_by_id,
+           dependent: :nullify,
+           inverse_of: :created_by
 
   has_many :oauth_access_grants,
            class_name: 'Doorkeeper::AccessGrant',
@@ -390,7 +396,7 @@ class GeneralUser < ApplicationRecord
 
   def set_konnecai_tokens_all_same(web_token)
     # 定義 category 的鍵
-    categories = %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation]
+    categories = %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation talk_lab_speaking]
 
     # 遍歷 categories 的每個鍵，將其值設置為 web_token
     categories.each do |category|

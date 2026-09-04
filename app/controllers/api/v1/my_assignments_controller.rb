@@ -13,23 +13,24 @@ module Api
           academic_year_id: params[:school_academic_year_id]
         )
 
-        assignments = current_general_user.my_assignments(status: params[:status])
-                                          .includes(:essay_assignment)
-                                          .order('assignment_student_assignments.created_at DESC')
-        assignments = StudentAcademicYearFilter.filter_assignments(
-          scope: assignments,
+        teacher_assignments = current_general_user.my_assignments(status: params[:status])
+                                                  .includes(:essay_assignment)
+                                                  .order('assignment_student_assignments.created_at DESC')
+        teacher_assignments = StudentAcademicYearFilter.filter_assignments(
+          scope: teacher_assignments,
           result: academic_year_result,
           user: current_general_user
         )
 
-        # 分頁
-        assignments = assignments.page(params[:page] || 1).per(params[:per_page] || 25)
+        feed_items = teacher_assignments.map { |assignment| teacher_assignment_json(assignment) }
+        feed_items.concat(active_assignment_packages_json)
+        feed_items.sort_by! { |item| item[:sort_time] || Time.zone.at(0) }
+        feed_items.reverse!
 
-        assignments_data = assignments.map do |assignment|
-          assignment_json(assignment)
-        end
+        assignments = Kaminari.paginate_array(feed_items).page(params[:page] || 1)
+                              .per(params[:per_page] || 25)
+        assignments_data = assignments.map { |item| item.except(:sort_time) }
 
-        # 統計信息
         all_assignments = StudentAcademicYearFilter.filter_assignments(
           scope: current_general_user.my_assignments,
           result: academic_year_result,
@@ -38,7 +39,8 @@ module Api
         statistics = {
           assigned_count: all_assignments.assigned.count,
           completed_count: all_assignments.completed.count,
-          overdue_count: all_assignments.overdue.count
+          overdue_count: all_assignments.overdue.count,
+          assignment_packages_count: active_packages_count
         }
 
         render json: {
@@ -63,15 +65,16 @@ module Api
       private
 
       def ensure_student
-        unless current_general_user.aienglish_role == 'student'
-          render json: { success: false, error: 'Only students can view their assignments' }, 
-                 status: :forbidden
-        end
+        return if current_general_user.aienglish_role == 'student'
+
+        render json: { success: false, error: 'Only students can view their assignments' },
+               status: :forbidden
       end
 
-      def assignment_json(assignment)
+      def teacher_assignment_json(assignment)
         essay_assignment = assignment.essay_assignment
         {
+          type: 'teacher_assignment',
           id: assignment.id,
           essay_assignment: {
             id: essay_assignment.id,
@@ -87,8 +90,26 @@ module Api
           has_submission: assignment.has_submission?,
           completed_at: assignment.completed_at&.iso8601,
           created_at: assignment.created_at.iso8601,
-          updated_at: assignment.updated_at.iso8601
+          updated_at: assignment.updated_at.iso8601,
+          sort_time: assignment.created_at
         }
+      end
+
+      def active_assignment_packages_json
+        current_general_user.assignment_packages
+                            .where(status: %i[generating active failed])
+                            .includes(assignment_package_items: :essay_assignment)
+                            .order(created_at: :desc)
+                            .map do |assignment_package|
+          assignment_package.as_list_json.merge(
+            type: 'assignment_package',
+            sort_time: assignment_package.created_at
+          )
+        end
+      end
+
+      def active_packages_count
+        current_general_user.assignment_packages.where(status: %i[generating active failed]).count
       end
 
       def academic_year_json(academic_year)

@@ -136,6 +136,13 @@ Rails.application.routes.draw do
         end
       end
 
+      resources :learning_path_templates, only: %i[index show]
+      resources :assignment_packages, only: %i[index show create destroy] do
+        member do
+          get 'items/:item_id/start', to: 'assignment_packages#start_item'
+        end
+      end
+
       # ********** Group API *********
       resources :groups do
         member do
@@ -611,6 +618,13 @@ Rails.application.routes.draw do
         resources :school_admin_accounts, only: %i[index create update] do
           member do
             patch :toggle_status
+          end
+        end
+
+        resources :learning_path_templates, only: %i[index show create update destroy]
+        resources :assignment_packages, only: %i[index show destroy] do
+          member do
+            post :retry_generation
           end
         end
       end

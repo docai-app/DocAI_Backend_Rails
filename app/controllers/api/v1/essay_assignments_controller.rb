@@ -527,7 +527,7 @@ module Api
         assigned_student = current_general_user.aienglish_role == 'student' &&
                            @essay_assignment.assigned_to_student?(current_general_user)
 
-        if @essay_assignment.category == 'sentence_puzzle' ||
+        if @essay_assignment.category == 'sentence_puzzle' || @essay_assignment.category == 'talk_lab_speaking' ||
            assigned_student ||
            current_general_user.aienglish_features_list.include?(@essay_assignment.category)
           true

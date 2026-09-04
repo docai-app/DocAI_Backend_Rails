@@ -29,7 +29,39 @@
 require 'test_helper'
 
 class EssayAssignmentTest < ActiveSupport::TestCase
-  # test "the truth" do
-  #   assert true
-  # end
+  test 'talk lab speaking defaults to fixed app keys' do
+    old_grading = ENV['TALK_LAB_SPEAKING_GRADING_APP_KEY']
+    old_general_context = ENV['TALK_LAB_SPEAKING_GENERAL_CONTEXT_APP_KEY']
+    ENV['TALK_LAB_SPEAKING_GRADING_APP_KEY'] = 'talk-lab-grading-key'
+    ENV['TALK_LAB_SPEAKING_GENERAL_CONTEXT_APP_KEY'] = 'talk-lab-context-key'
+
+    assignment = EssayAssignment.new(
+      general_user: general_users(:one),
+      category: 'talk_lab_speaking',
+      topic: 'Travel',
+      title: 'Travel Talk Lab',
+      assignment: 'Talk about a trip.',
+      rubric: {}
+    )
+
+    assert assignment.valid?
+    assert_equal 'Talk Lab Speaking', assignment.rubric['name']
+    assert_equal 'talk-lab-grading-key', assignment.rubric.dig('app_key', 'grading')
+    assert_equal 'talk-lab-context-key', assignment.rubric.dig('app_key', 'general_context')
+  ensure
+    ENV['TALK_LAB_SPEAKING_GRADING_APP_KEY'] = old_grading
+    ENV['TALK_LAB_SPEAKING_GENERAL_CONTEXT_APP_KEY'] = old_general_context
+  end
+
+  test 'talk lab speaking meta is filtered from list response' do
+    filtered = EssayAssignment.meta_for_list_response(
+      {
+        'talk_lab_speaking' => { 'rtc_prompt_materials' => { 'large' => true } },
+        'level' => 'CEFR B2'
+      },
+      category: 'talk_lab_speaking'
+    )
+
+    assert_equal({ 'level' => 'CEFR B2' }, filtered)
+  end
 end

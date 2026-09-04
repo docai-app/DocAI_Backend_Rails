@@ -123,8 +123,12 @@ class EssayGrading < ApplicationRecord
     category == 'sentence_puzzle'
   end
 
+  def is_talk_lab_speaking?
+    category == 'talk_lab_speaking'
+  end
+
   def need_to_run_workflow?
-    %w[essay speaking_essay speaking_conversation sentence_builder].include?(category)
+    %w[essay speaking_essay speaking_conversation sentence_builder talk_lab_speaking].include?(category)
   end
 
   # 是否需要計算發音分數（僅 speaking_pronunciation，且不是 draft）

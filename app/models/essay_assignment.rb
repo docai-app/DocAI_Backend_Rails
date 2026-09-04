@@ -79,11 +79,13 @@ class EssayAssignment < ApplicationRecord
 
   SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY = 'speaking_pronunciation_sentences'
   SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY = 'speaking_conversation'
+  TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY = 'talk_lab_speaking'
 
   def self.meta_for_list_response(meta, category: nil)
     return meta unless meta.is_a?(Hash)
 
     filtered = meta.except(SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY)
+    return filtered.except(TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY) if talk_lab_speaking_category?(category)
     return filtered unless speaking_conversation_category?(category)
 
     filtered.except(SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY)
@@ -91,11 +93,14 @@ class EssayAssignment < ApplicationRecord
 
   def self.list_meta_sql_select
     speaking_conversation_category = categories['speaking_conversation']
+    talk_lab_speaking_category = categories['talk_lab_speaking']
 
     <<~SQL.squish
       CASE
         WHEN essay_assignments.category = #{speaking_conversation_category} THEN
           essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' - '#{SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY}'
+        WHEN essay_assignments.category = #{talk_lab_speaking_category} THEN
+          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' - '#{TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY}'
         ELSE
           essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}'
       END AS meta
@@ -104,6 +109,19 @@ class EssayAssignment < ApplicationRecord
 
   def self.speaking_conversation_category?(category)
     category.to_s == 'speaking_conversation' || category == categories['speaking_conversation']
+  end
+
+  def self.talk_lab_speaking_category?(category)
+    category.to_s == 'talk_lab_speaking' || category == categories['talk_lab_speaking']
+  end
+
+  def self.talk_lab_speaking_app_key_config
+    {
+      'grading' => ENV['TALK_LAB_SPEAKING_GRADING_APP_KEY'].presence ||
+                   ENV['talk_lab_speaking_grading_app_key'].presence,
+      'general_context' => ENV['TALK_LAB_SPEAKING_GENERAL_CONTEXT_APP_KEY'].presence ||
+                           ENV['talk_lab_speaking_general_context_app_key'].presence
+    }.compact
   end
 
   def as_list_json
@@ -128,7 +146,7 @@ class EssayAssignment < ApplicationRecord
     'narrative_essay' => 'Essay Type: Narrative Essay'
   }.freeze
 
-  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening sentence_puzzle]
+  enum category: %w[essay comprehension speaking_conversation speaking_essay sentence_builder speaking_pronunciation listening sentence_puzzle talk_lab_speaking]
 
   scope :matching_search, lambda { |term|
     normalized = term.to_s.strip
@@ -148,6 +166,7 @@ class EssayAssignment < ApplicationRecord
 
   before_create :generate_unique_code
   before_validation :assign_default_sentence_puzzle_rubric
+  before_validation :assign_default_talk_lab_speaking_rubric
   before_save :normalize_level
   after_save :check_and_generate_vocab_examples
   after_save :persist_speaking_conversation_question_audios
@@ -165,6 +184,8 @@ class EssayAssignment < ApplicationRecord
 
   # 補充練習記錄關聯
   has_many :supplement_practice_records, dependent: :destroy
+  has_one :assignment_package_item, dependent: :destroy
+  has_one :assignment_package, through: :assignment_package_item
 
   # 檔案附件 - 為IELTS看圖作文添加圖片上傳功能
   has_one_attached :graph_image, service: :microsoft
@@ -237,6 +258,18 @@ class EssayAssignment < ApplicationRecord
       essay_grading.general_context['app_key'] = rubric['app_key']['general_context']
       essay_grading.save!
     end
+  end
+
+  def assign_default_talk_lab_speaking_rubric
+    return unless category == 'talk_lab_speaking'
+
+    fixed_app_key = self.class.talk_lab_speaking_app_key_config
+    current_rubric = rubric.is_a?(Hash) ? rubric.deep_dup : {}
+    current_app_key = current_rubric['app_key'].is_a?(Hash) ? current_rubric['app_key'] : {}
+
+    current_rubric['name'] = current_rubric['name'].presence || 'Talk Lab Speaking'
+    current_rubric['app_key'] = current_app_key.merge(fixed_app_key)
+    self.rubric = current_rubric
   end
 
   # 返回圖片的完整URL - 參考School模型的logo_url實現
