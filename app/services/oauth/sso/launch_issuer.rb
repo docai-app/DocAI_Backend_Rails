@@ -30,6 +30,7 @@ module Oauth
         mode = @input[:mode].to_s.strip
         return_origin = @input[:return_origin].to_s.strip
         nonce = @input[:nonce].to_s.strip
+        provider_origin = @input[:provider_origin].to_s.strip
 
         if subject.blank? || assignment_id.blank? || mode.blank? || return_origin.blank? || nonce.blank?
           raise Error.new('INVALID_REQUEST', 'Missing required launch fields.', http_status: 400)
@@ -44,12 +45,15 @@ module Oauth
           raise Error.new('INVALID_REQUEST', 'nonce must be at least 128-bit entropy.', http_status: 400)
         end
 
+        resolved_provider_origin = PublicOrigins.resolve!(provider_origin.presence)
+
         @input = {
           subject: subject,
           assignment_id: assignment_id,
           mode: mode,
           return_origin: OriginValidator.normalize(return_origin),
-          nonce: nonce
+          nonce: nonce,
+          provider_origin: resolved_provider_origin
         }
       end
 
@@ -87,7 +91,8 @@ module Oauth
           expires_at: ttl.seconds.from_now,
           meta: {
             requested_subject: @input[:subject],
-            binding_id: binding.id
+            binding_id: binding.id,
+            provider_origin: @input[:provider_origin]
           }
         )
 
@@ -119,10 +124,12 @@ module Oauth
 
       def assert_idempotent_payload!(launch)
         assignment = AssignmentAccess.find_assignment!(@input[:assignment_id])
+        stored_provider_origin = launch.meta.to_h['provider_origin'].presence || PublicOrigins.default
         same =
           launch.assignment_id.to_s == assignment.id.to_s &&
           launch.mode == @input[:mode] &&
           launch.return_origin == @input[:return_origin] &&
+          stored_provider_origin == @input[:provider_origin] &&
           (launch.subject == @input[:subject] || launch.meta.to_h['requested_subject'].to_s == @input[:subject])
 
         return if same
@@ -133,15 +140,13 @@ module Oauth
 
       def build_response(launch, secret)
         ticket = TicketCrypto.ticket_for(launch_id: launch.id, secret: secret)
-        public_origin = ENV.fetch(
-          'AIENGLISH_PUBLIC_ORIGIN',
-          ENV.fetch('FRONTEND_URL', ENV.fetch('AIENGLISH_WEB_ORIGIN', 'https://docai.m2mda.com'))
-        ).to_s.chomp('/')
+        public_origin = launch.meta.to_h['provider_origin'].presence || PublicOrigins.default
 
         {
           launchId: launch.id,
           enterUrl: "#{public_origin}/oauth/sso/enter?ticket=#{CGI.escape(ticket)}",
-          expiresIn: [(launch.expires_at - Time.current).ceil, 1].max
+          expiresIn: [(launch.expires_at - Time.current).ceil, 1].max,
+          providerOrigin: public_origin
         }
       end
     end

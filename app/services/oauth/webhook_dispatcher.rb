@@ -159,8 +159,7 @@ module Oauth
       private
 
       def frontend_base
-        ENV.fetch('AIENGLISH_PUBLIC_ORIGIN',
-                  ENV.fetch('FRONTEND_URL', ENV.fetch('AIENGLISH_WEB_ORIGIN', 'https://docai.m2mda.com'))).to_s.chomp('/')
+        ::Oauth::Sso::PublicOrigins.default
       end
 
       def assignment_deep_link(assignment)

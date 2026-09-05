@@ -69,11 +69,14 @@ module Oauth
 
           raise enter_error(410, '启动链接已使用，请返回 KonnecAI 重新开启。') if updated != 1
 
+          provider_origin = launch.meta.to_h['provider_origin'].presence || PublicOrigins.default
+
           {
             session: session,
             session_token: "#{session.id}.#{Base64.urlsafe_encode64(session_secret, padding: false)}",
             assignment: assignment,
-            redirect_path: AssignmentPathBuilder.path_for(assignment)
+            provider_origin: provider_origin,
+            redirect_url: AssignmentPathBuilder.absolute_url_for(assignment, origin: provider_origin)
           }
         end
       end

@@ -59,6 +59,7 @@ module Oauth
           assignment_id: params[:assignmentId] || params[:assignment_id],
           mode: params[:mode],
           return_origin: params[:returnOrigin] || params[:return_origin],
+          provider_origin: params[:providerOrigin] || params[:provider_origin],
           nonce: params[:nonce]
         }
       end

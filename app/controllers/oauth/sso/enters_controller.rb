@@ -20,15 +20,14 @@ module Oauth
         EmbedCookie.set!(
           response: response,
           token: result[:session_token],
-          expires_at: result[:session].expires_at
+          expires_at: result[:session].expires_at,
+          public_origin: result[:provider_origin]
         )
 
-        # Must use PUBLIC_ORIGIN absolute URL. Relative redirect_to rebuilds from
-        # request Host + X-Forwarded-Proto; when Next rewrites localhost → HTTPS
-        # API, Rails emits https://localhost:... which browsers cannot load.
-        redirect_to AssignmentPathBuilder.absolute_url_for(result[:assignment]),
-                    status: :see_other,
-                    allow_other_host: true
+        # Absolute URL from launch provider_origin. Relative redirect_to rebuilds from
+        # request Host + X-Forwarded-Proto and can emit https://localhost when Next
+        # rewrites an http frontend to the HTTPS API.
+        redirect_to result[:redirect_url], status: :see_other, allow_other_host: true
       rescue ::Oauth::Sso::Error => e
         render_enter_error(e)
       rescue StandardError => e

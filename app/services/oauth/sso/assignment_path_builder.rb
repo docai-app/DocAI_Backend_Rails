@@ -23,11 +23,9 @@ module Oauth
         "#{prefix}/#{CGI.escape(code)}?embed=1"
       end
 
-      def self.absolute_url_for(assignment)
-        base = ENV.fetch('AIENGLISH_PUBLIC_ORIGIN',
-                         ENV.fetch('FRONTEND_URL',
-                                   ENV.fetch('AIENGLISH_WEB_ORIGIN', 'https://docai.m2mda.com')))
-        "#{base.to_s.chomp('/')}#{path_for(assignment)}"
+      def self.absolute_url_for(assignment, origin: nil)
+        base = (origin.presence || PublicOrigins.default).to_s.chomp('/')
+        "#{base}#{path_for(assignment)}"
       end
     end
   end
