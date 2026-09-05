@@ -18,6 +18,13 @@ module Oauth
       end
 
       def authenticate_embed_or_general_user!
+        # Browser SPA login sends Authorization JWT. Prefer it over a leftover embed
+        # cookie so logging out and signing in as another user is not overridden.
+        if request.headers['Authorization'].to_s.strip.present?
+          authenticate_general_user!
+          return
+        end
+
         raw_cookie = EmbedCookie.read(request)
         if raw_cookie.present?
           session = EmbedSessionResolver.resolve(request)
