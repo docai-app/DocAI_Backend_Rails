@@ -600,7 +600,19 @@ class EssayAssignment < ApplicationRecord
   end
 
   def assigned_to_student?(student)
-    assignment_student_assignments.where(general_user: student).exists?
+    return false if student.blank?
+
+    # Direct id lookup avoids Apartment association quirks between public
+    # EssayAssignment and historically tenant-scoped student assignment rows.
+    return true if AssignmentStudentAssignment.exists?(
+      essay_assignment_id: id,
+      general_user_id: student.id
+    )
+
+    ::Oauth::Sso::AssignmentAccess.assigned_in_any_tenant?(
+      assignment_id: id,
+      user_id: student.id
+    )
   end
 
   # 獲取所有被分配的學生（去重）
