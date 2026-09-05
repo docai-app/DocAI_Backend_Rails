@@ -10,13 +10,19 @@ module Oauth
         use_host_prefix? ? COOKIE_NAME_HOST : COOKIE_NAME_DEV
       end
 
+      # When AIENGLISH_PUBLIC_ORIGIN is http:// (e.g. local essay-checker against
+      # a remote Rails), browsers reject Secure / __Host- cookies on that page.
+      def self.http_public_origin?
+        ENV.fetch('AIENGLISH_PUBLIC_ORIGIN', '').to_s.start_with?('http://')
+      end
+
       def self.use_host_prefix?
-        !Rails.env.development? && !Rails.env.test?
+        !Rails.env.development? && !Rails.env.test? && !http_public_origin?
       end
 
       def self.set!(response:, token:, expires_at:)
         max_age = [(expires_at - Time.current).to_i, 1].max
-        secure = use_host_prefix? || Rails.env.production?
+        secure = (use_host_prefix? || Rails.env.production?) && !http_public_origin?
 
         response.set_cookie(
           cookie_name,
