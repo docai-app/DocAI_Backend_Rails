@@ -23,7 +23,12 @@ module Oauth
           expires_at: result[:session].expires_at
         )
 
-        redirect_to result[:redirect_path], status: :see_other, allow_other_host: false
+        # Must use PUBLIC_ORIGIN absolute URL. Relative redirect_to rebuilds from
+        # request Host + X-Forwarded-Proto; when Next rewrites localhost → HTTPS
+        # API, Rails emits https://localhost:... which browsers cannot load.
+        redirect_to AssignmentPathBuilder.absolute_url_for(result[:assignment]),
+                    status: :see_other,
+                    allow_other_host: true
       rescue ::Oauth::Sso::Error => e
         render_enter_error(e)
       rescue StandardError => e
