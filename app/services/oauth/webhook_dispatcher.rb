@@ -132,11 +132,42 @@ module Oauth
         )
       end
 
+      def enqueue_assignment_lifecycle(user:, assignment:, grading:, event_type:)
+        return if user.blank? || assignment.blank?
+
+        OauthPartnerAccountLink.active.where(general_user_id: user.id).includes(:oauth_application).find_each do |link|
+          app = link.oauth_application
+          next if app.blank? || !app.enabled?
+
+          enqueue_event(
+            application: app,
+            event_type: event_type,
+            data: {
+              subject: user.id.to_s,
+              assignmentId: assignment.id.to_s,
+              completedAt: (grading&.updated_at || Time.current).utc.iso8601(3),
+              reportUrl: grading.present? ? "#{frontend_base}/essay/grading/#{grading.id}" : nil,
+              partner: {
+                external_user_id: link.external_user_id,
+                external_site: link.external_site
+              }
+            }.compact
+          )
+        end
+      end
+
       private
 
+      def frontend_base
+        ENV.fetch('AIENGLISH_PUBLIC_ORIGIN',
+                  ENV.fetch('FRONTEND_URL', ENV.fetch('AIENGLISH_WEB_ORIGIN', 'https://docai.m2mda.com'))).to_s.chomp('/')
+      end
+
       def assignment_deep_link(assignment)
-        base = ENV.fetch('FRONTEND_URL', ENV.fetch('OAUTH_FRONTEND_URL', 'https://docai-dev.m2mda.com'))
-        "#{base.to_s.chomp('/')}/assignments/#{assignment.id}"
+        path = ::Oauth::Sso::AssignmentPathBuilder.path_for(assignment).sub(/\?embed=1\z/, '')
+        "#{frontend_base}#{path}"
+      rescue StandardError
+        "#{frontend_base}/assignments/#{assignment.id}"
       end
     end
   end

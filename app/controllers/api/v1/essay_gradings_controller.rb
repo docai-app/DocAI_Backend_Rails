@@ -9,9 +9,11 @@ module Api
     class EssayGradingsController < ApiController
       include SpeakingConversationPresetQuestions
       include SentencePuzzleSubmissions
+      include ::Oauth::Sso::EmbedAuthenticatable
 
-      before_action :authenticate_general_user!,
+      before_action :authenticate_embed_or_general_user!,
                     except: %i[download_reports download_report download_supplement_practice]
+      before_action :assert_embed_assignment_for_nested_create!, only: %i[create]
 
       def download_report
         set_essay_grading
@@ -964,6 +966,15 @@ module Api
         @essay_assignment = EssayAssignment.find_by!(code: params[:essay_assignment_id])
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :not_found
+      end
+
+      def assert_embed_assignment_for_nested_create!
+        return unless embed_session?
+
+        set_essay_assignment_by_code
+        return if performed?
+
+        assert_embed_assignment!(@essay_assignment)
       end
 
       def ensure_assignment_package_item_access(essay_assignment)
@@ -3412,6 +3423,21 @@ module Api
         else
           # 如果不存在分配記錄，說明是直接通過 code 進入，不需要更新狀態
           Rails.logger.info "No assignment distribution found for user #{current_general_user.id}, assignment #{@essay_assignment.id} - skipping status update"
+        end
+
+        ::Oauth::WebhookDispatcher.enqueue_assignment_lifecycle(
+          user: current_general_user,
+          assignment: @essay_assignment,
+          grading: @essay_grading,
+          event_type: 'assignment.submitted'
+        )
+        if @essay_grading.status.to_s.in?(%w[graded pending])
+          ::Oauth::WebhookDispatcher.enqueue_assignment_lifecycle(
+            user: current_general_user,
+            assignment: @essay_assignment,
+            grading: @essay_grading,
+            event_type: @essay_grading.status.to_s == 'graded' ? 'assignment.graded' : 'assignment.completed'
+          )
         end
       end
 

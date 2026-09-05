@@ -24,6 +24,11 @@ Rails.application.routes.draw do
     get 'userinfo', to: 'userinfo#show'
     post 'web_login', to: 'web_logins#create'
     get 'reauthenticate', to: 'reauthentications#show'
+
+    namespace :sso do
+      post 'launch', to: 'launches#create'
+      get 'enter', to: 'enters#show'
+    end
   end
 
   devise_for :users,
@@ -51,6 +56,7 @@ Rails.application.routes.draw do
 
       namespace :oauth do
         post 'partner_bindings', to: 'partner_bindings#create'
+        get 'embed/session', to: 'embed_sessions#show'
       end
 
       post 'unisound/eval', to: 'unisound#create'

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
+ActiveRecord::Schema[7.0].define(version: 2026_09_05_123000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -913,6 +913,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
     t.string "tos_url"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "allowed_launch_origins", default: [], null: false
+    t.boolean "sso_launch_enabled", default: false, null: false
     t.index ["enabled"], name: "index_oauth_applications_on_enabled"
     t.index ["uid"], name: "index_oauth_applications_on_uid", unique: true
   end
@@ -929,6 +931,49 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
     t.index ["event"], name: "index_oauth_audit_logs_on_event"
     t.index ["general_user_id"], name: "index_oauth_audit_logs_on_general_user_id"
     t.index ["oauth_application_id"], name: "index_oauth_audit_logs_on_oauth_application_id"
+  end
+
+  create_table "oauth_embed_launches", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "client_id", null: false
+    t.string "subject", null: false
+    t.uuid "assignment_id", null: false
+    t.string "mode", null: false
+    t.string "return_origin", null: false
+    t.string "nonce", null: false
+    t.string "request_id", null: false
+    t.string "ticket_secret_digest", null: false
+    t.integer "key_version", default: 1, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "consumed_at"
+    t.datetime "revoked_at"
+    t.uuid "embed_session_id"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id", "nonce"], name: "index_oauth_embed_launches_on_client_id_and_nonce", unique: true
+    t.index ["expires_at"], name: "oauth_embed_launches_expiry_idx", where: "((consumed_at IS NULL) AND (revoked_at IS NULL))"
+    t.index ["subject", "created_at"], name: "oauth_embed_launches_subject_idx", order: { created_at: :desc }
+    t.index ["ticket_secret_digest"], name: "index_oauth_embed_launches_on_ticket_secret_digest", unique: true
+  end
+
+  create_table "oauth_embed_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "session_secret_digest", null: false
+    t.string "client_id", null: false
+    t.string "subject", null: false
+    t.uuid "user_id", null: false
+    t.uuid "assignment_id", null: false
+    t.uuid "launch_id", null: false
+    t.string "parent_origin", null: false
+    t.string "mode", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "last_seen_at"
+    t.jsonb "meta", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["id", "expires_at"], name: "oauth_embed_sessions_active_idx", where: "(revoked_at IS NULL)"
+    t.index ["session_secret_digest"], name: "index_oauth_embed_sessions_on_session_secret_digest", unique: true
+    t.index ["subject", "created_at"], name: "oauth_embed_sessions_subject_idx", order: { created_at: :desc }
   end
 
   create_table "oauth_partner_account_links", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1429,6 +1474,9 @@ ActiveRecord::Schema[7.0].define(version: 2026_08_27_150000) do
   add_foreign_key "oauth_application_webhooks", "oauth_applications"
   add_foreign_key "oauth_audit_logs", "general_users"
   add_foreign_key "oauth_audit_logs", "oauth_applications"
+  add_foreign_key "oauth_embed_launches", "essay_assignments", column: "assignment_id"
+  add_foreign_key "oauth_embed_sessions", "essay_assignments", column: "assignment_id"
+  add_foreign_key "oauth_embed_sessions", "general_users", column: "user_id"
   add_foreign_key "oauth_partner_account_links", "general_users"
   add_foreign_key "oauth_partner_account_links", "oauth_applications"
   add_foreign_key "oauth_webhook_deliveries", "oauth_applications"

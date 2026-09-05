@@ -18,6 +18,14 @@ class OauthApplication < ApplicationRecord
   validates :name, presence: true
   validates :redirect_uri, presence: true
 
+  def allowed_launch_origins_list
+    Array(allowed_launch_origins).map(&:to_s).map(&:strip).reject(&:blank?).uniq
+  end
+
+  def sso_launch_allowed?
+    enabled? && confidential? && sso_launch_enabled? && allowed_launch_origins_list.any?
+  end
+
   def as_admin_json(include_secret: false, include_stats: false)
     data = {
       id: id,
@@ -26,6 +34,8 @@ class OauthApplication < ApplicationRecord
       confidential: confidential,
       enabled: enabled,
       trusted: trusted,
+      sso_launch_enabled: sso_launch_enabled,
+      allowed_launch_origins: allowed_launch_origins_list,
       redirect_uris: redirect_uri.to_s.split(/\s+/).reject(&:blank?),
       scopes: scopes.to_s,
       logo_url: logo_url,

@@ -4,8 +4,9 @@ module Api
   module V1
     class EssayAssignmentsController < ApiController
       include EssayAssignmentAccessAuthorization
+      include ::Oauth::Sso::EmbedAuthenticatable
 
-      before_action :authenticate_general_user!
+      before_action :authenticate_embed_or_general_user!
       before_action :set_essay_assignment_with_access, only: %i[read show update destroy release_scores]
       before_action :authorize_essay_assignment_score_release!, only: %i[release_scores]
       before_action :authorize_essay_assignment_read!, only: %i[read]
@@ -15,6 +16,7 @@ module Api
 
       before_action :set_essay_assignment_by_code, only: %i[show_only]
       before_action :aienglish_access, only: %i[show_only]
+      before_action :assert_embed_assignment_for_show_only!, only: %i[show_only]
 
       def index
         owner = index_assignments_owner
@@ -518,6 +520,10 @@ module Api
         @essay_assignment = EssayAssignment.find_by!(code: params[:id])
       rescue ActiveRecord::RecordNotFound
         render json: { success: false, error: 'EssayAssignment not found' }, status: :ok
+      end
+
+      def assert_embed_assignment_for_show_only!
+        assert_embed_assignment!(@essay_assignment)
       end
 
       def aienglish_access

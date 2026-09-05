@@ -212,18 +212,20 @@ module Api
 
         def client_params_for_create
           permitted = params.require(:client).permit(
-            :name, :confidential, :enabled, :trusted,
+            :name, :confidential, :enabled, :trusted, :sso_launch_enabled,
             :logo_url, :homepage_url, :privacy_policy_url, :tos_url, :scopes,
-            redirect_uris: []
+            redirect_uris: [],
+            allowed_launch_origins: []
           )
           normalize_client_attrs(permitted)
         end
 
         def client_params_for_update
           permitted = params.require(:client).permit(
-            :name, :confidential, :enabled, :trusted,
+            :name, :confidential, :enabled, :trusted, :sso_launch_enabled,
             :logo_url, :homepage_url, :privacy_policy_url, :tos_url, :scopes,
-            redirect_uris: []
+            redirect_uris: [],
+            allowed_launch_origins: []
           )
           normalize_client_attrs(permitted)
         end
@@ -242,6 +244,10 @@ module Api
           if attrs.key?('redirect_uris') || attrs.key?(:redirect_uris)
             uris = Array(attrs.delete('redirect_uris') || attrs.delete(:redirect_uris))
             attrs['redirect_uri'] = uris.map(&:to_s).map(&:strip).reject(&:blank?).join("\n")
+          end
+          if attrs.key?('allowed_launch_origins') || attrs.key?(:allowed_launch_origins)
+            origins = Array(attrs.delete('allowed_launch_origins') || attrs.delete(:allowed_launch_origins))
+            attrs['allowed_launch_origins'] = origins.map(&:to_s).map(&:strip).reject(&:blank?).uniq
           end
           attrs['scopes'] = Array(attrs['scopes']).join(' ') if attrs['scopes'].is_a?(Array)
           attrs['enabled'] = false if attrs['enabled'].nil? && action_name == 'create'
