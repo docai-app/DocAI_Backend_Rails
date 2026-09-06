@@ -44,6 +44,16 @@ module Oauth
           )
         end
 
+        # No Authorization JWT and no embed cookie — do not fall through to Devise's
+        # generic "sign in or sign up" (looks like a missing Bearer token).
+        if request.path.include?('/oauth/embed/')
+          return render_embed_session_error(
+            'EMBED_SESSION_REQUIRED',
+            'Embed session cookie is missing. Re-open the assignment from KonnecAI.',
+            :unauthorized
+          )
+        end
+
         authenticate_general_user!
       end
 

@@ -17,14 +17,23 @@ module Oauth
         PublicOrigins.http?(origin)
       end
 
+      # Embed runs inside a KonnecAI iframe (cross-site). HTTPS frontends must use
+      # Secure + SameSite=None (+ Partitioned). Gating on Rails.env alone is wrong:
+      # a development Rails serving https://essay-checker.docai.net would emit Lax
+      # cookies that the browser never sends on iframe fetches → Devise 401.
+      def self.cross_site_secure?(public_origin: nil)
+        !http_public_origin?(public_origin)
+      end
+
       def self.use_host_prefix?(public_origin: nil)
-        !Rails.env.development? && !Rails.env.test? && !http_public_origin?(public_origin)
+        return false if Rails.env.test?
+
+        cross_site_secure?(public_origin: public_origin)
       end
 
       def self.set!(response:, token:, expires_at:, public_origin: nil)
         max_age = [(expires_at - Time.current).to_i, 1].max
-        secure = (use_host_prefix?(public_origin: public_origin) || Rails.env.production?) &&
-                 !http_public_origin?(public_origin)
+        secure = cross_site_secure?(public_origin: public_origin)
         name = cookie_name(public_origin: public_origin)
 
         response.set_cookie(
@@ -38,15 +47,11 @@ module Oauth
           expires: expires_at
         )
 
-        # Partitioned is not in all Rack versions; append manually when using Host cookie.
-        return unless use_host_prefix?(public_origin: public_origin) && response.headers['Set-Cookie'].present?
+        # Partitioned (CHIPS) is required for third-party iframe cookies in modern Chrome.
+        # Not all Rack versions accept the flag on set_cookie — append manually.
+        return unless secure && response.headers['Set-Cookie'].present?
 
-        response.headers['Set-Cookie'] = Array(response.headers['Set-Cookie']).map do |cookie|
-          next cookie unless cookie.start_with?("#{COOKIE_NAME_HOST}=")
-          next cookie if cookie.include?('Partitioned')
-
-          "#{cookie}; Partitioned"
-        end
+        append_partitioned!(response, name)
       end
 
       def self.clear!(response)
@@ -68,6 +73,23 @@ module Oauth
       rescue ArgumentError
         nil
       end
+
+      def self.append_partitioned!(response, cookie_name)
+        raw = response.headers['Set-Cookie']
+        cookies = case raw
+                  when Array then raw
+                  when String then raw.split(/[\n\r]+/).map(&:strip).reject(&:blank?)
+                  else Array(raw)
+                  end
+
+        response.headers['Set-Cookie'] = cookies.map do |cookie|
+          next cookie unless cookie.start_with?("#{cookie_name}=")
+          next cookie if cookie.match?(/;\s*Partitioned\b/i)
+
+          "#{cookie}; Partitioned"
+        end
+      end
+      private_class_method :append_partitioned!
     end
   end
 end
