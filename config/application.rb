@@ -53,6 +53,33 @@ module DocaiApi
     config.hosts << 'docai.m2mda.com'
     config.hosts << /\A(?:localhost|127\.0\.0\.1)(?::\d+)?\z/ if Rails.env.development? || Rails.env.test?
 
+    # When Next.js rewrites /oauth to Rails, the Host header is often the frontend
+    # origin (e.g. essay-checker.docai.net). AIENGLISH_PUBLIC_ORIGINS alone does not
+    # satisfy Rails HostAuthorization — allow those hostnames here too.
+    [
+      ENV['AIENGLISH_PUBLIC_ORIGINS'],
+      ENV['AIENGLISH_PUBLIC_ORIGIN'],
+      ENV['AIENGLISH_WEB_ORIGIN'],
+      ENV['FRONTEND_URL'],
+      ENV['RAILS_ALLOWED_HOSTS'],
+      ENV['AIENGLISH_ALLOWED_HOSTS']
+    ].compact.join(',').split(/[\s,]+/).each do |raw|
+      candidate = raw.to_s.strip
+      next if candidate.blank?
+
+      host =
+        begin
+          uri = URI.parse(candidate.include?('://') ? candidate : "https://#{candidate}")
+          uri.host
+        rescue URI::InvalidURIError
+          nil
+        end
+      next if host.blank?
+      next unless host.match?(/\A[a-z0-9.-]+\z/i)
+
+      config.hosts << host
+    end
+
     config.action_cable.mount_path = '/cable'
 
     # 使用 vips（如果已安裝）
