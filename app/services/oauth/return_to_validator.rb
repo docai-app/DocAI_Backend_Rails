@@ -16,19 +16,41 @@ module Oauth
       uri = Addressable::URI.parse(url.to_s)
       return false unless uri.path.to_s.start_with?('/oauth/authorize')
 
-      allowed_hosts = [
+      host = uri.host.presence || 'localhost'
+      allowed_issuer_hosts.include?(host)
+    rescue Addressable::URI::InvalidURIError
+      false
+    end
+
+    def allowed_issuer_hosts
+      static = [
         ENV['OAUTH_ISSUER_HOST'].presence,
         ENV['APP_HOST'].presence,
         'localhost',
         '127.0.0.1',
         'docai-dev.m2mda.com',
-        'docai.m2mda.com'
-      ].compact
+        'docai.m2mda.com',
+        'aienglish.hospidocai.com'
+      ]
 
-      host = uri.host.presence || 'localhost'
-      allowed_hosts.include?(host)
-    rescue Addressable::URI::InvalidURIError
-      false
+      from_env = [
+        ENV['RAILS_ALLOWED_HOSTS'],
+        ENV['AIENGLISH_ALLOWED_HOSTS'],
+        ENV['AIENGLISH_PUBLIC_ORIGINS'],
+        ENV['AIENGLISH_PUBLIC_ORIGIN']
+      ].compact.join(',').split(/[\s,]+/).filter_map do |raw|
+        candidate = raw.to_s.strip
+        next if candidate.blank?
+
+        begin
+          parsed = URI.parse(candidate.include?('://') ? candidate : "https://#{candidate}")
+          parsed.host
+        rescue URI::InvalidURIError
+          nil
+        end
+      end
+
+      (static + from_env).compact.uniq
     end
 
     # Remove selected OIDC prompt values from an authorize URL so that after
