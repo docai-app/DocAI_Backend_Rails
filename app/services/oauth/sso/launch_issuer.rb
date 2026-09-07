@@ -31,6 +31,7 @@ module Oauth
         return_origin = @input[:return_origin].to_s.strip
         nonce = @input[:nonce].to_s.strip
         provider_origin = @input[:provider_origin].to_s.strip
+        entry_path = @input[:entry_path].to_s.strip
 
         if subject.blank? || assignment_id.blank? || mode.blank? || return_origin.blank? || nonce.blank?
           raise Error.new('INVALID_REQUEST', 'Missing required launch fields.', http_status: 400)
@@ -46,6 +47,10 @@ module Oauth
         end
 
         resolved_provider_origin = PublicOrigins.resolve!(provider_origin.presence)
+        normalized_entry_path = entry_path.present? ? EntryPathValidator.normalize(entry_path) : nil
+        if entry_path.present? && normalized_entry_path.blank?
+          raise Error.new('INVALID_ENTRY_PATH', 'entryPath is not an allowed assignment path.', http_status: 400)
+        end
 
         @input = {
           subject: subject,
@@ -53,7 +58,8 @@ module Oauth
           mode: mode,
           return_origin: OriginValidator.normalize(return_origin),
           nonce: nonce,
-          provider_origin: resolved_provider_origin
+          provider_origin: resolved_provider_origin,
+          entry_path: normalized_entry_path
         }
       end
 
@@ -92,7 +98,8 @@ module Oauth
           meta: {
             requested_subject: @input[:subject],
             binding_id: binding.id,
-            provider_origin: @input[:provider_origin]
+            provider_origin: @input[:provider_origin],
+            entry_path: @input[:entry_path]
           }
         )
 
@@ -125,11 +132,13 @@ module Oauth
       def assert_idempotent_payload!(launch)
         assignment = AssignmentAccess.find_assignment!(@input[:assignment_id])
         stored_provider_origin = launch.meta.to_h['provider_origin'].presence || PublicOrigins.default
+        stored_entry_path = launch.meta.to_h['entry_path'].presence
         same =
           launch.assignment_id.to_s == assignment.id.to_s &&
           launch.mode == @input[:mode] &&
           launch.return_origin == @input[:return_origin] &&
           stored_provider_origin == @input[:provider_origin] &&
+          stored_entry_path == @input[:entry_path].presence &&
           (launch.subject == @input[:subject] || launch.meta.to_h['requested_subject'].to_s == @input[:subject])
 
         return if same

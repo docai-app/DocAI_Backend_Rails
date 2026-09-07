@@ -60,6 +60,7 @@ module Oauth
           mode: params[:mode],
           return_origin: params[:returnOrigin] || params[:return_origin],
           provider_origin: params[:providerOrigin] || params[:provider_origin],
+          entry_path: params[:entryPath] || params[:entry_path],
           nonce: params[:nonce]
         }
       end
