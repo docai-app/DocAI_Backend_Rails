@@ -51,6 +51,7 @@ module DocaiApi
 
     config.hosts << 'docai-dev.m2mda.com'
     config.hosts << 'docai.m2mda.com'
+    config.hosts << 'aienglish.hospidocai.com'
     config.hosts << /\A(?:localhost|127\.0\.0\.1)(?::\d+)?\z/ if Rails.env.development? || Rails.env.test?
 
     # When Next.js rewrites /oauth to Rails, the Host header is often the frontend
