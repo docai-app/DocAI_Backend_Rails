@@ -30,7 +30,8 @@ module Oauth
         '127.0.0.1',
         'docai-dev.m2mda.com',
         'docai.m2mda.com',
-        'aienglish.hospidocai.com'
+        'aienglish.hospidocai.com',
+        'aienglish-api.hospidocai.com'
       ]
 
       from_env = [
