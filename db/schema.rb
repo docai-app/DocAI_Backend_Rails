@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_09_05_123000) do
+ActiveRecord::Schema[7.0].define(version: 2026_09_09_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -760,6 +760,35 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_05_123000) do
     t.index ["slug"], name: "index_links_on_slug", unique: true
   end
 
+  create_table "listening_assignment_snapshots", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_assignment_id", null: false
+    t.string "qg_version_id", null: false
+    t.string "content_digest", null: false
+    t.string "level", null: false
+    t.jsonb "quiz", null: false
+    t.text "plain_transcript", null: false
+    t.text "audio_url", null: false
+    t.jsonb "audio_metadata", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["essay_assignment_id"], name: "index_listening_assignment_snapshots_on_essay_assignment_id", unique: true
+    t.check_constraint "level::text = ANY (ARRAY['A2'::character varying, 'B2'::character varying, 'C2'::character varying]::text[])", name: "listening_snapshot_level"
+  end
+
+  create_table "listening_playback_states", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_assignment_id", null: false
+    t.uuid "general_user_id", null: false
+    t.integer "play_count", default: 0, null: false
+    t.string "last_request_id"
+    t.datetime "last_issued_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["essay_assignment_id", "general_user_id"], name: "listening_playback_assignment_user", unique: true
+    t.index ["essay_assignment_id"], name: "index_listening_playback_states_on_essay_assignment_id"
+    t.index ["general_user_id"], name: "index_listening_playback_states_on_general_user_id"
+    t.check_constraint "play_count >= 0", name: "listening_playback_count_nonnegative"
+  end
+
   create_table "log_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "chatbot_id", null: false
     t.uuid "session_id", null: false
@@ -1462,6 +1491,9 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_05_123000) do
   add_foreign_key "groups", "general_users", column: "owner_id"
   add_foreign_key "identities", "users"
   add_foreign_key "links", "link_sets"
+  add_foreign_key "listening_assignment_snapshots", "essay_assignments"
+  add_foreign_key "listening_playback_states", "essay_assignments", on_delete: :cascade
+  add_foreign_key "listening_playback_states", "general_users", on_delete: :cascade
   add_foreign_key "memberships", "general_users"
   add_foreign_key "memberships", "groups"
   add_foreign_key "messages", "chatbots"

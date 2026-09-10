@@ -9,6 +9,7 @@ module Api
     class EssayGradingsController < ApiController
       include SpeakingConversationPresetQuestions
       include SentencePuzzleSubmissions
+      include EssayAssignmentAccessAuthorization
       include ::Oauth::Sso::EmbedAuthenticatable
 
       before_action :authenticate_embed_or_general_user!,
@@ -270,7 +271,7 @@ module Api
             score: metrics[:score],
             overall_score: metrics[:overall_score],
             scores: metrics[:scores],
-            grading: @essay_grading.grading,
+            grading: @essay_grading.listening_grading_for_display,
             general_context: @essay_grading.general_context,
             revised_essay: @essay_grading.revised_essay,
             teacher_review: @essay_grading.teacher_review_hash,
@@ -325,9 +326,41 @@ module Api
       def create
         set_essay_assignment_by_code
         return if performed?
+        if @essay_assignment.category == 'listening'
+          authorize_essay_assignment_read!
+          return if performed?
+        end
         return unless ensure_assignment_package_item_access(@essay_assignment)
 
         grading_params = essay_grading_params
+
+        if @essay_assignment.category == 'listening' && request.headers['Idempotency-Key'].present?
+          key = request.headers['Idempotency-Key'].to_s
+          unless key.match?(/\A[a-zA-Z0-9_-]{16,64}\z/)
+            render json: { success: false, error: 'Invalid submission request ID' }, status: :unprocessable_entity
+            return
+          end
+          digest = ListeningSubmissionFingerprint.call(grading_params.to_h)
+          @essay_assignment.with_lock do
+            existing = @essay_assignment.essay_gradings.where(general_user: current_general_user)
+              .where("meta -> 'listening_create_request' ->> 'key' = ?", key).first
+            if existing
+              if existing.meta.dig('listening_create_request', 'digest') != digest
+                render json: { success: false, error: 'Request ID already used for different answers' }, status: :conflict
+              else
+                render json: { success: true, essay_grading: existing }, status: :ok
+              end
+            else
+              @listening_create_request = { 'key' => key, 'digest' => digest }
+              persist_new_essay_grading(grading_params)
+            end
+          end
+        else
+          persist_new_essay_grading(grading_params)
+        end
+      end
+
+      def persist_new_essay_grading(grading_params)
 
         prepared_attachment = prepare_audio_attachment_for_persistence(
           category: @essay_assignment.category,
@@ -341,6 +374,9 @@ module Api
         )
         @essay_grading.general_user = current_general_user
         @essay_grading.topic = @essay_assignment.topic
+        if @listening_create_request
+          @essay_grading.meta = (@essay_grading.meta || {}).merge('listening_create_request' => @listening_create_request)
+        end
 
         if preset_speaking_conversation_draft_request?(@essay_assignment, grading_params)
           apply_preset_speaking_conversation_defaults!(@essay_grading, @essay_assignment)
@@ -390,11 +426,27 @@ module Api
       ensure
         prepared_attachment&.close!
       end
+      private :persist_new_essay_grading
 
       # GET /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/current_draft
       def current_draft
         set_essay_assignment_by_code
         return if performed?
+
+        if @essay_assignment.category == 'listening'
+          authorize_essay_assignment_read!
+          return if performed?
+          draft = @essay_assignment.essay_gradings.where(general_user: current_general_user, status: :draft)
+                                   .order(updated_at: :desc).first
+          response.headers['Cache-Control'] = 'no-store'
+          render json: { success: true, essay_grading: draft && {
+            id: draft.id, status: draft.status, essay_assignment_id: draft.essay_assignment_id,
+            grading: { listening: { questions: Array(draft.grading.dig('listening', 'questions')).map { |row|
+              row.slice('id', 'user_answer')
+            } } }
+          } }, status: :ok
+          return
+        end
 
         unless sentence_puzzle_assignment?(@essay_assignment)
           render json: { success: false, error: 'Draft recovery is not available for this assignment type.' },
@@ -708,6 +760,15 @@ module Api
 
         begin
           EssayGrading.transaction do
+            if @essay_grading.is_listening?
+              # Serialize autosave and final submission. Recheck after locking:
+              # an earlier request may have submitted this draft in the meantime.
+              @essay_grading.lock!
+              unless @essay_grading.draft?
+                @essay_grading.errors.add(:base, 'This listening submission has already been submitted.')
+                raise ActiveRecord::RecordInvalid, @essay_grading
+              end
+            end
             @essay_grading.assign_attributes(
               essay_grading_attributes_for_persistence(@essay_grading.category, grading_params)
             )

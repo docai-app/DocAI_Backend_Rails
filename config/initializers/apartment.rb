@@ -20,7 +20,7 @@ Apartment.configure do |config|
   # config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile GeneralUsersRole Role Energy
   #                             EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet]
   config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile GeneralUsersRole Role Energy
-                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet
+                              EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment ListeningAssignmentSnapshot ListeningPlaybackState Link LinkSet
                               ActiveStorage::Blob ActiveStorage::Attachment
                               OauthApplication OauthAuditLog Doorkeeper::AccessToken Doorkeeper::AccessGrant
                               OauthPartnerAccountLink OauthApplicationWebhook OauthWebhookDelivery

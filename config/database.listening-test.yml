@@ -1,0 +1,13 @@
+# Explicit local-only test database, not the minimal standalone model database.
+test:
+  primary: &listening_local
+    adapter: postgresql
+    host: 127.0.0.1
+    port: 55439
+    database: listening_rails_isolated_test
+    username: listening_test
+    password: listening-local-only
+    pool: 5
+  vector_db:
+    <<: *listening_local
+    database_tasks: false

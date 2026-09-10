@@ -76,6 +76,8 @@ Rails.application.routes.draw do
         end
         member do
           get 'read'
+          get 'listening_content'
+          post 'listening_audio'
           get 'show_only'
           get 'shares', to: 'essay_assignment_shares#index'
           put 'shares', to: 'essay_assignment_shares#sync'

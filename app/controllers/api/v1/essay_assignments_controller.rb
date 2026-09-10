@@ -7,9 +7,9 @@ module Api
       include ::Oauth::Sso::EmbedAuthenticatable
 
       before_action :authenticate_embed_or_general_user!
-      before_action :set_essay_assignment_with_access, only: %i[read show update destroy release_scores]
+      before_action :set_essay_assignment_with_access, only: %i[read show update destroy release_scores listening_content listening_audio]
       before_action :authorize_essay_assignment_score_release!, only: %i[release_scores]
-      before_action :authorize_essay_assignment_read!, only: %i[read]
+      before_action :authorize_essay_assignment_read!, only: %i[read listening_content listening_audio]
       before_action :authorize_essay_assignment_manage!, only: %i[update]
       before_action :authorize_essay_assignment_access!, only: %i[show]
       before_action :authorize_essay_assignment_owner!, only: %i[destroy]
@@ -157,6 +157,38 @@ module Api
         render json: { success: true, essay_assignment: essay_assignment_data }
       end
 
+      # Uses the same teacher/distributed-student/historical-submission access
+      # policy as /read. It never exposes the private snapshot or storage URL.
+      def listening_content
+        snapshot = @essay_assignment.listening_assignment_snapshot if @essay_assignment.category == 'listening'
+        unless snapshot
+          return render json: { success: false, error: 'Listening content is unavailable' }, status: :not_found
+        end
+
+        response.headers['Cache-Control'] = 'no-store'
+        state = ListeningPlaybackState.find_by(essay_assignment: @essay_assignment, general_user: current_general_user)
+        settings = @essay_assignment.meta.fetch('listening', {}).slice('play_limit', 'allow_pause', 'allow_seek')
+        render json: { success: true, data: snapshot.student_content.merge(
+          'playback' => settings.merge('play_count' => state&.play_count || 0)
+        ) }
+      end
+
+      def listening_audio
+        response.headers['Cache-Control'] = 'no-store'
+        result = ListeningAudioPlayback.call(assignment: @essay_assignment, user: current_general_user,
+          request_id: params[:request_id])
+        response.headers['X-Listening-Play-Count'] = result[:play_count].to_s
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        send_data result[:bytes], type: 'audio/wav', disposition: 'inline', filename: 'listening.wav'
+      rescue ListeningAudioPlayback::InvalidRequest => error
+        render json: { success: false, error: error.message }, status: :unprocessable_entity
+      rescue ListeningAudioPlayback::LimitReached => error
+        render json: { success: false, error: error.message }, status: :forbidden
+      rescue ListeningAudioReader::Unavailable
+        render json: { success: false, error: 'Listening audio is temporarily unavailable. Retry with the same request ID.' },
+          status: :service_unavailable
+      end
+
       def show
         # 優化：手動構建 essay_assignment 數據，避免 as_json 的開銷
         essay_assignment_data = {
@@ -242,7 +274,12 @@ module Api
           end
         end
         
-        if @essay_assignment.save
+        saved = if @essay_assignment.category == 'listening'
+                  ListeningAssignmentCreator.call(assignment: @essay_assignment)
+                else
+                  @essay_assignment.save
+                end
+        if saved
           # 返回包含Community信息的响应
           assignment_data = @essay_assignment.as_json
           if @essay_assignment.community
@@ -259,6 +296,8 @@ module Api
       rescue EssayAssignmentAcademicYearFilter::AcademicYearUnavailableError => e
         render json: { success: false, error: e.message }, status: :forbidden
       rescue EssayAssignmentAcademicYearFilter::ActiveAcademicYearMissingError => e
+        render json: { success: false, error: e.message }, status: :unprocessable_entity
+      rescue ListeningAssignmentCreator::Error, ListeningQgVersionClient::Error => e
         render json: { success: false, error: e.message }, status: :unprocessable_entity
       end
 

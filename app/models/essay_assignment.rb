@@ -30,6 +30,7 @@
 class EssayAssignment < ApplicationRecord
   include SentencePuzzleSupport
   include EssayAssignmentAccess
+  include ListeningAssignmentVersionGuard
 
   store_accessor :rubric, :app_key, :name
   store_accessor :meta, :newsfeed_id, :self_upload_newsfeed, :vocabs, :vocab_examples,
@@ -173,6 +174,7 @@ class EssayAssignment < ApplicationRecord
   after_commit :enqueue_speaking_pronunciation_post_process_job, on: %i[create update]
 
   has_many :essay_gradings, dependent: :destroy
+  has_one :listening_assignment_snapshot, dependent: :destroy
   belongs_to :general_user
   belongs_to :community, optional: true
   belongs_to :school_academic_year, optional: true

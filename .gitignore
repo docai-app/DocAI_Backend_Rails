@@ -50,3 +50,4 @@ dump.rdb
 config/initializers/sidekiq.rb
 
 temp
+/.listening-runtime.json

@@ -33,6 +33,7 @@
 #  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
+  include TrustedListeningGrading
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :listening, :sentence_builder,
                  :speaking_pronunciation_sentences, :supplement_practice
   store_accessor :general_context, :app_key, :data
@@ -66,8 +67,6 @@ class EssayGrading < ApplicationRecord
   after_update :run_workflow, if: :should_run_workflow_on_submit?
   after_create :calculate_comprehension_score, if: :is_comprehension?
   after_update :calculate_comprehension_score, if: :is_comprehension?
-  after_create :calculate_listening_score, if: :is_listening?
-  after_update :calculate_listening_score, if: :is_listening?
   # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
   after_create :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
   after_update :calculate_speaking_pronunciation_score, if: :should_calculate_speaking_pronunciation?
@@ -77,6 +76,7 @@ class EssayGrading < ApplicationRecord
   # 动态定义 comprehension getter 和 setter 方法
   %i[questions questions_count full_score score].each do |key|
     define_method(key) do
+      return self[:score] if key == :score && is_listening?
       comprehension && comprehension[key.to_s]
     end
 
@@ -456,46 +456,10 @@ class EssayGrading < ApplicationRecord
     # call_webhook unless current_status == 'draft'
   end
 
-  # 與 calculate_comprehension_score 相同模式：依題目計分、回寫 grading.listening、update_columns 避免回調循環
+  # Retained for internal callers; the registered before-validation callback
+  # uses the same trusted snapshot path, never the legacy client answer key.
   def calculate_listening_score
-    listening_block = grading&.dig('listening')
-    listening_block = {} unless listening_block.is_a?(Hash)
-    listening_block = listening_block.stringify_keys
-    raw_questions = Array(listening_block['questions'])
-
-    score = 0
-    full_score = 0
-    scored_questions = []
-
-    raw_questions.each do |raw|
-      q = raw.is_a?(Hash) ? raw.stringify_keys : {}
-      pts, possible, merged = listening_score_one_question(q)
-      score += pts
-      full_score += possible
-      scored_questions << merged
-    end
-
-    percentage = full_score.positive? ? ((score.to_f / full_score) * 100).round : 0
-
-    current_status = status
-    updated_grading = grading.deep_dup
-    base_listening = updated_grading['listening'].is_a?(Hash) ? updated_grading['listening'].deep_dup.stringify_keys : {}
-    updated_grading['listening'] = base_listening.merge(
-      'questions' => scored_questions,
-      'score' => score,
-      'full_score' => full_score,
-      'percentage' => percentage
-    )
-
-    final_status = current_status == 'draft' ? EssayGrading.statuses[:draft] : EssayGrading.statuses[:graded]
-
-    update_columns(
-      grading: updated_grading,
-      score: score,
-      status: final_status
-    )
-
-    # call_webhook unless current_status == 'draft'
+    prepare_trusted_listening_result
   end
 
   def calculate_sentence_builder_score

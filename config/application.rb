@@ -15,6 +15,14 @@ module DocaiApi
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.0
+    if ENV['LISTENING_RAILS_ISOLATED_TEST'] == '1'
+      raise 'Listening isolation is test-only' unless Rails.env.test?
+      raise 'DATABASE_URL must be unset in listening isolation' if ENV['DATABASE_URL'].present?
+      config.paths['config/database'] = [root.join('config/database.listening-test.yml')]
+      # This database is explicitly provisioned; never let test_helper purge it
+      # from a schema dump while cross-repository integration is in progress.
+      config.active_record.maintain_test_schema = false
+    end
 
     # config.middleware.use Apartment::Elevators::Subdomain
 
