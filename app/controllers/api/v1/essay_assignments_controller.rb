@@ -256,6 +256,9 @@ module Api
 
       def create
         @essay_assignment = EssayAssignment.new(essay_assignment_params)
+        if @essay_assignment.category == 'listening' && !ListeningTeacherAccess.allowed?(current_general_user, embed: embed_session?)
+          return render json: { success: false, error: 'Listening teacher access is required.' }, status: :forbidden
+        end
         @essay_assignment.general_user_id = current_general_user.id
         @essay_assignment.school_academic_year = assignment_academic_year_for_create!
         

@@ -8,6 +8,15 @@
 # Read more: https://github.com/cyu/rack-cors
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  if Rails.env.test? && ENV['LISTENING_RAILS_ISOLATED_TEST'] == '1'
+    # Separate browser origin for the fictional teacher, without replacing the
+    # student's localhost login. Never enabled in development or production.
+    allow do
+      origins 'http://127.0.0.1:3001'
+      resource '*', headers: :any, expose: ['Authorization'],
+        methods: %i[get post put patch delete options head], credentials: false
+    end
+  end
   allow do
     origins 'https://app.konnec.ai', 'https://konnec-ai.hospidocai.com', 'http://konnec-ai.hospidocai.com', 'https://schema-frontend.docai.net', 'http://localhost:3000', 'http://localhost:4000', 'http://localhost:8080', 'http://localhost:8889', 'http://localhost:8888', 'https://docai.m2mda.com', 'https://docai-dev.m2mda.com', 'https://docai-demo.examhero.com', 'http://docai-demo.examhero.com', 'https://aiadmin.examhero.com', 'http://aiadmin.examhero.com',
             'https://doc-ai-dev-frontend.vercel.app', 'http://doc-ai-dev-frontend.vercel.app', 'https://doc-ai-frontend.vercel.app', 'http://doc-ai-frontend.vercel.app', 'https://test-docai-frontend.vercel.app', 'http://test-docai-frontend.vercel.app', 'https://docai-demo.vercel.app', 'http://docai-demo.vercel.app', 'https://aiadmin.docai.net', 'http://aiadmin.docai.net', 'https://dev-docai-admin-dashboard-frontend.vercel.app', 'https://prod-docai-admin-dashboard-frontend.vercel.app',

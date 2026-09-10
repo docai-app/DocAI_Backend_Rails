@@ -66,6 +66,9 @@ Rails.application.routes.draw do
       get 'recovery_email_confirmations/show'
 
       # ********** Essay grading ********
+      resources :listening_materials, only: %i[index show] do
+        post :generate_audio, on: :member
+      end
       resources :essay_assignments, only: %i[index show create update destroy] do
         resources :essay_gradings, only: [:create] do
           collection do

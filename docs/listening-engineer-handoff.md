@@ -17,7 +17,16 @@ Code is prepared on `bobby-codex-backend`; **not deployed**. The owner asked for
 
 Every published article must have A2/B2/C2; single A2 is only a local integration fixture. Generation stays manually triggered, with no daily cron added. The owner permits the 30 old QG Listening forms to be hidden from the new catalog while preserving data. Production preflight found no existing Listening assignments/submissions, but verify again before deployment.
 
-Teacher-triggered audio after transcript review is a discussed future change, not implemented. The current QG publication gate still requires verified audio for all three levels. Frontend and total Admin changes live in separate repos and are not included/deployed by this push. The teacher creation UI must be verified against the version contract before public rollout.
+Teacher-triggered audio after transcript review is implemented locally. QG publication now requires all three validated transcript/question levels but not pre-generated audio. The selected level must have verified audio before this backend creates its immutable assignment snapshot. Frontend `VersionedListeningCreate` uses the new teacher catalog and preserves the create-page academic-year context. Frontend and total Admin live in separate repos and are not deployed by a backend push.
+
+## Teacher catalog and audio requests
+
+- `GET /api/v1/listening_materials?query=&page=1` and `GET /:version_id` proxy the new QG internal teacher catalog. Only safe preview fields are returned; never answer keys or storage URLs.
+- `POST /api/v1/listening_materials/:version_id/generate_audio` requires JSON `confirm_paid: true`; `retry_failed: true` explicitly retries a definite failure. It queues QG work, does not wait for Azure. Poll the GET detail endpoint.
+- `ListeningTeacherAccess` gates both catalog/audio and Listening assignment creation: existing global admin or teacher/school_admin with Listening feature; assignment-scoped embed sessions are not paid-generation authority. Students cannot create Listening assignments by guessing version IDs.
+- QG owns durable audio deduplication and its dedicated PostgreSQL worker; configure/deploy the QG audio-task migration and worker as described in that repo's handoff. This repo needs no additional migration for the teacher proxy.
+- `unknown` audio outcomes must be reconciled by an engineer, not blindly re-submitted. No automatic paid retry in this client. Normal pre-synthesis failures allow explicit retries.
+- Local test-only CORS additionally accepts `http://127.0.0.1:3001` only when Rails test plus `LISTENING_RAILS_ISOLATED_TEST=1`, keeping teacher/student browser storage separate. Production CORS policy is unchanged.
 
 ## Configuration and migrations
 
@@ -45,6 +54,6 @@ Separate code-security finding: the existing assignment model already contains p
 
 ## Verification and remaining acceptance
 
-Local full isolated integration suite: **11 tests, 110 assertions, no failures/errors**. Run with `RAILS_ENV=test`, `LISTENING_RAILS_ISOLATED_TEST=1`, exact isolated DB, test JWT secret and valid dummy Azure configuration for the pre-existing initializer; do not point tests at production. See `script/LISTENING-LIVE-ASSIGNMENT.md` for the successful fictional A2 local browser/API exercise, not production acceptance.
+Latest local isolated integration suites (`listening_materials_test.rb` and `listening_snapshot_flow_test.rb`): **13 tests, 127 assertions, no failures/errors**, including teacher catalog authorization, paid-generation confirmation, answer filtering and the existing assignment snapshot flow. Run with `RAILS_ENV=test`, `LISTENING_RAILS_ISOLATED_TEST=1`, exact isolated DB, test JWT secret and valid dummy Azure configuration for the pre-existing initializer; do not point tests at production. New on-demand tests use synthesis/storage doubles, not fresh Azure acceptance. See `script/LISTENING-LIVE-ASSIGNMENT.md` for the earlier fictional A2 local browser/API exercise, not production acceptance.
 
 Before rollout, jointly validate all three levels on a real article, Admin publish, teacher create/distribute, student playback/draft/submit, trusted scoring, negative authorization and Reading regression. The existing Redis fault must be resolved independently. No Vercel or Mini Program deployment is authorized by this GitHub handoff.
