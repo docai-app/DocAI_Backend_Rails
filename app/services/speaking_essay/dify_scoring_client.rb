@@ -12,11 +12,13 @@ module SpeakingEssay
     MAX_STREAMING_RETRIES = 3
 
     def initialize(
+      managed: false,
       api_key: ENV['DIFY_SPEAKING_ESSAY_SCORING_APP_KEY'],
       server: ENV.fetch('DIFY_WORKFLOW_BASE_URL', 'https://aienglish-dify.docai.net/v1'),
       response_mode: ENV.fetch('DIFY_SPEAKING_ESSAY_SCORING_RESPONSE_MODE', DEFAULT_RESPONSE_MODE)
     )
       @api_key = api_key.to_s.strip
+      @managed = managed
       @server = server.to_s.delete_suffix('/')
       @response_mode = response_mode.to_s.strip.downcase
     end
@@ -36,9 +38,16 @@ module SpeakingEssay
     def call_streaming(inputs:, user:)
       payload = workflow_payload(inputs:, user:, response_mode: 'streaming')
       chunks, task_id = execute_workflow_streaming(payload, user:)
+      if @managed
+        raise 'Dify scoring failed.' if chunks.any? { |chunk| chunk['event'] == 'error' }
+        terminal = chunks.reverse.find { |chunk| chunk['event'] == 'workflow_finished' }
+        raise EssayGenerationRun::OutcomeUnknown unless terminal
+        raise 'Dify scoring failed.' unless terminal.dig('data', 'status') == 'succeeded'
+      end
       report, outputs = extract_report_from_chunks(chunks)
 
       unless report
+        raise 'Dify scoring output is incomplete.' if @managed
         Rails.logger.warn(
           "[SpeakingEssay::DifyScoringClient] Streaming produced no report (chunks=#{chunks.size}), " \
           "falling back to blocking, task_id=#{task_id}"
@@ -78,10 +87,14 @@ module SpeakingEssay
         raw_provider_payload: body.merge('response_mode' => 'blocking')
       }
     rescue RestClient::ExceptionWithResponse => e
+      raise EssayGenerationRun::OutcomeUnknown if @managed && e.response&.code.to_i >= 500
       body = e.response&.body.to_s
       raise "Dify speaking essay scoring failed: HTTP #{e.response&.code} #{body}"
     rescue JSON::ParserError => e
       raise "Dify speaking essay scoring returned invalid JSON: #{e.message}"
+    rescue RestClient::Exceptions::Timeout, IOError, SystemCallError => e
+      raise EssayGenerationRun::OutcomeUnknown if @managed
+      raise
     end
 
     def execute_workflow_streaming(payload, user:)
@@ -92,6 +105,7 @@ module SpeakingEssay
         chunks = stream_workflow_sse(payload, task_id:)
         [chunks, task_id]
       rescue EOFError, Errno::ECONNRESET, Errno::EPIPE, IOError => e
+        return recover_original_workflow(task_id) if @managed
         retries += 1
         if retries <= MAX_STREAMING_RETRIES
           Rails.logger.warn(
@@ -110,6 +124,7 @@ module SpeakingEssay
         # Return synthetic chunk so extract_report_from_chunks can parse blocking body shape
         [[{ 'event' => 'workflow_finished', 'data' => blocking_result[:raw_provider_payload]['data'] || blocking_result[:raw_provider_payload] }], task_id]
       rescue Net::ReadTimeout => e
+        return recover_original_workflow(task_id) if @managed
         Rails.logger.error(
           "[SpeakingEssay::DifyScoringClient] Streaming read timeout, fallback blocking, task_id=#{task_id}: #{e.message}"
         )
@@ -125,9 +140,11 @@ module SpeakingEssay
       request.body = payload.to_json
 
       chunks = []
+      @partial_chunks = chunks
 
       http.request(request) do |response|
         unless response.code.to_i == 200
+          raise EssayGenerationRun::OutcomeUnknown if @managed && response.code.to_i >= 500
           raise "Dify streaming HTTP #{response.code}: #{response.body.to_s.truncate(500)}"
         end
 
@@ -154,6 +171,13 @@ module SpeakingEssay
         "[SpeakingEssay::DifyScoringClient] Streaming finished, task_id=#{task_id}, chunks=#{chunks.size}"
       )
       chunks
+    end
+
+    def recover_original_workflow(task_id)
+      result = DifyWorkflowRecovery.terminal_events(@partial_chunks, app_key: @api_key, run_url: workflow_run_url)
+      raise EssayGenerationRun::OutcomeUnknown unless result
+
+      [result, task_id]
     end
 
     def parse_sse_event(event)

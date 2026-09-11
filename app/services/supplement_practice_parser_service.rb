@@ -34,6 +34,7 @@ class SupplementPracticeParserService
       
       # 规范化数据（为题目生成 ID 等）
       normalized_data = normalize_data(parsed_data)
+      validate_identifiers(normalized_data)
       
       normalized_data
     rescue JSON::ParserError => e
@@ -86,7 +87,7 @@ class SupplementPracticeParserService
       raise ArgumentError, "Section #{section_index} has invalid type: #{section['type']}"
     end
 
-    unless section['topic'].is_a?(String) && section['questions'].is_a?(Array) && section['questions'].any?
+    unless section['topic'].is_a?(String) && section['topic'].present? && section['questions'].is_a?(Array) && section['questions'].any?
       raise ArgumentError, "Section #{section_index} must have a 'questions' array"
     end
 
@@ -106,12 +107,15 @@ class SupplementPracticeParserService
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'question' field" unless question['question'].is_a?(String) && question['question'].present?
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'options' array" unless question['options'].is_a?(Array) && question['options'].any? && question['options'].all? { |option| option.is_a?(String) }
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'answer'" unless question['answer'].present?
+      unless question['options'].all?(&:present?) && question['options'].uniq.length == question['options'].length && question['options'].include?(question['answer'])
+        raise ArgumentError, 'Choice answers must match a unique nonblank option'
+      end
     when 'true_or_false'
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'statement' field" unless question['statement'].is_a?(String) && question['statement'].present?
       raise ArgumentError, "Question #{section_index}-#{question_index} invalid 'answer'" unless [true, false, 'true', 'false', 'True', 'False', 'TRUE', 'FALSE', 1, 0, '1', '0'].include?(question['answer'])
     when 'fill_in_the_blanks'
       raise ArgumentError, "Question #{section_index}-#{question_index} missing 'question' field" unless question['question'].is_a?(String) && question['question'].present?
-      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'answer'" unless question['answer'].present?
+      raise ArgumentError, "Question #{section_index}-#{question_index} missing 'answer'" unless question['answer'].is_a?(String) && question['answer'].present?
     end
   end
 
@@ -132,6 +136,18 @@ class SupplementPracticeParserService
     end
     
     normalized
+  end
+
+  def validate_identifiers(data)
+    section_keys = data['sections'].map { |s| [s['topic'], s['type']] }
+    raise ArgumentError, 'Duplicate exercise sections' unless section_keys.uniq.length == section_keys.length
+
+    data['sections'].each do |section|
+      ids = section['questions'].map { |q| q['id'] }
+      unless ids.all? { |id| id.is_a?(String) && id.present? } && ids.uniq.length == ids.length
+        raise ArgumentError, 'Question identifiers must be present and unique within a section'
+      end
+    end
   end
 
   def remove_answers(data)

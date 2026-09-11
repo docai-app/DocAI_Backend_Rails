@@ -62,13 +62,13 @@
 <body>
   <div class="container">
     <div class="header">
-      <h2>Assignment Stopped Notification</h2>
+      <h2><%= @notification_title %></h2>
     </div>
 
     <div class="content">
       <p>Hello Admin,</p>
 
-      <p>An assignment has been stopped due to an error. Please find the details below:</p>
+      <p><%= @generation&.kind == 'supplement' ? 'The supplementary exercise failed. The main grading is unchanged.' : 'An assignment has been stopped due to an error.' %> Please find the details below:</p>
 
       <table class="info-table">
         <tr>
@@ -108,6 +108,11 @@
           <td><a href="https://aienglish-admin.docai.net/submissions?assignmentId=<%= @assignment.id %>" target="_blank">點擊查看</a></td>
         </tr>
       </table>
+      <% if @generation %>
+        <p>Failed Stage: <%= @generation.kind == 'supplement' ? 'Supplementary exercise' : 'Grading (see record for stage details)' %><br>
+        Attempts: <%= @generation.attempts %> (including the first attempt)<br>
+        <a href="https://aienglish.docai.net/essay/grading/<%= @essay_grading.id %>">View grading record</a></p>
+      <% end %>
 
       <p>Please check the system and take necessary actions.</p>
     </div>

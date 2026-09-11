@@ -1,9 +1,9 @@
-Assignment Stopped Notification
+<%= @notification_title %>
 ===============================
 
 Hello Admin,
 
-An assignment has been stopped due to an error. Please find the details below:
+<%= @generation&.kind == 'supplement' ? 'The supplementary exercise failed. The main grading is unchanged.' : 'An assignment has been stopped due to an error.' %> Please find the details below:
 
 User Email: <%= @user.email %>
 User Nickname: <%= @user.nickname %>
@@ -11,6 +11,11 @@ Assignment Title: <%= @assignment.title %>
 Assignment ID: <%= @assignment.id %>
 Essay Grading ID: <%= @essay_grading.id %>
 Stopped At: <%= Time.current %>
+<% if @generation %>
+Failed Stage: <%= @generation.kind == 'supplement' ? 'Supplementary exercise' : 'Grading (see record for stage details)' %>
+Attempts: <%= @generation.attempts %> (including the first attempt)
+Record: https://aienglish.docai.net/essay/grading/<%= @essay_grading.id %>
+<% end %>
 
 Please check the system and take necessary actions.
 

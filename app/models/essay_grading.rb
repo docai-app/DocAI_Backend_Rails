@@ -50,6 +50,7 @@ class EssayGrading < ApplicationRecord
   
   # 补充练习记录关联
   has_many :supplement_practice_records, dependent: :destroy
+  has_many :essay_generation_runs, dependent: :destroy
   has_one :submitted_supplement_practice_record, 
           -> { where(status: :submitted) },
           class_name: 'SupplementPracticeRecord'
@@ -63,8 +64,7 @@ class EssayGrading < ApplicationRecord
 
   # 狀態為 draft 時，不執行工作流；
   # 從 draft 變為其他狀態（例如 pending）時才執行工作流
-  after_create :run_workflow, if: :should_run_workflow_on_create?
-  after_update :run_workflow, if: :should_run_workflow_on_submit?
+  after_save_commit :run_workflow, if: :should_run_workflow_after_commit?
   after_create :calculate_comprehension_score, if: :is_comprehension?
   after_update :calculate_comprehension_score, if: :is_comprehension?
   # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
@@ -155,8 +155,12 @@ class EssayGrading < ApplicationRecord
   end
 
   def run_workflow
-    # EssayGradingService.new(general_user_id, self).run_workflows
-    EssayGradingJob.perform_async(id)
+    # This callback is an explicit creation/submission, unlike a duplicate queue delivery.
+    EssayGenerationRun.request!(self, kind: 'grading', force: true)
+  end
+
+  def should_run_workflow_after_commit?
+    saved_change_to_id? ? should_run_workflow_on_create? : should_run_workflow_on_submit?
   end
 
   def modify_url
@@ -196,14 +200,9 @@ class EssayGrading < ApplicationRecord
   end
 
   def run_workflow_sync
-    if category == 'speaking_essay'
-      return unless SpeakingEssay::AudioAnalysisService.new(self).call
-
-      reload
-    else
-      transcribe_audio # 如果唔需要，佢自己會 skip，多 call 唔怕
-    end
-    EssayGradingService.new(general_user_id, self).run_workflows
+    run = EssayGenerationRun.request!(self, kind: 'grading', force: true)
+    EssayGenerationJob.new.perform(run.id, run.token)
+    reload
   end
 
   def revised_essay_app_key
@@ -263,22 +262,23 @@ class EssayGrading < ApplicationRecord
 
   # Admin 批量改状态：改为 draft，保留 meta 中的 grading_errors 供排查
   def admin_mark_as_draft!
-    update!(status: :draft)
+    with_lock do
+      essay_generation_runs.where(state: EssayGenerationRun::ACTIVE_STATES).each do |run|
+        run.update!(state: 'cancelled', token: SecureRandom.uuid, finished_at: Time.current)
+      end
+      update!(status: :draft)
+    end
   end
 
   # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading
   def rerun_workflow
-    clear_grading_errors!
-    self.status = :pending
-    save!
-
-    run_workflow
+    EssayGenerationRun.request!(self, kind: 'grading', force: true, require_new: true)
   end
 
   # 重新运行补充练习工作流
   def run_supplement_practice_workflow
     if essay_assignment && essay_assignment.category == 'essay'
-      EssayGradingSupplementPracticeService.new(general_user_id, self).run_workflow
+      EssayGenerationRun.request!(self, kind: 'supplement', manual: true, force: true, require_new: true)
     end
   end
 
@@ -372,68 +372,15 @@ class EssayGrading < ApplicationRecord
   end
 
   def calculate_comprehension_score
-    # 初始化分数
-    score = 0
-    all_blanks_count = 0
-
-    # 遍历所有问题
-    questions.each do |question|
-      if question['type'] == 'fill_in_the_blanks' && !essay_assignment.meta['fill_in_the_blanks_visible']
-        next;
-      end
-      # 比较正确答案和用户答案
-      if question['type'] == 'fill_in_the_blanks' 
-        # 填空题：需要比较 blanks 数组中的每个答案
-        blanks = question['blanks'] || []
-        user_answer_str = question['user_answer']
-        
-        # 如果 blanks 为空或 user_answer 为空，跳过
-        next if blanks.empty? || user_answer_str.blank?
-        
-        begin
-          # 解析 user_answer JSON 字符串
-          user_answers = JSON.parse(user_answer_str)
-          
-          # 如果用户没有填写任何答案，跳过
-          next if user_answers.empty?
-          
-          # 创建一个 blank_id 到正确答案的映射，方便查找
-          blanks_map = blanks.each_with_object({}) do |blank, hash|
-            hash[blank['id']] = blank['answer'].to_s.strip.downcase
-          end
-          
-          # 统计用户填写的 blank 中有多少个正确答案
-          correct_count = user_answers.count do |blank_id, user_answer|
-            # 检查该 blank_id 是否在题目中存在
-            correct_answer = blanks_map[blank_id]
-            
-            # 如果 blank_id 不存在于题目中，不算正确（可能是无效的 blank_id）
-            next false if correct_answer.nil?
-            
-            # 不区分大小写比较
-            user_answer_str = user_answer.to_s.strip.downcase
-            correct_answer == user_answer_str
-          end
-          
-          # 答对多少个 blank 就得多少分
-          score += correct_count
-          all_blanks_count += blanks.count
-        rescue JSON::ParserError => e
-          # 如果 JSON 解析失败，记录错误但不影响其他题目
-          Rails.logger.warn("Failed to parse user_answer for fill_in_the_blanks question: #{e.message}")
-        end
-      else
-        all_blanks_count += 1
-        if question['answer'] == question['user_answer']
-          # 如果答案正确，分数增加1
-          score += 1
-        end
-      end
-    end
+    result = ComprehensionScoreCalculator.call(
+      questions,
+      fill_in_the_blanks_visible: essay_assignment.meta['fill_in_the_blanks_visible']
+    )
+    score = result.fetch(:score)
+    all_blanks_count = result.fetch(:full_score)
 
     # 保存当前状态，用于判断是否需要设置为 graded
     current_status = status
-    puts "current_status: #{current_status}"
 
     # 更新 grading JSONB 字段
     updated_grading = grading.dup

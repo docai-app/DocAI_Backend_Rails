@@ -8,7 +8,9 @@ class EssayGradingSupplementPracticeService
   TIMEOUT = 300 # Timeout duration in seconds (5 minutes)
   MAX_RETRIES = 3 # Maximum retry attempts for errors
 
-  def initialize(user_id, essay_grading)
+  def initialize(user_id, essay_grading, generation: nil, token: nil)
+    @generation = generation
+    @generation_token = token
     @user_id = user_id
     @essay_grading = essay_grading
     @essay = essay_grading.essay
@@ -51,8 +53,9 @@ class EssayGradingSupplementPracticeService
 
       http.request(request) do |response|
         if response.code.to_i != 200
+          raise EssayGenerationRun::OutcomeUnknown if @generation && response.code.to_i >= 500
           Rails.logger.error("[EssayGradingSupplementPracticeService] Streaming request failed with code #{response.code}: #{response.body}, task_id: #{task_id}")
-          return [[], task_id]
+          return [@generation ? [{ 'event' => 'error' }] : [], task_id]
         end
 
         buffer = String.new # Initialize as mutable string
@@ -94,6 +97,7 @@ class EssayGradingSupplementPracticeService
         end
       end
     rescue EOFError, RuntimeError => e
+      return recover_original_workflow(response_data, app_key, task_id) if @generation
       Rails.logger.error("[EssayGradingSupplementPracticeService] Error during streaming workflow: #{e.message}, task_id: #{task_id}")
       retries += 1
       if retries <= MAX_RETRIES
@@ -105,9 +109,13 @@ class EssayGradingSupplementPracticeService
         return execute_workflow_blocking(app_key, payload, task_id)
       end
     rescue Net::ReadTimeout => e
+      return recover_original_workflow(response_data, app_key, task_id) if @generation
       Rails.logger.error("[EssayGradingSupplementPracticeService] Timeout error during streaming workflow: #{e.message}, task_id: #{task_id}")
       return [[], task_id]
+    rescue EssayGenerationRun::OutcomeUnknown
+      raise
     rescue StandardError => e
+      return recover_original_workflow(response_data, app_key, task_id) if @generation && (e.is_a?(IOError) || e.is_a?(SystemCallError))
       Rails.logger.error("[EssayGradingSupplementPracticeService] Standard error during streaming workflow: #{e.message}, task_id: #{task_id}")
       Rails.logger.error("[EssayGradingSupplementPracticeService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
       return [[], task_id]
@@ -168,6 +176,13 @@ class EssayGradingSupplementPracticeService
     [response_data, task_id]
   end
 
+  def recover_original_workflow(events, app_key, task_id)
+    result = DifyWorkflowRecovery.terminal_events(events, app_key: app_key, run_url: API_URL)
+    raise EssayGenerationRun::OutcomeUnknown unless result
+
+    [result, task_id]
+  end
+
   def headers(app_key)
     {
       'Authorization' => "Bearer #{app_key}",
@@ -185,6 +200,13 @@ class EssayGradingSupplementPracticeService
   end
 
   def process_streaming_response(response_data, task_id)
+    if @generation
+      return false if response_data.any? { |chunk| chunk['event'] == 'error' }
+      terminal = response_data.reverse.find { |chunk| chunk['event'] == 'workflow_finished' }
+      raise EssayGenerationRun::OutcomeUnknown unless terminal
+      return false unless terminal.dig('data', 'status') == 'succeeded'
+      @generation.checking!(@generation_token)
+    end
     # Rails.logger.info("[EssayGradingSupplementPracticeService] Processing streaming response, received #{response_data.size} chunks, task_id: #{task_id}")
     return false if response_data.empty?
 
@@ -210,6 +232,7 @@ class EssayGradingSupplementPracticeService
 
       # Fallback to text_chunk if no valid workflow_finished outputs
       unless outputs
+        return false if @generation
         text_chunks = response_data.select { |chunk| chunk['event'] == 'text_chunk' && chunk['data'] }
         if text_chunks.any?
           Rails.logger.info("[EssayGradingSupplementPracticeService] Falling back to text_chunk concatenation, found #{text_chunks.size} text chunks for task_id: #{task_id}")
@@ -221,11 +244,25 @@ class EssayGradingSupplementPracticeService
       end
 
       # Save the supplement practice data
-      @essay_grading.grading['supplement_practice'] = outputs
-      @essay_grading.save
+      candidate = Struct.new(:grading).new({ 'supplement_practice' => outputs })
+      parsed = SupplementPracticeValidator.parse(candidate)
+      raise ArgumentError, 'Missing exercise content' unless parsed
+
+      if @generation
+        @generation.persist_stage!(@generation_token, 'supplement') do |record|
+          record.update!(grading: record.grading.merge('supplement_practice' => outputs))
+        end
+      else
+        @essay_grading.with_lock do
+          raise ArgumentError, 'Saved answer records must be preserved' if @essay_grading.supplement_practice_records.exists?
+          @essay_grading.update!(grading: @essay_grading.grading.merge('supplement_practice' => outputs))
+        end
+      end
 
       Rails.logger.info("[EssayGradingSupplementPracticeService] Successfully processed supplement practice response, task_id: #{task_id}")
       true
+    rescue EssayGenerationRun::StaleExecution, EssayGenerationRun::OutcomeUnknown
+      raise
     rescue StandardError => e
       Rails.logger.error("[EssayGradingSupplementPracticeService] Error processing streaming response: #{e.message}, task_id: #{task_id}")
       Rails.logger.error("[EssayGradingSupplementPracticeService] Error backtrace: #{e.backtrace.first(5).join('\n')}")

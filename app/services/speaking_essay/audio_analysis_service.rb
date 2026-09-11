@@ -7,7 +7,9 @@ module SpeakingEssay
     BLANK_TRANSCRIPT_MESSAGE = 'Speaking essay transcript is blank after Deepgram transcription.'
     MISSING_AUDIO_MESSAGE = 'Speaking essay audio file is missing.'
 
-    def initialize(essay_grading)
+    def initialize(essay_grading, generation: nil, token: nil)
+      @generation = generation
+      @generation_token = token
       @essay_grading = essay_grading
     end
 
@@ -52,7 +54,10 @@ module SpeakingEssay
       end
 
       true
+    rescue EssayGenerationRun::StaleExecution, EssayGenerationRun::OutcomeUnknown
+      raise
     rescue StandardError => e
+      raise EssayGenerationRun::OutcomeUnknown if @generation && (e.is_a?(Timeout::Error) || e.is_a?(IOError) || e.is_a?(SystemCallError))
       Rails.logger.error("[SpeakingEssay::AudioAnalysisService] Failed for essay_grading #{@essay_grading.id}: #{e.message}")
       Rails.logger.error("[SpeakingEssay::AudioAnalysisService] #{e.backtrace.first(5).join("\n")}") if e.backtrace
 
@@ -117,6 +122,7 @@ module SpeakingEssay
         failed_steps: ['speaking_audio_analysis'],
         message:
       )
+      return if @generation
       @essay_grading.update!(status: 'stopped')
 
       begin
@@ -179,6 +185,17 @@ module SpeakingEssay
     end
 
     def persist_analysis!(transcript_text:, deepgram_result:, speech_metrics:, pronunciation_metrics:)
+      if @generation
+        return @generation.persist_stage!(@generation_token, 'audio') do |record|
+          @essay_grading = record
+          generation, @generation = @generation, nil
+          begin
+            persist_analysis!(transcript_text: transcript_text, deepgram_result: deepgram_result, speech_metrics: speech_metrics, pronunciation_metrics: pronunciation_metrics)
+          ensure
+            @generation = generation
+          end
+        end
+      end
       pronunciation_payload = pronunciation_metrics.except(:raw_provider_payload)
       deepgram_payload = deepgram_result.except(:raw_provider_payload)
       azure_payload = compact_azure_payload(pronunciation_metrics)

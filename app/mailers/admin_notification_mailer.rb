@@ -3,7 +3,9 @@
 class AdminNotificationMailer < ApplicationMailer
   # 发送任务停止通知给管理员
   # @param essay_grading [EssayGrading] 评分任务对象
-  def assignment_stopped_notification(essay_grading)
+  def assignment_stopped_notification(essay_grading, generation: nil)
+    @generation = generation
+    @notification_title = generation&.kind == 'supplement' ? 'Supplementary Exercise Failed' : 'Assignment Stopped Notification'
     @essay_grading = essay_grading
     @user = essay_grading.general_user
     @assignment = essay_grading.essay_assignment
@@ -11,7 +13,7 @@ class AdminNotificationMailer < ApplicationMailer
     # 获取管理员邮箱地址
     admin_email = ENV.fetch('ADMIN_NOTIFICATION_EMAIL', 'Bobby.lian@docai.net')
     
-    subject = "Assignment Stopped Notification - User: #{@user.email}, Assignment: #{@assignment.title}"
+    subject = "#{@notification_title} - User: #{@user.email}, Assignment: #{@assignment.title}"
     
     mail(
       to: admin_email,

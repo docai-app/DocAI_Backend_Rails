@@ -6,7 +6,9 @@ module SpeakingEssay
   class ScoringService
     FULL_SCORE = 9
 
-    def initialize(essay_grading)
+    def initialize(essay_grading, generation: nil, token: nil)
+      @generation = generation
+      @generation_token = token
       @essay_grading = essay_grading
     end
 
@@ -22,7 +24,7 @@ module SpeakingEssay
       speech_metrics = analysis['speech_metrics'].presence || @essay_grading.grading['speech_metrics'] || {}
       pronunciation_metrics = analysis['pronunciation_metrics'].presence || @essay_grading.grading['pronunciation_metrics'] || {}
 
-      dify_result = DifyScoringClient.new(api_key: dify_app_key).call(
+      dify_result = DifyScoringClient.new(api_key: dify_app_key, managed: @generation.present?).call(
         user: "essay_grading:#{@essay_grading.id}",
         inputs: dify_inputs(
           transcript_text:,
@@ -41,6 +43,8 @@ module SpeakingEssay
 
       persist_report!(speaking_report)
       true
+    rescue EssayGenerationRun::StaleExecution, EssayGenerationRun::OutcomeUnknown
+      raise
     rescue StandardError => e
       Rails.logger.error("[SpeakingEssay::ScoringService] Failed for essay_grading #{@essay_grading.id}: #{e.message}")
       Rails.logger.error("[SpeakingEssay::ScoringService] #{e.backtrace.first(5).join("\n")}") if e.backtrace
@@ -241,6 +245,17 @@ module SpeakingEssay
     end
 
     def persist_report!(speaking_report)
+      if @generation
+        return @generation.persist_stage!(@generation_token, 'speaking_scoring') do |record|
+          @essay_grading = record
+          generation, @generation = @generation, nil
+          begin
+            persist_report!(speaking_report)
+          ensure
+            @generation = generation
+          end
+        end
+      end
       scores = (speaking_report['scores'] || {}).deep_stringify_keys
       overall_score = scores['overall_band_score']
       missing_scores = ReportNormalizer::SCORE_KEYS.select { |key| scores[key].nil? }

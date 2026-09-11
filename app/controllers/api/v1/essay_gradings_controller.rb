@@ -264,6 +264,8 @@ module Api
             created_at: @essay_grading.created_at,
             updated_at: @essay_grading.updated_at,
             status: @essay_grading.status,
+            generation: @essay_grading.essay_generation_runs.find_by(kind: 'grading')&.public_state,
+            supplement_generation: @essay_grading.category == 'essay' ? SupplementPracticeAvailability.call(@essay_grading) : nil,
             metrics_version: metrics[:metrics_version],
             number_of_suggestion: metrics[:number_of_suggestion],
             questions_count: @essay_grading.grading.dig('comprehension', 'questions_count') || @essay_grading.grading.dig('listening', 'questions_count'),

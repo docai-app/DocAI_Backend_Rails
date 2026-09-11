@@ -127,6 +127,7 @@ Rails.application.routes.draw do
         # 补充练习记录路由
         member do
           get 'supplement_practice', to: 'supplement_practice_records#show_questions'
+          post 'supplement_practice/retry', to: 'supplement_practice_records#retry_generation'
           post 'supplement_practice/draft', to: 'supplement_practice_records#create_draft'
           post 'supplement_practice/submit', to: 'supplement_practice_records#submit'
         end

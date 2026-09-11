@@ -183,6 +183,8 @@ module Api
               message: 'Workflow rerun successfully',
               essay_grading: @essay_grading
             }, status: :ok
+          rescue EssayGenerationRun::Unavailable => e
+            render json: { success: false, message: e.message }, status: :conflict
           rescue StandardError => e
             render json: { 
               success: false, 
@@ -199,6 +201,8 @@ module Api
               message: 'Supplement practice workflow rerun successfully',
               essay_grading: @essay_grading
             }, status: :ok
+          rescue EssayGenerationRun::Unavailable => e
+            render json: { success: false, message: e.message }, status: :conflict
           rescue StandardError => e
             render json: { 
               success: false, 

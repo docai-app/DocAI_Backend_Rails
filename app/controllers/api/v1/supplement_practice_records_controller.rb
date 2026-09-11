@@ -4,23 +4,29 @@ module Api
   module V1
     class SupplementPracticeRecordsController < ApiController
       before_action :authenticate_general_user!, except: [:download_report]
-      before_action :set_essay_grading, only: [:show_questions, :create_draft, :submit]
+      before_action :set_essay_grading, only: [:show_questions, :create_draft, :submit, :retry_generation]
       before_action :set_record, only: [:show, :show_record, :download_report]
+      around_action :serialize_answer_write, only: [:create_draft, :submit]
     #   before_action :check_record_ownership, only: [:show, :show_record, :download_report]
 
       # GET /api/v1/essay_gradings/:essay_grading_id/supplement_practice
       # 获取补充练习题目（学生端）
       def show_questions
+        availability = SupplementPracticeAvailability.call(@essay_grading)
+        availability[:can_retry] &&= @essay_grading.general_user_id == current_general_user.id || current_general_user.aienglish_global_admin?
+        if %w[queued running checking retry_wait unknown].include?(availability[:state])
+          return render json: { success: false, generation: availability, error: 'This exercise is not ready yet.' }, status: :ok
+        end
         # 检查是否有 supplement_practice 数据
         unless @essay_grading.grading['supplement_practice'].present?
-          return render json: { success: false, error: 'Supplement practice not found' }, status: :not_found
+          return render json: { success: false, generation: availability, error: 'This exercise could not be prepared. Please check its status before retrying.' }, status: :unprocessable_entity
         end
 
         parser = SupplementPracticeParserService.new(@essay_grading)
         questions_data = parser.parse_for_student
 
         unless questions_data
-          return render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
+          return render json: { success: false, generation: availability, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
         end
 
         # 检查是否有已保存的记录
@@ -31,6 +37,7 @@ module Api
           quizTitle: questions_data['quizTitle'],
           sections: questions_data['sections'],
           has_existing_record: existing_record.present?,
+          generation: availability,
           existing_record: existing_record ? {
             id: existing_record.id,
             status: existing_record.status,
@@ -44,14 +51,35 @@ module Api
         render json: { success: true, data: response_data }, status: :ok
       rescue OldDataFormatError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Old data format detected: #{e.message}")
-        render json: { success: false, code: e.code, message: e.message }, status: :ok
+        render json: { success: false, code: e.code, message: 'This exercise is unavailable. Please contact your teacher.', generation: availability }, status: :ok
       rescue JSON::ParserError, ArgumentError => e
         Rails.logger.warn("[SupplementPracticeRecordsController] Invalid exercise: #{e.class}")
-        render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.' }, status: :unprocessable_entity
+        render json: { success: false, error: 'This exercise could not be loaded. Please contact your teacher.', generation: availability }, status: :unprocessable_entity
       rescue StandardError => e
         Rails.logger.error("[SupplementPracticeRecordsController] Error in show_questions: #{e.message}")
         Rails.logger.error(e.backtrace.first(5).join("\n"))
         render json: { success: false, error: 'This request could not be completed. Please try again.' }, status: :internal_server_error
+      end
+
+      def retry_generation
+        user = current_general_user
+        unless @essay_grading.general_user_id == user.id || user.aienglish_global_admin?
+          return render json: { success: false, error: 'Forbidden' }, status: :forbidden
+        end
+        unless @essay_grading.essay_assignment&.category == 'essay' && !@essay_grading.draft?
+          return render json: { success: false, error: 'This exercise is not available.' }, status: :unprocessable_entity
+        end
+        generation = nil
+        @essay_grading.with_lock do
+          availability = SupplementPracticeAvailability.call(@essay_grading)
+          unless availability[:can_retry]
+            return render json: { success: false, generation: availability, error: 'Please check the exercise status before trying again.' }, status: :conflict
+          end
+          generation = EssayGenerationRun.request!(@essay_grading, kind: 'supplement', manual: true, force: true)
+        end
+        render json: { success: true, generation: generation.public_state }, status: :accepted
+      rescue EssayGenerationRun::Unavailable
+        render json: { success: false, error: 'This exercise cannot be regenerated. Please contact your teacher.' }, status: :conflict
       end
 
       # POST /api/v1/essay_gradings/:essay_grading_id/supplement_practice/draft
@@ -470,6 +498,18 @@ module Api
 
       def set_essay_grading
         @essay_grading = EssayGrading.find(params[:id])
+      end
+
+      # Use the same row lock as generation so answers and regeneration cannot race.
+      def serialize_answer_write
+        @essay_grading.with_lock do
+          run = EssayGenerationRun.find_by(essay_grading_id: @essay_grading.id, kind: 'supplement')
+          if run && run.state != 'ready'
+            render json: { success: false, error: 'Please wait until the exercise is ready.' }, status: :conflict
+          else
+            yield
+          end
+        end
       end
 
       def set_record

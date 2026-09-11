@@ -33,7 +33,7 @@ module Admin
           )
         end
 
-        # rerun_workflow：清错误 meta → pending → Sidekiq 入队
+        # Explicit reruns reject active/unknown runs instead of reporting a no-op as queued.
         grading.rerun_workflow
 
         {
@@ -42,6 +42,8 @@ module Admin
           message: 'Workflow rerun queued',
           status: 'pending'
         }
+      rescue EssayGenerationRun::Unavailable => e
+        failure_result(id, e.message, grading&.status)
       rescue StandardError => e
         Rails.logger.error("[BulkRerunWorkflow] id=#{id} error=#{e.class}: #{e.message}")
         failure_result(id, "Failed to rerun workflow: #{e.message}", grading&.status)

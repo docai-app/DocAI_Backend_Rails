@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_09_09_130000) do
+ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -527,6 +527,26 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_09_130000) do
     t.index ["general_user_id", "updated_at"], name: "index_essay_assignments_on_user_updated_at", order: { updated_at: :desc }
     t.index ["general_user_id"], name: "index_essay_assignments_on_general_user_id"
     t.index ["school_academic_year_id"], name: "index_essay_assignments_on_school_academic_year_id"
+  end
+
+  create_table "essay_generation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_grading_id", null: false
+    t.string "kind", null: false
+    t.string "state", default: "queued", null: false
+    t.uuid "token", null: false
+    t.integer "attempts", default: 0, null: false
+    t.integer "manual_retries", default: 0, null: false
+    t.jsonb "completed_stages", default: [], null: false
+    t.string "failure_code"
+    t.datetime "queued_at"
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.datetime "next_retry_at"
+    t.datetime "notified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["essay_grading_id", "kind"], name: "idx_essay_generation_runs_unique_kind", unique: true
+    t.index ["essay_grading_id"], name: "index_essay_generation_runs_on_essay_grading_id"
   end
 
   create_table "essay_gradings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1480,6 +1500,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_09_130000) do
   add_foreign_key "essay_assignment_shares", "schools"
   add_foreign_key "essay_assignments", "communities"
   add_foreign_key "essay_assignments", "school_academic_years"
+  add_foreign_key "essay_generation_runs", "essay_gradings"
   add_foreign_key "essay_gradings", "essay_assignments"
   add_foreign_key "essay_gradings", "general_users"
   add_foreign_key "folders", "users"
