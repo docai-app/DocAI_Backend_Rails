@@ -62,6 +62,17 @@ class EssayFeedbackValidatorTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { parse.call(blanks) }
   end
 
+  test 'error envelopes cannot masquerade as successful feedback for any managed category' do
+    %w[essay speaking_essay speaking_conversation sentence_builder talk_lab_speaking].each do |category|
+      %w[grading general_context revised_essay].each do |stage|
+        [{ 'error' => 'provider unavailable' }, { 'success' => false, 'message' => 'failed' }].each do |body|
+          assert_raises(ArgumentError) { EssayFeedbackValidator.validate!({ 'text' => body.to_json }, stage: stage, category: category) }
+        end
+      end
+    end
+    assert EssayFeedbackValidator.validate!({ 'text' => { 'Strengths' => 'Good work.', 'errors' => [] } }, stage: 'general_context', category: 'essay')
+  end
+
   test 'supplement readiness checks the actual scorer for full marks and empty answers' do
     data = { 'sections' => [{ 'topic' => 'Judgement', 'type' => 'true_or_false', 'questions' => [{ 'statement' => 'A valid question.', 'answer' => false }] }] }
     candidate = Struct.new(:grading).new({ 'supplement_practice' => { 'text' => data } })

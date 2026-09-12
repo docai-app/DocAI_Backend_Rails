@@ -64,7 +64,9 @@ class EssayGrading < ApplicationRecord
 
   # 狀態為 draft 時，不執行工作流；
   # 從 draft 變為其他狀態（例如 pending）時才執行工作流
-  after_save_commit :run_workflow, if: :should_run_workflow_after_commit?
+  # Persist the task slot with the submission. Only the slot's after_commit
+  # publishes to Redis, so a crash cannot leave a committed pending with no slot.
+  after_save :run_workflow, if: :should_run_workflow_after_save?
   after_create :calculate_comprehension_score, if: :is_comprehension?
   after_update :calculate_comprehension_score, if: :is_comprehension?
   # 發音評分：建立或更新都可能需要重新計算，draft 狀態一律跳過
@@ -156,10 +158,11 @@ class EssayGrading < ApplicationRecord
 
   def run_workflow
     # This callback is an explicit creation/submission, unlike a duplicate queue delivery.
-    EssayGenerationRun.request!(self, kind: 'grading', force: true)
+    # Lock a separate instance: preserve this caller's saved_changes metadata.
+    EssayGenerationRun.request!(self.class.find(id), kind: 'grading', force: true)
   end
 
-  def should_run_workflow_after_commit?
+  def should_run_workflow_after_save?
     saved_change_to_id? ? should_run_workflow_on_create? : should_run_workflow_on_submit?
   end
 

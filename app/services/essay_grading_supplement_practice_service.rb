@@ -18,6 +18,7 @@ class EssayGradingSupplementPracticeService
   end
 
   def run_workflow
+    return true if @generation && @generation.completed_stages.include?('supplement')
     task_id = "#{@essay_grading.id}_supplement_practice"
     # Rails.logger.info("[EssayGradingSupplementPracticeService] Starting workflow for essay grading ID: #{@essay_grading.id}, task_id: #{task_id}")
 
@@ -36,6 +37,10 @@ class EssayGradingSupplementPracticeService
   private
 
   def execute_workflow_streaming(app_key, payload, task_id)
+    if @generation
+      cached = @generation.begin_provider!(@generation_token, 'supplement', provider: 'workflow', app_key: app_key)
+      return [cached, task_id] if cached
+    end
     retries = 0
     response_data = []
 
@@ -54,6 +59,7 @@ class EssayGradingSupplementPracticeService
       http.request(request) do |response|
         if response.code.to_i != 200
           raise EssayGenerationRun::OutcomeUnknown if @generation && response.code.to_i >= 500
+          @generation.resolve_provider!(@generation_token) if @generation
           Rails.logger.error("[EssayGradingSupplementPracticeService] Streaming request failed with code #{response.code}: #{response.body}, task_id: #{task_id}")
           return [@generation ? [{ 'event' => 'error' }] : [], task_id]
         end
@@ -77,6 +83,7 @@ class EssayGradingSupplementPracticeService
             begin
               data = JSON.parse(json_str)
               response_data << data
+              @generation.observe_provider!(@generation_token, data) if @generation
             rescue JSON::ParserError => e
               Rails.logger.error("[EssayGradingSupplementPracticeService] Failed to parse SSE chunk: #{e.message}, chunk: #{json_str}, task_id: #{task_id}")
             end
@@ -90,12 +97,15 @@ class EssayGradingSupplementPracticeService
             begin
               data = JSON.parse(json_str)
               response_data << data
+              @generation.observe_provider!(@generation_token, data) if @generation
             rescue JSON::ParserError => e
               Rails.logger.error("[EssayGradingSupplementPracticeService] Failed to parse remaining buffer: #{e.message}, chunk: #{json_str}, task_id: #{task_id}")
             end
           end
         end
       end
+    rescue EssayGenerationRun::OutcomeUnknown, EssayGenerationRun::StaleExecution
+      raise
     rescue EOFError, RuntimeError => e
       return recover_original_workflow(response_data, app_key, task_id) if @generation
       Rails.logger.error("[EssayGradingSupplementPracticeService] Error during streaming workflow: #{e.message}, task_id: #{task_id}")
@@ -179,6 +189,7 @@ class EssayGradingSupplementPracticeService
   def recover_original_workflow(events, app_key, task_id)
     result = DifyWorkflowRecovery.terminal_events(events, app_key: app_key, run_url: API_URL)
     raise EssayGenerationRun::OutcomeUnknown unless result
+    result.each { |event| @generation.observe_provider!(@generation_token, event) } if @generation
 
     [result, task_id]
   end

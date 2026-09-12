@@ -6,6 +6,17 @@ class EssayFeedbackValidator
     raise ArgumentError, 'Missing workflow output' unless outputs.is_a?(Hash) && outputs['text'].present?
 
     text = outputs['text']
+    structured = text.is_a?(Hash) || AiJsonParser.structured?(text)
+    if structured
+      object = AiJsonParser.object(text)
+      # Some providers return an error envelope with HTTP success. Never accept
+      # it as feedback merely because an error message is non-empty.
+      envelope_keys = %w[error errors message code status detail success]
+      if object.keys.any? && (object.keys.map(&:to_s) - envelope_keys).empty? &&
+          (object['error'].present? || object['errors'].present? || object['success'] == false || %w[failed stopped error].include?(object['status']))
+        raise ArgumentError, 'Workflow returned an error instead of feedback'
+      end
+    end
     if stage == 'grading' && category == 'essay'
       data = AiJsonParser.object(text)
       score = number(data['Overall Score'] || data['overall_score'])

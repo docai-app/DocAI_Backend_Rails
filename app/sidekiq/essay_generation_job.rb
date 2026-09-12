@@ -13,6 +13,7 @@ class EssayGenerationJob
       success = EssayGradingSupplementPracticeService.new(grading.general_user_id, grading, generation: run, token: token).run_workflow
     else
       if grading.category == 'speaking_essay' && !run.completed_stages.include?('audio')
+        run.begin_provider!(token, 'audio')
         success = SpeakingEssay::AudioAnalysisService.new(grading, generation: run, token: token).call
         unless success
           run.finish!(token, success: false)
@@ -37,7 +38,9 @@ class EssayGenerationJob
     nil
   rescue StandardError => e
     Rails.logger.error("[EssayGenerationJob] run=#{run_id} error=#{e.class}")
-    run&.finish!(token, success: false)
+    # Unexpected failures after a provider POST may have lost its result.
+    context = run&.reload&.provider_context || {}
+    run&.finish!(token, success: false, unknown: context.present? && !context['resolved'])
   end
 
   private

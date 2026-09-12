@@ -68,7 +68,7 @@
     <div class="content">
       <p>Hello Admin,</p>
 
-      <p><%= @generation&.kind == 'supplement' ? 'The supplementary exercise failed. The main grading is unchanged.' : 'An assignment has been stopped due to an error.' %> Please find the details below:</p>
+      <p><%= @recovery_attention ? 'This task needs review. Its previous result could not be confirmed, so no new generation was started. Please verify the original task before retrying.' : (@generation&.kind == 'supplement' ? 'The supplementary exercise failed. The main grading is unchanged.' : 'An assignment has been stopped due to an error.') %> Please find the details below:</p>
 
       <table class="info-table">
         <tr>
@@ -96,7 +96,7 @@
           <td><%= @essay_grading.id %></td>
         </tr>
         <tr>
-          <td>Stopped At</td>
+          <td><%= @recovery_attention ? 'Review Requested At' : 'Notification Time' %></td>
           <td><%= Time.current %></td>
         </tr>
         <tr>

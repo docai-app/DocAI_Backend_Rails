@@ -26,7 +26,14 @@ class EssayGradingService
   end
 
   def run_workflows
-    @essay_grading.clear_grading_errors!
+    if @generation
+      @essay_grading.with_lock do
+        @generation.reload.ensure_execution!(@generation_token)
+        @essay_grading.clear_grading_errors!
+      end
+    else
+      @essay_grading.clear_grading_errors!
+    end
 
     # Run grading workflow with streaming
     grading_task_id = "#{@essay_grading.id}_grading"
@@ -62,6 +69,7 @@ class EssayGradingService
     end
 
     if speaking_essay? && core_workflows_successful?
+      @generation.begin_provider!(@generation_token, 'speaking_scoring') if @generation && !stage_completed?('speaking_scoring')
       @speaking_scoring_success = stage_completed?('speaking_scoring') || SpeakingEssay::ScoringService.new(@essay_grading.reload, generation: @generation, token: @generation_token).call
       Rails.logger.info("[EssayGradingService] Speaking essay scoring workflow success: #{@speaking_scoring_success}")
       record_workflow_error('speaking_scoring', 'Speaking essay scoring workflow failed.') unless @speaking_scoring_success
@@ -103,6 +111,19 @@ class EssayGradingService
       return [TalkLabSpeaking::DifyMock::Responses.workflow_stream_chunks(stage: stage), task_id]
     end
 
+    stage = workflow_stage_from_task_id(task_id)
+    if @generation
+      # A later stage can finish after an earlier stage failed. Resume that
+      # response first; retry earlier failures only in the next bounded attempt.
+      resumed = @generation.provider_context
+      order = %w[grading general_context revised_essay speaking_scoring]
+      if resumed['terminal'] && order.index(resumed['stage']).to_i > order.index(stage).to_i
+        return [[{ 'event' => 'error' }], task_id]
+      end
+      cached = @generation.begin_provider!(@generation_token, stage, provider: 'workflow', app_key: app_key)
+      return [cached, task_id] if cached
+    end
+
     retries = 0
     response_data = []
 
@@ -121,6 +142,7 @@ class EssayGradingService
       http.request(request) do |response|
         if response.code.to_i != 200
           raise EssayGenerationRun::OutcomeUnknown if @generation && response.code.to_i >= 500
+          @generation.resolve_provider!(@generation_token) if @generation
           message = "Streaming request failed with code #{response.code}"
           Rails.logger.error("[EssayGradingService] #{message}: #{response.body}, task_id: #{task_id}")
           record_workflow_error(
@@ -156,6 +178,7 @@ class EssayGradingService
             begin
               data = JSON.parse(json_str)
               response_data << data
+              @generation.observe_provider!(@generation_token, data) if @generation
             rescue JSON::ParserError => e
               Rails.logger.error("[EssayGradingService] Failed to parse SSE chunk: #{e.message}, chunk: #{json_str}, task_id: #{task_id}")
             end
@@ -170,13 +193,14 @@ class EssayGradingService
             begin
               data = JSON.parse(json_str)
               response_data << data
+              @generation.observe_provider!(@generation_token, data) if @generation
             rescue JSON::ParserError => e
               Rails.logger.error("[EssayGradingService] Failed to parse remaining buffer: #{e.message}, chunk: #{json_str}, task_id: #{task_id}")
             end
           end
         end
       end
-    rescue EssayGenerationRun::OutcomeUnknown
+    rescue EssayGenerationRun::OutcomeUnknown, EssayGenerationRun::StaleExecution
       raise
     rescue EOFError, RuntimeError => e
       return recover_original_workflow(response_data, app_key, task_id) if @generation
@@ -289,6 +313,7 @@ class EssayGradingService
   def recover_original_workflow(events, app_key, task_id)
     result = DifyWorkflowRecovery.terminal_events(events, app_key: app_key, run_url: API_URL)
     raise EssayGenerationRun::OutcomeUnknown unless result
+    result.each { |event| @generation.observe_provider!(@generation_token, event) } if @generation
 
     [result, task_id]
   end
@@ -476,6 +501,7 @@ class EssayGradingService
   end
 
   def execute_completion(app_key, payload)
+    @generation.begin_provider!(@generation_token, 'revised_essay') if @generation
     RestClient::Request.execute(
       method: :post,
       url: COMPLETION_API_URL,
@@ -486,6 +512,7 @@ class EssayGradingService
     )
   rescue RestClient::ExceptionWithResponse => e
     raise EssayGenerationRun::OutcomeUnknown if @generation && e.response&.code.to_i >= 500
+    @generation.resolve_provider!(@generation_token) if @generation
     message = "Completion API request failed with code #{e.response&.code}"
     Rails.logger.error("[EssayGradingService] Exception when calling completion API: #{e.response}")
     record_workflow_error(
@@ -495,6 +522,8 @@ class EssayGradingService
       response_body: e.response&.body.to_s.truncate(500)
     )
     nil
+  rescue EssayGenerationRun::StaleExecution, EssayGenerationRun::OutcomeUnknown
+    raise
   rescue StandardError => e
     raise EssayGenerationRun::OutcomeUnknown if @generation && (e.is_a?(RestClient::Exceptions::Timeout) || e.is_a?(EOFError) || e.is_a?(IOError) || e.is_a?(SystemCallError))
     message = "Standard error when calling completion API: #{e.message}"
@@ -719,7 +748,16 @@ class EssayGradingService
   end
 
   def record_workflow_error(stage, message, **details)
-    @essay_grading.record_grading_error!(stage:, message:, details:)
+    if @generation
+      @essay_grading.with_lock do
+        @generation.reload.ensure_execution!(@generation_token)
+        @essay_grading.record_grading_error!(stage:, message:, details:)
+      end
+    else
+      @essay_grading.record_grading_error!(stage:, message:, details:)
+    end
+  rescue EssayGenerationRun::StaleExecution
+    raise
   rescue StandardError => e
     Rails.logger.error("[EssayGradingService] Failed to persist grading error for #{@essay_grading.id}: #{e.message}")
   end

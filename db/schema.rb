@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
+ActiveRecord::Schema[7.0].define(version: 2026_09_12_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
@@ -529,6 +529,19 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
     t.index ["school_academic_year_id"], name: "index_essay_assignments_on_school_academic_year_id"
   end
 
+  create_table "essay_generation_notifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_generation_run_id", null: false
+    t.uuid "token", null: false
+    t.string "kind", null: false
+    t.string "state", default: "preparing", null: false
+    t.datetime "claimed_at"
+    t.datetime "sent_at"
+    t.string "failure_class"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["essay_generation_run_id", "token", "kind"], name: "idx_generation_notification_identity", unique: true
+  end
+
   create_table "essay_generation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "essay_grading_id", null: false
     t.string "kind", null: false
@@ -545,8 +558,17 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
     t.datetime "notified_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "provider_context", default: {}, null: false
+    t.integer "recovery_version", default: 0, null: false
+    t.integer "recovery_count", default: 0, null: false
+    t.boolean "resume_pending", default: false, null: false
+    t.datetime "missing_since"
+    t.datetime "recovery_checked_at"
+    t.datetime "attention_required_at"
+    t.datetime "attention_notified_at"
     t.index ["essay_grading_id", "kind"], name: "idx_essay_generation_runs_unique_kind", unique: true
     t.index ["essay_grading_id"], name: "index_essay_generation_runs_on_essay_grading_id"
+    t.index ["state", "recovery_checked_at"], name: "idx_generation_recovery_scan"
   end
 
   create_table "essay_gradings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -569,6 +591,16 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
     t.uuid "submission_academic_year_id"
     t.jsonb "revised_essay", default: {}, null: false
     t.index ["essay_assignment_id"], name: "index_essay_gradings_on_essay_assignment_id"
+  end
+
+  create_table "essay_operation_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "essay_grading_id", null: false
+    t.string "event", null: false
+    t.string "kind"
+    t.integer "attempts"
+    t.timestamptz "occurred_at", null: false
+    t.index ["essay_grading_id"], name: "index_essay_operation_events_on_essay_grading_id"
+    t.index ["event", "occurred_at"], name: "idx_essay_operation_events_period"
   end
 
   create_table "folder_hierarchies", id: false, force: :cascade do |t|
@@ -1064,6 +1096,19 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
     t.index ["status", "next_retry_at"], name: "index_oauth_webhook_deliveries_on_status_retry"
   end
 
+  create_table "operations_report_deliveries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "period_start", null: false
+    t.datetime "period_end", null: false
+    t.string "state", default: "preparing", null: false
+    t.datetime "claimed_at"
+    t.datetime "sent_at"
+    t.string "failure_class"
+    t.jsonb "summary", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["period_end"], name: "index_operations_report_deliveries_on_period_end", unique: true
+  end
+
   create_table "pdf_page_details", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "document_id", null: false
     t.integer "page_number"
@@ -1500,9 +1545,11 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_11_143000) do
   add_foreign_key "essay_assignment_shares", "schools"
   add_foreign_key "essay_assignments", "communities"
   add_foreign_key "essay_assignments", "school_academic_years"
+  add_foreign_key "essay_generation_notifications", "essay_generation_runs", on_delete: :cascade
   add_foreign_key "essay_generation_runs", "essay_gradings"
   add_foreign_key "essay_gradings", "essay_assignments"
   add_foreign_key "essay_gradings", "general_users"
+  add_foreign_key "essay_operation_events", "essay_gradings", on_delete: :cascade
   add_foreign_key "folders", "users"
   add_foreign_key "general_user_feeds", "general_users"
   add_foreign_key "general_user_feeds", "user_marketplace_items"

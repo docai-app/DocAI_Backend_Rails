@@ -398,9 +398,8 @@ module Api
               uploaded_file: grading_params[:file],
               prepared_attachment:
             )
+            run_speaking_essay_workflow_after_attachment(@essay_grading, force: true)
           end
-
-          run_speaking_essay_workflow_after_attachment(@essay_grading, force: true)
 
           link_assignment_package_grading_if_needed(@essay_grading)
 
@@ -786,6 +785,10 @@ module Api
               uploaded_file: grading_params[:file],
               prepared_attachment:
             )
+            run_speaking_essay_workflow_after_attachment(
+              @essay_grading,
+              force: grading_params[:file].present?
+            )
           end
 
           link_assignment_package_grading_if_needed(@essay_grading)
@@ -797,11 +800,6 @@ module Api
             update_assignment_status_if_needed
             update_assignment_package_progress_if_needed(@essay_grading)
           end
-
-          run_speaking_essay_workflow_after_attachment(
-            @essay_grading,
-            force: grading_params[:file].present?
-          )
 
           render json: { success: true, data: @essay_grading.id, essay_grading: @essay_grading }, status: :ok
         rescue ActiveRecord::RecordInvalid

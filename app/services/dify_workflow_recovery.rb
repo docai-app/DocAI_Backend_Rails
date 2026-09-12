@@ -12,6 +12,13 @@ class DifyWorkflowRecovery
     end.last
     return nil unless run_id.is_a?(String) && run_id.match?(/\A[0-9a-f-]{36}\z/i) && app_key.present?
 
+    data = lookup(run_id, app_key: app_key, run_url: run_url)
+    return nil unless data && %w[succeeded failed stopped].include?(data['status'])
+    [{ 'event' => 'workflow_finished', 'data' => data }]
+  end
+
+  def self.lookup(run_id, app_key:, run_url:)
+    return nil unless run_id.is_a?(String) && run_id.match?(/\A[0-9a-f-]{36}\z/i) && app_key.present?
     uri = URI("#{run_url}/#{run_id}")
     request = Net::HTTP::Get.new(uri)
     request['Authorization'] = "Bearer #{app_key}"
@@ -19,9 +26,8 @@ class DifyWorkflowRecovery
     return nil unless response.code.to_i == 200
 
     data = JSON.parse(response.body)
-    return nil unless data.is_a?(Hash) && data['id'] == run_id && %w[succeeded failed stopped].include?(data['status'])
-
-    [{ 'event' => 'workflow_finished', 'data' => data }]
+    return nil unless data.is_a?(Hash) && data['id'] == run_id
+    data
   rescue StandardError => e
     Rails.logger.warn("[DifyWorkflowRecovery] Original workflow status unavailable: #{e.class}")
     nil

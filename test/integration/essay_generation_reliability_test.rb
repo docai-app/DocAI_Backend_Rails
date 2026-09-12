@@ -40,12 +40,38 @@ class EssayGenerationReliabilityTest < ActionDispatch::IntegrationTest
     assert_equal run.id, EssayGenerationRun.request!(@grading, kind: 'grading').id
     assert_equal 3, run.reload.attempts
     delivery = Minitest::Mock.new
+    delivery.expect(:message, Struct.new(:encoded).new('rendered'))
     delivery.expect(:deliver_now, true)
     AdminNotificationMailer.stub(:assignment_stopped_notification, delivery) do
       2.times { EssayGenerationNotificationJob.new.perform(run.id, run.token) }
     end
     delivery.verify
     assert run.reload.notified_at
+  end
+
+  test 'submission and recoverable generation slot are atomic and retain saved changes' do
+    @grading.update_columns(status: EssayGrading.statuses[:draft])
+    @grading.reload
+    EssayGrading.transaction(requires_new: true) do
+      @grading.update!(status: :pending)
+      assert_equal ['draft', 'pending'], @grading.saved_change_to_status
+      assert_equal 'queued', EssayGenerationRun.find_by!(essay_grading: @grading).state
+      assert_empty EssayGenerationJob.jobs, 'queue dispatch must wait for commit'
+      raise ActiveRecord::Rollback
+    end
+    assert_equal 'draft', @grading.reload.status
+    assert_not EssayGenerationRun.exists?(essay_grading: @grading)
+    assert_empty EssayGenerationJob.jobs
+  end
+
+  test 'new pending submission creates a slot before its transaction commits' do
+    EssayGrading.transaction(requires_new: true) do
+      grading = EssayGrading.create!(general_user: @student, essay_assignment: @assignment, topic: 'Atomic', essay: 'My answer.', status: :pending, grading: {}, meta: {})
+      assert_equal 'queued', EssayGenerationRun.find_by!(essay_grading: grading).state
+      assert_empty EssayGenerationJob.jobs
+      raise ActiveRecord::Rollback
+    end
+    assert_empty EssayGenerationJob.jobs
   end
 
   test 'supplement failure never changes main score status or main feedback' do

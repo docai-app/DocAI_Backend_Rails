@@ -1,0 +1,6 @@
+:concurrency: 1
+:queues:
+  - generation_recovery
+:timeout: 60
+:scheduler:
+  :listened_queues_only: true

@@ -69,15 +69,19 @@ module SpeakingEssay
         return false
       end
 
-      @essay_grading.record_grading_error!(
-        stage: 'speaking_audio_analysis',
-        message: e.message,
-        details: { error_class: e.class.name }
-      )
+      record_audio_error!(message: e.message, details: { error_class: e.class.name })
       raise
     end
 
     private
+
+    def record_audio_error!(message:, details:, summary: false)
+      write = lambda do |record|
+        record.record_grading_error!(stage: 'speaking_audio_analysis', message: message, details: details)
+        record.record_grading_failure_summary!(failed_steps: ['speaking_audio_analysis'], message: message) if summary
+      end
+      @generation ? @generation.with_execution!(@generation_token, &write) : write.call(@essay_grading)
+    end
 
     def stop_instead_of_raise?(error)
       message = error.message.to_s
@@ -113,15 +117,7 @@ module SpeakingEssay
         "[SpeakingEssay::AudioAnalysisService] #{message} (essay_grading #{@essay_grading.id})"
       )
 
-      @essay_grading.record_grading_error!(
-        stage: 'speaking_audio_analysis',
-        message:,
-        details:
-      )
-      @essay_grading.record_grading_failure_summary!(
-        failed_steps: ['speaking_audio_analysis'],
-        message:
-      )
+      record_audio_error!(message: message, details: details, summary: true)
       return if @generation
       @essay_grading.update!(status: 'stopped')
 

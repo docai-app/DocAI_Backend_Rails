@@ -2,7 +2,7 @@
 
 ## Scope and delivery status
 
-Local implementation for the Rails essay-generation pipeline and Comprehension score denominator. No production migration, historical record correction, paid Dify rerun, email delivery, deployment, or GitHub push was performed. Admin and WeChat repositories are unchanged. This is not a claim that every unrelated Dify integration now uses this coordinator.
+Implementation for the Rails essay-generation pipeline and Comprehension score denominator. See the consolidated [engineer release handoff](2026-09-12-reliability-release-handoff-zh.md) for the final release scope and acceptance gates. No production migration, historical correction, paid rerun, real email or deployment was performed. Admin and WeChat repositories are unchanged. This is not universal coverage for every Dify integration.
 
 ## Validation before publication
 
@@ -26,7 +26,7 @@ States: `queued`, `running`, `checking`, `retry_wait`, `ready`, `failed`, `unkno
 6. Manual exercise retry is permitted after confirmed failure, or a queued/retry-wait slot is overdue by two hours. A one-minute terminal-failure cooldown applies. There is no lifetime manual-retry cap.
 7. Running/checking/unknown tasks cannot be restarted merely because time has elapsed. Unknown is not confirmed failure.
 
-The existing `EssayGradingJob` is a compatibility wrapper. Duplicate legacy queue deliveries do not reset the attempt budget. Create/submit callbacks use one after-save-commit entry point. Admin draft cancellation invalidates tokens; resubmission gets a new cycle.
+The existing `EssayGradingJob` is a compatibility wrapper. Duplicate legacy queue deliveries do not reset the attempt budget. Create/submit callbacks persist the generation slot inside the business transaction (`after_save`); only the slot's `after_commit` dispatches to Redis. Speaking Essay registers its slot inside the controller's attachment transaction. This closes the pending-commit/slot-creation crash gap and preserves the caller's `saved_changes`. Admin draft cancellation invalidates tokens; resubmission gets a new cycle.
 
 ## Concurrency and preservation
 
@@ -38,13 +38,13 @@ Answer-save and submit endpoints reject writes while an exercise replacement is 
 
 `DifyWorkflowRecovery` makes a read-only lookup when a captured workflow-run ID is available. It accepts only an identity-matched terminal result; otherwise the slot becomes unknown. It never issues another paid generation POST to discover whether the first POST succeeded.
 
-The lookup follows the official [Dify workflow API implementation](https://github.com/langgenius/dify/blob/main/api/controllers/service_api/app/workflow.py). Missing IDs, unavailable lookup, running/paused status and transport failures remain unknown. There is no new polling scheduler. A killed worker or unresolved unknown task requires operator verification; this version does not automatically recover every infrastructure outage.
+The lookup follows the official [Dify workflow API implementation](https://github.com/langgenius/dify/blob/main/api/controllers/service_api/app/workflow.py). Missing IDs, unavailable lookup, running/paused status and transport failures are not confirmed failures. The optional 2026-09-12 recovery scanner now checks journaled lost tasks after two hours, with safe bounded recovery or explicit review-needed status. See [pending recovery](2026-09-12-pending-recovery.md) for its additive migration, activation cutoff, separate worker, supported stages and exclusions. It does not automatically recover every infrastructure outage or historical pending.
 
 ## Existing email notification reused
 
 `AdminNotificationMailer.assignment_stopped_notification` and its existing recipient configuration are reused. No new recipient, email integration or parallel mailer was introduced. Optional generation context adds attempt count and stage group and distinguishes exercise failure from main grading failure. Student essay text is not included.
 
-`EssayGenerationNotificationJob` is a deduplication gate: only the current failed token can claim notification, once. Intermediate retries do not email. The claim is stored before sending, giving at-most-once send attempts—not guaranteed delivery. SMTP failure/crash after claiming requires operator review; automatic resend could violate the no-duplicate requirement. Redis enqueue failure is logged and leaves durable state; queue infrastructure still needs operational monitoring.
+`EssayGenerationNotificationJob` deduplicates each current terminal token. Intermediate retries do not email. Migration `20260912040000` adds delivery outcomes: rendering can safely retry before the claim; transport is claimed before SMTP, marked sent on success or unknown on ambiguity. No automatic SMTP resend after claiming. Operational reports highlight uncertain/stale delivery or an undispatched terminal notification. `sent` means transport accepted, not guaranteed inbox receipt. Queue/SMTP outages still need external monitoring.
 
 ## Frontend API contract
 
@@ -85,7 +85,7 @@ The attempt budget, delays, queue ordering, saved-answer protection and existing
 
 1. Review and back up the database; apply the additive migration before enabling the new Rails code.
 2. Drain/stop old workers before switching: old processes do not honor new fencing tokens. Restart web and Sidekiq together with the coordinated version. Do not run mixed old/new writers.
-3. Verify Redis scheduled-job delivery and existing SMTP configuration. No new scheduler is required.
+3. Verify Redis scheduled-job delivery and existing SMTP configuration. Confirmed-failure retries use the existing scheduler. Optional lost-pending recovery requires the separate migration, feature settings and worker documented in [pending recovery](2026-09-12-pending-recovery.md).
 4. Deploy compatible frontend handling, then test a controlled successful case, confirmed failure through three attempts, failed-exercise retry, and two simultaneous retry requests.
 5. Verify one actual final notification, correct existing recipient, and no essay body. Test an uncertain result without a duplicate generation POST.
 6. Audit existing Comprehension records before any correction. This change fixes future calculation but does not silently rewrite historical marks or rerun production submissions.

@@ -1,0 +1,33 @@
+AI English 狀態報告（澳門時間）
+時段：<%= Time.iso8601(@report['period_start']).in_time_zone('Asia/Macau') %> 至 <%= Time.iso8601(@report['period_end']).in_time_zone('Asia/Macau') %>
+快照：<%= @report['snapshot_at'] %>
+
+<%= @needs_attention ? '【需要人工處理／核對】' : '【本次未偵測到需要人工處理的項目】' %>
+異常紀錄／寄送問題共 <%= @report['alert_count'] %> 項；列出前 <%= @report['alerts'].length %> 項。
+<% @report['warnings'].each do |warning| %>警告：<%= warning %>
+<% end %>
+<% @report['alerts'].each do |item| %>
+<%= item['reason'] %> | <%= item['school'] %> | <%= item['title'] %>
+紀錄 <%= item['id'] %>，狀態 <%= item['status'] %>／<%= item['generation_state'] %>，執行次數 <%= item['attempts'] || '未記錄' %>，失敗階段 <%= item['failure_stage'] || '未記錄' %>
+<%= item['action'] %>
+<%= item['url'] %>
+<%= item['grading_url'] %>
+<% end %>
+
+新增作業 <%= @report['assignment_count'] %>；老師 <%= @report['teacher_count'] %>；提交 <%= @report['submission_count'] %>
+狀態：<%= @report['status_counts'].map { |k,v| "#{k}=#{v}" }.join(' / ') %>
+整體平均／中位／P95 秒：<%= @report.dig('completion','average_seconds') || '未有可信資料' %>／<%= @report.dig('completion','median_seconds') || '—' %>／<%= @report.dig('completion','p95_seconds') || '—' %>；有效／缺失時間樣本：<%= @report.dig('completion','duration_samples') %>／<%= @report.dig('completion','missing_duration') %>。
+本時段曾失敗／進入重試 <%= @report['period_error_records'] %> 筆，主批改已恢復 <%= @report['period_recovered_main'] %> 筆，補充練習最終失敗 <%= @report['period_supplement_failed'] %> 筆（包含較早提交）。
+舊紀錄（以建立時間估計提交時段）：<%= @report['legacy_submission_count'] %>
+<% [['學校','schools'],['類型','types']].each do |label,key| %>
+<%= label %>統計：
+<% @report[key].each do |b| %><%= b['name'] %>：新作業 <%= b['assignments'] %>，提交 <%= b['submissions'] %>，graded/pending/stopped <%= b['graded'] %>/<%= b['pending'] %>/<%= b['stopped'] %>，曾失敗/恢復 <%= b['error_records'] %>/<%= b['recovered'] %>，平均/中位/P95秒 <%= b['average_seconds'] || '未有資料' %>/<%= b['median_seconds'] || '—' %>/<%= b['p95_seconds'] || '—' %>，有效/缺失時間樣本 <%= b['duration_samples'] %>/<%= b['missing_duration'] %>，練習平均就緒秒 <%= b['supplement_average_seconds'] || '—' %>
+<% end %><% end %>
+
+老師建立的作業：
+<% @report['assignments'].each do |a| %><%= a['school'] %> | <%= a['teacher'] %> | <%= a['title'] %> | <%= a['category'] %> | <%= a['academic_year'] || '學年未確認' %> | <%= a['created_at'] %>
+<%= a['url'] %>
+<% end %>
+統計說明：
+<% @report['definitions'].each do |definition| %>• <%= definition %>
+<% end %>

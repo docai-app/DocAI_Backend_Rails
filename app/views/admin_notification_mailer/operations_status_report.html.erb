@@ -1,0 +1,36 @@
+<div style="font-family:Arial,sans-serif;color:#172033;max-width:1000px;margin:auto;line-height:1.6">
+  <h1>AI English 狀態報告</h1>
+  <p><%= Time.iso8601(@report['period_start']).in_time_zone('Asia/Macau').strftime('%F %R') %> 至 <%= Time.iso8601(@report['period_end']).in_time_zone('Asia/Macau').strftime('%F %R') %>（澳門時間）<br>產生時間：<%= Time.iso8601(@report['snapshot_at']).in_time_zone('Asia/Macau').strftime('%F %R') %></p>
+  <section style="border:2px solid <%= @needs_attention ? '#c53030' : '#25805c' %>;background:<%= @needs_attention ? '#fff5f5' : '#f0fff4' %>;padding:18px">
+    <h2><%= @needs_attention ? '需要人工處理／核對' : '本次未偵測到需要人工處理的項目' %></h2>
+    <p>異常紀錄／寄送問題：<strong><%= @report['alert_count'] %></strong> 項。這是監察報告，不會自動重跑或停止作業。</p>
+    <% @report['warnings'].each do |warning| %><p><strong><%= warning %></strong></p><% end %>
+    <% @report['alerts'].each do |item| %>
+      <div style="border-top:1px solid #e2bcbc;padding:12px 0">
+        <strong><%= item['reason'] %> — <%= item['school'] %>／<%= item['title'] %></strong>
+        <p>紀錄：<%= item['id'] %>　狀態：<%= item['status'] %>／<%= item['generation_state'] %>　執行次數：<%= item['attempts'] || '未記錄' %>　失敗階段：<%= item['failure_stage'] || '未記錄' %></p>
+        <p><%= item['action'] %></p>
+        <% if item['url'] %><a href="<%= item['url'] %>" style="display:inline-block;padding:8px 14px;background:#6335ce;color:white">開啟管理頁</a><% end %>
+        <% if item['grading_url'] %>　<a href="<%= item['grading_url'] %>">查看批改紀錄</a><% end %>
+      </div>
+    <% end %>
+    <% if @report['alert_count'] > @report['alerts'].length %><p><strong>郵件只列出前 <%= @report['alerts'].length %> 項，請在管理後台核對其餘項目。</strong></p><% end %>
+  </section>
+  <h2>整體摘要</h2>
+  <p>新增作業：<strong><%= @report['assignment_count'] %></strong>　建立作業的老師：<%= @report['teacher_count'] %>　學生提交：<strong><%= @report['submission_count'] %></strong></p>
+  <p><% @report['status_counts'].each do |status,count| %><%= status %>：<%= count %>　<% end %></p>
+  <p>平均完成時間：<%= @report.dig('completion','average_seconds') || '未有可信時間資料' %> 秒；中位數：<%= @report.dig('completion','median_seconds') || '—' %>；P95：<%= @report.dig('completion','p95_seconds') || '—' %>。有效樣本：<%= @report.dig('completion','duration_samples') %>，已完成但缺時間：<%= @report.dig('completion','missing_duration') %>。</p>
+  <p>本時段曾失敗／進入重試：<%= @report['period_error_records'] %> 筆；其中主批改已恢復：<%= @report['period_recovered_main'] %> 筆；補充練習最終失敗：<%= @report['period_supplement_failed'] %> 筆（包含較早提交）。</p>
+  <p>缺少首次提交事件、只能依建立時間計入的舊紀錄：<%= @report['legacy_submission_count'] %>。這些紀錄不會用 updated_at 計算完成時間。</p>
+  <% [['各學校', 'schools'], ['各作業類型', 'types']].each do |label,key| %>
+    <h2><%= label %></h2>
+    <table style="border-collapse:collapse;width:100%;font-size:13px" border="1" cellpadding="7">
+      <tr><th>名稱</th><th>新作業</th><th>提交</th><th>Graded</th><th>Pending</th><th>Stopped</th><th>曾失敗／已恢復</th><th>平均／中位／P95（秒）</th><th>時間樣本／缺失</th><th>練習平均就緒（秒）</th></tr>
+      <% @report[key].each do |b| %><tr><td><%= b['name'] %></td><td><%= b['assignments'] %></td><td><%= b['submissions'] %></td><td><%= b['graded'] %></td><td><%= b['pending'] %></td><td><%= b['stopped'] %></td><td><%= b['error_records'] %>／<%= b['recovered'] %></td><td><%= b['average_seconds'] || '未有資料' %>／<%= b['median_seconds'] || '—' %>／<%= b['p95_seconds'] || '—' %></td><td><%= b['duration_samples'] %>／<%= b['missing_duration'] %></td><td><%= b['supplement_average_seconds'] || '—' %></td></tr><% end %>
+    </table>
+  <% end %>
+  <h2>本時段老師建立的作業</h2>
+  <% @report['assignments'].each do |a| %><p><strong><%= a['school'] %>／<%= a['teacher'] %></strong> — <a href="<%= a['url'] %>"><%= a['title'] %></a><br><%= a['category'] %> · <%= a['academic_year'] || '學年未確認' %> · <%= Time.iso8601(a['created_at']).in_time_zone('Asia/Macau').strftime('%F %R') %></p><% end %>
+  <h2>統計說明</h2>
+  <% @report['definitions'].each do |definition| %><p>• <%= definition %></p><% end %>
+</div>

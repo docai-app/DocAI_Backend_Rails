@@ -2,6 +2,7 @@
 
 # One authoritative slot per grading and workflow. A token fences obsolete jobs.
 class EssayGenerationRun < ApplicationRecord
+  include EssayGenerationRecoveryState
   class Unavailable < StandardError; end
   class StaleExecution < StandardError; end
   class OutcomeUnknown < StandardError; end
@@ -56,7 +57,9 @@ class EssayGenerationRun < ApplicationRecord
         token: SecureRandom.uuid, state: 'queued', attempts: 0,
         manual_retries: run.manual_retries.to_i + (manual ? 1 : 0),
         completed_stages: [], failure_code: nil, queued_at: Time.current,
-        started_at: nil, finished_at: nil, next_retry_at: nil, notified_at: nil
+        started_at: nil, finished_at: nil, next_retry_at: nil, notified_at: nil,
+        provider_context: {}, recovery_count: 0, recovery_version: 0, resume_pending: false,
+        missing_since: nil, recovery_checked_at: nil, attention_required_at: nil, attention_notified_at: nil
       )
       run.save!
       grading.update_columns(status: EssayGrading.statuses[:pending]) if kind == 'grading'
@@ -84,8 +87,10 @@ class EssayGenerationRun < ApplicationRecord
       reload
       return false unless token == expected_token && %w[queued retry_wait].include?(state)
       return false if next_retry_at && next_retry_at > Time.current
+      return false if attempts >= MAX_ATTEMPTS && !resume_pending
 
-      update!(state: 'running', attempts: attempts + 1, started_at: Time.current)
+      update!(state: 'running', attempts: attempts + (resume_pending ? 0 : 1), started_at: Time.current,
+        recovery_version: 1, resume_pending: false, missing_since: nil, attention_required_at: nil)
     end
     true
   end
@@ -98,7 +103,8 @@ class EssayGenerationRun < ApplicationRecord
       raise Unavailable, 'An existing answer record must be preserved.' if kind == 'supplement' && essay_grading.supplement_practice_records.exists?
 
       yield essay_grading
-      update!(state: 'running', completed_stages: (completed_stages + [stage]).uniq)
+      update!(state: 'running', completed_stages: (completed_stages + [stage]).uniq,
+        provider_context: provider_context['stage'] == stage ? {} : provider_context)
     end
     true
   end
@@ -118,7 +124,7 @@ class EssayGenerationRun < ApplicationRecord
         # A timeout is not permission to issue another billable provider call.
         update!(state: 'unknown', failure_code: 'outcome_unknown')
       elsif attempts < MAX_ATTEMPTS
-        update!(state: 'retry_wait', token: SecureRandom.uuid, next_retry_at: Time.current + RETRY_DELAYS.fetch(attempts - 1), failure_code: 'generation_failed')
+        update!(state: 'retry_wait', token: SecureRandom.uuid, next_retry_at: Time.current + RETRY_DELAYS.fetch(attempts - 1), failure_code: 'generation_failed', provider_context: {}, missing_since: nil)
       else
         update!(state: 'failed', finished_at: Time.current, failure_code: 'generation_failed')
         essay_grading.update_columns(status: EssayGrading.statuses[:stopped]) if kind == 'grading'
@@ -131,19 +137,22 @@ class EssayGenerationRun < ApplicationRecord
     retryable &&= !finished_at || finished_at <= 1.minute.ago
     retryable &&= !essay_grading.supplement_practice_records.exists? if kind == 'supplement'
     retryable &&= essay_grading.graded? if kind == 'supplement'
-    { state: state, can_retry: !!retryable, attempts: attempts, queued_at: queued_at, started_at: started_at, retry_after: next_retry_at }
+    { state: state, can_retry: !!retryable, attempts: attempts, queued_at: queued_at, started_at: started_at, retry_after: next_retry_at,
+      requires_attention: attention_required_at.present?, recovery_count: recovery_count }
   end
 
   private
 
   def dispatch_needed?
-    previous_changes.key?('token') || (previous_changes.key?('state') && state == 'failed')
+    previous_changes.key?('token') || (previous_changes.key?('state') && state == 'failed') || previous_changes.key?('attention_required_at')
   end
 
   def dispatch
     if %w[queued retry_wait].include?(state)
       EssayGenerationJob.perform_at(next_retry_at || Time.current, id, token)
     elsif state == 'failed'
+      EssayGenerationNotificationJob.perform_async(id, token)
+    elsif state == 'unknown' && attention_required_at.present? && attention_notified_at.nil?
       EssayGenerationNotificationJob.perform_async(id, token)
     end
   rescue StandardError => e

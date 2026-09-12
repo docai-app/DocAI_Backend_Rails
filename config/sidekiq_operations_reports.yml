@@ -1,0 +1,7 @@
+# Dedicated worker: do not add grading queues or change the main worker config.
+:concurrency: 1
+:queues:
+  - operations_reports
+:timeout: 60
+:scheduler:
+  :listened_queues_only: true
