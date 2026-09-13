@@ -64,6 +64,23 @@ class EssayGenerationSchemaTest < ActiveSupport::TestCase
     end
   end
 
+  test 'readiness rejects installed unqualified trigger and restoration fixes tenant writes' do
+    definition = @connection.select_value("SELECT pg_get_functiondef('public.capture_essay_operation()'::regprocedure)")
+    assert_includes definition, 'INSERT INTO public.essay_operation_events'
+    @connection.execute(definition.gsub('INSERT INTO public.essay_operation_events', 'INSERT INTO essay_operation_events'))
+    assert_raises(RuntimeError) { OperationsStatusReport.verify_capture! }
+
+    require Rails.root.join('db/migrate/20260912001000_create_operations_reporting').to_s
+    CreateOperationsReporting.new.install_triggers
+    OperationsStatusReport.verify_capture!
+    with_shadow_schema do
+      run = EssayGenerationRun.request!(@grading, kind: 'grading')
+      assert run.claim!(run.token)
+      assert EssayOperationEvent.exists?(essay_grading: @grading, event: 'generation_running')
+      assert_shadow_tables_empty
+    end
+  end
+
   private
 
   def with_shadow_schema

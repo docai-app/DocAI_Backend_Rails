@@ -14,6 +14,17 @@ These counts are an incident snapshot, not ongoing monitoring.
 
 ## Change and scope
 
+The first production canary exposed a second configuration mismatch: the installed
+`public.capture_essay_operation()` function used unqualified `INSERT INTO
+essay_operation_events`, although the repository migration specifies public-qualified
+INSERTs. Public foreign keys were correct; the function selected a tenant event
+table and its foreign key rejected the public grading ID. The transaction rolled
+back, with no provider call. Restore the existing release trigger definition using
+`operations_reports:install_triggers`; do not change/drop foreign keys. Readiness now
+checks the bound trigger function and its public-qualified INSERT targets, not just
+the existence of two trigger names. A regression test reproduces and detects the
+incorrect installed function, restores it and verifies a tenant-context claim.
+
 Add `EssayGenerationRun`, `EssayOperationEvent`, `OperationsReportDelivery` and
 `EssayGenerationNotification` to Apartment's existing public/excluded model list,
 alongside `EssayGrading`. All four must resolve to public in web, worker and tenant
@@ -42,6 +53,8 @@ fix both tests failed, including the exact worker lookup failure. After the fix:
 - Second pass including assignment summaries, supplementary compatibility and
   global-admin permission regressions: 152 tests, 1,124 assertions, zero failures,
   errors or skips (seed 13092026).
+- With the installed-trigger regression and uncached readiness verification:
+  153 tests, 1,133 assertions, zero failures/errors/skips (seed 9132026).
 
 Tests use Ruby 3.1, `RAILS_ENV=test`, `LISTENING_RAILS_ISOLATED_TEST=1`, the explicit
 loopback isolated DB and fake providers/Sidekiq/mail. They do not call production.
@@ -60,6 +73,11 @@ loopback isolated DB and fake providers/Sidekiq/mail. They do not call productio
    for this configuration-only change in the existing bind-mounted deployment.
 6. Verify the running container model table names are public-qualified and that
    a known public slot is visible even with the default `docai` search path.
+   Run `OperationsStatusReport.verify_capture!` using the updated check. If the
+   installed trigger is unqualified, back up its definition and restore the existing
+   release definition with `RAILS_ENV=production bundle exec rake
+   operations_reports:install_triggers`, then recheck. This is trigger DDL, not a
+   data migration; it does not replay old events, change scores or send mail.
 7. Recover only explicitly audited, never-started affected slots (queued, attempts=0,
    started_at absent, provider_context/completed_stages empty, grading still pending).
    Recheck queue/busy/scheduled/retry absence twice and revalidate under the grading

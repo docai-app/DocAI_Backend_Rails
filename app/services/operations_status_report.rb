@@ -80,14 +80,27 @@ class OperationsStatusReport
   private
 
   def self.verify_capture!
-    count = ActiveRecord::Base.connection.select_value(<<~SQL).to_i
-      SELECT COUNT(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+    triggers = ActiveRecord::Base.uncached do
+      ActiveRecord::Base.connection.select_all(<<~SQL).to_a
+      SELECT pn.nspname AS function_schema, p.proname, p.prosrc
+      FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
       JOIN pg_namespace n ON n.oid=c.relnamespace
+      JOIN pg_proc p ON p.oid=t.tgfoid JOIN pg_namespace pn ON pn.oid=p.pronamespace
       WHERE n.nspname='public' AND t.tgenabled IN ('O','A')
       AND ((c.relname='essay_gradings' AND t.tgname='essay_operations_status')
         OR (c.relname='essay_generation_runs' AND t.tgname='essay_operations_generation'))
     SQL
-    raise 'Operations event capture unavailable; apply migration or restore reporting triggers' unless count == 2
+    end
+    raise 'Operations event capture unavailable; apply migration or restore reporting triggers' unless triggers.length == 2
+    # A trigger may exist but its installed function may differ from the migration.
+    # Unqualified INSERTs resolve through the worker's tenant search_path and can
+    # fail foreign keys or silently split event history across tenant tables.
+    valid_targets = triggers.all? do |trigger|
+      targets = trigger['prosrc'].scan(/\bINSERT\s+INTO\s+([^\s(]+)/i).flatten.map { |name| name.delete('"') }
+      trigger['function_schema'] == 'public' && trigger['proname'] == 'capture_essay_operation' &&
+        targets.any? && targets.all? { |name| name == 'public.essay_operation_events' }
+    end
+    raise 'Operations event capture must write to public; restore reporting triggers from the release' unless valid_targets
   end
 
   def base
