@@ -81,6 +81,51 @@ class EssayGenerationSchemaTest < ActiveSupport::TestCase
     end
   end
 
+  test 'repeated provider identity does not lock on every token but terminal remains fenced' do
+    run = EssayGenerationRun.request!(@grading, kind: 'grading')
+    token = run.token
+    run.claim!(token)
+    run.begin_provider!(token, 'grading', provider: 'workflow', app_key: 'isolated-test')
+    workflow_id = SecureRandom.uuid
+    run.observe_provider!(token, { 'event' => 'workflow_started', 'data' => { 'id' => workflow_id } })
+    queries = []
+    subscriber = lambda { |_name, _start, _finish, _id, payload| queries << payload[:sql] }
+    ActiveSupport::Notifications.subscribed(subscriber, 'sql.active_record') do
+      100.times { run.observe_provider!(token, { 'event' => 'text_chunk', 'workflow_run_id' => workflow_id }) }
+    end
+    assert_empty queries, 'unchanged stream identity must not perform per-token database roundtrips'
+    terminal = { 'event' => 'workflow_finished', 'workflow_run_id' => workflow_id, 'data' => { 'status' => 'succeeded', 'outputs' => { 'text' => 'test' } } }
+    run.observe_provider!(token, terminal)
+    assert_equal terminal, run.reload.provider_context['terminal']
+    assert_raises(EssayGenerationRun::OutcomeUnknown) do
+      run.observe_provider!(token, { 'event' => 'node_finished', 'workflow_run_id' => SecureRandom.uuid })
+    end
+    run.update_columns(token: SecureRandom.uuid)
+    assert_raises(EssayGenerationRun::StaleExecution) { run.observe_provider!(token, terminal) }
+  end
+
+  test 'confirmed original terminal can be handed off without another provider request' do
+    run = EssayGenerationRun.request!(@grading, kind: 'grading')
+    old_token = run.token
+    run.claim!(old_token)
+    run.begin_provider!(old_token, 'grading', provider: 'workflow', app_key: 'isolated-test')
+    workflow_id = SecureRandom.uuid
+    run.observe_provider!(old_token, { 'event' => 'workflow_started', 'data' => { 'id' => workflow_id } })
+    terminal = { 'event' => 'workflow_finished', 'data' => { 'id' => workflow_id, 'status' => 'succeeded', 'outputs' => { 'text' => 'existing result' } } }
+    run.essay_grading.with_lock { run.recover_dispatch!(terminal: terminal) }
+    assert_not_equal old_token, run.token
+    assert run.resume_pending
+    assert_raises(EssayGenerationRun::StaleExecution) { run.observe_provider!(old_token, terminal) }
+    assert_raises(EssayGenerationRun::StaleExecution) { run.persist_stage!(old_token, 'grading') { flunk 'old writer must be fenced' } }
+    assert run.claim!(run.token)
+    assert_equal 1, run.attempts
+    service = EssayGradingService.new(@user.id, @grading, generation: run, token: run.token)
+    Net::HTTP.stub(:new, ->(*) { flunk 'must reuse original provider result, not POST again' }) do
+      events, = service.send(:execute_workflow_streaming, 'isolated-test', {}, "#{@grading.id}_grading")
+      assert_equal [terminal], events
+    end
+  end
+
   private
 
   def with_shadow_schema

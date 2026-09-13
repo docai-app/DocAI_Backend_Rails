@@ -27,6 +27,12 @@ module EssayGenerationRecoveryState
     id = event['workflow_run_id'] || (event['event'] == 'workflow_started' && event.dig('data', 'id'))
     terminal = event['event'] == 'workflow_finished' && %w[succeeded failed stopped].include?(event.dig('data', 'status'))
     return unless id.present? || terminal
+    # Dify repeats workflow_run_id on node/token events. Once that identity is
+    # journalled, these events add no durable information. Locking/reloading for
+    # every token can leave the reader minutes behind an already finished model.
+    # First/changed IDs and ALL terminal results still take the DB/token fence.
+    return if !terminal && id.present? && provider_context['provider'] == 'workflow' && provider_context['run_id'] == id
+
     essay_grading.with_lock do
       reload
       ensure_execution!(expected_token)

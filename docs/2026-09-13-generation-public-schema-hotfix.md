@@ -25,6 +25,23 @@ checks the bound trigger function and its public-qualified INSERT targets, not j
 the existence of two trigger names. A regression test reproduces and detects the
 incorrect installed function, restores it and verifies a tenant-context claim.
 
+The real canary also exposed excessive stream-journal round trips: Dify had
+completed, but workers were still processing repeated workflow_run_id token/node
+events inside `observe_provider!`. Thread dumps showed that call path; PostgreSQL
+reported no blocked backends. Duplicate, nonterminal identities now skip the lock
+and queries once journalled. First/changed IDs and every terminal event still use
+the original DB/token fence. A 100-event regression asserts zero duplicate-event
+SQL, while changed IDs and obsolete terminal writes remain rejected.
+
+For the two already-running streams, an operator may perform a terminal-result
+handoff only after GET of the exact original Dify run confirms completion, the app
+key digest still matches, and token/provider context are unchanged under the grading
+lock. Privately back up the returned result, then use the existing fenced recovery
+with that terminal result. The obsolete reader exits through StaleExecution; wait
+for busy=0 before restarting. The successor reuses the result without another POST
+or increased provider attempt. This is incident-specific handoff, not a change to
+automatic recovery's requirement for absence observations.
+
 Add `EssayGenerationRun`, `EssayOperationEvent`, `OperationsReportDelivery` and
 `EssayGenerationNotification` to Apartment's existing public/excluded model list,
 alongside `EssayGrading`. All four must resolve to public in web, worker and tenant
@@ -55,6 +72,8 @@ fix both tests failed, including the exact worker lookup failure. After the fix:
   errors or skips (seed 13092026).
 - With the installed-trigger regression and uncached readiness verification:
   153 tests, 1,133 assertions, zero failures/errors/skips (seed 9132026).
+- With stream identity deduplication and a fenced, no-new-POST terminal handoff:
+  155 tests, 1,145 assertions, zero failures/errors/skips (seed 13092028).
 
 Tests use Ruby 3.1, `RAILS_ENV=test`, `LISTENING_RAILS_ISOLATED_TEST=1`, the explicit
 loopback isolated DB and fake providers/Sidekiq/mail. They do not call production.
