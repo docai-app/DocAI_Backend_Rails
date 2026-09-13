@@ -19,8 +19,12 @@ Apartment.configure do |config|
   #
   # config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile GeneralUsersRole Role Energy
   #                             EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment Link LinkSet]
+  # Grading coordination/telemetry belongs to the same public namespace as
+  # EssayGrading. Workers can start in the database user's schema or inherit a
+  # tenant search_path; an unqualified table silently hides public queued runs.
   config.excluded_models = %w[ApiKey AssistantAgent SuperAdmin AgentUseTool AgentTool Entity Cors GeneralUser GeneralUserFile GeneralUsersRole Role Energy
                               EnergyConsumptionRecord MarketplaceItem Purchase UserMarketplaceItem AssessmentRecord KgLinker DifyApiKey Group Membership EssayGrading EssayAssignment ListeningAssignmentSnapshot ListeningPlaybackState Link LinkSet
+                              EssayGenerationRun EssayOperationEvent OperationsReportDelivery EssayGenerationNotification
                               ActiveStorage::Blob ActiveStorage::Attachment
                               OauthApplication OauthAuditLog Doorkeeper::AccessToken Doorkeeper::AccessGrant
                               OauthPartnerAccountLink OauthApplicationWebhook OauthWebhookDelivery
