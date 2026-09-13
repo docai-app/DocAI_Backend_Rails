@@ -5,14 +5,19 @@ module AdminAuthenticator
   extend ActiveSupport::Concern
 
   included do
-    before_action :check_admin_token
+    prepend_before_action :check_admin_token
   end
 
   private
 
   def check_admin_token
-    authenticate_or_request_with_http_token do |token, _options|
-      ActiveSupport::SecurityUtils.secure_compare(token, ENV['ADMIN_TOKEN'])
-    end
+    expected = ENV['ADMIN_TOKEN'].to_s
+    token = request.headers['Authorization'].to_s.match(/\ABearer ([^\s,]+)\z/i)&.captures&.first
+    response.headers['Cache-Control'] = 'no-store'
+    return if expected.present? && !%w[null undefined].include?(expected) &&
+              token.present? && token.bytesize <= 4096 &&
+              ActiveSupport::SecurityUtils.secure_compare(token, expected)
+
+    render json: { success: false, error: 'Unauthorized' }, status: :unauthorized
   end
 end

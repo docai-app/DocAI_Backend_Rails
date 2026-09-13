@@ -4,6 +4,7 @@ module Api
   module Admin
     module V1
       class AssignmentPackagesController < ApplicationController
+        include AdminAuthenticator
         before_action :set_assignment_package, only: %i[show destroy retry_generation]
 
         def index

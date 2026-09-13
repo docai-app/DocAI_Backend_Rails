@@ -6,6 +6,9 @@ class OauthPhase1Test < ActionDispatch::IntegrationTest
   self.fixture_table_names = []
 
   setup do
+    @previous_admin_token = ENV['ADMIN_TOKEN']
+    ENV['ADMIN_TOKEN'] = 'isolated-admin-server-token-with-32-characters'
+    @admin_headers = { 'Authorization' => "Bearer #{ENV['ADMIN_TOKEN']}" }
     host! 'docai-dev.m2mda.com'
     @user = GeneralUser.create!(
       email: "oauth-phase1-#{SecureRandom.hex(4)}@example.com",
@@ -15,8 +18,10 @@ class OauthPhase1Test < ActionDispatch::IntegrationTest
     )
   end
 
+  teardown { ENV['ADMIN_TOKEN'] = @previous_admin_token }
+
   test 'admin can create enable and list oauth clients' do
-    post '/api/admin/v1/oauth/clients', params: {
+    post '/api/admin/v1/oauth/clients', headers: @admin_headers, params: {
       client: {
         name: 'Partner Demo',
         confidential: true,
@@ -34,11 +39,11 @@ class OauthPhase1Test < ActionDispatch::IntegrationTest
     assert_equal false, body.dig('data', 'enabled')
 
     client_id = body.dig('data', 'id')
-    post "/api/admin/v1/oauth/clients/#{client_id}/enable"
+    post "/api/admin/v1/oauth/clients/#{client_id}/enable", headers: @admin_headers
     assert_response :success
     assert_equal true, JSON.parse(response.body).dig('data', 'enabled')
 
-    get '/api/admin/v1/oauth/clients'
+    get '/api/admin/v1/oauth/clients', headers: @admin_headers
     assert_response :success
     list = JSON.parse(response.body)['data']
     assert list.any? { |row| row['id'] == client_id }

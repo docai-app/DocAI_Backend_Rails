@@ -9,6 +9,9 @@ class EssayGenerationRecoveryEdgesTest < ActionDispatch::IntegrationTest
   self.fixture_table_names = []
 
   setup do
+    @previous_admin_token = ENV['ADMIN_TOKEN']
+    ENV['ADMIN_TOKEN'] = 'isolated-admin-server-token-with-32-characters'
+    @admin_headers = { 'Authorization' => "Bearer #{ENV['ADMIN_TOKEN']}" }
     host! 'docai-dev.m2mda.com'
     EssayGenerationJob.clear
     EssayGenerationNotificationJob.clear
@@ -20,6 +23,8 @@ class EssayGenerationRecoveryEdgesTest < ActionDispatch::IntegrationTest
     @headers = { 'Authorization' => "Bearer #{token}" }
     @url = "/api/v1/essay_gradings/#{@grading.id}/supplement_practice"
   end
+
+  teardown { ENV['ADMIN_TOKEN'] = @previous_admin_token }
 
   test 'three failures with no content expose retry state and GET then POST recovers once' do
     run = EssayGenerationRun.request!(@grading, kind: 'supplement')
@@ -136,7 +141,7 @@ class EssayGenerationRecoveryEdgesTest < ActionDispatch::IntegrationTest
       run.update_columns(state: state)
       old_token = run.token
       EssayGenerationJob.clear
-      post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_workflow", as: :json
+      post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_workflow", headers: @admin_headers, as: :json
       assert_response :conflict, response.body
       assert_equal false, response.parsed_body['success']
       result = Admin::EssayGradings::BulkRerunWorkflowService.new(ids: [@grading.id]).call
@@ -155,13 +160,13 @@ class EssayGenerationRecoveryEdgesTest < ActionDispatch::IntegrationTest
     run = EssayGenerationRun.request!(@grading, kind: 'supplement')
     run.update_columns(state: 'unknown')
     EssayGenerationJob.clear
-    post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_supplement_practice_workflow", as: :json
+    post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_supplement_practice_workflow", headers: @admin_headers, as: :json
     assert_response :conflict, response.body
     assert_equal false, response.parsed_body['success']
     assert_empty EssayGenerationJob.jobs
     run.update_columns(state: 'failed', finished_at: 2.minutes.ago)
     @grading.update_columns(status: EssayGrading.statuses[:stopped])
-    post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_workflow", as: :json
+    post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_workflow", headers: @admin_headers, as: :json
     assert_response :ok, response.body
     assert_equal true, response.parsed_body['success']
     assert_equal 1, EssayGenerationJob.jobs.length

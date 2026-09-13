@@ -4,6 +4,7 @@ module Api
   module Admin
     module V1
       class LearningPathTemplatesController < ApplicationController
+        include AdminAuthenticator
         before_action :set_template, only: %i[show update destroy]
 
         def index

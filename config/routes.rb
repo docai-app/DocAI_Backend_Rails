@@ -9,6 +9,8 @@ Rails.application.routes.draw do
   devise_for :super_admins
   require 'sidekiq/web'
   require 'sidekiq-scheduler/web'
+  require Rails.root.join('lib/admin_sidekiq_authentication').to_s
+  Sidekiq::Web.use AdminSidekiqAuthentication
   mount Sidekiq::Web => '/sidekiq'
 
   use_doorkeeper do

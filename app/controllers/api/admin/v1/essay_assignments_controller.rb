@@ -4,7 +4,7 @@ module Api
   module Admin
     module V1
       class EssayAssignmentsController < ApplicationController
-        # before_action :authenticate_user! # 管理员认证
+        include AdminAuthenticator
         before_action :set_essay_assignment, only: [:show, :update, :submissions]
 
         # 作业概览统计

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class AdminApiController < ActionController::Base
+  include AdminAuthenticator
   before_action :set_paper_trail_whodunnit, :switch_public_tenant # 切換到公共租戶
   skip_before_action :verify_authenticity_token
   respond_to :json

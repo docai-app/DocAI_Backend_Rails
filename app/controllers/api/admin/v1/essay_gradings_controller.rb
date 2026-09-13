@@ -4,7 +4,6 @@ module Api
   module Admin
     module V1
       class EssayGradingsController < AdminApiController
-        # include AdminAuthenticator
 
         before_action :set_essay_grading, only: [:show, :rerun_workflow, :rerun_supplement_practice_workflow]
         # before_action :check_stopped_status, only: [:rerun_workflow]
