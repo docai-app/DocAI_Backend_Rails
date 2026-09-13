@@ -11,7 +11,7 @@ module EssayGenerationRecoveryState
       ensure_execution!(expected_token)
       context = provider_context
       if context['stage'] == stage && context['terminal'].present?
-        result = [context['terminal']]
+        result = [DifyWorkflowRecovery.normalize_terminal_event(context['terminal'])]
       else
         raise EssayGenerationRun::OutcomeUnknown if context.present? && !context['resolved']
         update!(provider_context: { 'stage' => stage, 'provider' => provider,

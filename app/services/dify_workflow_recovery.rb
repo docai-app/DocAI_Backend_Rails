@@ -27,9 +27,27 @@ class DifyWorkflowRecovery
 
     data = JSON.parse(response.body)
     return nil unless data.is_a?(Hash) && data['id'] == run_id
-    data
+    normalize_result(data)
   rescue StandardError => e
     Rails.logger.warn("[DifyWorkflowRecovery] Original workflow status unavailable: #{e.class}")
     nil
+  end
+
+  # Some deployed Dify versions serialize outputs in GET /workflows/run/:id,
+  # while SSE sends the same outputs as an object. Preserve invalid/missing
+  # output for normal validation; decoding is not permission to invent feedback.
+  def self.normalize_result(data)
+    return data unless data.is_a?(Hash) && data['outputs'].is_a?(String)
+
+    outputs = JSON.parse(data['outputs'])
+    outputs.is_a?(Hash) ? data.merge('outputs' => outputs) : data
+  rescue JSON::ParserError
+    data
+  end
+
+  def self.normalize_terminal_event(event)
+    return event unless event.is_a?(Hash) && event['event'] == 'workflow_finished'
+
+    event.merge('data' => normalize_result(event['data']))
   end
 end

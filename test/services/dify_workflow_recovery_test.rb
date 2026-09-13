@@ -9,16 +9,17 @@ class DifyWorkflowRecoveryTest < ActiveSupport::TestCase
   test 'uses GET on original ID and only returns confirmed terminal statuses' do
     id = SecureRandom.uuid
     events = [{ 'event' => 'workflow_started', 'workflow_run_id' => id }]
-    %w[succeeded failed stopped running paused unknown].each do |status|
+    %w[succeeded failed stopped running paused unknown].product([{ text: '{}' }, { text: '{}' }.to_json]).each do |status, outputs|
       request = nil
       http = Object.new
-      response = Struct.new(:code, :body).new('200', { id: id, status: status, outputs: { text: '{}' } }.to_json)
+      response = Struct.new(:code, :body).new('200', { id: id, status: status, outputs: outputs }.to_json)
       http.define_singleton_method(:request) { |value| request = value; response }
       Net::HTTP.stub(:start, ->(*_args, **_options, &block) { block.call(http) }) do
         result = DifyWorkflowRecovery.terminal_events(events, app_key: 'test-only', run_url: 'https://dify.example.test/v1/workflows/run')
         assert_equal 'GET', request.method
         assert_equal "/v1/workflows/run/#{id}", request.path
         assert_equal %w[succeeded failed stopped].include?(status), result.present?
+        assert_equal({ 'text' => '{}' }, result.first.dig('data', 'outputs')) if result
       end
     end
   end

@@ -111,7 +111,7 @@ class EssayGenerationSchemaTest < ActiveSupport::TestCase
     run.begin_provider!(old_token, 'grading', provider: 'workflow', app_key: 'isolated-test')
     workflow_id = SecureRandom.uuid
     run.observe_provider!(old_token, { 'event' => 'workflow_started', 'data' => { 'id' => workflow_id } })
-    terminal = { 'event' => 'workflow_finished', 'data' => { 'id' => workflow_id, 'status' => 'succeeded', 'outputs' => { 'text' => 'existing result' } } }
+    terminal = { 'event' => 'workflow_finished', 'data' => { 'id' => workflow_id, 'status' => 'succeeded', 'outputs' => { 'text' => 'existing result' }.to_json } }
     run.essay_grading.with_lock { run.recover_dispatch!(terminal: terminal) }
     assert_not_equal old_token, run.token
     assert run.resume_pending
@@ -122,8 +122,21 @@ class EssayGenerationSchemaTest < ActiveSupport::TestCase
     service = EssayGradingService.new(@user.id, @grading, generation: run, token: run.token)
     Net::HTTP.stub(:new, ->(*) { flunk 'must reuse original provider result, not POST again' }) do
       events, = service.send(:execute_workflow_streaming, 'isolated-test', {}, "#{@grading.id}_grading")
-      assert_equal [terminal], events
+      assert_equal({ 'text' => 'existing result' }, events.first.dig('data', 'outputs'))
+      assert_equal workflow_id, events.first.dig('data', 'id')
+      assert_equal 'succeeded', events.first.dig('data', 'status')
     end
+  end
+
+  test 'recovery output decoding preserves valid objects and rejects malformed or missing output' do
+    object = { 'id' => SecureRandom.uuid, 'status' => 'succeeded', 'outputs' => { 'text' => 'feedback' } }
+    assert_equal object, DifyWorkflowRecovery.normalize_result(object)
+    assert_equal object, DifyWorkflowRecovery.normalize_result(object.merge('outputs' => object['outputs'].to_json))
+    [nil, '', '{broken', '[]', 'null'].each do |output|
+      result = DifyWorkflowRecovery.normalize_result(object.merge('outputs' => output))
+      assert_raises(ArgumentError) { EssayFeedbackValidator.validate!(result['outputs'], stage: 'grading', category: 'essay') }
+    end
+    assert_equal 'feedback', object.dig('outputs', 'text'), 'normalization must not mutate the saved original'
   end
 
   private

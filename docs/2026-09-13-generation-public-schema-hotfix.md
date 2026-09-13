@@ -42,6 +42,13 @@ for busy=0 before restarting. The successor reuses the result without another PO
 or increased provider attempt. This is incident-specific handoff, not a change to
 automatic recovery's requirement for absence observations.
 
+Production's Dify GET response additionally encoded `outputs` as a JSON string,
+unlike SSE's object. Recovery now decodes object-shaped outputs from GET responses
+and already-cached terminal events. Missing, malformed, null or array output is not
+invented/replaced and still fails the same feedback validator. Cached recovery tests
+use the real string-encoded shape and assert no new HTTP request; this compatibility
+change does not relax scoring/grammar validation or retry budgets.
+
 Add `EssayGenerationRun`, `EssayOperationEvent`, `OperationsReportDelivery` and
 `EssayGenerationNotification` to Apartment's existing public/excluded model list,
 alongside `EssayGrading`. All four must resolve to public in web, worker and tenant
@@ -74,6 +81,15 @@ fix both tests failed, including the exact worker lookup failure. After the fix:
   153 tests, 1,133 assertions, zero failures/errors/skips (seed 9132026).
 - With stream identity deduplication and a fenced, no-new-POST terminal handoff:
   155 tests, 1,145 assertions, zero failures/errors/skips (seed 13092028).
+- Final suite including actual GET-path object/string output compatibility:
+  158 tests, 1,199 assertions, zero failures/errors/skips (seed 13092030).
+
+During runtime acceptance, four handed-off records encountered the then-unhandled
+string output format and completed grading on automatic attempt 2. The handoff
+itself reused results, but those later automatic retries did make another grading
+request. Do not describe this incident as having made zero duplicate provider calls.
+The output compatibility fix prevents this specific false failure on future recovery.
+Already successful retry results are retained, not replaced by older cached output.
 
 Tests use Ruby 3.1, `RAILS_ENV=test`, `LISTENING_RAILS_ISOLATED_TEST=1`, the explicit
 loopback isolated DB and fake providers/Sidekiq/mail. They do not call production.
