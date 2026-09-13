@@ -133,5 +133,34 @@ do not blindly roll back and resume grading on it. If another regression appears
 quiet/drain the worker, preserve all records/queues, investigate and choose a reviewed
 version. Do not drop the public tables, delete jobs, reset scores or overwrite answers.
 
-Deployment results and final commit are to be recorded after runtime acceptance;
-the test result above alone does not claim production recovery.
+## Production acceptance — 2026-09-13 21:41 Macau
+
+- Runtime changes through `39944a1` were pushed to `bobby-codex-backend` and deployed
+  by fast-forwarding the server checkout and restarting its existing web/Sidekiq
+  containers. The worker was quieted and verified idle before each code switch;
+  no live provider was force-killed. Server-only fonts/configuration were preserved.
+- The installed trigger was restored from the repository definition in a transaction
+  with a five-second lock timeout; the strengthened capture check passes. No table
+  or foreign key was dropped and no schema migration version was rewritten.
+- One orphaned canary was recovered first; 62 additional never-started slots were
+  subsequently requeued in guarded batches (19, 20, 23). The completed canary was
+  skipped by the batch guard. Existing queue entries and successful work were retained.
+- The 64-record observation cohort (including one originally present queue entry)
+  had 18 ready, 3 running and 43 queued. A complete queue/busy/scheduled/retry audit
+  found **zero missing deliveries and zero unknown observations**. This is not a
+  claim that all 64 had finished; the remaining records were in the normal queue.
+- Actual canary: graded, 6.5/9, 14 grammar sentences; the feedback validator passed.
+  Supplement ready with 15 questions; full-answer/blank-answer scoring validation
+  passed through the production validator. No synthetic response was used for this
+  acceptance. Additional new submissions also completed after the hotfix.
+- Private server-side slot/grading snapshots, original trigger definition, terminal
+  responses, recovery actions and the final audit are retained under
+  `/home/akali/aienglish/backups/20260913-generation-schema/` (restricted permissions).
+  They contain sensitive data and must not be committed, publicly served or emailed.
+- Historical pending without incident slots were not bulk-rerun. Dedicated recovery
+  and reporting flags/workers remain unconfigured; this incident deployment does
+  not claim scheduled email or automatic future orphan recovery is enabled.
+
+The final documentation-only commit records this acceptance; runtime source is
+unchanged from `39944a1`. Frontend, Admin, WeChat, Listening and AGENTS.md were not
+modified by this hotfix.
