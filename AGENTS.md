@@ -1,0 +1,29 @@
+# AI English Rails Backend 协作规则
+
+适用于本仓库及子目录。用户当前明确指示优先；如子目录另有 `AGENTS.md`，同时阅读。操作前确认实际仓库、Git remote、分支与 `git status --short`，保留已有修改及未跟踪文件，不与相邻 Rails checkout 或微信小程序 worktree 混淆。
+
+## 默认开发分支与测试部署
+
+- 用户于 2026-09-13 指定：日后本 Rails Backend 默认在 `development` 分支开发、测试及交付，不再默认使用 `bobby-codex-backend`。先 fetch `origin/development`，核对差异并安全更新；不得覆盖未提交内容或未经检查把其他分支全部合并过来。
+- 用户指定的测试服务器：`ssh akali@103.230.15.190`；repo 实际路径已核对为 `/home/akali/aienglish/DocAI_Backend_Rails`。用户原提供的入口为账号 `aienglish` 目录下的 `bash deploy.sh`；2026-09-13 实查该脚本会 down／up Redis 及全机清理无标签 images，因此不得原样盲目执行。该次用户另行批准 quiet／drain 后只停止、更新并启动 Rails／Sidekiq，保留 Redis、queue、images 与脚本。后续仍先检查当前脚本与影响范围；细节见 `docs/2026-09-13-development-server-deployment-check.md`。
+- 用户允许后续在任务范围内完成开发、测试并推送 `development` 后，直接部署至上述测试服务器；只适用于该测试目标。**不得推送 `production` 或部署正式环境，也不得借用之前的正式部署授权。** 其他 repo／分支／服务器不自动获得同样授权。
+- 执行部署前只读核对远端实际目录、repo、分支、commit、`deploy.sh` 及其调用的脚本，确认它们使用 `development`、测试环境和独立测试数据库，不会推送／拉取 production、触及正式服务或运行未获批准的 migration。若不符、无法确认或脚本会操作其他服务，停止并说明，不盲目执行或擅自修改脚本。
+- 部署代码必须先在 GitHub 的 `development` 可追溯，记录精确 SHA；部署后核对服务器实际 SHA、服务状态及小范围验收。不得仅手改服务器而不提交 GitHub，不得 force push。
+- 以下数据库结构／migration 限制仍然适用，测试服务器部署授权不覆盖它们；遇到待迁移或结构变更时交给工程师先处理，不自行执行 `deploy.sh` 中的 migration 或发布。
+- SSH 密码不得写入 `AGENTS.md`、代码、脚本、日志或 Git；使用安全凭证提供方式，优先 SSH key。不得关闭 SSH 主机身份校验。
+
+## 数据库结构与部署：必须由工程师把关
+
+- 默认不要修改 `db/migrate/`、`db/schema.rb`、`db/structure.sql` 或通过 SQL 改表、字段、索引、约束及 trigger。任务确实需要结构变更时，先向用户说明必要性、影响及 migration 方案，取得明确同意后才编写。不能把普通功能修改或之前的笼统部署授权当成许可。
+- 不手改 schema 文件代替 migration，不修改已执行的历史 migration 来绕过问题，不直接改正式数据库。
+- **发布范围包含任何待执行 migration 或数据库结构变更时，AI 不得自行部署，也不得在正式环境替工程师执行 migration。** 由工程师先检查并执行所需 migration，确认成功后，才由工程师部署依赖新结构的应用及 workers。
+- migration 失败、执行状态不明或工程师尚未确认时，停止发布；不得跳过检查、伪造 migration 状态、删表重建或强行启动依赖新结构的程序。工程师确认迁移成功不代表授权 AI 接着部署。
+- 交接文件必须列明目标 commit、migration 版本、执行顺序及依赖、备份与还原要求、验证步骤、worker 切换和回退注意事项，区分「代码已写／已 push」「migration 已执行」「已部署／已验收」。
+- GitHub push 若可能触发自动部署，也受上述限制。先协调工程师处理自动部署与迁移顺序；未经确认，不推送到会绕过 migration 前置条件自动上线的目标。不擅自修改部署集成或触发 Deploy Hook。
+- 可以在任务范围内做只读检查；明确隔离的本地测试不是正式数据库迁移或部署授权。不得因测试而连接正式数据库执行写入。
+
+## 代码交付
+
+- 用户要求交付的代码、migration 及非敏感部署配置应按授权提交 GitHub，记录对应 commit；普通变更可按上述规则部署到指定测试服务器，涉及 migration 的发布及正式部署交由工程师。不得只留在服务器，上述数据库部署限制始终适用。
+- 密钥、数据库备份、`.env` 实际值、本地 `output/` 产物及其他无关修改不得顺带提交。推送前核对远端更新，不 force push。
+- 修改范围以当前任务为准；不因 Backend 改动而顺带修改或发布微信小程序、Listening 或其他服务。
