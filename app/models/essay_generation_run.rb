@@ -16,11 +16,26 @@ class EssayGenerationRun < ApplicationRecord
   validates :state, inclusion: { in: %w[queued running checking retry_wait ready failed unknown cancelled] }
   after_commit :dispatch, if: :dispatch_needed?
 
-  def self.request!(grading, kind:, manual: false, force: false, require_new: false)
+  # Only authenticated Admin controllers/services may call this entry point.
+  # This is an explicit new attempt, not automatic recovery of an unknown result.
+  def self.request_admin_rerun!(grading)
+    request!(grading, kind: 'grading', force: true, require_new: true, admin_override: true)
+  end
+
+  def self.request!(grading, kind:, manual: false, force: false, require_new: false, admin_override: false)
+    raise ArgumentError, 'Admin override is only for main grading' if admin_override && kind != 'grading'
+
     result = nil
     grading.with_lock do
       run = find_by(essay_grading_id: grading.id, kind: kind)
-      if kind == 'grading' && where(essay_grading_id: grading.id, kind: 'supplement', state: ACTIVE_STATES).exists?
+      if admin_override
+        supersede_supplement_for_admin!(grading)
+        meta = grading.meta || {}
+        history = Array(meta['admin_reruns']).last(19)
+        history << { 'at' => Time.current.iso8601, 'previous_state' => run&.state,
+          'previous_attempts' => run&.attempts, 'previous_run_id' => run&.provider_context&.dig('run_id') }
+        grading.update_columns(meta: meta.merge('admin_reruns' => history))
+      elsif kind == 'grading' && where(essay_grading_id: grading.id, kind: 'supplement', state: ACTIVE_STATES).exists?
         raise Unavailable, 'Please wait for the current exercise task before rerunning grading.'
       end
       # A duplicate legacy queue delivery is not a new retry budget.
@@ -28,7 +43,7 @@ class EssayGenerationRun < ApplicationRecord
         result = run
         next
       end
-      if run && ACTIVE_STATES.include?(run.state) && !run.stale_queue?
+      if !admin_override && run && ACTIVE_STATES.include?(run.state) && !run.stale_queue?
         if require_new
           message = run.state == 'unknown' ? 'The previous task result must be confirmed before retrying.' : 'A task is already queued or processing. No new retry was started.'
           raise Unavailable, message
@@ -55,7 +70,7 @@ class EssayGenerationRun < ApplicationRecord
       run ||= new(essay_grading: grading, kind: kind)
       run.assign_attributes(
         token: SecureRandom.uuid, state: 'queued', attempts: 0,
-        manual_retries: run.manual_retries.to_i + (manual ? 1 : 0),
+        manual_retries: run.manual_retries.to_i + ((manual || admin_override) ? 1 : 0),
         completed_stages: [], failure_code: nil, queued_at: Time.current,
         started_at: nil, finished_at: nil, next_retry_at: nil, notified_at: nil,
         provider_context: {}, recovery_count: 0, recovery_version: 0, resume_pending: false,
@@ -67,6 +82,23 @@ class EssayGenerationRun < ApplicationRecord
     end
     result
   end
+
+  def self.supersede_supplement_for_admin!(grading)
+    supplement = find_by(essay_grading_id: grading.id, kind: 'supplement', state: ACTIVE_STATES)
+    return unless supplement
+
+    # Keep usable questions (and all student answer records). Only an unfinished
+    # exercise without valid content needs a new generation after grading finishes.
+    ready = begin
+      SupplementPracticeValidator.parse(grading).present?
+    rescue JSON::ParserError, ArgumentError, OldDataFormatError
+      false
+    end
+    supplement.update!(token: SecureRandom.uuid, state: ready ? 'ready' : 'cancelled',
+      finished_at: Time.current, next_retry_at: nil, attention_required_at: nil,
+      failure_code: ready ? nil : 'admin_grading_rerun')
+  end
+  private_class_method :supersede_supplement_for_admin!
 
   def checking!(expected_token)
     essay_grading.with_lock do
@@ -118,7 +150,9 @@ class EssayGenerationRun < ApplicationRecord
         update!(state: 'ready', finished_at: Time.current, failure_code: nil)
         essay_grading.update_columns(status: EssayGrading.statuses[:graded]) if kind == 'grading'
         if kind == 'grading' && essay_grading.category == 'essay' && !essay_grading.supplement_practice_records.exists?
-          self.class.request!(essay_grading, kind: 'supplement')
+          supplement = self.class.find_by(essay_grading_id: essay_grading.id, kind: 'supplement')
+          restart = supplement&.state == 'cancelled' && supplement.failure_code == 'admin_grading_rerun'
+          self.class.request!(essay_grading, kind: 'supplement', force: restart)
         end
       elsif unknown
         # A timeout is not permission to issue another billable provider call.

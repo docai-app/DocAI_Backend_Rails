@@ -86,7 +86,13 @@ class EssayGradingService
     Rails.logger.error("[EssayGradingService] #{message}")
     Rails.logger.error("[EssayGradingService] Error backtrace: #{e.backtrace.first(5).join('\n')}")
     record_workflow_error('run_workflows', message, error_class: e.class.name)
-    @essay_grading.record_grading_failure_summary!(failed_steps: ['run_workflows'], message: e.message)
+    if @generation
+      @generation.with_execution!(@generation_token) do |record|
+        record.record_grading_failure_summary!(failed_steps: ['run_workflows'], message: e.message)
+      end
+    else
+      @essay_grading.record_grading_failure_summary!(failed_steps: ['run_workflows'], message: e.message)
+    end
     @essay_grading.update(status: 'stopped') if !@generation && @essay_grading.pending?
     raise
   end

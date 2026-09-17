@@ -4,8 +4,6 @@ module Admin
   module EssayGradings
     # 批量重新运行批改工作流：每条独立处理，单条失败不影响其余记录
     class BulkRerunWorkflowService
-      RERUNABLE_STATUSES = %w[pending stopped].freeze
-
       def initialize(ids:)
         @ids = ids
       end
@@ -24,22 +22,13 @@ module Admin
           return failure_result(id, 'Essay grading not found', nil)
         end
 
-        # 仅 pending / stopped 允许重跑
-        unless RERUNABLE_STATUSES.include?(grading.status)
-          return failure_result(
-            id,
-            'Essay grading is not in pending or stopped status',
-            grading.status
-          )
-        end
-
-        # Explicit reruns reject active/unknown runs instead of reporting a no-op as queued.
-        grading.rerun_workflow
+        # Admin explicitly supersedes an earlier attempt, including unknown ones.
+        EssayGenerationRun.request_admin_rerun!(grading)
 
         {
           id: id,
           success: true,
-          message: 'Workflow rerun queued',
+          message: 'Workflow rerun requested',
           status: 'pending'
         }
       rescue EssayGenerationRun::Unavailable => e

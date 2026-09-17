@@ -248,7 +248,7 @@ module Api
         # 作业提交列表
         # GET /api/admin/v1/essay_assignments/:id/submissions
         def submissions
-          @submissions = @essay_assignment.essay_gradings.includes(:general_user)
+          @submissions = @essay_assignment.essay_gradings.includes(:general_user, :essay_generation_runs)
           
           # 状态过滤
           if params[:status].present?
@@ -305,6 +305,8 @@ module Api
             {
               id: submission.id,
               status: submission.status,
+              generation: ::Admin::EssayGradings::GenerationStatus.call(submission),
+              supplement_generation: ::Admin::EssayGradings::GenerationStatus.call(submission, kind: 'supplement'),
               score: submission.score,
               using_time: submission.using_time,
               created_at: submission.created_at,

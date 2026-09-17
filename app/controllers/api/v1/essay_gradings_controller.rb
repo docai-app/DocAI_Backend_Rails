@@ -761,6 +761,13 @@ module Api
 
         begin
           EssayGrading.transaction do
+            # Ordinary saves cannot restart submitted work; Admin rerun is separate.
+            @essay_grading.lock!
+            restart_statuses = ['draft', 'pending', EssayGrading.statuses.fetch('draft'), EssayGrading.statuses.fetch('pending')]
+            if !@essay_grading.draft? && restart_statuses.include?(grading_params[:status])
+              render json: { success: false, error: 'This work has already been submitted. Please view your submission instead.' }, status: :conflict
+              return
+            end
             if @essay_grading.is_listening?
               # Serialize autosave and final submission. Recheck after locking:
               # an earlier request may have submitted this draft in the meantime.

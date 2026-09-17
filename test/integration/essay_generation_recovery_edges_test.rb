@@ -135,24 +135,29 @@ class EssayGenerationRecoveryEdgesTest < ActionDispatch::IntegrationTest
     assert_empty EssayGenerationNotificationJob.jobs
   end
 
-  %w[queued running checking retry_wait unknown].each do |state|
-    test "admin single and bulk rerun report #{state} as not accepted without new jobs" do
+  %w[queued running checking retry_wait unknown ready failed cancelled].each do |state|
+    test "admin single and bulk rerun replace #{state} while legacy duplicates remain no ops" do
       run = EssayGenerationRun.request!(@grading, kind: 'grading')
       run.update_columns(state: state)
       old_token = run.token
       EssayGenerationJob.clear
       post "/api/admin/v1/essay_gradings/#{@grading.id}/rerun_workflow", headers: @admin_headers, as: :json
-      assert_response :conflict, response.body
-      assert_equal false, response.parsed_body['success']
+      assert_response :ok, response.body
+      assert_equal true, response.parsed_body['success']
+      first_token = run.reload.token
+      assert_not_equal old_token, first_token
       result = Admin::EssayGradings::BulkRerunWorkflowService.new(ids: [@grading.id]).call
-      assert_equal false, result.dig(:results, 0, :success)
-      assert_equal 0, result.dig(:summary, :succeeded)
-      assert_equal 1, result.dig(:summary, :failed)
-      assert_empty EssayGenerationJob.jobs
-      assert_equal old_token, run.reload.token
-      assert_equal state, run.state
+      assert_equal true, result.dig(:results, 0, :success)
+      assert_equal 1, result.dig(:summary, :succeeded)
+      assert_equal 0, result.dig(:summary, :failed)
+      assert_equal 2, EssayGenerationJob.jobs.length
+      assert_not_equal first_token, run.reload.token
+      assert_equal 'queued', run.state
+      assert_equal 2, run.manual_retries
+      assert_not run.claim!(old_token)
+      assert_not run.claim!(first_token)
       # Callback/legacy duplicate delivery still has idempotent no-op behavior.
-      assert_equal old_token, EssayGenerationRun.request!(@grading, kind: 'grading').token
+      assert_equal run.token, EssayGenerationRun.request!(@grading, kind: 'grading').token
     end
   end
 

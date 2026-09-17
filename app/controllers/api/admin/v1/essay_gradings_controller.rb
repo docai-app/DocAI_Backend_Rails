@@ -87,7 +87,7 @@ module Api
           return if performed?
 
           essay_gradings = filtered_scope
-                           .includes(:essay_assignment, :general_user)
+                           .includes(:essay_assignment, :general_user, :essay_generation_runs)
                            .submitted_recent_first
 
           render json: {
@@ -137,6 +137,8 @@ module Api
                 created_at: @essay_grading.created_at,
                 updated_at: @essay_grading.updated_at,
                 status: @essay_grading.status,
+                generation: ::Admin::EssayGradings::GenerationStatus.call(@essay_grading),
+                supplement_generation: ::Admin::EssayGradings::GenerationStatus.call(@essay_grading, kind: 'supplement'),
                 number_of_suggestion: @essay_grading.grading['number_of_suggestion'],
                 questions_count: @essay_grading.grading.dig('comprehension', 'questions_count'),
                 full_score: full_score,
@@ -176,10 +178,10 @@ module Api
         # POST /api/admin/v1/essay_gradings/:id/rerun_workflow
         def rerun_workflow
           begin
-            @essay_grading.rerun_workflow
+            EssayGenerationRun.request_admin_rerun!(@essay_grading)
             render json: { 
               success: true, 
-              message: 'Workflow rerun successfully',
+              message: 'Workflow rerun requested',
               essay_grading: @essay_grading
             }, status: :ok
           rescue EssayGenerationRun::Unavailable => e
@@ -300,6 +302,8 @@ module Api
             id: grading.id,
             topic: grading.topic,
             status: grading.status,
+            generation: ::Admin::EssayGradings::GenerationStatus.call(grading),
+            supplement_generation: ::Admin::EssayGradings::GenerationStatus.call(grading, kind: 'supplement'),
             created_at: grading.created_at,
             updated_at: grading.updated_at,
             using_time: grading.using_time,

@@ -71,4 +71,35 @@ class EssayGenerationConcurrencyTest < ActiveSupport::TestCase
       assert_not(claimed && resulting_token != old_token, 'a claimed original and a replacement must never both proceed')
     end
   end
+
+  test 'concurrent Admin overrides leave exactly one current executable token' do
+    run = EssayGenerationRun.request!(@grading, kind: 'grading')
+    original_token = run.token
+    assert run.claim!(original_token)
+    gate = Queue.new
+    threads = 4.times.map do
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          gate.pop
+          EssayGenerationRun.request_admin_rerun!(EssayGrading.find(@grading.id)).token
+        end
+      end
+    end
+    4.times { gate << true }
+    tokens = threads.map(&:value)
+    assert_equal 4, tokens.uniq.length
+    current_token = run.reload.token
+    assert_includes tokens, current_token
+    (tokens + [original_token]).reject { |token| token == current_token }.each do |token|
+      assert_not run.claim!(token)
+      assert_raises(EssayGenerationRun::StaleExecution) do
+        run.persist_stage!(token, 'grading') { flunk 'obsolete concurrent write' }
+      end
+    end
+    assert_equal 1, EssayGenerationRun.where(essay_grading: @grading, kind: 'grading').count
+    assert_equal 4, @grading.reload.meta['admin_reruns'].size
+    assert run.claim!(current_token)
+    assert_not run.claim!(current_token)
+    assert_equal 1, run.reload.attempts
+  end
 end

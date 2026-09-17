@@ -23,7 +23,7 @@ class EssayGenerationJob
       success = EssayGradingService.new(grading.general_user_id, grading.reload, generation: run, token: token).run_workflows
     end
     run.finish!(token, success: success)
-    if run.reload.state == 'ready' && run.kind == 'grading'
+    if run.reload.token == token && run.state == 'ready' && run.kind == 'grading'
       # Webhook failure must not restart successful, billable workflows.
       begin
         notify_completion(grading.reload)
