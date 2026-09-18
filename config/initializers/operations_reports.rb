@@ -9,6 +9,7 @@ Sidekiq.configure_server do |config|
         'class' => 'OperationsReportTickJob', 'queue' => 'operations_reports'
       })
       Sidekiq.reload_schedule!
+      Sidekiq::Scheduler.instance.enabled = true
       Sidekiq::Scheduler.instance.reload_schedule!
       OperationsReportTickJob.perform_async
     elsif ENV['AI_ENGLISH_REPORT_WORKER'] == 'true'

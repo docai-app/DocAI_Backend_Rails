@@ -28,3 +28,11 @@
 ## 本地驗證
 
 新增工具 9 項 Python unit tests 通過，涵蓋錯誤容器／mount／network／環境 fail closed、角色分離、Macau cutoff、重複 runtime 不覆蓋、secret 檔權限、dry run 不寫入及 Sidekiq 設定保留既有值。這些測試不連 Docker／正式 DB／SMTP。既有候選 Rails 175 tests／1,689 assertions 為前輪證據，不能冒充本輪重跑。
+
+## 實際啟動發現的排程共存缺口
+
+兩個 worker 初次於 11:21:43／11:21:44 澳門時間啟動，各自 startup tick 完成，但後啟動程序的 scheduler 預設空 YAML 覆蓋共享 Redis schedule。已有記憶體 timer 不代表共享登記正常。已用安裝版本 sidekiq-scheduler 5.0.6 的 Manager／Schedule 實作定位，並加入本機獨立 Redis 的真實 gem 回歸。
+
+修正：三個 Sidekiq YAML 都先停用 gem 預設的整體 schedule 指派；只有該角色 initializer 用 set_schedule 寫入自己的名稱後，明確啟用本程序 scheduler。主 worker 沒有 active recurring definitions，保持 scheduler-disabled，但 queue／concurrency 不變。兩個專用角色仍只排自己監聽的 queue，停用角色只刪自己的登記。沒有改其他服務 Redis、gem 檔案或使用全域 monkey-patch。
+
+此段是修正說明，不代表已部署修正；須在 push 後安全重啟相關 Sidekiq，再確認兩個登記及各兩次五分鐘 tick。原啟用時間必須保留，不重新建立容器或修改 cutoff。

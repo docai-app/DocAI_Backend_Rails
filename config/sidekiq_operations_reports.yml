@@ -4,4 +4,7 @@
   - operations_reports
 :timeout: 60
 :scheduler:
+  # The gem's default startup replaces ALL shared Redis schedules with this
+  # process's (empty) YAML schedule. Enable only after our owned schedule is set.
+  :enabled: false
   :listened_queues_only: true

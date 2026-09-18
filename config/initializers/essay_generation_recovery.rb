@@ -7,6 +7,7 @@ Sidekiq.configure_server do |config|
           'cron' => '*/5 * * * * Asia/Macau', 'class' => 'EssayGenerationRecoveryJob', 'queue' => 'generation_recovery'
         })
         Sidekiq.reload_schedule!
+        Sidekiq::Scheduler.instance.enabled = true
         Sidekiq::Scheduler.instance.reload_schedule!
         EssayGenerationRecoveryJob.perform_async
       else

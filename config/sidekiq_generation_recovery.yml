@@ -3,4 +3,5 @@
   - generation_recovery
 :timeout: 60
 :scheduler:
+  :enabled: false
   :listened_queues_only: true

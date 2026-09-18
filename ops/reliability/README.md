@@ -80,3 +80,25 @@ Tests (no Docker, production DB or SMTP access):
 ```sh
 python3 -m unittest discover -s ops/reliability -p 'test_*.py' -v
 ```
+
+## Scheduler coexistence fix
+
+sidekiq-scheduler 5.0.6's default Manager startup assigns the process YAML schedule
+to Redis, deleting names not in that YAML. Empty YAML on a second/main worker
+therefore erased the first worker's registry, even while its in-memory timer ran.
+All three worker YAML files disable the gem's initial scheduler load. Each
+dedicated initializer then sets ONLY its own named entry and enables its own
+in-memory scheduler; listened_queues_only keeps the other role out. The main worker
+has no active recurring definitions and remains scheduler-disabled; it still
+consumes all existing queues. An owner with enabled=false removes only its own
+entry. No global monkey-patch or Redis flush is used.
+
+Actual-gem regression (dedicated disposable Redis on loopback port 56391 only):
+
+```sh
+RELIABILITY_TEST_REDIS_URL=redis://127.0.0.1:56391/0 bundle exec ruby ops/reliability/scheduler_coexistence_test.rb
+```
+
+Checks both startup orders, main restart, owner restart, disabled-owner isolation,
+and reproduces the original gem behavior. Kept outside Rails test discovery so
+normal tests do not depend on a running operational test Redis.
