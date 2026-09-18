@@ -12,7 +12,9 @@ module Api
         private
 
         def require_portal_school_admin!
-          return if current_general_user&.portal_school_admin?
+          response.headers['Cache-Control'] = 'no-store'
+          actor = current_general_user
+          return if actor&.active_for_authentication? && (actor.portal_school_admin? || actor.portal_password_manager?)
 
           render json: { success: false, error: 'Forbidden.' }, status: :forbidden
         end
@@ -32,10 +34,23 @@ module Api
           EssayAssignment.where(general_user_id: teacher_ids_for_current_school)
         end
 
+        def authorized_student_enrollments
+          scope = StudentEnrollment.joins(:school_academic_year)
+                                   .where(school_academic_years: { school_id: current_school.id, status: SchoolAcademicYear.statuses[:active] })
+                                   .where(status: StudentEnrollment.statuses[:active])
+          grants = current_general_user.school_password_grants
+          grants.reduce(scope.none) do |allowed, grant|
+            allowed.or(scope.where(school_academic_year_id: grant['school_academic_year_id'], class_name: grant['class_name']))
+          end
+        end
+
         def students_scope
-          GeneralUser.joins(student_enrollments: :school_academic_year)
-                     .where(school_academic_years: { school_id: current_school.id })
-                     .distinct
+          scope = GeneralUser.joins(student_enrollments: :school_academic_year)
+                             .where(school_academic_years: { school_id: current_school.id }).distinct
+          return scope unless current_general_user.school_password_manager?
+
+          scope.where(student_enrollments: { id: authorized_student_enrollments.select(:id) })
+               .where("general_users.meta->>'aienglish_role' = ?", 'student')
         end
 
         def pagination_meta(collection)

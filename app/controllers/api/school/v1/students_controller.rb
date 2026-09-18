@@ -59,7 +59,9 @@ module Api
         end
 
         def show
-          student = students_scope.find_by(id: params[:id])
+          scope = students_scope
+          scope = scope.where(student_enrollments: { school_academic_year_id: params[:school_academic_year_id] }) if params[:school_academic_year_id].present?
+          student = scope.find_by(id: params[:id])
           unless student
             return render json: { success: false, error: 'Student not found' }, status: :not_found
           end
@@ -73,6 +75,12 @@ module Api
           )
 
           academic_year = resolve_academic_year_for_detail
+          if current_general_user.school_password_manager?
+            enrollment = authorized_student_enrollments.where(general_user_id: student.id)
+            enrollment = enrollment.where(school_academic_year_id: params[:school_academic_year_id]) if params[:school_academic_year_id].present?
+            academic_year = enrollment.first&.school_academic_year
+            return render json: { success: false, error: 'Student not found' }, status: :not_found unless academic_year
+          end
           payload =
             if academic_year
               student_json(student, academic_year: academic_year)
@@ -87,29 +95,26 @@ module Api
         end
 
         def reset_password
-          student = students_scope.find_by(id: params[:id])
-          unless student
-            return render json: { success: false, error: 'Student not found' }, status: :not_found
+          # The account row serializes resets with revocation/status updates.
+          current_general_user.with_lock do
+            restrict_school_password_manager!
+            return if performed?
+            scope = students_scope
+            scope = scope.where(student_enrollments: { school_academic_year_id: params[:school_academic_year_id] }) if params[:school_academic_year_id].present?
+            student = scope.find_by(id: params[:id])
+            return render json: { success: false, error: 'Student not found' }, status: :not_found unless student
+
+            student.password = SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD
+            student.save!
+            SchoolPortal::AuditLogger.log!(
+              actor: current_general_user, school: current_school,
+              action: 'student_password_reset', target: student,
+              metadata: { reset_to_default_password: true }, request: request
+            )
           end
-
-          student.password = SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD
-          unless student.save
-            return render json: { success: false, errors: student.errors.full_messages }, status: :unprocessable_entity
-          end
-
-          SchoolPortal::AuditLogger.log!(
-            actor: current_general_user,
-            school: current_school,
-            action: 'student_password_reset',
-            target: student,
-            metadata: {
-              reset_to_default_password: true,
-              default_password_label: SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD
-            },
-            request: request
-          )
-
           render json: { success: true, message: 'Password reset.' }, status: :ok
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { success: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
         end
 
         private

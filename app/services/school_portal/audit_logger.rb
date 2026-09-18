@@ -9,7 +9,7 @@ module SchoolPortal
 
       SchoolAdminAuditLog.create!(
         actor_id: actor.id,
-        actor_role: 'school_admin',
+        actor_role: actor.aienglish_role,
         school_id: school.id,
         action: action.to_s,
         target_type: target&.class&.name,

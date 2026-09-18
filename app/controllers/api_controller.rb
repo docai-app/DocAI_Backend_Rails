@@ -2,6 +2,7 @@
 
 class ApiController < ActionController::Base
   before_action :switch_public_tenant #:switch_tenant
+  include SchoolPasswordManagerBoundary
   before_action :set_paper_trail_whodunnit
   skip_before_action :verify_authenticity_token
   respond_to :json

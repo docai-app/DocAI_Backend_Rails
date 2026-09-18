@@ -33,6 +33,7 @@
 require_dependency 'has_kg_linker'
 
 class GeneralUser < ApplicationRecord
+  include SchoolPasswordAccess
   # Include Ahoy::Model for tracking events related to the user
   include Ahoy::Model
   include HasWechatMiniprogramBinding
@@ -159,7 +160,8 @@ class GeneralUser < ApplicationRecord
       'sub' => id,
       'iat' => Time.now.to_i,
       'email' => email,
-      'scp' => (school_admin? ? 'school_admin' : nil)
+      'scp' => (school_admin? ? 'school_admin' : nil),
+      'school_password_version' => (school_password_access['session_version'] if school_password_manager?)
     }.compact
   end
 

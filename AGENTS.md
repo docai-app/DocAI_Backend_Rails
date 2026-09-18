@@ -31,3 +31,9 @@
 - 用户要求交付的代码、migration 及非敏感部署配置应按授权提交 GitHub，记录对应 commit；普通变更可按上述规则部署到指定测试服务器，涉及 migration 的发布及正式部署交由工程师。不得只留在服务器，上述数据库部署限制始终适用。
 - 密钥、数据库备份、`.env` 实际值、本地 `output/` 产物及其他无关修改不得顺带提交。推送前核对远端更新，不 force push。
 - 修改范围以当前任务为准；不因 Backend 改动而顺带修改或发布微信小程序、Listening 或其他服务。
+
+## 學校子帳號的班級密碼授權
+
+- 學校密碼子帳號使用 `GeneralUser.meta.school_password_access`，角色為 `school_password_manager`，不新增表／欄位。權限寫入只經本校主管理員接口；一般資料更新不可接受 meta／角色／學校歸屬欄位。
+- 必須同時保護 `/api/school/v1`、`/api/school_admin/v1` 及共用 API；授權精確匹配 active 学年＋active enrollment＋班名，空授權不得回退整校資料。撤權、停用及新密碼要檢查已發 token。
+- 回歸：`test/integration/school_password_delegation_test.rb` 加 `test/integration/admin_api_authentication_test.rb`，沿用明確隔離 test DB；沒有本次 migration。詳情及部署狀態見 `docs/school-password-delegation.md`。

@@ -20,7 +20,7 @@ module Api
               target_name: l.metadata['target_name'],
               time: l.created_at,
               ip: l.ip_address,
-              metadata: l.metadata
+              metadata: l.metadata.except('default_password_label', 'password', 'password_confirmation')
             }
           end
 

@@ -10,7 +10,8 @@ module Api
             success: true,
             data: {
               user: user.as_json(only: %i[id email nickname school_id created_at updated_at],
-                                methods: []).merge('aienglish_role' => user.aienglish_role),
+                                methods: []).merge('aienglish_role' => user.aienglish_role, 'capabilities' => user.school_portal_capabilities,
+                     'class_grants' => user.school_password_grants),
               school: user.school&.as_json(only: %i[id name code status])
             }
           }, status: :ok

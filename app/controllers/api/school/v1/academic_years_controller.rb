@@ -6,6 +6,9 @@ module Api
       class AcademicYearsController < SchoolApiController
         def index
           years = current_school.school_academic_years.order(start_date: :desc)
+          if current_general_user.school_password_manager?
+            years = years.where(status: :active, id: current_general_user.school_password_grants.map { |g| g['school_academic_year_id'] })
+          end
 
           render json: {
             success: true,

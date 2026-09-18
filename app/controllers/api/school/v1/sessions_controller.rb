@@ -14,7 +14,7 @@ module Api
           password = params[:password].to_s
           user = GeneralUser.find_for_database_authentication(email: email)
 
-          unless user&.active_for_authentication? && user.valid_password?(password) && user.portal_school_admin?
+          unless user&.active_for_authentication? && user.valid_password?(password) && (user.portal_school_admin? || user.portal_password_manager?)
             return render json: { success: false, error: 'Invalid email or password.' }, status: :unauthorized
           end
 
@@ -52,7 +52,7 @@ module Api
         private
 
         def require_portal_school_admin!
-          return if current_general_user&.portal_school_admin?
+          return if current_general_user&.portal_school_admin? || current_general_user&.portal_password_manager?
 
           render json: { success: false, error: 'Forbidden.' }, status: :forbidden
         end
@@ -60,7 +60,8 @@ module Api
         def session_user_json(user)
           user.as_json(only: %i[id email nickname created_at updated_at school_id],
                        methods: [])
-              .merge('aienglish_role' => user.aienglish_role)
+              .merge('aienglish_role' => user.aienglish_role, 'capabilities' => user.school_portal_capabilities,
+                     'class_grants' => user.school_password_grants)
         end
 
         def session_school_json(school)
