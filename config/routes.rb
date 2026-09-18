@@ -77,6 +77,7 @@ Rails.application.routes.draw do
             post :batch_upload_pdfs
             post :batch_create
             get :current_draft
+            post :current_draft
           end
         end
         member do

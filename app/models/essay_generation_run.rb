@@ -77,7 +77,16 @@ class EssayGenerationRun < ApplicationRecord
         missing_since: nil, recovery_checked_at: nil, attention_required_at: nil, attention_notified_at: nil
       )
       run.save!
-      grading.update_columns(status: EssayGrading.statuses[:pending]) if kind == 'grading'
+      if kind == 'grading'
+        # Admin can explicitly run a prepared draft. Account for it once, just
+        # like student submission, without allowing old draft receipts to reset it.
+        meta = grading.meta.deep_dup
+        if meta.dig(AssignmentDraftSession::KEY, 'counter_excluded') == true
+          meta[AssignmentDraftSession::KEY]['counter_excluded'] = false
+          EssayAssignment.increment_counter(:number_of_submission, grading.essay_assignment_id)
+        end
+        grading.update_columns(status: EssayGrading.statuses[:pending], meta: meta)
+      end
       result = run
     end
     result

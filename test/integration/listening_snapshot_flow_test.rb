@@ -94,7 +94,7 @@ class ListeningSnapshotFlowTest < ActionDispatch::IntegrationTest
     EssayGrading.create!(essay_assignment: @assignment, general_user: @student,
       status: 'draft', grading: {}, general_context: {}, revised_essay: {}, meta: {})
     post submission_path, params: payload, headers: headers(@student), as: :json
-    assert_response :created
+    assert_response :ok # Submit the existing draft, not a second record.
     result = response.parsed_body.fetch('essay_grading')
     assert_equal 'graded', result['status']
     assert_equal 0, result.dig('grading', 'listening', 'score')
@@ -126,13 +126,14 @@ class ListeningSnapshotFlowTest < ActionDispatch::IntegrationTest
     payload[:essay_grading][:status] = 'pending'
     final_headers = headers(@teacher).merge('Idempotency-Key' => 'listening-final-request-0001')
     post submission_path, params: payload, headers: final_headers, as: :json
-    assert_response :created
+    assert_response :ok
     final_id = response.parsed_body.dig('essay_grading', 'id')
+    assert_equal original_id, final_id
     assert_equal 'graded', response.parsed_body.dig('essay_grading', 'status')
     post submission_path, params: payload, headers: final_headers, as: :json
     assert_response :ok
     assert_equal final_id, response.parsed_body.dig('essay_grading', 'id')
-    assert_equal 2, @assignment.essay_gradings.count
+    assert_equal 1, @assignment.essay_gradings.count
     post submission_path, params: payload, headers: headers(@student).merge('Idempotency-Key' => 'listening-create-request-0001'), as: :json
     assert_response :forbidden
   end
@@ -210,7 +211,7 @@ class ListeningSnapshotFlowTest < ActionDispatch::IntegrationTest
     assert_equal 1, grading.score
     before = grading.attributes
     patch url, params: payload, headers: headers(@student), as: :json
-    assert_response :unprocessable_entity
+    assert_response :conflict
     assert_equal before, grading.reload.attributes
   end
 

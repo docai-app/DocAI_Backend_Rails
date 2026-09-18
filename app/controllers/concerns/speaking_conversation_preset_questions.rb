@@ -83,6 +83,7 @@ module SpeakingConversationPresetQuestions
       id: essay_grading.id,
       uuid: essay_grading.id,
       status: essay_grading.status,
+      meta: { AssignmentDraftSession::KEY => essay_grading.meta[AssignmentDraftSession::KEY] },
       answers: preset_speaking_conversation_answers(essay_grading)
     }
   end

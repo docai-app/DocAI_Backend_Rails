@@ -33,6 +33,7 @@
 #  fk_rails_...  (general_user_id => general_users.id)
 #
 class EssayGrading < ApplicationRecord
+  include AssignmentDraftGuard
   include TrustedListeningGrading
   store_accessor :grading, :app_key, :data, :number_of_suggestion, :comprehension, :listening, :sentence_builder,
                  :speaking_pronunciation_sentences, :supplement_practice
@@ -265,12 +266,19 @@ class EssayGrading < ApplicationRecord
 
   # Admin 批量改状态：改为 draft，保留 meta 中的 grading_errors 供排查
   def admin_mark_as_draft!
-    with_lock do
-      essay_generation_runs.where(state: EssayGenerationRun::ACTIVE_STATES).each do |run|
-        run.update!(state: 'cancelled', token: SecureRandom.uuid, finished_at: Time.current)
+    AssignmentDraftSession.synchronize(essay_assignment_id, general_user_id) do
+      with_lock do
+        @admin_draft_transition = true
+        essay_generation_runs.where(state: EssayGenerationRun::ACTIVE_STATES).each do |run|
+          run.update!(state: 'cancelled', token: SecureRandom.uuid, finished_at: Time.current)
+        end
+        state = (meta[AssignmentDraftSession::KEY] || {}).except('last_write')
+        state['revision'] = (state['revision'] || 0) + 1
+        update!(status: :draft, meta: meta.merge(AssignmentDraftSession::KEY => state))
       end
-      update!(status: :draft)
     end
+  ensure
+    @admin_draft_transition = false
   end
 
   # 添加重新运行工作流的方法，用于重新处理stopped状态的EssayGrading

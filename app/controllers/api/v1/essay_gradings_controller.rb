@@ -9,6 +9,7 @@ module Api
     class EssayGradingsController < ApiController
       include SpeakingConversationPresetQuestions
       include SentencePuzzleSubmissions
+      include AssignmentDraftEndpoints
       include EssayAssignmentAccessAuthorization
       include ::Oauth::Sso::EmbedAuthenticatable
 
@@ -334,136 +335,18 @@ module Api
         end
         return unless ensure_assignment_package_item_access(@essay_assignment)
 
-        grading_params = essay_grading_params
-
-        if @essay_assignment.category == 'listening' && request.headers['Idempotency-Key'].present?
-          key = request.headers['Idempotency-Key'].to_s
-          unless key.match?(/\A[a-zA-Z0-9_-]{16,64}\z/)
-            render json: { success: false, error: 'Invalid submission request ID' }, status: :unprocessable_entity
-            return
-          end
-          digest = ListeningSubmissionFingerprint.call(grading_params.to_h)
-          @essay_assignment.with_lock do
-            existing = @essay_assignment.essay_gradings.where(general_user: current_general_user)
-              .where("meta -> 'listening_create_request' ->> 'key' = ?", key).first
-            if existing
-              if existing.meta.dig('listening_create_request', 'digest') != digest
-                render json: { success: false, error: 'Request ID already used for different answers' }, status: :conflict
-              else
-                render json: { success: true, essay_grading: existing }, status: :ok
-              end
-            else
-              @listening_create_request = { 'key' => key, 'digest' => digest }
-              persist_new_essay_grading(grading_params)
-            end
-          end
-        else
-          persist_new_essay_grading(grading_params)
-        end
+        write_assignment_draft(essay_grading_params)
       end
 
-      def persist_new_essay_grading(grading_params)
-
-        prepared_attachment = prepare_audio_attachment_for_persistence(
-          category: @essay_assignment.category,
-          uploaded_file: grading_params[:file]
-        )
-
-        @essay_grading = reusable_sentence_puzzle_draft(grading_params) || @essay_assignment.essay_gradings.new
-        was_new_record = @essay_grading.new_record?
-        @essay_grading.assign_attributes(
-          essay_grading_attributes_for_persistence(@essay_assignment.category, grading_params)
-        )
-        @essay_grading.general_user = current_general_user
-        @essay_grading.topic = @essay_assignment.topic
-        if @listening_create_request
-          @essay_grading.meta = (@essay_grading.meta || {}).merge('listening_create_request' => @listening_create_request)
-        end
-
-        if preset_speaking_conversation_draft_request?(@essay_assignment, grading_params)
-          apply_preset_speaking_conversation_defaults!(@essay_grading, @essay_assignment)
-        elsif sentence_puzzle_submission_request?(@essay_assignment, grading_params)
-          apply_sentence_puzzle_submission!(@essay_grading, grading_params)
-        else
-          apply_assignment_workflow_app_keys!(@essay_grading, @essay_assignment)
-        end
-
-        begin
-          EssayGrading.transaction do
-            @essay_grading.save!
-            exclude_new_sentence_puzzle_draft_from_submission_count!(was_new_record:)
-            persist_uploaded_attachment!(
-              essay_grading: @essay_grading,
-              category: @essay_assignment.category,
-              uploaded_file: grading_params[:file],
-              prepared_attachment:
-            )
-            run_speaking_essay_workflow_after_attachment(@essay_grading, force: true)
-          end
-
-          link_assignment_package_grading_if_needed(@essay_grading)
-
-          # 檢查是否有對應的作業分配，如果有則更新分配狀態
-          # 只有非草稿狀態的提交才更新分配狀態
-          unless @essay_grading.status == 'draft'
-            update_assignment_status_if_needed
-            update_assignment_package_progress_if_needed(@essay_grading)
-          end
-
-          # Track assignment submission（非 draft 才記錄正式提交）
-          # unless @essay_grading.status == 'draft'
-          #   # 首先，確保 Ahoy tracker 與當前提交作業的用戶正確關聯
-          #   ahoy.authenticate(current_general_user) if current_general_user
-          #   ahoy.track 'Assignment Submitted',
-          #              { essay_grading_id: @essay_grading.id, essay_assignment_id: @essay_assignment.id }
-          # end
-          response_status = was_new_record ? :created : :ok
-          render json: { success: true, essay_grading: @essay_grading }, status: response_status
-        rescue ActiveRecord::RecordInvalid
-          render json: { success: false, errors: @essay_grading.errors.full_messages }, status: :unprocessable_entity
-        rescue StandardError => e
-          render json: { success: false, error: e.message }, status: :internal_server_error
-        end
-      ensure
-        prepared_attachment&.close!
-      end
-      private :persist_new_essay_grading
-
-      # GET /api/v1/essay_assignments/:essay_assignment_id/essay_gradings/current_draft
+      # GET reads saved work; POST reserves a recoverable, versioned draft.
       def current_draft
         set_essay_assignment_by_code
         return if performed?
-
         if @essay_assignment.category == 'listening'
           authorize_essay_assignment_read!
           return if performed?
-          draft = @essay_assignment.essay_gradings.where(general_user: current_general_user, status: :draft)
-                                   .order(updated_at: :desc).first
-          response.headers['Cache-Control'] = 'no-store'
-          render json: { success: true, essay_grading: draft && {
-            id: draft.id, status: draft.status, essay_assignment_id: draft.essay_assignment_id,
-            grading: { listening: { questions: Array(draft.grading.dig('listening', 'questions')).map { |row|
-              row.slice('id', 'user_answer')
-            } } }
-          } }, status: :ok
-          return
         end
-
-        unless sentence_puzzle_assignment?(@essay_assignment)
-          render json: { success: false, error: 'Draft recovery is not available for this assignment type.' },
-                 status: :unprocessable_entity
-          return
-        end
-
-        draft = @essay_assignment.essay_gradings
-                                 .where(general_user: current_general_user, status: :draft)
-                                 .order(updated_at: :desc)
-                                 .first
-
-        render json: {
-          success: true,
-          essay_grading: draft && sentence_puzzle_draft_json(draft)
-        }, status: :ok
+        prepare_assignment_draft
       end
 
       def teacher_review
@@ -750,6 +633,9 @@ module Api
         return if performed?
 
         grading_params = essay_grading_params
+        if @essay_grading.draft? || grading_params[:status].present? || params[:request_id].present?
+          return write_assignment_draft(grading_params, record: @essay_grading)
+        end
         prepared_attachment = prepare_audio_attachment_for_persistence(
           category: @essay_grading.category,
           uploaded_file: grading_params[:file]
@@ -821,102 +707,70 @@ module Api
       # PATCH /api/v1/essay_gradings/:id/speaking_conversation/answers/:question_id
       def autosave_speaking_conversation_answer
         return unless load_preset_speaking_conversation_grading
-
-        unless @essay_grading.draft?
-          render json: { success: false, error: 'This essay grading has already been submitted.' },
-                 status: :unprocessable_entity
-          return
-        end
-
         question_id = params[:question_id].to_s
-        assignment_questions = preset_speaking_conversation_questions(@essay_grading.essay_assignment)
-        unless assignment_questions.any? { |question| preset_question_id(question) == question_id }
-          render json: { success: false, error: 'Question not found for this assignment.' }, status: :not_found
-          return
+        questions = preset_speaking_conversation_questions(@essay_grading.essay_assignment)
+        unless questions.any? { |question| preset_question_id(question) == question_id }
+          return render json: { success: false, error: 'Question not found.' }, status: :not_found
         end
-
-        answer_payload = normalize_speaking_conversation_answer(
-          speaking_conversation_answer_params,
-          question_id: question_id
-        )
-        if answer_payload['answer_text'].blank?
-          render json: { success: false, error: 'Answer text is required.' }, status: :unprocessable_entity
-          return
+        payload = normalize_speaking_conversation_answer(speaking_conversation_answer_params, question_id: question_id)
+        if payload['answer_text'].blank?
+          return render json: { success: false, error: 'Please record your answer first.' }, status: :unprocessable_entity
         end
-
-        if answer_payload['answer_audio_base64'].present?
-          answer_payload['answer_audio_url'] = SpeakingConversationAudioStorageService.upload!(
-            base64_or_data_url: answer_payload.delete('answer_audio_base64'),
-            filename_prefix: "speaking_conversation/#{@essay_grading.id}/#{question_id}"
-          )
+        session = assignment_draft_session(@essay_grading)
+        @essay_grading = session.write(payload, row: @essay_grading, request_id: params[:request_id],
+          revision: params[:draft_revision], operation: "answer:#{question_id}") do |row|
+          answer = payload.deep_dup
+          if answer['answer_audio_base64'].present?
+            answer['answer_audio_url'] = SpeakingConversationAudioStorageService.upload!(
+              base64_or_data_url: answer.delete('answer_audio_base64'),
+              filename_prefix: "speaking_conversation/#{row.id}/#{question_id}")
+          end
+          answer.delete('answer_audio_base64')
+          grading = row.grading.deep_dup
+          answers = Array(grading.dig('speaking_conversation', 'answers'))
+          answers.reject! { |item| item.is_a?(Hash) && item['question_id'].to_s == question_id }
+          answers << answer
+          grading['speaking_conversation'] = {
+            'mode' => 'preset_questions', 'answers' => answers.sort_by { |item| item['question_order'].to_i }
+          }
+          row.grading = grading
         end
-        answer_payload.delete('answer_audio_base64')
-
-        grading = (@essay_grading.grading || {}).deep_dup
-        grading['speaking_conversation'] ||= { 'mode' => 'preset_questions', 'answers' => [] }
-        answers = Array(grading.dig('speaking_conversation', 'answers'))
-        existing_index = answers.find_index { |item| item.is_a?(Hash) && item['question_id'].to_s == question_id }
-
-        if existing_index
-          answers[existing_index] = answer_payload
-        else
-          answers << answer_payload
-        end
-
-        answers.sort_by! { |item| item['question_order'].to_i }
-        grading['speaking_conversation']['mode'] = 'preset_questions'
-        grading['speaking_conversation']['answers'] = answers
-
-        @essay_grading.update!(grading: grading)
-
-        render json: {
-          success: true,
-          essay_grading: serialize_preset_speaking_conversation_grading(@essay_grading),
-          answer: answer_payload
-        }, status: :ok
+        render json: { success: true, essay_grading: serialize_preset_speaking_conversation_grading(@essay_grading),
+          answer: preset_speaking_conversation_answers(@essay_grading).find { |answer| answer['question_id'].to_s == question_id } }
+      rescue AssignmentDraftSession::Conflict => e
+        render json: { success: false, error: e.message }, status: :conflict
       rescue StandardError => e
-        Rails.logger.error("[EssayGradings#autosave_speaking_conversation_answer] #{e.message}\n#{e.backtrace.first(5).join("\n")}")
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        Rails.logger.error("[EssayGradings#autosave_speaking_conversation_answer] #{e.class}")
+        render json: { success: false, error: 'Your answer could not be saved. Please try again.' }, status: :internal_server_error
       end
 
       # POST /api/v1/essay_gradings/:id/speaking_conversation/submit
       def submit_preset_speaking_conversation
         return unless load_preset_speaking_conversation_grading
-
-        unless @essay_grading.draft?
-          render json: { success: false, error: 'This essay grading has already been submitted.' },
-                 status: :unprocessable_entity
-          return
-        end
-
-        assignment_questions = preset_speaking_conversation_questions(@essay_grading.essay_assignment)
-        saved_answers = preset_speaking_conversation_answers(@essay_grading)
-        missing_questions = assignment_questions.reject do |question|
-          saved_answers.any? do |answer|
-            answer['question_id'].to_s == preset_question_id(question) && answer['answer_text'].to_s.strip.present?
+        session = assignment_draft_session(@essay_grading)
+        @essay_grading = session.write({ 'status' => 'pending' }, row: @essay_grading,
+          request_id: params[:request_id], revision: params[:draft_revision], operation: 'preset_submit') do |row|
+          questions = preset_speaking_conversation_questions(row.essay_assignment)
+          answers = preset_speaking_conversation_answers(row)
+          if questions.empty? || questions.any? { |question| answers.none? { |answer|
+              answer['question_id'].to_s == preset_question_id(question) && answer['answer_text'].to_s.strip.present?
+            } }
+            raise AssignmentDraftSession::Conflict, 'Please answer all questions before submitting.'
           end
+          row.essay = build_preset_speaking_conversation_essay(questions, answers)
+          row.status = :pending
         end
-
-        if missing_questions.any?
-          render json: { success: false, error: 'Please answer all questions before submitting.' },
-                 status: :unprocessable_entity
-          return
+        if session.submitted_now
+          @essay_assignment = @essay_grading.essay_assignment
+          update_assignment_status_if_needed
+          update_assignment_package_progress_if_needed(@essay_grading)
         end
-
-        essay_text = build_preset_speaking_conversation_essay(assignment_questions, saved_answers)
-
-        @essay_grading.update!(essay: essay_text, status: :pending)
-        @essay_assignment = @essay_grading.essay_assignment
-        update_assignment_status_if_needed
-        update_assignment_package_progress_if_needed(@essay_grading)
-
-        render json: {
-          success: true,
-          essay_grading: serialize_preset_speaking_conversation_grading(@essay_grading)
-        }, status: :ok
+        render json: { success: true, essay_grading: serialize_preset_speaking_conversation_grading(@essay_grading) }
+      rescue AssignmentDraftSession::Conflict => e
+        render json: { success: false, error: e.message }, status: :conflict
       rescue StandardError => e
-        Rails.logger.error("[EssayGradings#submit_preset_speaking_conversation] #{e.message}\n#{e.backtrace.first(5).join("\n")}")
-        render json: { success: false, error: e.message }, status: :internal_server_error
+        Rails.logger.error("[EssayGradings#submit_preset_speaking_conversation] #{e.class}")
+        render json: { success: false, error: 'Your submission could not be confirmed. Please check your saved work.' }, status: :internal_server_error
       end
 
       def download_reports
