@@ -51,11 +51,13 @@
 | 恢復 cutoff | `2026-09-18T11:21:44+08:00` |
 | 收件人 | 兩個專用容器明確配置 `ADMIN_NOTIFICATION_EMAIL=bobby.lian@docai.net` |
 | 專用容器限制 | 各 1 CPU／1.5 GiB、無 published ports、restart always、log 上限 10 MiB × 3 |
-| Migration／capture | 四個既有 migration 已核對，無待執行 migration；capture 檢查通過；沒有執行 migration／修改 trigger |
+| Migration／capture | `20260911143000`、`20260912001000`、`20260912030000`、`20260912040000` 已核對，無待執行 migration；capture 檢查通過；沒有執行 migration／修改 trigger |
 
 專用容器建立時 label／manifest 記錄的是 `fe31db1`，之後 source bind mount 升至 `8b3f9bd` 並重啟程序。**建立 label 不是現在載入程式版本的證據**；須同時核對 checkout、差異及程序啟動時間。後續若只有文件更新，不需重啟 workers；應用程式改動仍須依上方 drain 流程。
 
 啟用開關只放專用容器私有 env；沒有把兩個角色的開關混入 shared `.env`。恢復 worker 每五分鐘掃描、只納入 cutoff 後建立且逾兩小時的符合類型任務；今天約 13:21:44 前不會因新 cutoff 而出現兩小時候選。歷史 pending 沒有批量納入／重跑。仍在 queue／worker 中的工作不重跑，未知結果仍須查核，並非兩小時一到便盲目重試。
+
+恢復 scanner 目前明確涵蓋 `essay`、`speaking_essay`、`speaking_conversation`、`sentence_builder`、`talk_lab_speaking` 的 generation slots；不是所有 assignment 類型的通用失聯恢復。Speaking Pronunciation、Comprehension、Sentence Puzzle 及本輪排除的 Listening 不因本次啟用而新增此 scanner 覆蓋。
 
 ## 私有資料與交接
 
@@ -77,6 +79,7 @@
 - 外網匿名 `/api/admin/v1/essay_assignments/categories`、`/sidekiq`、`/sidekiq/busy` 均為 401；Sidekiq 錯誤帳密亦 401。
 - 使用伺服器內存的獨立 Sidekiq 帳密讀取 `/sidekiq/busy` 為 200，回應確為 Sidekiq。沒有測試停止／刪除管理操作。
 - 正式 Admin 舊瀏覽器 session 刷新後過期，跳至正常登入頁；已請使用者重新登入。這不是已完成的「登入後列表驗收」。Backend token 沒有輪換。
+- 直接以伺服器內存的既有 Admin token 查詢 categories API 為 200；普通老師 JWT 查詢同一管理 API 為 401。沒有輸出／複製 token 到瀏覽器或文檔。
 - 三個程序已確認分別監聽各自預定 queues。檢查時 Rails 約 656 MiB、主 worker 約 287 MiB、報告約 219 MiB、恢復約 224 MiB；是當刻快照，不是長期容量保證。
 
 ### 真正排程
@@ -99,20 +102,52 @@
 - 紀錄保留供追查，會納入當期報告的提交統計；未刪除。這是 Backend／Dify 真實新提交驗收，**不是學生瀏覽器全流程、所有 rubric 或所有 assignment 類型的完整驗收**。
 - 這筆正常完成後 provider_context 會清除，不能把正常完成宣稱成已驗證原 Dify GET 取回失聯結果；沒有為製造失聯而中斷正式任務。
 
+### Sentence Builder 與原 Dify 查詢
+
+再以同一測試帳戶，對其既有 `invention` 測試作業 `a90d229e-61f9-4f90-9397-a584063a7308` 提交一條合成句子；沒有新增／派發 assignment，也未改學生資料。
+
+- 新 submission：`3b9b8897-7867-4885-8f75-18731944adec`，HTTP create 201。
+- 實際 worker 完成後 graded，run ready／attempts=1，score=1、full_score=1、suggestions=0。
+- 在原任務 context 尚在時取得 workflow ID，透過正式 `DifyWorkflowRecovery.lookup` **只做 GET** 查回原結果，status=succeeded、outputs 已解碼為物件，沒有發第二次生成 POST。這證明正式 provider 原結果查詢可用，但仍不是一次真正故障後的自動恢復全流程。
+- 對這筆合成紀錄透過正常 PATCH 嘗試 status=draft，返回 **409**；前後整筆 attributes 摘要一致，保持 graded。沒有對學生真實紀錄做此負向寫入測試。
+- 兩筆合成驗收紀錄均保留，所以當期提交統計包含它們。
+
+### 正式網頁小範圍驗收
+
+使用內置瀏覽器中既有 `teacher@docai.net` 正式登入 session，而非本地 fixture：Essay 頁實際顯示 91／100、4 個 Grammar 高亮及各結果頁籤；Sentence Builder 實際顯示 1／1、合成句子及參考答案；Supplementary Exercise 正常載入 5 個 sections／15 題。僅在上述合成練習第一題輸入 `check`、按 Save as Draft，成功返回 dashboard 後重新打開同一練習，答案 `check` 仍在、進度為 1／15（7%）。保留此測試草稿，不提交全部答案、不點重新生成，不更動任何學生原有練習。這項不代表小程序、手機或所有老師／學生角色均已驗收。
+
 ### 本輪重跑測試
 
 - 運維 Python unit tests：9 項通過。
 - 真實 Sidekiq／scheduler gem＋独立 localhost Redis：4 tests／21 assertions 通過。
 - Rails 明確隔離 localhost PostgreSQL：109 tests／1,071 assertions，0 failures／errors。涵蓋報告、恢復、競爭、Admin/API/Sidekiq 權限、生成驗證及 Comprehension 計分；SMTP／Dify 使用隔離 stub，不碰正式學生資料。
+- 另補跑列表／詳情摘要及 AI JSON parser：45 tests／363 assertions 通過。兩組 Rails 合計 154 tests／1,434 assertions；不是完整全產品測試套件。
 - 本地首次測試因缺假 Azure／JWT 設定及 sandbox localhost 權限未就緒而未通過；補齊隔離假設定／本地連線權限後完整重跑通過，沒有改正式 secret 或關閉測試校驗。
 
 ## 仍待完成
 
 1. **Admin 密鑰／登入凭證輪換**：需要正確 Vercel project 存取或工程師同步配合兩端設定及其他合法消費者。Sidekiq 獨立帳密已完成不代表此項完成。
 2. **Admin 重新登入後的管理 API UI 驗收**：舊 session 已失效，等待使用者登入。
-3. **第一封正式排程報告及實際收件**：預定 12:00；以 delivery 狀態、worker 日誌及收件人確認分別記錄。不能將 SMTP 接受等同收件匣已收到。
+3. **收件匣確認**：第一封 12:00 排程報告已傳送成功（下節）；已詢問收件人，尚未取得實際收到／內容可讀的確認。不能將 SMTP 接受等同收件匣已收到。
 4. **正式真正失聯恢復個案**：scanner 已啟用並有 heartbeat，但沒有為驗收而製造真實故障；查回 provider 原結果／不中斷活躍任務仍有隔離回歸，正式案例需另觀察。
 5. 18:00／00:00 實際邊界、長期 resource 使用、off-host 持續備份、入口網路／速率限制尚未作本輪實際驗收。
+
+郵件預覽已在正式 report worker 以真實資料產生，但沒有送信：截至 11:45 的 00:00–11:45 時段，14 個新作業、160 筆提交（當刻全部 graded），388 項跨時段異常、warnings=0，HTML／完整 MIME 成功 render，約 21.8 秒。此時尚未包含後續的 Sentence Builder 合成提交；**388 項不是本次啟用造成的新失敗**。郵件最多列前 100 項並標示截斷，仍需透過 Admin 查完整歷史問題。12:00 正式信件應以該時刻生成的數字為準，不能直接引用這份預覽數字。
+
+## 首封正式排程郵件結果（12:01:46 核對）
+
+不是手動寄信、沒有改時間、沒有重設 delivery claim：
+
+1. 12:00:00 cron 自動將 `OperationsReportTickJob` 入隊。
+2. 12:00:01.857 tick 完成、`OperationsReportJob` 開始。
+3. 12:00:24 HTML 與純文字版本完成 render。
+4. 12:00:25.088 claim；**12:00:31.167 記錄 sent**；job 12:00:32.352 完成。
+
+澳門時間。Delivery ID：`082f0892-3f3a-4c19-8d31-127bfd7b4a1a`；時段 **2026-09-18 00:00–12:00**；state=sent、failure_class=nil、同一 period_end 只有 **1** 筆、report queue=0。SMTP 接受由既有 Mailer／傳送流程記錄，沒有另建郵件系統，也沒有人工重寄。
+
+收件人 `bobby.lian@docai.net`。主旨含「需人工處理 388 項／請查看警告」與「09/18 12:00 澳門時間」。正式 summary：14 個新作業、6 位老師、161 筆提交（產生時全為 graded，含本次兩筆合成驗收）、388 項跨時段待核查，warnings 為空。大量歷史異常只是提醒，未被批量 rerun。
+
+同時恢復 heartbeat 於 12:00:01 完成，checked_count=0、error_count=0，兩個 schedules 仍同時存在。下一個正常報告邊界是今天 18:00，之後明日 00:00；該兩個真實時點仍待觀察，不冒充已驗收。實際收件／是否落到垃圾郵件仍等待收件人確認。
 
 ## 停用／回退原則
 
