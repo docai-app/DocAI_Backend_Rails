@@ -24,6 +24,8 @@
 
 ## 代码交付
 
+- 報告／恢復專用容器的可重現啟動與 Sidekiq 私有帳密工具在 `ops/reliability/README.md`。工具預設 dry run，啟用時間必須為實際時間，不倒填或刪除 runtime 檔來重設。後續 source bind mount 發布須同時盤點主 worker、`operations_reports` 與 `generation_recovery`，安全 drain 在途工作後才換應用程式；不得只照舊重啟主 worker。私有 runtime／帳密檔不入 Git；SMTP 接受不等於收件匣驗收。
+
 - 普通 grading 更新在行锁内禁止已提交记录改回 pending/draft（文字及整数 enum）；Admin 的独立 `request_admin_rerun!` 仍可覆盖未知／在途状态，以 token 防止旧任务回写，不代表取消了外部 Dify 调用。自动恢复不能继承 Admin 强制覆盖权限。安全诊断只输出状态，不输出 provider context／密钥／原文。健康指令 `bundle exec rake aienglish:recovery_status` 只证明扫描执行，不证明正式 Dify 恢复成功。见 `docs/2026-09-17-production-release-candidate.md`。
 
 - 用户要求交付的代码、migration 及非敏感部署配置应按授权提交 GitHub，记录对应 commit；普通变更可按上述规则部署到指定测试服务器，涉及 migration 的发布及正式部署交由工程师。不得只留在服务器，上述数据库部署限制始终适用。
