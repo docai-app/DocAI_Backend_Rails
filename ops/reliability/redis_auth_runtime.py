@@ -146,6 +146,10 @@ def main():
         command += [redis['Image'], 'redis-server', '--save', '60', '1', '--loglevel', 'warning', '--aclfile', '/data/aienglish-users.acl', '--protected-mode', 'yes']
         private_write(folder / 'cutover.json', json.dumps({'sha': args.sha, 'old_name': old_name, 'backup_bytes': backup.stat().st_size, 'at': time.time()}))
         capture(['docker', 'stop', '--timeout', '60', REDIS])
+        # A manually stopped restart=always container can revive after Docker
+        # restarts. The retained rollback container must never share the volume
+        # with the new running Redis.
+        capture(['docker', 'update', '--restart', 'no', REDIS])
         capture(['docker', 'rename', REDIS, old_name])
         capture(command)
         capture(['docker', 'start', REDIS])
