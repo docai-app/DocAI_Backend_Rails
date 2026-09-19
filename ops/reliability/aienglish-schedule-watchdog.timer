@@ -1,0 +1,10 @@
+[Unit]
+Description=Check AI English schedules independently of Redis
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Unit=aienglish-schedule-watchdog.service
+
+[Install]
+WantedBy=timers.target

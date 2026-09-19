@@ -47,6 +47,14 @@ class OperationsReportingTest < ActiveSupport::TestCase
     OperationsStatusReport.new(beginning: @ending - 12.hours, ending: @ending, now: @ending + 1.minute).call
   end
 
+  test 'independent health alert uses existing recipient and contains no student text' do
+    mail = AdminNotificationMailer.reliability_health_alert(['recovery:schedule_missing_or_invalid'])
+    assert_equal ['operations@example.test'], mail.to
+    assert_includes mail.subject, '需人工處理'
+    assert_includes mail.body.to_s, 'recovery:schedule_missing_or_invalid'
+    refute_includes mail.body.to_s, 'PRIVATE STUDENT BODY'
+  end
+
   test 'three windows exactly cover each civil day without gaps or overlap' do
     z = OperationsReportWindow::ZONE
     endings = [z.local(2026,9,12,12), z.local(2026,9,12,18), z.local(2026,9,13)]

@@ -1,6 +1,14 @@
 # frozen_string_literal: true
 
 class AdminNotificationMailer < ApplicationMailer
+  # Independent host watchdog uses existing SMTP, not the potentially lost queue.
+  def reliability_health_alert(issues)
+    mail(to: ENV.fetch('ADMIN_NOTIFICATION_EMAIL', 'Bobby.lian@docai.net'),
+         subject: '【需人工處理】AI English 排程／worker 健康檢查未通過') do |format|
+      format.text { render plain: "請工程師立即核對報告及失聯恢復排程。\n#{Array(issues).join("\n")}\n這不是批量重跑授權；請勿清空 Redis 或倒填啟用時間。" }
+    end
+  end
+
   def operations_status_report(summary)
     @report = summary
     @needs_attention = summary.fetch('alert_count').positive? || summary.fetch('warnings').any?

@@ -4,6 +4,8 @@ require_relative 'boot'
 
 require 'rails/all'
 require 'dotenv/load'
+require_relative '../lib/redis_credentials'
+RedisCredentials.apply!(ENV)
 require 'apartment/elevators/subdomain'
 require 'ahoy'
 

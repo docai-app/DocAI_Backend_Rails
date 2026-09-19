@@ -1,0 +1,8 @@
+[Unit]
+Description=AI English independent schedule health and notification
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/aienglish/schedule_watchdog.py --notify --state-dir /var/lib/aienglish-schedule-watchdog
+TimeoutStartSec=210

@@ -9,6 +9,7 @@ namespace :aienglish do
     completed = Time.iso8601(heartbeat['completed_at']) rescue nil
     puts JSON.pretty_generate(
       schedule_registered: schedule.present?, schedule: schedule&.slice('class', 'queue', 'cron'),
+      infrastructure: ReliabilityScheduleHealth.call,
       worker_count: workers.size, heartbeat: heartbeat,
       recent_successful_scan: heartbeat['state'] == 'completed' && completed.present? && completed >= 15.minutes.ago,
       note: 'A recent scan is not proof of successful provider recovery. Verify a dedicated test record separately.'
