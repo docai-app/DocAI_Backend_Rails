@@ -25,3 +25,17 @@ reopens exposure and must not be routine recovery. The evidence remains private.
 Docker recreation, Redis ACL/password rollout, all client configurations, safe
 worker switching and registry/delivery acceptance still require the next stages.
 Do not claim this file means they have been completed. No secret is committed.
+# Persistence (existing reviewed host only)
+
+After the evidence-capturing apply has succeeded, install the committed script
+root-owned as `/usr/local/lib/aienglish/redis_ingress_guard.py`, mode 755, and the
+two unit files in `/etc/systemd/system/`, mode 644. Review `ens3` on another host;
+these units are not portable without that review. Enable both service and timer.
+The service applies rules before Docker starts and the timer rechecks every minute.
+Maintenance never reads or changes Redis. Do not remove the service on application
+rollback. This preserves only these narrow rules, not the host's entire firewall.
+
+`ops/reliability/pending_audit.rb` is a read-only Rails runner showing pending IDs,
+generation metadata presence and queue observations. It does not query provider
+results or authorize recovery. Two absent observations and the reconciler's DB
+fence/provider check are still required. Never bulk rerun the audit output.

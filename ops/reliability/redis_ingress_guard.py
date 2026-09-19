@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--interface', required=True)
     parser.add_argument('--evidence-dir', type=Path)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--maintain', action='store_true', help='Reapply previously reviewed containment at boot; evidence must already have been captured')
     parser.add_argument('--remove', action='store_true', help='Remove only these exact rules (explicit rollback)')
     args = parser.parse_args()
     plan = rules(args.interface)
@@ -42,12 +43,19 @@ def main():
         raise ValueError('Interface does not exist')
     if args.remove and not args.apply:
         raise ValueError('Rollback requires --apply')
+    if args.maintain and (not args.apply or args.remove or os.geteuid() != 0):
+        raise ValueError('Maintenance requires root and --apply, without --remove')
     # Inspect chains before changing anything. IPv6 Docker may use only the
     # docker-proxy/INPUT path and have no DOCKER-USER chain.
     targets = []
     for binary in ('iptables', 'ip6tables'):
         for chain, rule in plan:
             result = subprocess.run([binary, '-w', '5', '-S', chain], capture_output=True, text=True)
+            if result.returncode and args.maintain and chain == 'DOCKER-USER':
+                # Before Docker starts there may be no chain yet. Docker installs
+                # its own FORWARD jump when starting; never change that policy here.
+                subprocess.run([binary, '-w', '5', '-N', chain], check=True)
+                result = subprocess.run([binary, '-w', '5', '-S', chain], capture_output=True, text=True)
             if result.returncode and not (binary == 'ip6tables' and chain == 'DOCKER-USER'):
                 raise RuntimeError('Cannot inspect ' + binary + ' ' + chain)
             if not result.returncode:
@@ -58,7 +66,7 @@ def main():
         return
     if os.geteuid() != 0:
         raise ValueError('Root required')
-    if not args.remove:
+    if not args.remove and not args.maintain:
         if args.evidence_dir is None:
             raise ValueError('Private evidence directory required')
         folder = args.evidence_dir.resolve()

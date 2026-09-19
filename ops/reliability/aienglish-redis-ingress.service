@@ -1,0 +1,12 @@
+[Unit]
+Description=AI English Redis public ingress containment
+Before=docker.service
+After=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/aienglish/redis_ingress_guard.py --interface ens3 --maintain --apply
+TimeoutStartSec=45
+
+[Install]
+WantedBy=multi-user.target
