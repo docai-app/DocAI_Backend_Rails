@@ -21,7 +21,9 @@ class OperationsReportingTest < ActiveSupport::TestCase
     ENV['AI_ENGLISH_REPORTS_ENABLED_AT'] = (@ending - 1.hour).iso8601
     @user = GeneralUser.create!(email: "report-#{SecureRandom.hex(4)}@example.test", password: 'Password123!', meta: {}, konnecai_tokens: {})
     @assignment = EssayAssignment.create!(general_user: @user, topic: 'Operations', title: 'Report test', assignment: 'Practice', category: :essay, rubric: { 'name' => 'Test' }, meta: {})
-    @assignment.update_columns(created_at: @ending - 1.hour)
+    @school = School.create!(name: 'Reporting school', code: SecureRandom.hex(8))
+    @year = SchoolAcademicYear.create!(school: @school, name: '2026-2027', start_date: '2026-08-01', end_date: '2027-07-31', status: :active)
+    @assignment.update_columns(created_at: @ending - 1.hour, school_academic_year_id: @year.id)
     OperationsReportJob.clear
     ActionMailer::Base.deliveries.clear
   end
@@ -134,6 +136,45 @@ class OperationsReportingTest < ActiveSupport::TestCase
     assert_equal 'pending', old.reload.status
   end
 
+
+  test 'old-year pending stopped and notification problems are excluded before the alert limit' do
+    previous = SchoolAcademicYear.create!(school: @school, name: '2025-2026', start_date: '2025-08-01', end_date: '2026-07-31', status: :archived)
+    old = grading(:stopped)
+    old.update_columns(submission_academic_year_id: previous.id, created_at: @ending - 1.year)
+    run = EssayGenerationRun.create!(essay_grading: old, kind: 'grading', state: 'failed', token: SecureRandom.uuid)
+    EssayGenerationNotification.create!(essay_generation_run: run, token: run.token, kind: 'failure', state: 'unknown')
+    pending = grading(:pending)
+    pending.update_columns(submission_academic_year_id: previous.id, created_at: @ending - 1.year)
+    current = grading(:stopped)
+    assert_equal [current.id], report['alerts'].map { |item| item['id'] }
+    assert_equal 'stopped', old.reload.status
+    assert_equal 'pending', pending.reload.status
+    assert_equal 'unknown', EssayGenerationNotification.find_by!(essay_generation_run: run).state
+  end
+
+  test 'submission year wins over assignment year and active status follows each school' do
+    other = School.create!(name: 'Other school', code: SecureRandom.hex(8))
+    current = SchoolAcademicYear.create!(school: other, name: 'Different calendar', start_date: '2026-01-01', end_date: '2026-12-31', status: :active)
+    @year.update!(status: :archived)
+    g = grading(:stopped)
+    g.update_columns(submission_academic_year_id: current.id, submission_school_id: other.id)
+    assert_equal [g.id], report['alerts'].map { |item| item['id'] }
+    current.update!(status: :archived)
+    assert_empty report['alerts']
+  end
+
+  test 'legacy explicit assignment year is accepted but missing and preparing years are not guessed' do
+    g = grading(:stopped)
+    assert_equal [g.id], report['alerts'].map { |item| item['id'] }
+    @year.update!(status: :preparing)
+    assert_empty report['alerts']
+    @assignment.update_columns(school_academic_year_id: nil)
+    r = report
+    assert_empty r['alerts']
+    assert r['warnings'].any? { |warning| warning.include?('1 筆 pending／stopped 未有可確認學年') }
+    assert_equal 1, r['submission_count'], 'period activity statistics are unchanged'
+  end
+
   test 'unknown and failed supplements are urgent even when main graded' do
     g = grading
     run = EssayGenerationRun.create!(essay_grading: g, kind: 'supplement', state: 'unknown', token: SecureRandom.uuid, attempts: 1)
@@ -224,6 +265,8 @@ class OperationsReportingTest < ActiveSupport::TestCase
     assert_not_includes message.encoded, 'PRIVATE STUDENT BODY'
     assert_includes message.text_part.decoded, '需要人工處理'
     assert_includes html, "assignmentId=#{@assignment.id}"
+    assert_includes html, '作業異常只列當前學年'
+    assert_includes message.text_part.decoded, '作業異常只列當前學年'
   end
 
   test 'duplicate report jobs send only one message for a fixed window' do

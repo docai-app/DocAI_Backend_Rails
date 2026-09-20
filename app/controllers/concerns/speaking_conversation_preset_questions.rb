@@ -119,7 +119,9 @@ module SpeakingConversationPresetQuestions
     answer = raw_answer.deep_stringify_keys
     answer['question_id'] = question_id
     answer['question_order'] = answer['question_order'].to_i if answer['question_order'].present?
-    answer['answered_at'] = answer['answered_at'].presence || Time.current.iso8601(3)
+    # Missing timestamps are assigned only when the write commits; a generated
+    # wall-clock value must not change an identical request's fingerprint.
+    answer['answered_at'] = answer['answered_at'].presence
     answer
   end
 

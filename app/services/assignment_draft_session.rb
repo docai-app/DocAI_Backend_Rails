@@ -51,45 +51,36 @@ class AssignmentDraftSession
   end
 
   # The caller applies category-specific validation, scoring and attachments
-  # inside this transaction. A replay never calls that block a second time.
-  def write(attributes, row: nil, request_id: nil, revision: nil, operation: 'save', after_save: nil)
+  # inside this transaction. Optional preparation runs outside it; a completed
+  # replay skips both preparation and the write block.
+  def write(attributes, row: nil, request_id: nil, revision: nil, operation: 'save', after_save: nil, prepare: nil)
     @written_now = @submitted_now = @created_now = false
     validate_key!(request_id) if request_id.present?
     digest = Digest::SHA256.hexdigest(JSON.generate(canonical([operation, attributes])))
+    prepared = nil
+    if prepare
+      # Uploads may be slow: reject stale/replayed writes before doing external IO,
+      # then release the connection. Recheck under the same lock before committing.
+      pool = EssayGrading.connection_pool
+      raise ArgumentError, 'Upload preparation requires no outer transaction' if pool.connection.transaction_open?
+      checked, _, replay = self.class.synchronize(@assignment.id, @user.id) do
+        resolve_write(attributes, row, request_id, revision, digest)
+      end
+      return checked if replay
+      search_path = pool.connection.schema_search_path
+      pool.release_connection
+      begin
+        prepared = prepare.call
+      ensure
+        # A different pooled connection can be checked out after external IO.
+        # Restore the request's tenant path before callbacks/associations run.
+        pool.connection.schema_search_path = search_path
+        pool.connection.clear_query_cache
+      end
+    end
     self.class.synchronize(@assignment.id, @user.id) do
-      draft = current
-      record = row ? scope.lock.find(row.id) : nil
-      if record.nil? && request_id.present?
-        record = scope.where("meta -> ? -> 'last_write' ->> 'id' = ?", KEY, request_id).first
-        if record.nil? && @assignment.category == 'listening'
-          legacy = scope.where("meta -> 'listening_create_request' ->> 'key' = ?", request_id).first
-          if legacy
-            unless legacy.meta.dig('listening_create_request', 'digest') == ListeningSubmissionFingerprint.call(attributes)
-              raise Conflict, 'This request was already used for different answers.'
-            end
-            next legacy
-          end
-        end
-      end
-      record ||= draft || scope.new(status: :draft, topic: @assignment.topic)
-      state = (record.meta[KEY] || {}).deep_dup
-      # Legacy puzzle drafts were excluded from the counter by their controller.
-      if record.persisted? && record.is_sentence_puzzle? && !record.meta.key?(KEY)
-        state['counter_excluded'] = true
-      end
-      previous = state['last_write'] || {}
-      if request_id.present? && previous['id'] == request_id
-        raise Conflict, 'This request was already used for different answers.' unless previous['digest'] == digest
-        next record
-      end
-      raise Conflict, 'This work has already been submitted. Please view your submission.' if record.persisted? && !record.draft?
-      raise Conflict, 'Please open your saved draft before submitting.' if draft && record.id != draft.id
-      if (state['versioned'] || Array(state['open_requests']).any?) && (revision.nil? || request_id.blank?)
-        raise Conflict, 'Please reopen your saved draft before saving or submitting.'
-      end
-      if !revision.nil? && revision.to_s != (state['revision'] || 0).to_s
-        raise Conflict, 'Your saved work changed in another tab. Please reopen it to check.'
-      end
+      record, state, replay = resolve_write(attributes, row, request_id, revision, digest)
+      next record if replay
       if record.new_record?
         @created_now = true
         state['counter_excluded'] = true
@@ -97,7 +88,7 @@ class AssignmentDraftSession
         record.save!
         EssayAssignment.decrement_counter(:number_of_submission, @assignment.id)
       end
-      yield record
+      yield record, prepared
       state['revision'] = (state['revision'] || 0) + 1
       state['versioned'] = true if request_id.present? && !revision.nil?
       state['last_write'] = { 'id' => request_id, 'digest' => digest }
@@ -114,6 +105,43 @@ class AssignmentDraftSession
   end
 
   private
+
+  def resolve_write(attributes, row, request_id, revision, digest)
+    draft = current
+    record = row ? scope.lock.find(row.id) : nil
+    if record.nil? && request_id.present?
+      record = scope.where("meta -> ? -> 'last_write' ->> 'id' = ?", KEY, request_id).first
+      if record.nil? && @assignment.category == 'listening'
+        legacy = scope.where("meta -> 'listening_create_request' ->> 'key' = ?", request_id).first
+        if legacy
+          unless legacy.meta.dig('listening_create_request', 'digest') == ListeningSubmissionFingerprint.call(attributes)
+            raise Conflict, 'This request was already used for different answers.'
+          end
+          return [legacy, {}, true]
+        end
+      end
+    end
+    record ||= draft || scope.new(status: :draft, topic: @assignment.topic)
+    state = (record.meta[KEY] || {}).deep_dup
+    # Legacy puzzle drafts were excluded from the counter by their controller.
+    if record.persisted? && record.is_sentence_puzzle? && !record.meta.key?(KEY)
+      state['counter_excluded'] = true
+    end
+    previous = state['last_write'] || {}
+    if request_id.present? && previous['id'] == request_id
+      raise Conflict, 'This request was already used for different answers.' unless previous['digest'] == digest
+      return [record, state, true]
+    end
+    raise Conflict, 'This work has already been submitted. Please view your submission.' if record.persisted? && !record.draft?
+    raise Conflict, 'Please open your saved draft before submitting.' if draft && record.id != draft.id
+    if (state['versioned'] || Array(state['open_requests']).any?) && (revision.nil? || request_id.blank?)
+      raise Conflict, 'Please reopen your saved draft before saving or submitting.'
+    end
+    if !revision.nil? && revision.to_s != (state['revision'] || 0).to_s
+      raise Conflict, 'Your saved work changed in another tab. Please reopen it to check.'
+    end
+    [record, state, false]
+  end
 
   def scope
     @assignment.essay_gradings.where(general_user: @user)

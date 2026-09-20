@@ -38,6 +38,8 @@ class OperationsStatusReport
         title: a.title, category: a.category, academic_year: a.school_academic_year&.name,
         created_at: a.created_at.iso8601, url: assignment_url(a.id) }
     end
+    unattributed = CurrentAcademicYearGradings.unattributed(base.where(status: %i[pending stopped])).count
+    @warnings << "#{unattributed} 筆 pending／stopped 未有可確認學年，未列入本學年異常清單；請核對學年歸屬。" if unattributed.positive?
     alerts = notification_alerts + collect_alerts
     period_events = EssayOperationEvent.where(occurred_at: @beginning...@ending).where(essay_grading_id: base.select(:id))
     failed_ids = period_events.where(event: %w[error stopped generation_failed generation_retry_wait]).select(:essay_grading_id)
@@ -71,7 +73,8 @@ class OperationsStatusReport
         '狀態是產生報告當刻的快照；遲到補報可能包含時段結束後才完成的批改。',
         '完成時間＝首次正式提交至首次 graded（含等待）；沒有可信事件的舊紀錄不計入平均。',
         '整體錯誤摘要涵蓋本時段所有失敗事件（含舊提交）；分組的曾失敗／恢復則以本時段提交群體計算。舊版已清除的歷史無法復原。',
-        '跨時段未解決的 stopped、疑似長時間 pending、結果不明及練習失敗會重複提醒直到處理。',
+        '作業異常清單只列各校標記 active 的當前學年：優先採用提交時學年，缺少時才採用作業學年；不以建立日期或目前班級推測。舊學年資料保留但不再提醒。',
+        '當前學年跨時段未解決的 stopped、疑似長時間 pending、結果不明及練習失敗會重複提醒；時段活動統計及系統寄送健康檢查維持原範圍。',
         'Listening 不在本輪統計範圍。學校不使用老師目前所屬學校猜測；未能確認時另外列出。'
       ]
     }.deep_stringify_keys
@@ -105,6 +108,10 @@ class OperationsStatusReport
 
   def base
     EssayGrading.joins(:essay_assignment).where.not(essay_assignments: { category: EssayAssignment.categories.fetch('listening') })
+  end
+
+  def current_year_base
+    CurrentAcademicYearGradings.call(base)
   end
 
   def with_context(scope)
@@ -166,13 +173,12 @@ class OperationsStatusReport
   end
 
   def collect_alerts
-    runs = EssayGenerationRun.joins(essay_grading: :essay_assignment)
-      .where.not(essay_assignments: { category: EssayAssignment.categories.fetch('listening') })
+    runs = EssayGenerationRun.where(essay_grading_id: current_year_base.select(:id))
       .where(state: %w[failed unknown queued retry_wait running checking])
     stale = runs.where("COALESCE(CASE WHEN essay_generation_runs.state IN ('running', 'checking') THEN essay_generation_runs.started_at WHEN essay_generation_runs.state = 'retry_wait' THEN essay_generation_runs.next_retry_at END, essay_generation_runs.queued_at, essay_generation_runs.created_at) < ?", @now - WARNING_AGE)
     attention_ids = runs.where(state: %w[failed unknown]).or(stale).select(:essay_grading_id)
-    scope = base.where(status: :stopped).or(base.where(status: :pending).where('essay_gradings.created_at < ?', @now - WARNING_AGE))
-      .or(base.where(id: attention_ids))
+    scope = current_year_base.where(status: :stopped).or(current_year_base.where(status: :pending).where('essay_gradings.created_at < ?', @now - WARNING_AGE))
+      .or(current_year_base.where(id: attention_ids))
     candidates = bounded(with_context(scope.order('essay_gradings.created_at ASC')), '跨時段异常清單')
     history = event_groups(candidates.map(&:id))
     states = runs.where(essay_grading_id: candidates.map(&:id)).group_by(&:essay_grading_id)
@@ -212,7 +218,7 @@ class OperationsStatusReport
   end
 
   def notification_alerts
-    eligible = EssayGenerationRun.where(essay_grading_id: base.select(:id))
+    eligible = EssayGenerationRun.where(essay_grading_id: current_year_base.select(:id))
     deliveries = EssayGenerationNotification.where(essay_generation_run_id: eligible.select(:id))
     problems = deliveries.where(state: %w[unknown build_failed])
       .or(deliveries.where(state: 'delivering').where('claimed_at < ?', @now - 15.minutes))

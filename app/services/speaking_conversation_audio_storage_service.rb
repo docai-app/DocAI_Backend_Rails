@@ -45,12 +45,16 @@ class SpeakingConversationAudioStorageService
     end
 
     def upload_with_active_storage!(payload, filename, content_type)
-      blob = ActiveStorage::Blob.create_and_upload!(
-        io: StringIO.new(payload),
-        filename: filename,
-        content_type: content_type,
-        service_name: ApplicationRecord.preferred_microsoft_storage_service
-      )
+      io = StringIO.new(payload)
+      # Create metadata in a short checkout, then perform storage IO without a
+      # leased database connection when called by draft upload preparation.
+      blob = ActiveRecord::Base.connection_pool.with_connection do
+        ActiveStorage::Blob.create_after_unfurling!(
+          io: io, filename: filename, content_type: content_type,
+          service_name: ApplicationRecord.preferred_microsoft_storage_service
+        )
+      end
+      blob.upload_without_unfurling(io)
 
       url = blob.url
       return url if url.is_a?(String) && url.start_with?('http')

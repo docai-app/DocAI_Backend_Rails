@@ -717,14 +717,20 @@ module Api
           return render json: { success: false, error: 'Please record your answer first.' }, status: :unprocessable_entity
         end
         session = assignment_draft_session(@essay_grading)
+        upload = if payload['answer_audio_base64'].present?
+                   -> {
+                     url = SpeakingConversationAudioStorageService.upload!(
+                       base64_or_data_url: payload['answer_audio_base64'],
+                       filename_prefix: "speaking_conversation/#{@essay_grading.id}/#{question_id}")
+                     raise IOError, 'Audio upload was not confirmed' if url.blank?
+                     url
+                   }
+                 end
         @essay_grading = session.write(payload, row: @essay_grading, request_id: params[:request_id],
-          revision: params[:draft_revision], operation: "answer:#{question_id}") do |row|
+          revision: params[:draft_revision], operation: "answer:#{question_id}", prepare: upload) do |row, audio_url|
           answer = payload.deep_dup
-          if answer['answer_audio_base64'].present?
-            answer['answer_audio_url'] = SpeakingConversationAudioStorageService.upload!(
-              base64_or_data_url: answer.delete('answer_audio_base64'),
-              filename_prefix: "speaking_conversation/#{row.id}/#{question_id}")
-          end
+          answer['answer_audio_url'] = audio_url if upload
+          answer['answered_at'] ||= Time.current.iso8601(3)
           answer.delete('answer_audio_base64')
           grading = row.grading.deep_dup
           answers = Array(grading.dig('speaking_conversation', 'answers'))
