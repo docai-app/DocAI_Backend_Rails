@@ -37,3 +37,12 @@ LISTENING_RAILS_ISOLATED_TEST=1 RAILS_ENV=test PARALLEL_WORKERS=1 bundle exec ra
 正式啟用此報告篩選仍須工程師取得本次 GitHub commit 後核對分支／完整差異、無待 migration，再 quiet／drain 三個 worker，保留 Redis／原啟用時間／私有憑證，更新並重啟所有載入程式的 Rails／worker。不得用 compose down 或僅修改 bind-mount 檔案而不重啟 Ruby。核对 source SHA、四項 schedule health、登入／受權 API、下個定期報告學年範圍與實際收件；不為驗收手動重寄或製造正式學生提交。
 
 回退本次程式需同樣協調四個應用容器，保留 Redis ACL／網路防護與資料。退回篩選前版本會重新顯示舊學年提醒；不要重設報告啟用時間／delivery state。音檔修復與舊版指紋的相容邊界：帶明確 answered_at 的既有客戶端不變；舊版伺服器自填時間的請求原本已不能可靠精確重送，不可藉回退放寬 revision。
+
+## 本輪最終交付核對
+
+- 後端修復 commit：994a2678c8a8839c7505f3c7234c1a2ab465c025，已 push origin/development。
+- 前端修復 commit：a128cba1a14124d72d342828e009a73ab1ea1f64，已 push origin/bobby-codex；37 項前端回歸、30 項桌面／平板／手機瀏覽器檢查及 typecheck／lint／build 通過。
+- 後端 97 tests／823 assertions 通過；郵件範圍文案增加後，reporting 30 tests／125 assertions 再次通過。不把重跑子集重複加總。
+- GitHub 上的兩個新部署均標記 Preview、production_environment=false，但結果均為 failure，描述 Deployment was blocked。Vercel 管理 API 返回 403 / forbidden / Not authorized；未能查到更深入阻擋原因，沒有修改整合、權限、費用設定或手動重試部署。
+- Preview 管理紀錄：[essay-checker](https://vercel.com/infom2mdacoms-projects/essay-checker/2y1DfHqiPGkCnU2w1KDjCjDBGwTf)、[essay-checker-dev](https://vercel.com/infom2mdacoms-projects/essay-checker-dev/HtvZtzxeh3B1LrBCCxmycMYq5AK2)。這是失敗的部署紀錄，不是可用 Preview 的交付聲明。
+- 正式 SSH 仍未建立存取，所以沒有正式 deploy／restart／新報告寄送驗收，也沒有對歷史 pending 做資料修改。需恢復受權 SSH key 存取或由工程師接手核查與部署。正式郵件的學年篩選不會只因 GitHub push 自行生效。
