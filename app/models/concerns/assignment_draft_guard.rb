@@ -25,8 +25,11 @@ module AssignmentDraftGuard
     AssignmentDraftSession.synchronize(essay_assignment_id, general_user_id) do
       if draft?
         stored_status = self.class.where(id: id).pick(:status) if persisted?
-        duplicate = self.class.where(essay_assignment_id: essay_assignment_id,
-          general_user_id: general_user_id, status: :draft).where.not(id: id).exists?
+        # Existing drafts remain writable. Only creation or a transition back
+        # to draft must be prevented from adding another duplicate.
+        duplicate = (new_record? || stored_status != 'draft') &&
+          self.class.where(essay_assignment_id: essay_assignment_id,
+            general_user_id: general_user_id, status: :draft).where.not(id: id).exists?
         if duplicate || (stored_status && stored_status != 'draft' && !@admin_draft_transition)
           errors.add(:base, 'Please reopen your saved work. Another draft or submitted record already exists.')
           raise ActiveRecord::RecordInvalid, self

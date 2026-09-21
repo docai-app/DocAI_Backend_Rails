@@ -31,7 +31,7 @@
 
 - Redis 防護、私有 ACL 切換、獨立於 Redis 的排程 watchdog 見 `docs/2026-09-19-reliability-hardening-handoff.md`。禁止對正式 Redis 執行 FLUSHALL／FLUSHDB、開放公網 6379 或用 compose down/prune 發布。排程健康須同時核對 registry、worker、tick 和完成 heartbeat；近期新 tick 為 running 時可沿用近期成功完成，避免時間重疊誤報，failed／過期／沒有成功仍告警。容器存活不能代替排程驗收。修復與發布核對見 `docs/2026-09-21-report-alert-corrections.md`。Redis credentials／RDB／incident evidence 不入 Git，應用回退仍須保留驗證及網路防護。
 
-- 所有类型的学生草稿写入使用 `AssignmentDraftSession`：学生＋assignment advisory lock、固定 grading ID、request_id 精确重送及 draft_revision 检查。managed draft 缺版本返回 409，不能为兼容旧客户端放宽；历史多草稿保留并要求核对。预留 draft 不计正式提交，普通写入不能改回已提交状态，Admin 独立操作仍受 token／counter 规则保护。无新增 DB 唯一约束，禁止新旧 writer 混跑；小程序配套、Talk Lab 非续接边界及回归见 `docs/2026-09-18-all-assignment-drafts-handoff.md`。
+- 所有类型的学生草稿写入使用 `AssignmentDraftSession`：学生＋assignment advisory lock、固定 grading ID、request_id 精确重送及 draft_revision 检查。managed draft 缺版本返回 409，不能为兼容旧客户端放宽；历史多草稿按用户明确打开的 ID 独立保存／提交，不能仅因存在另一份草稿而返回冲突；code／派发入口按 created_at、id 选定已有草稿，不新增、不合并、不删除其他草稿。见 `docs/2026-09-21-legacy-draft-compatibility.md`。预留 draft 不计正式提交，普通写入不能改回已提交状态，Admin 独立操作仍受 token／counter 规则保护。无新增 DB 唯一约束，禁止新旧 writer 混跑；小程序配套、Talk Lab 非续接边界及回归见 `docs/2026-09-18-all-assignment-drafts-handoff.md`。
 
 - 報告／恢復專用容器的可重現啟動與 Sidekiq 私有帳密工具在 `ops/reliability/README.md`。工具預設 dry run，啟用時間必須為實際時間，不倒填或刪除 runtime 檔來重設。後續 source bind mount 發布須同時盤點主 worker、`operations_reports` 與 `generation_recovery`，安全 drain 在途工作後才換應用程式；不得只照舊重啟主 worker。私有 runtime／帳密檔不入 Git；SMTP 接受不等於收件匣驗收。
 

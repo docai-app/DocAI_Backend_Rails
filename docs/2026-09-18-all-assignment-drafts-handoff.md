@@ -44,7 +44,7 @@
 6. 不改各類型既有評分算法；不能由 client 自報 graded 就跳過批改。套裝入口仍校驗是否解鎖，成功提交仍更新套裝進度。
 7. Listening 回傳保留既有答案保護：草稿只給 question ID／user_answer／允許的播放資訊，不暴露正確答案。兼容發版前的 Listening Idempotency-Key 回執，避免切換時重送新增一筆。
 
-這是**應用層併發保護，不是新增 DB 唯一約束**。raw SQL／update_columns／未升級寫入程序能繞過一般 callback；不能新舊 web 寫入程式長期混跑。歷史多份 draft 返回 409，全部保留；不自動選最新、合併、刪除或批量 rerun。
+這是**應用層併發保護，不是新增 DB 唯一約束**。raw SQL／update_columns／未升級寫入程序能繞過一般 callback；不能新舊 web 寫入程式長期混跑。2026-09-21 相容修復取消「歷史多份 draft 一律返回 409」：明確 ID 可各自保存／提交；沒有 ID 的 code／派發入口按 created_at、id 沿用最早的一份，不建立第三份。不合併、不刪除、不批量 rerun；版本、歸屬及已提交保護保留。測試與發布狀態見 `2026-09-21-legacy-draft-compatibility.md`。
 
 ## 5. Frontend 行為
 
@@ -86,7 +86,7 @@
 
 每類型至少一筆隔離測試作業：code 入口及派發入口互相恢復同一 ID；手動保存後重新進入答案一致；保存＋提交後只留一筆非 draft；快速連點不新增；兩分頁不同答案舊版本不能覆寫；未知網絡結果重送仍同 ID；提交成功後返回 dashboard 狀態刷新。
 
-另驗收：Comprehension 題目未載入／全空；自訂文章；Speaking Essay 真實錄音及附件；Pronunciation 結果；Preset 保存後 End；AI Followup End；Puzzle 進度；Listening 播放次數及答案保密；Talk Lab End 超時再確認；套裝下一題解鎖；學生不能改別人 draft；Admin Rerun 不受學生版本鎖限制。歷史多 draft 僅核對，不清除。
+另驗收：Comprehension 題目未載入／全空；自訂文章；Speaking Essay 真實錄音及附件；Pronunciation 結果；Preset 保存後 End；AI Followup End；Puzzle 進度；Listening 播放次數及答案保密；Talk Lab End 超時再確認；套裝下一題解鎖；學生不能改別人 draft；Admin Rerun 不受學生版本鎖限制。歷史多 draft 可各自保存／提交，另一份內容保持不變；code／派發入口沿用固定的一份，不清除或合併。
 
 ## 10. 回退與交付回報
 

@@ -54,6 +54,42 @@ class AssignmentDraftConcurrencyTest < ActiveSupport::TestCase
     end
   end
 
+  test 'historical siblings stay independent during concurrent opening and repeated submission' do
+    10.times do
+      user = GeneralUser.create!(email: "legacy-race-#{SecureRandom.hex(8)}@example.test", password: 'Password123!', meta: {}, konnecai_tokens: {})
+      assignment = EssayAssignment.create!(general_user: user, category: 'essay', title: 'Legacy race', topic: 'Race', assignment: 'Race', rubric: { 'name' => 'Test' }, meta: {})
+      first = EssayGrading.create!(essay_assignment: assignment, general_user: user, status: :draft)
+      first.update_columns(created_at: 2.days.ago)
+      data = first.attributes.except('id').merge('id' => SecureRandom.uuid, 'created_at' => 1.day.ago)
+      EssayGrading.insert_all!([data]) # Isolated fixture for pre-protection records.
+      EssayAssignment.increment_counter(:number_of_submission, assignment.id)
+      session = -> { AssignmentDraftSession.new(assignment: assignment, user: user) }
+      assert_equal [first.id], race { session.call.prepare(SecureRandom.uuid).id }.uniq
+      assert_equal 2, assignment.essay_gradings.count
+      untouched = first.reload.attributes
+      key = SecureRandom.uuid
+      payload = { 'status' => 'pending', 'essay' => 'Submit the explicitly opened second draft.' }
+      results = race do
+        writer = session.call
+        row = writer.write(payload, row: EssayGrading.find(data['id']), request_id: key, revision: 0) { |record| record.assign_attributes(payload) }
+        [row.id, writer.submitted_now]
+      end
+      assert_equal [data['id']], results.map(&:first).uniq
+      assert_equal 1, results.count { |_, submitted_now| submitted_now }
+      assert_equal untouched, first.reload.attributes
+      assert_equal 'pending', EssayGrading.find(data['id']).status
+      assert_equal 2, assignment.essay_gradings.count
+      assert_equal 2, assignment.reload.number_of_submission
+      assert_equal first.id, session.call.prepare(SecureRandom.uuid).id
+    ensure
+      if assignment
+        assignment.essay_gradings.destroy_all
+        assignment.destroy!
+      end
+      GeneralUser.where(id: user.id).delete_all if user
+    end
+  end
+
   private
 
   def race

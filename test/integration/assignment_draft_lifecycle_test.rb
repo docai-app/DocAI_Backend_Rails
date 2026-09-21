@@ -112,13 +112,80 @@ class AssignmentDraftLifecycleTest < ActionDispatch::IntegrationTest
     assert_equal 'My name is Alex.', EssayGrading.find(id).grading.dig('speaking_conversation', 'answers', 0, 'answer_text')
   end
 
-  test 'historical duplicate drafts are preserved and reported as a conflict' do
+  test 'code entry reuses a deterministic historical draft without deleting siblings' do
     assignment = make_assignment('essay')
-    first = EssayGrading.create!(essay_assignment: assignment, general_user: @user, status: :draft)
-    data = first.attributes.except('id').merge('id' => SecureRandom.uuid)
-    EssayGrading.insert_all!([data]) # Simulate pre-release historical data only.
-    post draft_url(assignment), params: { request_id: SecureRandom.uuid }, headers: @headers, as: :json
-    assert_response :conflict
+    first, second = historical_drafts(assignment)
+    second_before = second.attributes
+    get draft_url(assignment), headers: @headers, as: :json
+    assert_response :ok, response.body
+    assert_equal first.id, response.parsed_body.dig('essay_grading', 'id')
+    key = SecureRandom.uuid
+    2.times do
+      post draft_url(assignment), params: { request_id: key }, headers: @headers, as: :json
+      assert_response :ok, response.body
+      assert_equal first.id, response.parsed_body.dig('essay_grading', 'id')
+    end
+    assert_equal second_before, second.reload.attributes
+    assert_equal 2, assignment.essay_gradings.count
+    assert_raises(ActiveRecord::RecordInvalid) do
+      EssayGrading.create!(essay_assignment: assignment, general_user: @user, status: :draft)
+    end
+    put grading_url(second.id), params: { essay_grading: payload('essay', 'pending') }, headers: @headers, as: :json
+    assert_response :ok, response.body
+    refute second.reload.draft?
+    assert first.reload.draft?
+  end
+
+  CATEGORIES.each do |category|
+    test "#{category} saves and submits either historical draft independently" do
+      assignment = make_assignment(category)
+      first, second = historical_drafts(assignment)
+      if category == 'speaking_essay'
+        [first, second].each do |row|
+          blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new('fixture audio'), filename: 'fixture.mp3', content_type: 'audio/mpeg', service_name: :test)
+          row.file.attach(blob)
+        end
+      end
+      [[second, first], [first, second]].each do |selected, sibling|
+        untouched = sibling.reload.attributes
+        saved = { request_id: SecureRandom.uuid, draft_revision: 0, essay_grading: payload(category, 'draft') }
+        put grading_url(selected.id), params: saved, headers: @headers, as: :json
+        assert_response :ok, response.body
+        assert_equal selected.id, response.parsed_body.dig('essay_grading', 'id')
+        assert_equal untouched, sibling.reload.attributes
+        final = { request_id: SecureRandom.uuid, draft_revision: 1, essay_grading: payload(category, 'pending') }
+        put grading_url(selected.id), params: final, headers: @headers, as: :json
+        assert_response :ok, response.body
+        refute selected.reload.draft?
+        assert_equal untouched, sibling.reload.attributes
+        submitted = selected.attributes
+        jobs = EssayGenerationJob.jobs.size
+        put grading_url(selected.id), params: final, headers: @headers, as: :json
+        assert_response :ok, response.body
+        assert_equal submitted, selected.reload.attributes
+        assert_equal jobs, EssayGenerationJob.jobs.size
+        put grading_url(selected.id), params: saved, headers: @headers, as: :json
+        assert_response :conflict
+        assert_equal submitted, selected.reload.attributes
+      end
+      assert_equal 2, assignment.essay_gradings.count
+      assert_equal 2, assignment.reload.number_of_submission
+    end
+  end
+
+  test 'legacy pronunciation update preserves ten recordings in both drafts' do
+    assignment = make_assignment('speaking_pronunciation')
+    first, second = historical_drafts(assignment)
+    [first, second].each_with_index do |row, index|
+      row.update_columns(grading: { 'speaking_pronunciation_sentences' => Array.new(10) { |n| { 'sentence' => "Word #{n}", 'result' => { 'pronunciation_accuracy' => 90 + index, 'audiobase64' => "fixture-audio-#{index}-#{n}" } } } })
+    end
+    older = first.reload.attributes
+    answers = second.reload.grading.deep_dup
+    put grading_url(second.id), params: { essay_grading: { status: 'pending', grading: answers } }, headers: @headers, as: :json
+    assert_response :ok, response.body
+    assert_equal 'graded', second.reload.status
+    assert_equal answers['speaking_pronunciation_sentences'], second.grading['speaking_pronunciation_sentences']
+    assert_equal older, first.reload.attributes
     assert_equal 2, assignment.essay_gradings.count
   end
 
@@ -224,6 +291,17 @@ class AssignmentDraftLifecycleTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  def historical_drafts(assignment)
+    first = EssayGrading.create!(essay_assignment: assignment, general_user: @user, status: :draft)
+    first.update_columns(created_at: 2.days.ago, updated_at: 2.days.ago)
+    data = first.attributes.except('id').merge('id' => SecureRandom.uuid, 'created_at' => 1.day.ago, 'updated_at' => 1.day.ago)
+    EssayGrading.insert_all!([data]) # Historical-data fixture in isolated tests only.
+    EssayAssignment.increment_counter(:number_of_submission, assignment.id)
+    # The legacy puzzle controller excluded saved drafts from submission counts.
+    EssayAssignment.update_counters(assignment.id, number_of_submission: -2) if assignment.category == 'sentence_puzzle'
+    [first, EssayGrading.find(data['id'])]
+  end
 
   def draft_url(assignment) = "/api/v1/essay_assignments/#{assignment.code}/essay_gradings/current_draft"
   def grading_url(id) = "/api/v1/essay_gradings/#{id}.json"
