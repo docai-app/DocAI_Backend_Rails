@@ -13,7 +13,7 @@ module Admin
 
         run.public_state.merge(
           stage: context['stage'], failure_code: run.failure_code,
-          failure_stage: last_error.is_a?(Hash) ? last_error['stage'] : nil,
+          failure_stage: kind == 'supplement' ? (run.failure_code.present? ? 'supplement' : nil) : (last_error.is_a?(Hash) ? last_error['stage'] : nil),
           finished_at: run.finished_at, recovery_checked_at: run.recovery_checked_at,
           missing_since: run.missing_since, resume_pending: run.resume_pending
         )

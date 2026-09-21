@@ -81,6 +81,10 @@ module Api
         # Optional filter: ?status=pending or ?status=stopped
         def pending_or_stopped
           base_scope = EssayGrading.pending_or_stopped
+          if params[:include_supplement] == 'true'
+            supplement_ids = ::Admin::EssayGradings::SupplementAttention.call.select('essay_gradings.id')
+            base_scope = base_scope.or(EssayGrading.where(id: supplement_ids))
+          end
           meta_counts = pending_or_stopped_meta_counts(base_scope)
 
           filtered_scope = apply_pending_or_stopped_status_filter(base_scope)
@@ -92,7 +96,7 @@ module Api
 
           render json: {
             success: true,
-            meta: meta_counts.merge(filtered_status: params[:status].presence),
+            meta: meta_counts.merge(filtered_status: params[:status].presence, supplement_monitor: params[:include_supplement] == 'true'),
             essay_gradings: essay_gradings.map { |grading| pending_or_stopped_grading_json(grading) }
           }, status: :ok
         end
@@ -196,7 +200,15 @@ module Api
         # POST /api/admin/v1/essay_gradings/:id/rerun_supplement_practice_workflow
         def rerun_supplement_practice_workflow
           begin
-            @essay_grading.run_supplement_practice_workflow
+            @essay_grading.with_lock do
+              if params[:retry_failed_only] == true
+                run = @essay_grading.essay_generation_runs.find_by(kind: 'supplement')
+                unless run&.public_state&.fetch(:can_retry)
+                  raise EssayGenerationRun::Unavailable, '補充練習目前不可重試，請刷新查看最新狀態。'
+                end
+              end
+              @essay_grading.run_supplement_practice_workflow
+            end
             render json: { 
               success: true, 
               message: 'Supplement practice workflow rerun successfully',
@@ -270,6 +282,10 @@ module Api
           status_param = params[:status].to_s.downcase
           status_param = 'stopped' if status_param == 'stop'
 
+          if status_param == 'supplement' && params[:include_supplement] == 'true'
+            return scope.where(status: :graded)
+          end
+
           allowed_statuses = %w[pending stopped]
           unless allowed_statuses.include?(status_param)
             render json: {
@@ -287,7 +303,8 @@ module Api
           stopped_count = base_scope.stopped.count
 
           {
-            total: pending_count + stopped_count,
+            total: base_scope.count,
+            supplement: base_scope.graded.count,
             pending: pending_count,
             stopped: stopped_count
           }
@@ -300,6 +317,7 @@ module Api
 
           {
             id: grading.id,
+            issue_kind: grading.graded? ? 'supplement' : 'grading',
             topic: grading.topic,
             status: grading.status,
             generation: ::Admin::EssayGradings::GenerationStatus.call(grading),

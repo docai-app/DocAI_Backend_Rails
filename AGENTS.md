@@ -24,6 +24,8 @@
 
 ## 代码交付
 
+- 总 Admin Pending/Stopped 可用 `include_supplement=true` 加入今学年已 graded 的 essay 补充练习异常；`status=supplement` 仅筛选新增范围，主批改筛选保持原义。failed/unknown 立即列出，其他活跃状态沿用报告的两小时与 waiting clock。`retry_failed_only: true` 必须在 grading 行锁内重新核对 can_retry，不能覆盖 ready/unknown/在途结果或学生答案；回归见 `test/integration/admin_supplement_monitor_test.rb`。
+
 - 狀態報告的作業異常及相關通知異常只列各校 `SchoolAcademicYear.active` 且起訖日期涵蓋報告快照的澳門當日（含首尾日）：優先使用提交時 `submission_academic_year_id`，缺少時才使用 assignment 的明確學年；不按建立日期、學年名稱或目前 enrollment 猜測。舊學年資料保留、不批量重跑；無法歸屬的紀錄只提示數量。時段活動統計／系統寄送健康維持原範圍。共用篩選及只讀 pending 稽核見 `docs/2026-09-20-report-scope-and-audio-concurrency.md`。
 - Preset Speaking answer 音檔上傳在 `AssignmentDraftSession.write(prepare:)` 的短檢查之後、釋放 DB 連線後執行；保存前重新鎖定核對 revision／request_id，恢復原租戶 search_path。不可在外層 transaction 使用 prepare。服務端補上的 answered_at 不可參與請求指紋；失敗上傳不能被當作已保存。回歸 `assignment_audio_preparation_test.rb`；不代表全部附件路徑或正式吞吐量已驗收。
 
