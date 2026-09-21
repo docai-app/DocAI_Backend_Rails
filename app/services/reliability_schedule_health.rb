@@ -34,7 +34,11 @@ class ReliabilityScheduleHealth
     end
     issues << 'worker_missing_or_quiet' if count.zero?
     issues << 'schedule_tick_stale' unless recent?(last_tick, now)
-    issues << 'successful_completion_stale' unless heartbeat['state'] == 'completed' && recent?(heartbeat['completed_at'], now)
+    # A new tick records running before completion; keep the recent success
+    # during this overlap. Missing success, failed and stuck runs still alert.
+    valid_state = heartbeat['state'] == 'completed' ||
+      (heartbeat['state'] == 'running' && recent?(heartbeat['started_at'], now))
+    issues << 'successful_completion_stale' unless valid_state && recent?(heartbeat['completed_at'], now)
     { role: role, worker_count: count, issues: issues }
   end
 

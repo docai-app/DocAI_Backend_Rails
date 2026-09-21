@@ -4,7 +4,7 @@ AI English 狀態報告（澳門時間）
 
 <%= @needs_attention ? '【需要人工處理／核對】' : '【本次未偵測到需要人工處理的項目】' %>
 異常紀錄／寄送問題共 <%= @report['alert_count'] %> 項；列出前 <%= @report['alerts'].length %> 項。
-作業異常只列當前學年；系統寄送問題不受學年限制。上一學年資料保留，不再列入待處理清單。
+作業異常只列標為當前、且起訖日期涵蓋報告產生當日的學年；系統寄送問題不受學年限制。已過期學年資料保留，不再列入待處理清單。
 <% @report['warnings'].each do |warning| %>警告：<%= warning %>
 <% end %>
 <% @report['alerts'].each do |item| %>

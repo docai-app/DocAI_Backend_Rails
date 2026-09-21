@@ -73,7 +73,7 @@ class OperationsStatusReport
         '狀態是產生報告當刻的快照；遲到補報可能包含時段結束後才完成的批改。',
         '完成時間＝首次正式提交至首次 graded（含等待）；沒有可信事件的舊紀錄不計入平均。',
         '整體錯誤摘要涵蓋本時段所有失敗事件（含舊提交）；分組的曾失敗／恢復則以本時段提交群體計算。舊版已清除的歷史無法復原。',
-        '作業異常清單只列各校標記 active 的當前學年：優先採用提交時學年，缺少時才採用作業學年；不以建立日期或目前班級推測。舊學年資料保留但不再提醒。',
+        '作業異常清單只列各校標記 active，且起訖日期涵蓋報告產生當日（澳門時間）的學年：優先採用提交時學年，缺少時才採用作業學年；已過期學年即使仍標記 active 也不列入。舊學年資料保留但不再提醒。',
         '當前學年跨時段未解決的 stopped、疑似長時間 pending、結果不明及練習失敗會重複提醒；時段活動統計及系統寄送健康檢查維持原範圍。',
         'Listening 不在本輪統計範圍。學校不使用老師目前所屬學校猜測；未能確認時另外列出。'
       ]
@@ -111,7 +111,7 @@ class OperationsStatusReport
   end
 
   def current_year_base
-    CurrentAcademicYearGradings.call(base)
+    CurrentAcademicYearGradings.call(base, now: @now)
   end
 
   def with_context(scope)

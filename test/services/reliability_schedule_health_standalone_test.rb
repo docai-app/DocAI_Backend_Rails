@@ -37,4 +37,13 @@ class ReliabilityScheduleHealthStandaloneTest < Minitest::Test
       assert_includes issues(heartbeat: heartbeat), 'successful_completion_stale'
     end
   end
+  def test_watchdog_overlapping_a_new_tick_retains_recent_success
+    heartbeat = @args[:heartbeat].merge('state' => 'running', 'started_at' => (@now - 1).iso8601)
+    assert_empty issues(heartbeat: heartbeat)
+    assert_includes issues(heartbeat: heartbeat.merge('completed_at' => (@now - 901).iso8601)), 'successful_completion_stale'
+    assert_includes issues(heartbeat: heartbeat.merge('started_at' => (@now - 901).iso8601)), 'successful_completion_stale'
+    assert_includes issues(heartbeat: heartbeat.merge('state' => 'failed')), 'successful_completion_stale'
+    assert_includes issues(heartbeat: heartbeat.reject { |key, _| key == 'completed_at' }), 'successful_completion_stale'
+  end
+
 end

@@ -24,10 +24,10 @@
 
 ## 代码交付
 
-- 狀態報告的作業異常及相關通知異常只列各校 `SchoolAcademicYear.active`：優先使用提交時 `submission_academic_year_id`，缺少時才使用 assignment 的明確學年；不按建立日期、學年名稱或目前 enrollment 猜測。舊學年資料保留、不批量重跑；無法歸屬的紀錄只提示數量。時段活動統計／系統寄送健康維持原範圍。共用篩選及只讀 pending 稽核見 `docs/2026-09-20-report-scope-and-audio-concurrency.md`。
+- 狀態報告的作業異常及相關通知異常只列各校 `SchoolAcademicYear.active` 且起訖日期涵蓋報告快照的澳門當日（含首尾日）：優先使用提交時 `submission_academic_year_id`，缺少時才使用 assignment 的明確學年；不按建立日期、學年名稱或目前 enrollment 猜測。舊學年資料保留、不批量重跑；無法歸屬的紀錄只提示數量。時段活動統計／系統寄送健康維持原範圍。共用篩選及只讀 pending 稽核見 `docs/2026-09-20-report-scope-and-audio-concurrency.md`。
 - Preset Speaking answer 音檔上傳在 `AssignmentDraftSession.write(prepare:)` 的短檢查之後、釋放 DB 連線後執行；保存前重新鎖定核對 revision／request_id，恢復原租戶 search_path。不可在外層 transaction 使用 prepare。服務端補上的 answered_at 不可參與請求指紋；失敗上傳不能被當作已保存。回歸 `assignment_audio_preparation_test.rb`；不代表全部附件路徑或正式吞吐量已驗收。
 
-- Redis 防護、私有 ACL 切換、獨立於 Redis 的排程 watchdog 見 `docs/2026-09-19-reliability-hardening-handoff.md`。禁止對正式 Redis 執行 FLUSHALL／FLUSHDB、開放公網 6379 或用 compose down/prune 發布。排程健康須同時核對 registry、worker、tick 和完成 heartbeat；容器存活不能代替排程驗收。Redis credentials／RDB／incident evidence 不入 Git，應用回退仍須保留驗證及網路防護。
+- Redis 防護、私有 ACL 切換、獨立於 Redis 的排程 watchdog 見 `docs/2026-09-19-reliability-hardening-handoff.md`。禁止對正式 Redis 執行 FLUSHALL／FLUSHDB、開放公網 6379 或用 compose down/prune 發布。排程健康須同時核對 registry、worker、tick 和完成 heartbeat；近期新 tick 為 running 時可沿用近期成功完成，避免時間重疊誤報，failed／過期／沒有成功仍告警。容器存活不能代替排程驗收。修復與發布核對見 `docs/2026-09-21-report-alert-corrections.md`。Redis credentials／RDB／incident evidence 不入 Git，應用回退仍須保留驗證及網路防護。
 
 - 所有类型的学生草稿写入使用 `AssignmentDraftSession`：学生＋assignment advisory lock、固定 grading ID、request_id 精确重送及 draft_revision 检查。managed draft 缺版本返回 409，不能为兼容旧客户端放宽；历史多草稿保留并要求核对。预留 draft 不计正式提交，普通写入不能改回已提交状态，Admin 独立操作仍受 token／counter 规则保护。无新增 DB 唯一约束，禁止新旧 writer 混跑；小程序配套、Talk Lab 非续接边界及回归见 `docs/2026-09-18-all-assignment-drafts-handoff.md`。
 

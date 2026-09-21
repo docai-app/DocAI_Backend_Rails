@@ -265,8 +265,8 @@ class OperationsReportingTest < ActiveSupport::TestCase
     assert_not_includes message.encoded, 'PRIVATE STUDENT BODY'
     assert_includes message.text_part.decoded, '需要人工處理'
     assert_includes html, "assignmentId=#{@assignment.id}"
-    assert_includes html, '作業異常只列當前學年'
-    assert_includes message.text_part.decoded, '作業異常只列當前學年'
+    assert_includes html, '作業異常只列標為當前'
+    assert_includes message.text_part.decoded, '作業異常只列標為當前'
   end
 
   test 'duplicate report jobs send only one message for a fixed window' do
@@ -367,4 +367,36 @@ class OperationsReportingTest < ActiveSupport::TestCase
     travel_to(@ending + 1.minute) { OperationsReportTickJob.new.perform }
     assert_empty OperationsReportJob.jobs
   end
+  test 'expired and future active years cannot inflate mail subject or alert content' do
+    previous = SchoolAcademicYear.create!(school: @school, name: 'Old active year', start_date: '2025-08-01', end_date: '2026-07-31', status: :active)
+    future = SchoolAcademicYear.create!(school: @school, name: 'Future active year', start_date: '2027-08-01', end_date: '2028-07-31', status: :active)
+    [previous, future].each do |year|
+      old = grading(:stopped)
+      old.update_columns(submission_academic_year_id: year.id)
+      run = EssayGenerationRun.create!(essay_grading: old, kind: 'grading', state: 'failed', token: SecureRandom.uuid)
+      EssayGenerationNotification.create!(essay_generation_run: run, token: run.token, kind: 'failure', state: 'unknown')
+    end
+    current = grading(:stopped)
+    summary = report
+    assert_equal 1, summary['alert_count']
+    assert_equal [current.id], summary['alerts'].map { |item| item['id'] }
+    mail = AdminNotificationMailer.operations_status_report(summary)
+    assert_includes mail.subject, '1 項'
+    assert_includes mail.text_part.body.decoded, '1 項'
+    assert_includes mail.html_part.body.decoded, '<strong>1</strong>'
+    assert_equal 'active', previous.reload.status
+    assert_equal 'active', future.reload.status
+  end
+
+  test 'year dates use snapshot Macau date inclusively not the host date or report end' do
+    g = grading(:stopped)
+    @year.update_columns(start_date: '2026-09-12', end_date: '2026-09-12')
+    assert_equal [g.id], CurrentAcademicYearGradings.call(EssayGrading.where(id: g.id), now: Time.utc(2026,9,11,16)).pluck(:id)
+    assert_equal [g.id], CurrentAcademicYearGradings.call(EssayGrading.where(id: g.id), now: Time.utc(2026,9,12,15,59,59)).pluck(:id)
+    assert_empty CurrentAcademicYearGradings.call(EssayGrading.where(id: g.id), now: Time.utc(2026,9,11,15,59,59))
+    assert_empty CurrentAcademicYearGradings.call(EssayGrading.where(id: g.id), now: Time.utc(2026,9,12,16))
+    overdue = OperationsStatusReport.new(beginning: @ending - 12.hours, ending: @ending, now: @ending + 1.day).call
+    assert_empty overdue['alerts']
+  end
+
 end

@@ -4,7 +4,7 @@
   <section style="border:2px solid <%= @needs_attention ? '#c53030' : '#25805c' %>;background:<%= @needs_attention ? '#fff5f5' : '#f0fff4' %>;padding:18px">
     <h2><%= @needs_attention ? '需要人工處理／核對' : '本次未偵測到需要人工處理的項目' %></h2>
     <p>異常紀錄／寄送問題：<strong><%= @report['alert_count'] %></strong> 項。這是監察報告，不會自動重跑或停止作業。</p>
-    <p>作業異常只列當前學年；系統寄送問題不受學年限制。上一學年資料保留，不再列入待處理清單。</p>
+    <p>作業異常只列標為當前、且起訖日期涵蓋報告產生當日的學年；系統寄送問題不受學年限制。已過期學年資料保留，不再列入待處理清單。</p>
     <% @report['warnings'].each do |warning| %><p><strong><%= warning %></strong></p><% end %>
     <% @report['alerts'].each do |item| %>
       <div style="border-top:1px solid #e2bcbc;padding:12px 0">
