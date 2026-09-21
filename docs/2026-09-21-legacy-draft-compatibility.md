@@ -1,6 +1,6 @@
 # 歷史多草稿相容修復
 
-日期：2026-09-21。Backend-only；程式交付不代表已正式部署。
+日期：2026-09-21。Backend-only；正式發布結果見末節。
 
 ## 原因與行為
 
@@ -26,8 +26,24 @@
 
 ## 發布與回退
 
-交付至 Backend `development`；本次未部署正式環境、未寫入正式學生資料。正式目前另有未發布的 Admin supplement 變更，不能把整個 development 當成本次已批准發布範圍。
+開發修復 `43bbf100044d7320d9affcc45f1772cf12494b0c` 已交付至 Backend `development`。由於 development 另有未批准本次上線的 Admin supplement 變更，正式發布從原版本 `9a482cb` 僅 cherry-pick 此修復，形成 `041a3215ca341e1401089f58d2ba90b5608eb024`，先推 GitHub `codex/legacy-draft-production-release`，再部署精確 SHA。
 
 正式發布只取本次修復 commit，核對和當前版本的差異；兩個 runtime 檔案為 `app/services/assignment_draft_session.rb`、`app/models/concerns/assignment_draft_guard.rb`。無 migration、無學生資料修補、無舊草稿清理。按既有 web／三個 workers 安全切換流程，保留 Redis 與啟用時間。
 
-部署後先唯讀確認兩份仍完整、current draft 可正常返回，使用隔離驗收帳號測試保存／提交；不替真實學生提交。回退此次應用修改會再次阻擋多草稿，但不要刪除錄音、答案或版本回執。正式部署須取得本次明確授權。
+部署後先唯讀確認兩份仍完整、current draft 可正常返回，使用隔離驗收帳號測試保存／提交；不替真實學生提交。回退此次應用修改會再次阻擋多草稿，但不要刪除錄音、答案或版本回執。使用者已於本次明確授權 push GitHub 及 deploy 至正式伺服器。
+
+
+## 正式發布驗收（2026-09-21）
+
+- 正式主機 `43.228.217.157`，checkout `/home/akali/aienglish/DocAI_Backend_Rails`，由 `9a482cb42bccefdad4d3cace5bee22faad591898` fast-forward 至 `041a3215ca341e1401089f58d2ba90b5608eb024`。沒有推送 GitHub production 分支。
+- 精確發布組合再次在本地隔離 DB 通過 56 tests／801 assertions。相對正式起點僅兩個 runtime Ruby 檔案、兩個測試及協作／交接文件變更；無 Gemfile、migration 或資料庫結構變更。正式唯讀 migration 檢查 pending=false，沒有執行 migration。
+- 主 worker／reports／recovery 先 TSTP；確認三個 quiet=true、busy=0 後才停止並切換。19:32:13（澳門時間）web 及三個 worker 重用原容器啟動；四個容器的環境摘要 hash 與切換前一致，reports／recovery 啟用時間未變。
+- Redis ID／啟動時間維持不變（2026-09-20T10:34:39Z），沒有重啟、清空或公開 6379。未操作其他服務、未重建 image、未清 queue、未批量 rerun。
+- 正式首頁及 login HTTP 200；未登入 grading API 401；兩份驗收個案的登入後 detail GET 均 HTTP 200，返回各自正確 ID 與十題資料。JWT 僅記憶體使用，沒有保存或輸出。
+- 切換前 current draft 會拋出多草稿衝突；切換後可正常返回最早的既有草稿。切換後第一輪唯讀比對兩份完整 attributes 摘要與切換前相同。
+- 隨後於 19:33:06，較新一份由正常寫入流程轉成 graded、revision=1，十段錄音仍齊全，stored score／前端共用 metrics 顯示均為 91；驗收程序只執行 GET／唯讀查詢，没有替學生保存或提交。另一份仍 draft，完整 attributes 摘要與切換前一致。不能把這次正常提交造成的內容摘要變動說成部署修改資料。
+- 啟動後 web／三 worker 沒有 ERROR／FATAL 日誌，restart_count=0；三 worker quiet=false、busy=0。獨立 watchdog timer active，排程健康 healthy=true；reports／recovery 的啟動 tick 於 19:32:32／19:32:31 完成，recovery error_count=0。
+- 19:35 首次重啟後定時 tick：reports 19:35:03、recovery 19:35:01 均 completed，error_count=0；19:35:14 排程健康 healthy=true，兩角色各有一個正常 worker，issues 為空。
+- 前端產品程式、Vercel 及總 Admin 都沒有在本次部署；前端本機只同步本文件及 AGENTS.md 的歷史草稿規則。
+
+回退 SHA：`9a482cb42bccefdad4d3cace5bee22faad591898`。若需要回退，仍須安全 drain 三 worker、同步切換 web／workers，保留 Redis、runtime 與草稿；回退會重新出現舊多草稿阻擋。本文後續文件 commit 不表示伺服器程式版本已變動。
