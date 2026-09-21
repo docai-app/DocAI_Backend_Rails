@@ -35,4 +35,15 @@ Application rollback baseline: `041a3215ca341e1401089f58d2ba90b5608eb024`. If ne
 
 ## Delivery state
 
-Prepared and verified locally. Push and server deployment results will be recorded after actual completion. Historical “local/unpushed” statements in the feature documents describe their original verification checkpoint.
+Completed backend delivery:
+
+- GitHub `production` and server were verified at `ca63f9554fa9ff82dc68fe90ea84e7763b66fb65`; school application code is `4492fc8`. The following verification-record commit changes documentation only.
+- All three workers reported quiet=true/busy=0 twice before stopping. Web and all three existing workers restarted at 2026-09-21 19:54:32–33 Asia/Macau. Four container IDs/images and environment digests stayed identical; restart_count=0 and no ERROR/FATAL lines in startup logs.
+- Redis container ID/start time stayed identical (2026-09-20T10:34:39Z), with no public 6379 binding. No Redis restart, queue clear, migration, image build/prune, runtime-setting change or unrelated-service restart.
+- Read-only production checks used the same `public` tenant as ApiController and an existing active school owner with an in-memory JWT (never output/saved). Both school API aliases /me returned 200. Students, selectable teachers, academic years/classes, assignments and snapshot returned 200. Anonymous school /me (both aliases) and ordinary assignment API returned 401. No real teacher grant or student password was changed to test the deployment.
+- Single server-local HTTP samples: /me 1.62–1.67s, students 3.01s, teacher picker 1.86s, academic years 2.09s, assignments 3.73s, snapshot 8.42s. These are limited live samples, not browser load-time guarantees or before/after benchmarks. Production remains slower than isolated local tests; further latency investigation is outstanding.
+- After restart, all three workers resumed (quiet=false/busy=0). At 20:00, reports tick completed at 20:00:04 and recovery at 20:00:01 with error_count=0. At 20:00:55, schedule health healthy=true, each role had one worker and no issues; pending migrations remained false.
+- Frontend GitHub `school` verified at `8ab33e08343d1b1044eb86a1ee5d607d866cf97c`. All three existing Vercel integrations reported **Deployment was blocked**. New frontend UI is therefore not verified deployed; no manual deployment or integration/account setting changes were made. The school login URL was reachable in Chromium (HTTP 200, two login fields, no page errors), but that does not prove the new commit is live.
+- Backend development checkout retains the school feature commit `94d23e0` locally; production delivery followed the user's later branch instruction. It was not wholesale merged into production and the unrelated Admin supplement monitor was excluded.
+
+Historical “local/unpushed” statements in feature documents describe their original verification checkpoint. Local E2E covers permission removal preserving teaching login, but no real-account credential login/reset or complete teacher/student workflow was performed in production. No blanket zero-bug claim is made.

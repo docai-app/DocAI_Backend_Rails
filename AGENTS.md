@@ -44,6 +44,7 @@
 - 學校密碼授權使用 `GeneralUser.meta.school_password_access`，不新增表／欄位。新增流程從本校 active TeacherAssignment 的 teacher 選人，保留其角色、密碼、features 和原 school_id；meta 另記後台 school_id。舊獨立子帳號維持 school_password_manager。權限寫入只經本校主管理員接口；一般資料更新不可接受 meta／角色／學校歸屬欄位。
 - 必須同時保護 `/api/school/v1`、`/api/school_admin/v1` 及共用 API；授權精確匹配 active 学年＋active enrollment＋班名，空授權不得回退整校資料。撤權、停用及新密碼要檢查已發後台 token；既有老師的教學登入不受後台停用／移除影響。
 - 子帳號刪除使用既有 meta 的 deleted_at、enabled、grants 與 session_version，保留歷史及 Email 唯一性；不可透過 PATCH 復活。`SchoolPasswordAccess` 必須在 Devise modules 之後 include，避免 authentication hook 被覆蓋。班級清單為批次查詢，學年 include_classes 回應只供獲授權班級；class_name_exact 不可回退模糊比對。見 `docs/school-portal-management-2026-09-21.md`。
+- 學校 API 的唯讀 Rails runner 核查須與 ApiController 一樣切到 `public` tenant；不能用 runner 預設 search_path 查不到帳號便判斷正式資料不存在。不得輸出 JWT、密碼或學生資料。
 - 回歸：`test/integration/school_password_delegation_test.rb` 加 `test/integration/admin_api_authentication_test.rb`，沿用明確隔離 test DB；沒有本次 migration。詳情及部署狀態見 `docs/school-password-delegation.md`。
 
 - 既有老師的後台 JWT 只在 school session 派發時帶 school_password_version；它在通用 API 也受 allowlist 限制。普通教學 JWT 不帶此欄位。不可將老師持久角色改成管理員，也不可用後台 enabled/deleted_at 停用教學登入。單一老師目前只有一個後台學校上下文，不可跨校覆蓋既有授權。詳見 `docs/school-teacher-portal-access-2026-09-21.md`；回歸包含撤權前後舊／新教學登入與作業列表。
