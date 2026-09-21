@@ -1,5 +1,7 @@
 # School portal bug review — 2026-09-21
 
+Release tracking: [production release and verification](school-portal-release-2026-09-21.md). Local-only status below records the earlier verification checkpoint.
+
 Local review of the pending school portal changes. Frontend remains on `school`; backend remains on `development`. No push, deploy, migration, schema change or production access. Backend fetch still shows four separate remote commits ahead of this checkout; preserve/reconcile before authorized delivery.
 
 ## Findings and fixes

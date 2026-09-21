@@ -1,5 +1,7 @@
 # Existing teacher accounts: school portal access
 
+Release tracking: [production release and verification](school-portal-release-2026-09-21.md). Local-only status below records the earlier verification checkpoint.
+
 ## Status
 
 2026-09-21: user explicitly authorized reuse of existing teacher email/password and the necessary authentication/authorization changes; user additionally required teaching access to survive portal permission removal. Implemented locally on frontend school and backend development. Not pushed or deployed. No migrations, new tables/columns, or production data changes.

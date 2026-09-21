@@ -1,5 +1,7 @@
 # School portal loading, deletion and class filtering — 2026-09-21
 
+Release tracking: [production release and verification](school-portal-release-2026-09-21.md). Local-only status below records the earlier verification checkpoint.
+
 ## Scope and delivery
 
 Frontend: AIEnglish_Admin_Dashboard_Frontend, school; backend: DocAI_Backend_Rails, development. This change adds no migrations, tables or database structure. Current work is local, not pushed or deployed. Production response-time improvement has not been measured.

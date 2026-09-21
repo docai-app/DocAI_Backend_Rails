@@ -1,5 +1,7 @@
 # School portal API read performance — 2026-09-21
 
+Release tracking: [production release and verification](school-portal-release-2026-09-21.md). Local-only status below records the earlier verification checkpoint.
+
 ## Scope and status
 
 Local backend development changes, on top of the uncommitted school teacher/deletion changes. No push or deployment, no schema/index changes, no production data access. Checked out HEAD remains 9a482cb. Fetch found four newer origin/development commits through 086eea6; they touch separate admin supplementary-monitor work and documentation. Preserve/reconcile those commits before eventual authorized delivery; no force push or branch reset.
