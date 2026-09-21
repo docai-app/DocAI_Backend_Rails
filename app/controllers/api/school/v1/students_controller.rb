@@ -25,7 +25,9 @@ module Api
 
           scope = students_scope.where(student_enrollments: { school_academic_year_id: academic_year.id })
           scope = scope.merge(GeneralUser.search_query(params[:keyword])) if params[:keyword].present?
-          if params[:class_name].present?
+          if params[:class_name_exact].present?
+            scope = scope.where(student_enrollments: { class_name: params[:class_name_exact] })
+          elsif params[:class_name].present?
             term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:class_name].to_s)}%"
             scope = scope.where(
               'student_enrollments.class_name ILIKE ? OR general_users.banbie ILIKE ?',
@@ -45,9 +47,11 @@ module Api
 
           page = params[:page] || 1
           per_page = (params[:per_page] || 20).to_i.clamp(1, 100)
-          students = scope.includes(:student_enrollments).page(page).per(per_page)
+          students = scope.select(:id, :nickname, :email, :banbie, :class_no, :updated_at).page(page).per(per_page)
+          enrollments = StudentEnrollment.where(general_user_id: students.map(&:id), school_academic_year_id: academic_year.id)
+            .select(:general_user_id, :class_name, :class_number, :status).index_by(&:general_user_id)
 
-          rows = students.map { |u| student_json(u, academic_year: academic_year) }
+          rows = students.map { |u| student_json(u, academic_year: academic_year, enrollment: enrollments[u.id]) }
 
           render json: {
             success: true,
@@ -152,9 +156,8 @@ module Api
           }
         end
 
-        def student_json(user, academic_year:)
-          enrollment =
-            user.student_enrollments.find { |e| e.school_academic_year_id == academic_year.id }
+        def student_json(user, academic_year:, enrollment: nil)
+          enrollment ||= user.student_enrollments.find { |e| e.school_academic_year_id == academic_year.id }
 
           es = enrollment&.status || 'active'
 

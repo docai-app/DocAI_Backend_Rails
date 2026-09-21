@@ -53,7 +53,7 @@ module Api
         end
 
         def index
-          scope = assignments_scope.includes(:general_user, :essay_gradings)
+          scope = assignments_scope.preload(:general_user)
 
           if params[:search].present?
             search_term = "%#{params[:search]}%"
@@ -66,12 +66,8 @@ module Api
           scope = scope.where(category: params[:category]) if params[:category].present?
 
           if params[:creator_id].present?
-            cid = params[:creator_id].to_s
-            scope = if teacher_ids_for_current_school.include?(cid)
-                      scope.where(general_user_id: cid)
-                    else
-                      scope.none
-                    end
+            # assignments_scope already enforces this school's teacher ownership.
+            scope = scope.where(general_user_id: params[:creator_id].to_s)
           end
 
           if params[:start_date].present?
@@ -82,8 +78,8 @@ module Api
             scope = scope.where('essay_assignments.created_at <= ?', Date.parse(params[:end_date].to_s).end_of_day)
           end
 
-          sort_by = params[:sort_by].presence || 'created_at'
-          sort_order = params[:sort_order].presence || 'desc'
+          sort_by = params[:sort_by].presence_in(%w[created_at updated_at title topic category code submissions_count creator]) || 'created_at'
+          sort_order = params[:sort_order] == 'asc' ? 'asc' : 'desc'
 
           case sort_by
           when 'submissions_count'
@@ -108,7 +104,10 @@ module Api
             request: request
           )
 
-          assignments_data = assignments.map { |a| assignment_row(a) }
+          # Count on the database; do not load every student's answer just for a number.
+          page_assignments = assignments.to_a
+          submission_counts = EssayGrading.where(essay_assignment_id: page_assignments.map(&:id)).group(:essay_assignment_id).count
+          assignments_data = page_assignments.map { |a| assignment_row(a, submissions_count: submission_counts.fetch(a.id, 0)) }
 
           render json: {
             success: true,
@@ -226,12 +225,12 @@ module Api
         private
 
         def set_scoped_assignment
-          @essay_assignment = assignments_scope.includes(:general_user, :essay_gradings).find(params[:id])
+          @essay_assignment = assignments_scope.preload(:general_user).find(params[:id])
         rescue ActiveRecord::RecordNotFound
           render json: { success: false, error: 'Assignment not found' }, status: :not_found
         end
 
-        def assignment_row(assignment)
+        def assignment_row(assignment, submissions_count:)
           {
             id: assignment.id,
             title: assignment.title,
@@ -243,7 +242,7 @@ module Api
             remark: assignment.remark,
             created_at: assignment.created_at,
             updated_at: assignment.updated_at,
-            submissions_count: assignment.essay_gradings.loaded? ? assignment.essay_gradings.size : assignment.essay_gradings.count,
+            submissions_count: submissions_count,
             creator: assignment.general_user ? {
               id: assignment.general_user.id,
               nickname: assignment.general_user.nickname,
@@ -255,7 +254,7 @@ module Api
         end
 
         def assignment_detail(assignment, submissions_stats:)
-          recent_submissions = assignment.essay_gradings.includes(:general_user).order('essay_gradings.created_at DESC').limit(10).map do |grading|
+          recent_submissions = assignment.essay_gradings.includes(:general_user, :essay_assignment).order('essay_gradings.created_at DESC').limit(10).map do |grading|
             {
               id: grading.id,
               status: grading.status,
@@ -291,7 +290,7 @@ module Api
             rubric: assignment.rubric,
             graph_image_url: assignment.graph_image_url,
             statistics: {
-              total_submissions: assignment.essay_gradings.count,
+              total_submissions: submissions_stats.values.sum,
               submissions_stats: submissions_stats,
               recent_submissions: recent_submissions
             }

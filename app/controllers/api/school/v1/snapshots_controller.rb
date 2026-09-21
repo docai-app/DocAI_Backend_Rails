@@ -7,11 +7,12 @@ module Api
         LIMIT = 30
 
         def show
-          students_q = students_scope.order(updated_at: :desc).limit(LIMIT)
-          teachers_q = teachers_scope.order(updated_at: :desc).limit(LIMIT)
-          assignments_q = assignments_scope.includes(:general_user, :essay_gradings).order(created_at: :desc).limit(LIMIT)
-          recent_gradings = EssayGrading.joins(:essay_assignment)
-                                        .where(essay_assignments: { general_user_id: teacher_ids_for_current_school })
+          students_q = students_scope.select(:id, :nickname, :email, :banbie, :class_no, :locked_at, :updated_at).order(updated_at: :desc).limit(LIMIT)
+          teachers_q = teachers_scope.select(:id, :nickname, :email, :updated_at).order(updated_at: :desc).limit(LIMIT)
+          assignments_q = assignments_scope.preload(:general_user).order(created_at: :desc).limit(LIMIT).to_a
+          submission_counts = EssayGrading.where(essay_assignment_id: assignments_q.map(&:id)).group(:essay_assignment_id).count
+          school_gradings = EssayGrading.where(essay_assignment_id: assignments_scope.select(:id))
+          recent_gradings = school_gradings
                                         .includes(:general_user, :essay_assignment)
                                         .order(created_at: :desc)
                                         .limit(LIMIT)
@@ -27,14 +28,13 @@ module Api
                 students: students_scope.count,
                 teachers: teachers_scope.count,
                 assignments: assignments_scope.count,
-                recent_submissions: EssayGrading.joins(:essay_assignment)
-                                              .where(essay_assignments: { general_user_id: teacher_ids_for_current_school })
+                recent_submissions: school_gradings
                                               .where('essay_gradings.created_at >= ?', 7.days.ago)
                                               .count
               },
               students: students_q.map { |s| student_row(s) },
               teachers: teachers_q.map { |t| teacher_row(t) },
-              assignments: assignments_q.map { |a| assignment_summary(a) },
+              assignments: assignments_q.map { |a| assignment_summary(a, submissions_count: submission_counts.fetch(a.id, 0)) },
               submissions: recent_gradings.map { |g| submission_summary(g) },
               logs: logs.map { |l| log_row(l) }
             }
@@ -70,14 +70,14 @@ module Api
           }
         end
 
-        def assignment_summary(assignment)
+        def assignment_summary(assignment, submissions_count:)
           {
             id: assignment.id,
             title: assignment.title,
             topic: assignment.topic,
             category: assignment.category,
             created_at: assignment.created_at,
-            submissions_count: assignment.essay_gradings.size,
+            submissions_count: submissions_count,
             creator: assignment.general_user ? {
               id: assignment.general_user.id,
               nickname: assignment.general_user.nickname,
@@ -108,7 +108,7 @@ module Api
             action: log.action,
             target_type: log.target_type,
             target_id: log.target_id,
-            metadata: log.metadata,
+            metadata: log.metadata.except('default_password_label', 'password', 'password_confirmation'),
             ip_address: log.ip_address,
             created_at: log.created_at
           }

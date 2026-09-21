@@ -1,0 +1,320 @@
+{
+  "owner_before": {
+    "fixture": {
+      "teachers": 30,
+      "students": 400,
+      "years": 8,
+      "assignments": 30,
+      "gradings": 6000
+    },
+    "samples_per_endpoint": 7,
+    "includes_network": false,
+    "results": {
+      "me": {
+        "median_ms": 5.8,
+        "max_ms": 6.73,
+        "first": {
+          "ms": 6.13,
+          "selects": 4,
+          "allocations": 4193,
+          "records": {
+            "GeneralUser": 1,
+            "School": 1
+          }
+        }
+      },
+      "students": {
+        "median_ms": 14.45,
+        "max_ms": 20.02,
+        "first": {
+          "ms": 20.02,
+          "selects": 8,
+          "allocations": 8418,
+          "records": {
+            "GeneralUser": 21,
+            "School": 1,
+            "SchoolAcademicYear": 2,
+            "StudentEnrollment": 20
+          }
+        }
+      },
+      "teachers": {
+        "median_ms": 16.74,
+        "max_ms": 35.77,
+        "first": {
+          "ms": 15.69,
+          "selects": 8,
+          "allocations": 10382,
+          "records": {
+            "GeneralUser": 21,
+            "School": 1,
+            "SchoolAcademicYear": 2
+          }
+        }
+      },
+      "classes": {
+        "median_ms": 13.54,
+        "max_ms": 44.26,
+        "first": {
+          "ms": 44.26,
+          "selects": 6,
+          "allocations": 4955,
+          "records": {
+            "GeneralUser": 1,
+            "School": 1,
+            "SchoolAcademicYear": 8
+          }
+        }
+      },
+      "assignments": {
+        "median_ms": 592.62,
+        "max_ms": 647.11,
+        "first": {
+          "ms": 569.04,
+          "selects": 8,
+          "allocations": 193112,
+          "records": {
+            "GeneralUser": 1,
+            "School": 2,
+            "EssayAssignment": 4000
+          }
+        }
+      },
+      "assignment_detail": {
+        "median_ms": 37.63,
+        "max_ms": 41.74,
+        "first": {
+          "ms": 41.74,
+          "selects": 12,
+          "allocations": 13347,
+          "records": {
+            "GeneralUser": 2,
+            "School": 2,
+            "EssayAssignment": 1,
+            "EssayGrading": 210
+          }
+        }
+      },
+      "snapshot": {
+        "median_ms": 662.14,
+        "max_ms": 854.72,
+        "first": {
+          "ms": 662.14,
+          "selects": 16,
+          "allocations": 148531,
+          "records": {
+            "GeneralUser": 91,
+            "School": 1,
+            "EssayAssignment": 30,
+            "EssayGrading": 6030,
+            "SchoolAdminAuditLog": 16
+          }
+        }
+      }
+    }
+  },
+  "owner_after": {
+    "fixture": {
+      "teachers": 30,
+      "students": 400,
+      "years": 8,
+      "assignments": 30,
+      "gradings": 6000
+    },
+    "samples_per_endpoint": 7,
+    "includes_network": false,
+    "many_grants": false,
+    "legacy_grants": false,
+    "results": {
+      "me": {
+        "median_ms": 5.72,
+        "max_ms": 8.39,
+        "first": {
+          "ms": 5.82,
+          "selects": 4,
+          "allocations": 4184,
+          "records": {
+            "GeneralUser": 1,
+            "School": 1
+          }
+        }
+      },
+      "students": {
+        "median_ms": 17.21,
+        "max_ms": 39.25,
+        "first": {
+          "ms": 12.6,
+          "selects": 8,
+          "allocations": 8408,
+          "records": {
+            "GeneralUser": 21,
+            "School": 1,
+            "SchoolAcademicYear": 2,
+            "StudentEnrollment": 20
+          }
+        }
+      },
+      "teachers": {
+        "median_ms": 20.03,
+        "max_ms": 33.81,
+        "first": {
+          "ms": 27.2,
+          "selects": 8,
+          "allocations": 10385,
+          "records": {
+            "GeneralUser": 21,
+            "School": 1,
+            "SchoolAcademicYear": 2
+          }
+        }
+      },
+      "classes": {
+        "median_ms": 8.75,
+        "max_ms": 32.21,
+        "first": {
+          "ms": 21.42,
+          "selects": 6,
+          "allocations": 4943,
+          "records": {
+            "GeneralUser": 1,
+            "School": 1,
+            "SchoolAcademicYear": 8
+          }
+        }
+      },
+      "assignments": {
+        "median_ms": 16.19,
+        "max_ms": 19.42,
+        "first": {
+          "ms": 16.19,
+          "selects": 8,
+          "allocations": 11494,
+          "records": {
+            "GeneralUser": 21,
+            "School": 2,
+            "EssayAssignment": 20
+          }
+        }
+      },
+      "assignment_detail": {
+        "median_ms": 19.27,
+        "max_ms": 39.59,
+        "first": {
+          "ms": 18.21,
+          "selects": 9,
+          "allocations": 8311,
+          "records": {
+            "GeneralUser": 2,
+            "School": 2,
+            "EssayAssignment": 1,
+            "EssayGrading": 10
+          }
+        }
+      },
+      "snapshot": {
+        "median_ms": 45.24,
+        "max_ms": 65.09,
+        "first": {
+          "ms": 43.33,
+          "selects": 15,
+          "allocations": 26192,
+          "records": {
+            "GeneralUser": 91,
+            "School": 1,
+            "EssayAssignment": 30,
+            "EssayGrading": 30,
+            "SchoolAdminAuditLog": 16
+          }
+        }
+      }
+    }
+  },
+  "delegated_300_classes_before": {
+    "fixture": {
+      "teachers": 30,
+      "students": 400,
+      "years": 8,
+      "assignments": 30,
+      "gradings": 6000
+    },
+    "samples_per_endpoint": 7,
+    "includes_network": false,
+    "many_grants": true,
+    "legacy_grants": true,
+    "results": {
+      "students": {
+        "median_ms": 478.82,
+        "max_ms": 522.75,
+        "first": {
+          "ms": 470.25,
+          "selects": 9,
+          "allocations": 36630,
+          "records": {
+            "GeneralUser": 21,
+            "School": 1,
+            "SchoolAcademicYear": 2,
+            "StudentEnrollment": 20
+          }
+        }
+      },
+      "classes": {
+        "median_ms": 44.59,
+        "max_ms": 50.97,
+        "first": {
+          "ms": 46.91,
+          "selects": 7,
+          "allocations": 35079,
+          "records": {
+            "GeneralUser": 1,
+            "School": 1,
+            "SchoolAcademicYear": 1
+          }
+        }
+      }
+    }
+  },
+  "delegated_300_classes_after": {
+    "fixture": {
+      "teachers": 30,
+      "students": 400,
+      "years": 8,
+      "assignments": 30,
+      "gradings": 6000
+    },
+    "samples_per_endpoint": 7,
+    "includes_network": false,
+    "many_grants": true,
+    "legacy_grants": false,
+    "results": {
+      "students": {
+        "median_ms": 24.05,
+        "max_ms": 35.12,
+        "first": {
+          "ms": 29.15,
+          "selects": 9,
+          "allocations": 16093,
+          "records": {
+            "GeneralUser": 21,
+            "School": 1,
+            "SchoolAcademicYear": 2,
+            "StudentEnrollment": 20
+          }
+        }
+      },
+      "classes": {
+        "median_ms": 23.61,
+        "max_ms": 55.0,
+        "first": {
+          "ms": 55.0,
+          "selects": 7,
+          "allocations": 14484,
+          "records": {
+            "GeneralUser": 1,
+            "School": 1,
+            "SchoolAcademicYear": 1
+          }
+        }
+      }
+    }
+  }
+}

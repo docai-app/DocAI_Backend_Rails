@@ -41,6 +41,13 @@
 
 ## 學校子帳號的班級密碼授權
 
-- 學校密碼子帳號使用 `GeneralUser.meta.school_password_access`，角色為 `school_password_manager`，不新增表／欄位。權限寫入只經本校主管理員接口；一般資料更新不可接受 meta／角色／學校歸屬欄位。
-- 必須同時保護 `/api/school/v1`、`/api/school_admin/v1` 及共用 API；授權精確匹配 active 学年＋active enrollment＋班名，空授權不得回退整校資料。撤權、停用及新密碼要檢查已發 token。
+- 學校密碼授權使用 `GeneralUser.meta.school_password_access`，不新增表／欄位。新增流程從本校 active TeacherAssignment 的 teacher 選人，保留其角色、密碼、features 和原 school_id；meta 另記後台 school_id。舊獨立子帳號維持 school_password_manager。權限寫入只經本校主管理員接口；一般資料更新不可接受 meta／角色／學校歸屬欄位。
+- 必須同時保護 `/api/school/v1`、`/api/school_admin/v1` 及共用 API；授權精確匹配 active 学年＋active enrollment＋班名，空授權不得回退整校資料。撤權、停用及新密碼要檢查已發後台 token；既有老師的教學登入不受後台停用／移除影響。
+- 子帳號刪除使用既有 meta 的 deleted_at、enabled、grants 與 session_version，保留歷史及 Email 唯一性；不可透過 PATCH 復活。`SchoolPasswordAccess` 必須在 Devise modules 之後 include，避免 authentication hook 被覆蓋。班級清單為批次查詢，學年 include_classes 回應只供獲授權班級；class_name_exact 不可回退模糊比對。見 `docs/school-portal-management-2026-09-21.md`。
 - 回歸：`test/integration/school_password_delegation_test.rb` 加 `test/integration/admin_api_authentication_test.rb`，沿用明確隔離 test DB；沒有本次 migration。詳情及部署狀態見 `docs/school-password-delegation.md`。
+
+- 既有老師的後台 JWT 只在 school session 派發時帶 school_password_version；它在通用 API 也受 allowlist 限制。普通教學 JWT 不帶此欄位。不可將老師持久角色改成管理員，也不可用後台 enabled/deleted_at 停用教學登入。單一老師目前只有一個後台學校上下文，不可跨校覆蓋既有授權。詳見 `docs/school-teacher-portal-access-2026-09-21.md`；回歸包含撤權前後舊／新教學登入與作業列表。
+
+- 學校 API 清單不得為提交數量 preload 全部 essay_gradings；用本頁作業 ID 做 grouped count，詳情／總覽的 grading 載入保持 10／30 筆界限。受限學生 scope 直接在同一 enrollment join 套用學校、active 狀態及按學年分組的精確班級條件，不可拆成年份／班級交叉組合。效能回歸、隔離 benchmark 與實測限制見 `docs/school-portal-api-performance-2026-09-21.md`。
+
+- 學校作業 scope 不可僅按老師任教關係：有明確學年的作業須屬本校學年；無學年的舊作業僅在老師沒有任何他校任教關係時保留相容讀取，跨校歸屬不明則隱藏，不猜測歸屬。首頁 grading／統計也必須重用 assignments_scope。Snapshot 與 audit_logs 回傳均遮蔽历史密碼 metadata。複查與回歸見 `docs/school-portal-bug-review-2026-09-21.md`。

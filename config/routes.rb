@@ -652,7 +652,8 @@ Rails.application.routes.draw do
           delete 'session', to: 'sessions#destroy'
           get 'snapshot', to: 'snapshots#show'
           get 'me', to: 'profiles#show'
-          resources :password_managers, only: %i[index create update] do
+          resources :password_managers, only: %i[index create update destroy] do
+            get :teachers, on: :collection
             get :classes, on: :collection
           end
           resources :academic_years, only: [:index]
