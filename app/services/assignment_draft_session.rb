@@ -22,9 +22,9 @@ class AssignmentDraftSession
   end
 
   def current
-    rows = scope.where(status: :draft).order(:created_at).limit(2).to_a
-    raise Conflict, 'Your saved drafts need review. Please contact your teacher.' if rows.size > 1
-    rows.first
+    # Entry by code reuses one deterministic draft; explicit IDs can use any
+    # historical sibling. Opening must never create another duplicate.
+    scope.where(status: :draft).order(:created_at, :id).first
   end
 
   def prepare(request_id)
@@ -133,7 +133,7 @@ class AssignmentDraftSession
       return [record, state, true]
     end
     raise Conflict, 'This work has already been submitted. Please view your submission.' if record.persisted? && !record.draft?
-    raise Conflict, 'Please open your saved draft before submitting.' if draft && record.id != draft.id
+    # Explicit historical draft IDs are allowed; scope.lock.find enforces ownership.
     if (state['versioned'] || Array(state['open_requests']).any?) && (revision.nil? || request_id.blank?)
       raise Conflict, 'Please reopen your saved draft before saving or submitting.'
     end
