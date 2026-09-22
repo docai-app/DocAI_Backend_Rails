@@ -4,8 +4,27 @@
 module SchoolPasswordAccess
   extend ActiveSupport::Concern
 
-  def school_password_manager?
+  # Transient marker for school portal JWT dispatch; never persisted.
+  attr_accessor :school_portal_login
+
+  def dedicated_school_password_manager?
     meta['aienglish_role'] == 'school_password_manager'
+  end
+
+  def linked_school_password_teacher?
+    aienglish_role == 'teacher' && school_password_access['school_id'].present?
+  end
+
+  def school_password_manager?
+    dedicated_school_password_manager? || linked_school_password_teacher?
+  end
+
+  def school_portal_school
+    linked_school_password_teacher? ? School.find_by(id: school_password_access['school_id']) : school
+  end
+
+  def school_portal_role
+    school_password_manager? ? 'school_password_manager' : aienglish_role
   end
 
   def school_password_access
@@ -24,11 +43,17 @@ module SchoolPasswordAccess
   end
 
   def portal_password_manager?
-    school_password_manager? && school_id.present? && school_password_access['enabled'] == true
+    return false unless school_password_manager? && school_password_access['enabled'] == true &&
+                        school_password_access['deleted_at'].blank?
+    return school_id.present? if dedicated_school_password_manager?
+
+    # Re-check employment on portal requests, including after transfer/resignation.
+    teacher_assignments.joins(:school_academic_year).where(status: :active,
+      school_academic_years: { school_id: school_password_access['school_id'], status: SchoolAcademicYear.statuses[:active] }).exists?
   end
 
   def active_for_authentication?
-    super && (!school_password_manager? || portal_password_manager?)
+    super && (!dedicated_school_password_manager? || portal_password_manager?)
   end
 
   def school_portal_capabilities

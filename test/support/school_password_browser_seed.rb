@@ -19,4 +19,15 @@ owner.save!
     e.class_name = klass; e.class_number = '1'; e.status = :active; e.meta = {}
   end
 end
+# Existing teaching accounts, including enough rows to exercise picker pagination.
+24.times do |index|
+  email = index.zero? ? 'teacher-existing@delegation.example.test' : "teacher-picker-#{index.to_s.rjust(2, '0')}@delegation.example.test"
+  teacher = GeneralUser.find_or_initialize_by(email: email)
+  teacher.assign_attributes(nickname: index.zero? ? '授權測試老師' : "名單測試老師 #{index.to_s.rjust(2, '0')}",
+    password: 'LocalTeacher123!', meta: { 'aienglish_role' => 'teacher', 'aienglish_features_list' => ['essay'] }, konnecai_tokens: {})
+  teacher.save!
+  TeacherAssignment.find_or_create_by!(general_user: teacher, school_academic_year: year) do |assignment|
+    assignment.department = 'English'; assignment.position = 'Teacher'; assignment.status = :active; assignment.meta = {}
+  end
+end
 puts 'Synthetic school browser fixture ready.'

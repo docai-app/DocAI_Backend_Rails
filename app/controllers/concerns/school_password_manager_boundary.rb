@@ -22,13 +22,19 @@ module SchoolPasswordManagerBoundary
     return if controller_path == 'api/school/v1/sessions' && action_name == 'create'
 
     actor = current_general_user
-    return unless actor&.school_password_manager?
+    return unless actor
+    authorization = request.headers['Authorization'].to_s
+    token = authorization.delete_prefix('Bearer ') if authorization.start_with?('Bearer ')
+    version = Warden::JWTAuth::TokenDecoder.new.call(token)['school_password_version'] if token.present?
+    portal_request = controller_path.start_with?('api/school/v1/')
+    # Normal teacher JWTs keep teaching access; portal JWTs remain restricted
+    # everywhere, even after their linked permission is removed.
+    return unless actor.dedicated_school_password_manager? || version.present? ||
+                  (portal_request && actor.linked_school_password_teacher?)
 
     response.headers['Cache-Control'] = 'no-store'
-    token = request.headers['Authorization'].to_s.delete_prefix('Bearer ')
-    version = Warden::JWTAuth::TokenDecoder.new.call(token)['school_password_version'] if token.present?
     valid_session = version.present? && version == actor.school_password_access['session_version']
-    return if actor.active_for_authentication? && valid_session &&
+    return if actor.active_for_authentication? && actor.portal_password_manager? && valid_session &&
               ALLOWED_ACTIONS.fetch(controller_path, []).include?(action_name)
 
     render json: { success: false, error: 'Forbidden.' }, status: :forbidden

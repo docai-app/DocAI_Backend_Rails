@@ -20,27 +20,39 @@ module Api
         end
 
         def current_school
-          @current_school ||= current_general_user.school
+          @current_school ||= current_general_user.school_portal_school
         end
 
         def teacher_ids_for_current_school
           @teacher_ids_for_current_school ||= GeneralUser.joins(teacher_assignments: :school_academic_year)
                                                        .where(school_academic_years: { school_id: current_school.id })
                                                        .distinct
-                                                       .pluck(:id)
+                                                       .select(:id)
         end
 
         def assignments_scope
-          EssayAssignment.where(general_user_id: teacher_ids_for_current_school)
+          scope = EssayAssignment.where(general_user_id: teacher_ids_for_current_school)
+          # A shared/transferred teacher is not proof that all of their work belongs here.
+          explicit_year = scope.where(school_academic_year_id: current_school.school_academic_years.select(:id))
+          other_school_teachers = TeacherAssignment.joins(:school_academic_year)
+            .where.not(school_academic_years: { school_id: current_school.id }).select(:general_user_id)
+          legacy = scope.where(school_academic_year_id: nil).where.not(general_user_id: other_school_teachers)
+          explicit_year.or(legacy)
         end
 
         def authorized_student_enrollments
-          scope = StudentEnrollment.joins(:school_academic_year)
-                                   .where(school_academic_years: { school_id: current_school.id, status: SchoolAcademicYear.statuses[:active] })
-                                   .where(status: StudentEnrollment.statuses[:active])
+          apply_school_password_grants(StudentEnrollment.joins(:school_academic_year))
+        end
+
+        # Both catalogue and student reads constrain the same enrollment row.
+        # Applying it directly to the existing join avoids a second enrollment subquery.
+        def apply_school_password_grants(scope)
+          scope = scope.where(school_academic_years: { school_id: current_school.id, status: SchoolAcademicYear.statuses[:active] },
+                              student_enrollments: { status: StudentEnrollment.statuses[:active] })
           grants = current_general_user.school_password_grants
-          grants.reduce(scope.none) do |allowed, grant|
-            allowed.or(scope.where(school_academic_year_id: grant['school_academic_year_id'], class_name: grant['class_name']))
+          grants.group_by { |grant| grant['school_academic_year_id'] }.reduce(scope.none) do |allowed, (year_id, year_grants)|
+            allowed.or(scope.where(student_enrollments: { school_academic_year_id: year_id,
+              class_name: year_grants.map { |grant| grant['class_name'] }.uniq }))
           end
         end
 
@@ -49,7 +61,7 @@ module Api
                              .where(school_academic_years: { school_id: current_school.id }).distinct
           return scope unless current_general_user.school_password_manager?
 
-          scope.where(student_enrollments: { id: authorized_student_enrollments.select(:id) })
+          apply_school_password_grants(scope)
                .where("general_users.meta->>'aienglish_role' = ?", 'student')
         end
 

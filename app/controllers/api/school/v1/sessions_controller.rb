@@ -18,10 +18,11 @@ module Api
             return render json: { success: false, error: 'Invalid email or password.' }, status: :unauthorized
           end
 
-          sign_in(:general_user, user)
+          user.school_portal_login = true if user.linked_school_password_teacher?
+          sign_in(:general_user, user, store: false, force: true)
           SchoolPortal::AuditLogger.log!(
             actor: user,
-            school: user.school,
+            school: user.school_portal_school,
             action: 'school_admin_signed_in',
             request: request
           )
@@ -31,14 +32,14 @@ module Api
             message: 'Logged in successfully.',
             data: {
               user: session_user_json(user),
-              school: session_school_json(user.school)
+              school: session_school_json(user.school_portal_school)
             }
           }, status: :ok
         end
 
         def destroy
           user = current_general_user
-          school = user.school
+          school = user.school_portal_school
           SchoolPortal::AuditLogger.log!(
             actor: user,
             school: school,
@@ -60,7 +61,7 @@ module Api
         def session_user_json(user)
           user.as_json(only: %i[id email nickname created_at updated_at school_id],
                        methods: [])
-              .merge('aienglish_role' => user.aienglish_role, 'capabilities' => user.school_portal_capabilities,
+              .merge('aienglish_role' => user.school_portal_role, 'capabilities' => user.school_portal_capabilities,
                      'class_grants' => user.school_password_grants)
         end
 
