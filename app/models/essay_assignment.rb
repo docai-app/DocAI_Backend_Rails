@@ -81,11 +81,18 @@ class EssayAssignment < ApplicationRecord
   SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY = 'speaking_pronunciation_sentences'
   SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY = 'speaking_conversation'
   TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY = 'talk_lab_speaking'
+  # 列表接口一律剔除的大体积 meta 字段（详情接口仍完整返回）
+  LIST_META_EXCLUDE_KEYS = %w[
+    speaking_pronunciation_sentences
+    vocab_examples
+    vocabs
+    sentence_puzzle
+  ].freeze
 
   def self.meta_for_list_response(meta, category: nil)
     return meta unless meta.is_a?(Hash)
 
-    filtered = meta.except(SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY)
+    filtered = meta.except(*LIST_META_EXCLUDE_KEYS)
     return filtered.except(TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY) if talk_lab_speaking_category?(category)
     return filtered unless speaking_conversation_category?(category)
 
@@ -95,15 +102,19 @@ class EssayAssignment < ApplicationRecord
   def self.list_meta_sql_select
     speaking_conversation_category = categories['speaking_conversation']
     talk_lab_speaking_category = categories['talk_lab_speaking']
+    # PostgreSQL jsonb - 'key' 链式剔除大字段
+    stripped_meta = LIST_META_EXCLUDE_KEYS.reduce('essay_assignments.meta') do |expr, key|
+      "#{expr} - '#{key}'"
+    end
 
     <<~SQL.squish
       CASE
         WHEN essay_assignments.category = #{speaking_conversation_category} THEN
-          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' - '#{SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY}'
+          #{stripped_meta} - '#{SPEAKING_CONVERSATION_LIST_META_EXCLUDE_KEY}'
         WHEN essay_assignments.category = #{talk_lab_speaking_category} THEN
-          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}' - '#{TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY}'
+          #{stripped_meta} - '#{TALK_LAB_SPEAKING_LIST_META_EXCLUDE_KEY}'
         ELSE
-          essay_assignments.meta - '#{SPEAKING_PRONUNCIATION_LIST_META_EXCLUDE_KEY}'
+          #{stripped_meta}
       END AS meta
     SQL
   end

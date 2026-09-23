@@ -69,9 +69,11 @@ module Api
 
         # 作业列表管理
         # GET /api/admin/v1/essay_assignments
+        # 注意：不要 includes(:essay_gradings)。预加载/JOIN 全部提交记录会在大数据量下
+        # 拖垮分页 DISTINCT 查询，导致 Admin 前端代理 30s 超时并返回 502。
         def index
-          @essay_assignments = EssayAssignment.includes(:general_user, :essay_gradings)
-          
+          @essay_assignments = EssayAssignment.includes(:general_user, :community)
+
           # 搜索过滤
           if params[:search].present?
             search_term = "%#{params[:search]}%"
@@ -81,30 +83,30 @@ module Api
                                                     search_term, search_term, search_term, search_term, search_term, search_term
                                                   )
           end
-          
+
           # 类别过滤
           if params[:category].present?
             @essay_assignments = @essay_assignments.where(category: params[:category])
           end
-          
+
           # 创建者过滤
           if params[:creator_id].present?
             @essay_assignments = @essay_assignments.where(general_user_id: params[:creator_id])
           end
-          
+
           # 日期范围过滤
           if params[:start_date].present?
             @essay_assignments = @essay_assignments.where('essay_assignments.created_at >= ?', Date.parse(params[:start_date]))
           end
-          
+
           if params[:end_date].present?
             @essay_assignments = @essay_assignments.where('essay_assignments.created_at <= ?', Date.parse(params[:end_date]).end_of_day)
           end
-          
+
           # 排序
           sort_by = params[:sort_by] || 'created_at'
           sort_order = params[:sort_order] || 'desc'
-          
+
           case sort_by
           when 'submissions_count'
             @essay_assignments = @essay_assignments.left_joins(:essay_gradings)
@@ -123,12 +125,18 @@ module Api
                           end
             @essay_assignments = @essay_assignments.order("#{table_prefix}#{sort_by} #{sort_order}")
           end
-          
+
           # 分页
           page = params[:page] || 1
           per_page = params[:per_page] || 20
           @essay_assignments = @essay_assignments.page(page).per(per_page)
-          
+
+          # 当前页提交数一次聚合查出，避免 N+1 与大表 preload
+          submission_counts = EssayGrading
+                                .where(essay_assignment_id: @essay_assignments.map(&:id))
+                                .group(:essay_assignment_id)
+                                .count
+
           # 构建响应数据
           assignments_data = @essay_assignments.map do |assignment|
             {
@@ -142,7 +150,7 @@ module Api
               remark: assignment.remark,
               created_at: assignment.created_at,
               updated_at: assignment.updated_at,
-              submissions_count: assignment.essay_gradings.count,
+              submissions_count: submission_counts[assignment.id] || 0,
               creator: {
                 id: assignment.general_user.id,
                 nickname: assignment.general_user.nickname,
@@ -153,11 +161,12 @@ module Api
                 name: assignment.community.name,
                 code: assignment.community.code
               } : nil,
-              meta: assignment.meta,
+              # 列表不返回 vocabs / vocab_examples / speaking_pronunciation_sentences / sentence_puzzle 等大字段
+              meta: EssayAssignment.meta_for_list_response(assignment.meta, category: assignment.category),
               rubric: assignment.rubric
             }
           end
-          
+
           render json: {
             success: true,
             data: {
