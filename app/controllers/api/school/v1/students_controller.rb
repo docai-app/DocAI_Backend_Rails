@@ -108,13 +108,20 @@ module Api
             student = scope.find_by(id: params[:id])
             return render json: { success: false, error: 'Student not found' }, status: :not_found unless student
 
-            student.password = SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD
-            student.save!
-            SchoolPortal::AuditLogger.log!(
-              actor: current_general_user, school: current_school,
-              action: 'student_password_reset', target: student,
-              metadata: { reset_to_default_password: true }, request: request
-            )
+            student.with_lock do
+              was_locked = student.locked_at.present?
+              # Persist Devise's unlock fields with the new password in one validated save.
+              student.assign_attributes(
+                password: SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD,
+                locked_at: nil, failed_attempts: 0, unlock_token: nil
+              )
+              student.save!
+              SchoolPortal::AuditLogger.log!(
+                actor: current_general_user, school: current_school,
+                action: 'student_password_reset', target: student,
+                metadata: { reset_to_default_password: true, account_unlocked: was_locked }, request: request
+              )
+            end
           end
           render json: { success: true, message: 'Password reset.' }, status: :ok
         rescue ActiveRecord::RecordInvalid => e

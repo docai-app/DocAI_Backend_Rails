@@ -82,6 +82,107 @@ class SchoolPasswordDelegationTest < ActionDispatch::IntegrationTest
     refute_includes logs.last.metadata.to_json, SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD
   end
 
+  test 'password reset unlocks students for owners and managers through both aliases' do
+    [@owner, @manager].each do |actor|
+      %w[school school_admin].each do |prefix|
+        @student.update!(password: 'BeforeReset123!', locked_at: Time.current,
+          failed_attempts: 20, unlock_token: SecureRandom.hex(16))
+        assert @student.access_locked?
+        post "/api/#{prefix}/v1/students/#{@student.id}/reset_password", headers: headers(actor), as: :json,
+          params: { school_academic_year_id: @year.id }
+        assert_response :success
+        @student.reload
+        assert @student.valid_password?(SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD)
+        refute @student.valid_password?('BeforeReset123!')
+        assert_nil @student.locked_at
+        assert_nil @student.unlock_token
+        assert_equal 0, @student.failed_attempts
+        refute @student.access_locked?
+        log = SchoolAdminAuditLog.where(actor_id: actor.id, target_id: @student.id, action: 'student_password_reset').order(:created_at).last
+        assert_equal true, log.metadata['account_unlocked']
+        refute_includes log.metadata.to_json, SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD
+
+        reset!
+        host! 'localhost'
+        post '/general_users/sign_in.json', as: :json,
+          params: { general_user: { email: @student.email, password: SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD } }
+        assert_response :success
+        reset!
+        host! 'localhost'
+      end
+    end
+  end
+
+  test 'linked teacher portal can reset and unlock only an authorized class' do
+    teacher = employed_teacher(@year)
+    post '/api/school_admin/v1/password_managers', headers: headers(@owner), as: :json,
+      params: { teacher_id: teacher.id, grants: [grant(@year, '1A')] }
+    assert_response :created
+    post '/api/school_admin/v1/session', as: :json,
+      params: { email: teacher.email, password: 'Password123!' }
+    assert_response :success
+    portal_headers = { 'Authorization' => response.headers['Authorization'] }
+    [@student, @other_class].each do |target|
+      target.update!(locked_at: Time.current, failed_attempts: 20, unlock_token: SecureRandom.hex(16))
+    end
+    denied_before = @other_class.reload.attributes.slice('encrypted_password', 'locked_at', 'failed_attempts', 'unlock_token')
+    post "/api/school_admin/v1/students/#{@other_class.id}/reset_password", headers: portal_headers, as: :json,
+      params: { school_academic_year_id: @year.id }
+    assert_response :not_found
+    assert_equal denied_before, @other_class.reload.attributes.slice(*denied_before.keys)
+    post "/api/school_admin/v1/students/#{@student.id}/reset_password", headers: portal_headers, as: :json,
+      params: { school_academic_year_id: @year.id }
+    assert_response :success
+    assert @student.reload.valid_password?(SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD)
+    assert_nil @student.locked_at
+    assert_nil @student.unlock_token
+    assert_equal 0, @student.failed_attempts
+    assert_equal 'teacher', teacher.reload.aienglish_role
+    assert teacher.valid_password?('Password123!')
+  end
+
+  test 'reset clears failed attempts on an unlocked student too' do
+    @student.update!(failed_attempts: 3, unlock_token: SecureRandom.hex(16))
+    post "/api/school_admin/v1/students/#{@student.id}/reset_password", headers: headers(@manager), as: :json
+    assert_response :success
+    assert_equal 0, @student.reload.failed_attempts
+    assert_nil @student.locked_at
+    assert_nil @student.unlock_token
+    assert @student.valid_password?(SchoolPortal::DEFAULT_STUDENT_RESET_PASSWORD)
+    log = SchoolAdminAuditLog.find_by!(target_id: @student.id, action: 'student_password_reset')
+    assert_equal false, log.metadata['account_unlocked']
+  end
+
+  test 'failed reset validation preserves both the original password and lock' do
+    @student.update!(locked_at: Time.current, failed_attempts: 20, unlock_token: SecureRandom.hex(16))
+    # A legacy invalid record must not be unlocked when the password cannot save.
+    @student.update_column(:email, '')
+    before = @student.reload.attributes.slice('encrypted_password', 'locked_at', 'failed_attempts', 'unlock_token')
+    assert_no_difference 'SchoolAdminAuditLog.count' do
+      post "/api/school_admin/v1/students/#{@student.id}/reset_password", headers: headers(@manager), as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_equal before, @student.reload.attributes.slice(*before.keys)
+  end
+
+  test 'denied resets never change lock state in other classes years or schools' do
+    other_year = year(@school)
+    foreign_school = School.create!(name: 'Locked outside school', code: SecureRandom.hex(6), meta: {})
+    targets = [@other_class, student(other_year, '1A'), student(year(foreign_school), '1A')]
+    targets.each do |target|
+      target.update!(locked_at: Time.current, failed_attempts: 20, unlock_token: SecureRandom.hex(16))
+      before = target.reload.attributes.slice('encrypted_password', 'locked_at', 'failed_attempts', 'unlock_token')
+      %w[school school_admin].each do |prefix|
+        assert_no_difference 'SchoolAdminAuditLog.count' do
+          post "/api/#{prefix}/v1/students/#{target.id}/reset_password", headers: headers(@manager), as: :json,
+            params: { school_academic_year_id: @year.id }
+        end
+        assert_response :not_found
+        assert_equal before, target.reload.attributes.slice(*before.keys)
+      end
+    end
+  end
+
   test 'other schools and same named classes in different years never match' do
     second_year = year(@school)
     other = student(second_year, '1A')

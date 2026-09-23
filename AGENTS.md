@@ -43,6 +43,7 @@
 
 ## 學校子帳號的班級密碼授權
 
+- 學校學生重設密碼同時清除 Devise 的 `locked_at`、`failed_attempts`、`unlock_token`，與新密碼在學生 row lock 內一次 validated save，沿用 actor row lock 與精確班級授權。密碼驗證失敗不得先解鎖；audit 記錄 `account_unlocked`，不記密碼。兩個 API 別名及既有老師後台登入均須驗證；`school_password_reset_transaction_test.rb` 使用實際 transaction 驗證 audit 失敗回滾及同一學生併發重設，鎖等待觀察須 uncached。見 `docs/school-password-reset-unlock-2026-09-23.md`。
 - 學校密碼授權使用 `GeneralUser.meta.school_password_access`，不新增表／欄位。新增流程從本校 active TeacherAssignment 的 teacher 選人，保留其角色、密碼、features 和原 school_id；meta 另記後台 school_id。舊獨立子帳號維持 school_password_manager。權限寫入只經本校主管理員接口；一般資料更新不可接受 meta／角色／學校歸屬欄位。
 - 必須同時保護 `/api/school/v1`、`/api/school_admin/v1` 及共用 API；授權精確匹配 active 学年＋active enrollment＋班名，空授權不得回退整校資料。撤權、停用及新密碼要檢查已發後台 token；既有老師的教學登入不受後台停用／移除影響。
 - 子帳號刪除使用既有 meta 的 deleted_at、enabled、grants 與 session_version，保留歷史及 Email 唯一性；不可透過 PATCH 復活。`SchoolPasswordAccess` 必須在 Devise modules 之後 include，避免 authentication hook 被覆蓋。班級清單為批次查詢，學年 include_classes 回應只供獲授權班級；class_name_exact 不可回退模糊比對。見 `docs/school-portal-management-2026-09-21.md`。
