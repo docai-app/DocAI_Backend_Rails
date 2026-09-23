@@ -44,4 +44,17 @@
 3. 只停止 `docai_backend_rails-docai-rails-1`、`docai_backend_rails-sidekiq-1`、`aienglish-operations-reports`、`aienglish-generation-recovery`。`git merge --ff-only <verified SHA>`，再啟動同一四個容器。Redis、QG、其他服務不重啟，不執行舊 deploy.sh、migration、compose down、prune 或 image build。
 4. 核對 GitHub/正式 HEAD、容器狀態及環境摘要、載入的 reset 原始碼、HTTP 唯讀接口、worker registry 與排程健康。正式資料不作測試重設；功能以 43 項隔離測試驗證。
 
-回退 baseline 為 `1165e51a88ef97f4e4ac3f61f0078e94d9c61aba`。需要回退時先按相同 quiet/drain 順序停止四個服務，保留 Redis/runtime/排隊工作，將應用回到 baseline（GitHub 記錄對應 revert），再啟動及驗證。只回退程式，不回寫已重設的密碼或重新鎖定帳號。實際發布結果在完成後補記，以上流程不代表已部署。
+回退 baseline 為 `1165e51a88ef97f4e4ac3f61f0078e94d9c61aba`。需要回退時先按相同 quiet/drain 順序停止四個服務，保留 Redis/runtime/排隊工作，將應用回到 baseline（GitHub 記錄對應 revert），再啟動及驗證。只回退程式，不回寫已重設的密碼或重新鎖定帳號。實際發布結果如下。
+
+
+## 正式發布結果（2026-09-23）
+
+- 應用修正提交 `fd3c72f1e87f849cca20b5306adcdaab9245c1d3` 已 atomic push 至 GitHub development 與 production，兩分支相同、沒有 force push。正式 repo 從 `1165e51` fast-forward 到同一提交；本機原 development 僅有重複的 `94d23e0`，確認 patch 已存在遠端後 rebase 自動跳過，與遠端 0 ahead / 0 behind。
+- 兩次確認三個 workers 全部 quiet=true、busy=0，且 pending_migrations=false，再停止四個既有服務。Rails 與三個 workers 於 **22:18:49–50 Asia/Macau** 啟動。未重建 image、未修改設定、未執行 migration 或重啟 Redis/QG。
+- 四個容器的 ID、image、environment SHA256 與發布前一致，running=true、restart_count=0。Redis 的 ID/image/environment/start time 完整保留；其 start time 為此次操作之前的 `2026-09-23T10:32:45.791724716Z`。
+- 正式 reset controller SHA256 與已測試提交一致：`8e2ba6a1978769bd72bf0f252700424cf8a68fb0a1194bfec9667cf22c524f8b`。pending_migrations 仍為 false。
+- 正式 HTTP 唯讀驗收共 7 項全部通過：匿名 school_admin /me 401、主管理員兩個別名 /me 200、帳號管理列表 200、既有獲授權老師 /me 與學生列表 200、老師訪問帳號管理列表 403。token 只在記憶體中使用，沒有輸出或保存。外部 school login 200、匿名 API 401。未為驗收改動真實學生密碼。
+- 三個 workers 均 quiet=false/busy=0，當時 default/recovery/reports queue 皆 0、retry/dead 皆 0。22:22:50 排程健康為 healthy=true；22:20 的 reports 於 22:20:05 完成，recovery 於 22:20:01 完成且 error_count=0。
+- 自這次重啟起，web/reports/recovery 日誌沒有 ERROR/FATAL。主 worker 有 2 筆 `No token found for category: sentence_builder`；來源是既有 `EssayGrading#call_webhook` 讀取個別使用者 konnecai token，部署前同一日已出現 15 筆（最後 22:14:18）。該路徑未被本次修改，未擅自更動 token 或重跑作業；這項既有 webhook 設定問題仍待另行處理，不宣稱全站無錯誤。
+
+本節是文件驗收提交，後續同步至兩個 GitHub 分支與正式 repo，不變更應用程式、無需再次重啟。前端沒有修改或發布。
