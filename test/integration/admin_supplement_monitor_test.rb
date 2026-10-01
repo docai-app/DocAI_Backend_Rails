@@ -17,17 +17,19 @@ class AdminSupplementMonitorTest < ActionDispatch::IntegrationTest
   end
   teardown { ENV['ADMIN_TOKEN'] = @previous_token }
 
-  def make_grading(state = 'failed', age: 3.hours, status: :graded, year: @year)
+  def make_grading(state = 'failed', age: 3.hours, status: :graded, year: @year, created_at: Time.current)
     g = EssayGrading.create!(general_user: @user, essay_assignment: @assignment, topic: 'Test', essay: 'PRIVATE ESSAY', status: :draft, grading: { 'score' => 80 }, meta: {})
     g.update_columns(status: EssayGrading.statuses[:graded], submission_academic_year_id: year&.id)
     run = EssayGenerationRun.request!(g, kind: 'supplement')
     run.update_columns(state: state, queued_at: Time.current - age, started_at: Time.current - age, finished_at: state == 'failed' ? 2.minutes.ago : nil, failure_code: state == 'failed' ? 'invalid_output' : nil, provider_context: { 'key_digest' => 'PRIVATE KEY', 'terminal' => 'PRIVATE OUTPUT' })
-    g.update_columns(status: EssayGrading.statuses.fetch(status.to_s))
+    g.update_columns(status: EssayGrading.statuses.fetch(status.to_s), created_at: created_at, updated_at: created_at)
     [g, run]
   end
 
-  def list(status = nil, include_supplement: true)
-    get '/api/admin/v1/essay_gradings/pending_or_stopped', headers: @headers, params: { include_supplement: include_supplement.to_s, status: status }
+  def list(status = nil, include_supplement: true, **extra_params)
+    get '/api/admin/v1/essay_gradings/pending_or_stopped',
+        headers: @headers,
+        params: { include_supplement: include_supplement.to_s, status: status }.merge(extra_params)
     assert_response :ok, response.body
     response.parsed_body
   end
@@ -60,6 +62,70 @@ class AdminSupplementMonitorTest < ActionDispatch::IntegrationTest
     assert_equal [pending.id], list('pending')['essay_gradings'].map { |g| g['id'] }
     assert_equal [stopped.id], list('stopped')['essay_gradings'].map { |g| g['id'] }
     assert_equal [pending.id, stopped.id].sort, list(nil, include_supplement: false)['essay_gradings'].map { |g| g['id'] }.sort
+  end
+
+  test 'paginates monitor rows by default and scopes counts to date filter' do
+    inside_time = Time.zone.now.change(hour: 12)
+    outside_time = inside_time - 4.days
+
+    inside_pending = 30.times.map do |index|
+      make_grading(status: :pending, created_at: inside_time - index.minutes).first
+    end
+    inside_stopped = 2.times.map do |index|
+      make_grading(status: :stopped, created_at: inside_time - (40 + index).minutes).first
+    end
+    inside_supplement, = make_grading(created_at: inside_time - 50.minutes)
+
+    outside_pending, = make_grading(status: :pending, created_at: outside_time)
+    outside_stopped, = make_grading(status: :stopped, created_at: outside_time)
+    outside_supplement, = make_grading(created_at: outside_time)
+
+    body = list(
+      nil,
+      include_supplement: true,
+      start_date: inside_time.to_date.to_s,
+      end_date: inside_time.to_date.to_s
+    )
+
+    assert_equal 25, body['essay_gradings'].size
+    assert_equal 33, body.dig('meta', 'total')
+    assert_equal 30, body.dig('meta', 'pending')
+    assert_equal 2, body.dig('meta', 'stopped')
+    assert_equal 1, body.dig('meta', 'supplement')
+    assert_equal 1, body.dig('meta', 'pagination', 'current_page')
+    assert_equal 2, body.dig('meta', 'pagination', 'total_pages')
+    assert_equal 33, body.dig('meta', 'pagination', 'total_count')
+    assert_equal 25, body.dig('meta', 'pagination', 'per_page')
+    refute_includes body['essay_gradings'].map { |row| row['id'] }, outside_pending.id
+    refute_includes body['essay_gradings'].map { |row| row['id'] }, outside_stopped.id
+    refute_includes body['essay_gradings'].map { |row| row['id'] }, outside_supplement.id
+
+    second_page = list(
+      nil,
+      include_supplement: true,
+      page: 2,
+      start_date: inside_time.to_date.to_s,
+      end_date: inside_time.to_date.to_s
+    )
+    assert_equal 8, second_page['essay_gradings'].size
+    assert_equal 2, second_page.dig('meta', 'pagination', 'current_page')
+    assert_equal 33, second_page.dig('meta', 'pagination', 'total_count')
+
+    pending_page = list(
+      'pending',
+      include_supplement: true,
+      per_page: 10,
+      start_date: inside_time.to_date.to_s,
+      end_date: inside_time.to_date.to_s
+    )
+    assert_equal 10, pending_page['essay_gradings'].size
+    assert_equal 30, pending_page.dig('meta', 'pagination', 'total_count')
+    assert_equal 33, pending_page.dig('meta', 'total')
+    assert_equal ['pending'], pending_page['essay_gradings'].map { |row| row['status'] }.uniq
+
+    all_inside_ids = inside_pending.map(&:id) + inside_stopped.map(&:id) + [inside_supplement.id]
+    returned_ids = body['essay_gradings'].map { |row| row['id'] } + second_page['essay_gradings'].map { |row| row['id'] }
+    assert_equal all_inside_ids.sort, returned_ids.sort
   end
 
   test 'waiting clocks exclude future retry and newly started jobs and honor submission year' do

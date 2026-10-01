@@ -78,13 +78,17 @@ module Api
         end
                 
         # GET /api/admin/v1/essay_gradings/pending_or_stopped
-        # Optional filter: ?status=pending or ?status=stopped
+        # Optional filters: ?status=pending or ?status=stopped, ?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
         def pending_or_stopped
           base_scope = EssayGrading.pending_or_stopped
           if params[:include_supplement] == 'true'
             supplement_ids = ::Admin::EssayGradings::SupplementAttention.call.select('essay_gradings.id')
             base_scope = base_scope.or(EssayGrading.where(id: supplement_ids))
           end
+
+          base_scope = apply_pending_or_stopped_date_filter(base_scope)
+          return if performed?
+
           meta_counts = pending_or_stopped_meta_counts(base_scope)
 
           filtered_scope = apply_pending_or_stopped_status_filter(base_scope)
@@ -93,10 +97,16 @@ module Api
           essay_gradings = filtered_scope
                            .includes(:essay_assignment, :general_user, :essay_generation_runs)
                            .submitted_recent_first
+                           .page(pending_or_stopped_page)
+                           .per(pending_or_stopped_per_page)
 
           render json: {
             success: true,
-            meta: meta_counts.merge(filtered_status: params[:status].presence, supplement_monitor: params[:include_supplement] == 'true'),
+            meta: meta_counts.merge(
+              filtered_status: params[:status].presence,
+              supplement_monitor: params[:include_supplement] == 'true',
+              pagination: pending_or_stopped_pagination_meta(essay_gradings)
+            ),
             essay_gradings: essay_gradings.map { |grading| pending_or_stopped_grading_json(grading) }
           }, status: :ok
         end
@@ -298,6 +308,39 @@ module Api
           scope.where(status: status_param)
         end
 
+        def apply_pending_or_stopped_date_filter(scope)
+          start_date = pending_or_stopped_date_param(:start_date)
+          return nil if performed?
+
+          end_date = pending_or_stopped_date_param(:end_date)
+          return nil if performed?
+
+          if start_date && end_date && end_date < start_date
+            render json: {
+              success: false,
+              error: 'end_date must be greater than or equal to start_date'
+            }, status: :bad_request
+            return nil
+          end
+
+          scope = scope.where('essay_gradings.created_at >= ?', start_date.beginning_of_day) if start_date
+          scope = scope.where('essay_gradings.created_at <= ?', end_date.end_of_day) if end_date
+          scope
+        end
+
+        def pending_or_stopped_date_param(name)
+          value = params[name].to_s.strip
+          return nil if value.blank?
+
+          Date.parse(value)
+        rescue ArgumentError
+          render json: {
+            success: false,
+            error: "#{name} must be a valid date"
+          }, status: :bad_request
+          nil
+        end
+
         def pending_or_stopped_meta_counts(base_scope)
           pending_count = base_scope.pending.count
           stopped_count = base_scope.stopped.count
@@ -307,6 +350,26 @@ module Api
             supplement: base_scope.graded.count,
             pending: pending_count,
             stopped: stopped_count
+          }
+        end
+
+        def pending_or_stopped_page
+          [params[:page].to_i, 1].max
+        end
+
+        def pending_or_stopped_per_page
+          raw_value = params[:per_page].presence || params[:count].presence || 25
+          raw_value.to_i.clamp(1, 100)
+        end
+
+        def pending_or_stopped_pagination_meta(collection)
+          {
+            current_page: collection.current_page,
+            next_page: collection.next_page,
+            prev_page: collection.prev_page,
+            total_pages: collection.total_pages,
+            total_count: collection.total_count,
+            per_page: collection.limit_value
           }
         end
 
